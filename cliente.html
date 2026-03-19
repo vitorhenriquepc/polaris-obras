@@ -6,103 +6,193 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#011D2E">
 <title>Polaris Solar – Acompanhe sua Obra</title>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{
-  --dk:#011D2E;--nv:#022C44;--gr:#3B8B3B;--gd:#F5A623;
-  --bg:#F0F2ED;--card:#fff;--tx:#022C44;--txl:#7A8B96;--bd:#E2E8EC;
-  --sh:0 4px 24px rgba(0,0,0,0.10);--rd:20px;
+  --navy:#011D2E;--navy-mid:#022C44;--navy-light:#0A3D5C;
+  --green:#3B8B3B;--green-light:#58B868;--green-glow:rgba(59,139,59,0.25);
+  --gold:#F5A623;--gold-light:#FFD580;--gold-glow:rgba(245,166,35,0.3);
+  --bg:#F7F8F6;--surface:#FFFFFF;--surface-alt:#F0F2ED;
+  --text:#022C44;--text-secondary:#6B7D8A;--text-muted:#9EABB5;
+  --border:#E2E8EC;--border-light:#EEF1F4;
+  --shadow-sm:0 1px 3px rgba(1,29,46,0.06);
+  --shadow-md:0 4px 16px rgba(1,29,46,0.08);
+  --shadow-lg:0 8px 32px rgba(1,29,46,0.12);
+  --shadow-glow:0 4px 24px rgba(245,166,35,0.15);
+  --radius:16px;--radius-sm:10px;--radius-lg:24px;
   --safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);
 }
-html,body{min-height:100%;background:var(--bg);font-family:'Plus Jakarta Sans',sans-serif;color:var(--tx);-webkit-font-smoothing:antialiased}
-body{padding-bottom:calc(32px + var(--safe-b))}
+html{scroll-behavior:smooth}
+html,body{min-height:100%;background:var(--bg);font-family:'Manrope',sans-serif;color:var(--text);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{padding-bottom:calc(40px + var(--safe-b))}
 
 /* ── HERO ── */
-.hero{background:var(--dk);padding:calc(var(--safe-t)+20px) 20px 32px;text-align:center;position:relative;overflow:hidden}
-.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 60% 0%,rgba(245,166,35,0.15) 0%,transparent 60%);pointer-events:none}
-.hero-logo{height:28px;margin-bottom:18px;filter:brightness(0) invert(1)}
-.hero-tag{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.45);margin-bottom:8px}
-.hero-name{font-size:24px;font-weight:900;color:#fff;letter-spacing:-0.5px;line-height:1.2;margin-bottom:4px}
-.hero-sub{font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:20px}
-.hero-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:50px;padding:7px 14px;font-size:12px;font-weight:700;color:#fff}
-.hero-badge-dot{width:8px;height:8px;border-radius:50%;background:var(--gd);box-shadow:0 0 8px rgba(245,166,35,0.7);animation:pulse 2s ease-in-out infinite}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.6;transform:scale(0.9)}}
+.hero{
+  background:var(--navy);
+  padding:calc(var(--safe-t)+32px) 24px 40px;
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+}
+.hero::before{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse at 30% -20%,rgba(59,139,59,0.12) 0%,transparent 50%),
+    radial-gradient(ellipse at 70% -10%,rgba(245,166,35,0.10) 0%,transparent 50%);
+  pointer-events:none;
+}
+.hero::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(245,166,35,0.3),transparent);
+}
+.hero-logo{height:32px;margin-bottom:24px;opacity:0;animation:fadeDown .6s ease .1s forwards}
+.hero-tag{
+  font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  color:var(--gold);margin-bottom:12px;opacity:0;animation:fadeDown .6s ease .2s forwards;
+}
+.hero-name{
+  font-size:26px;font-weight:800;color:#fff;letter-spacing:-0.5px;
+  line-height:1.15;margin-bottom:6px;opacity:0;animation:fadeDown .6s ease .3s forwards;
+}
+.hero-sub{
+  font-size:13px;color:rgba(255,255,255,0.45);margin-bottom:24px;
+  font-weight:500;opacity:0;animation:fadeDown .6s ease .35s forwards;
+}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(255,255,255,0.06);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,0.08);border-radius:50px;
+  padding:10px 20px;font-size:13px;font-weight:700;color:#fff;
+  opacity:0;animation:fadeUp .6s ease .45s forwards;
+}
+.hero-badge-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--gold);
+  box-shadow:0 0 12px var(--gold-glow);animation:pulse 2s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
+@keyframes fadeDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 
-/* ── PROGRESS STRIP ── */
-.prog-wrap{padding:20px 16px 0}
-.prog-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.prog-label-l{font-size:12px;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:0.5px}
-.prog-label-r{font-size:13px;font-weight:800;color:var(--nv)}
-.prog-track{height:8px;background:var(--bd);border-radius:4px;overflow:hidden}
-.prog-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--gr),#58B868);transition:width 1s cubic-bezier(.4,0,.2,1)}
-.prog-steps{display:flex;justify-content:space-between;margin-top:10px}
-.prog-step{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;position:relative}
-.prog-step:not(:last-child)::after{content:'';position:absolute;top:10px;left:60%;width:80%;height:2px;background:var(--bd);z-index:0}
-.prog-step.done::after,.prog-step.now::after{background:var(--gr)}
-.prog-dot{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;z-index:1;position:relative;background:var(--bd);color:var(--txl);transition:all 0.4s}
-.prog-step.done .prog-dot{background:var(--gr);color:#fff}
-.prog-step.now .prog-dot{background:var(--gd);color:var(--dk);box-shadow:0 0 0 4px rgba(245,166,35,0.25)}
-.prog-step-label{font-size:8px;font-weight:700;color:var(--txl);text-align:center;line-height:1.2;max-width:44px}
-.prog-step.done .prog-step-label,.prog-step.now .prog-step-label{color:var(--nv)}
+/* ── PROGRESS ── */
+.prog-wrap{padding:24px 20px 0}
+.prog-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.prog-label{font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.8px}
+.prog-pct{font-size:20px;font-weight:800;color:var(--navy)}
+.prog-pct span{font-size:12px;color:var(--text-secondary);font-weight:600}
+.prog-track{height:6px;background:var(--border);border-radius:3px;overflow:hidden;position:relative}
+.prog-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--green),var(--green-light));transition:width 1.2s cubic-bezier(.22,1,.36,1);position:relative}
+.prog-fill::after{
+  content:'';position:absolute;right:0;top:-1px;bottom:-1px;width:20px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.4));
+  border-radius:0 3px 3px 0;
+}
+.prog-steps{display:flex;justify-content:space-between;margin-top:16px;gap:2px}
+.prog-step{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1}
+.prog-dot{
+  width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:800;z-index:1;position:relative;transition:all .4s;
+  background:var(--border-light);color:var(--text-muted);border:2px solid var(--border);
+}
+.prog-step.done .prog-dot{background:var(--green);color:#fff;border-color:var(--green);box-shadow:0 2px 8px var(--green-glow)}
+.prog-step.now .prog-dot{background:var(--gold);color:var(--navy);border-color:var(--gold);box-shadow:0 0 0 4px var(--gold-glow)}
+.prog-step-label{font-size:7.5px;font-weight:700;color:var(--text-muted);text-align:center;line-height:1.15;max-width:48px;text-transform:uppercase;letter-spacing:.3px}
+.prog-step.done .prog-step-label{color:var(--green)}
+.prog-step.now .prog-step-label{color:var(--navy);font-weight:800}
 
-/* ── CURRENT STAGE CARD ── */
-.sec{padding:16px 16px 0}
-.sec-title{font-size:11px;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px}
-.stage-card{background:var(--card);border-radius:var(--rd);box-shadow:var(--sh);overflow:hidden}
-.stage-top{padding:20px 20px 16px;display:flex;align-items:flex-start;gap:14px}
-.stage-ico{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
-.stage-info{}
-.stage-num{font-size:10px;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px}
-.stage-title{font-size:17px;font-weight:800;color:var(--nv);line-height:1.2;margin-bottom:5px}
-.stage-desc{font-size:13px;color:var(--txl);line-height:1.55}
-.stage-eta{background:var(--bg);margin:0 16px 16px;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:8px}
+/* ── STAGE CARD ── */
+.sec{padding:20px 20px 0}
+.sec-title{
+  font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;
+  letter-spacing:1.2px;margin-bottom:12px;
+}
+.stage-card{
+  background:var(--surface);border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-md);overflow:hidden;
+  border:1px solid var(--border-light);
+}
+.stage-top{padding:24px 20px 18px;display:flex;align-items:flex-start;gap:16px}
+.stage-ico{
+  width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;
+  font-size:24px;flex-shrink:0;position:relative;
+}
+.stage-ico::after{
+  content:'';position:absolute;inset:-2px;border-radius:18px;
+  background:inherit;opacity:.15;z-index:-1;filter:blur(8px);
+}
+.stage-num{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+.stage-title{font-size:18px;font-weight:800;color:var(--navy);line-height:1.2;margin-bottom:6px}
+.stage-desc{font-size:13px;color:var(--text-secondary);line-height:1.6}
+.stage-eta{
+  background:var(--surface-alt);margin:0 16px 16px;border-radius:var(--radius-sm);
+  padding:14px 16px;display:flex;align-items:center;gap:10px;
+  border:1px solid var(--border-light);
+}
 .stage-eta-ico{font-size:16px}
-.stage-eta-txt{font-size:13px;color:var(--nv);font-weight:600}
+.stage-eta-txt{font-size:13px;color:var(--navy);font-weight:600}
 
 /* ── TIMELINE ── */
 .timeline{padding:0 8px}
-.tl-item{display:flex;gap:12px;padding:0 8px 0 4px;margin-bottom:4px;position:relative}
-.tl-left{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:28px}
-.tl-dot{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
-.tl-dot.done{background:#E8F5E9;color:#2E7D32}
-.tl-dot.now{background:var(--gd);color:#fff}
-.tl-dot.wait{background:#F5F5F5;color:#bbb}
-.tl-line{width:2px;flex:1;background:var(--bd);margin:2px 0}
-.tl-item.done .tl-line{background:var(--gr)}
-.tl-item.now .tl-line{background:var(--bd)}
+.tl-item{display:flex;gap:14px;padding:0 8px 0 4px;margin-bottom:2px}
+.tl-left{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:32px}
+.tl-dot{
+  width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:14px;flex-shrink:0;transition:all .3s;
+}
+.tl-dot.done{background:rgba(59,139,59,0.1);color:var(--green)}
+.tl-dot.now{background:var(--gold);color:#fff;box-shadow:0 3px 12px var(--gold-glow)}
+.tl-dot.wait{background:var(--border-light);color:var(--text-muted)}
+.tl-line{width:2px;flex:1;margin:3px 0;border-radius:1px;transition:background .3s}
+.tl-item.done .tl-line{background:linear-gradient(180deg,var(--green),var(--green))}
+.tl-item.now .tl-line{background:linear-gradient(180deg,var(--gold),var(--border))}
+.tl-item.wait .tl-line{background:var(--border-light)}
 .tl-item:last-child .tl-line{display:none}
-.tl-body{padding:2px 0 16px;flex:1}
-.tl-title{font-size:13px;font-weight:700;color:var(--nv);margin-bottom:2px}
-.tl-title.wait{color:#bbb}
-.tl-sub{font-size:11px;color:var(--txl)}
+.tl-body{padding:4px 0 18px;flex:1}
+.tl-title{font-size:13px;font-weight:700;color:var(--navy)}
+.tl-title.wait{color:var(--text-muted)}
+.tl-sub{font-size:11px;color:var(--text-secondary);line-height:1.5;margin-top:2px}
 
 /* ── INFO CARDS ── */
-.info-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 16px 0}
-.info-card{background:var(--card);border-radius:16px;padding:14px;box-shadow:var(--sh)}
-.info-card-label{font-size:9px;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
-.info-card-val{font-size:15px;font-weight:800;color:var(--nv)}
-.info-card-val.small{font-size:12px;font-weight:600}
+.info-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:20px 20px 0}
+.info-card{
+  background:var(--surface);border-radius:var(--radius);padding:16px;
+  box-shadow:var(--shadow-sm);border:1px solid var(--border-light);
+}
+.info-card-label{font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.info-card-val{font-size:16px;font-weight:800;color:var(--navy)}
+.info-card-val.small{font-size:12px;font-weight:700}
 
 /* ── WA BUTTON ── */
-.wa-wrap{padding:20px 16px 0}
-.wa-btn{display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border:none;border-radius:16px;padding:16px;width:100%;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none;transition:all 0.2s;box-shadow:0 4px 20px rgba(37,211,102,0.3)}
-.wa-btn:active{transform:scale(0.97)}
+.wa-wrap{padding:24px 20px 0}
+.wa-btn{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;
+  border:none;border-radius:var(--radius);padding:18px;width:100%;
+  font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;
+  text-decoration:none;transition:all .25s;
+  box-shadow:0 4px 20px rgba(37,211,102,0.25);
+}
+.wa-btn:active{transform:scale(.97);box-shadow:0 2px 12px rgba(37,211,102,0.3)}
 .wa-ico{font-size:22px}
 
 /* ── FOOTER ── */
-.footer{padding:24px 16px 0;text-align:center}
-.footer-logo{height:16px;opacity:0.3;margin-bottom:6px}
-.footer-txt{font-size:10px;color:var(--txl)}
+.footer{padding:32px 20px 0;text-align:center}
+.footer-divider{width:40px;height:2px;background:var(--border);border-radius:1px;margin:0 auto 16px}
+.footer-logo{height:18px;opacity:.25;margin-bottom:8px}
+.footer-txt{font-size:10px;color:var(--text-muted);letter-spacing:.3px}
 
 /* ── STATES ── */
-.loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center}
-.loading-spinner{width:36px;height:36px;border:3px solid var(--bd);border-top-color:var(--gr);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px}
+.loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;text-align:center}
+.loading-spinner{width:32px;height:32px;border:2.5px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:20px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loading-txt{font-size:14px;color:var(--txl);font-weight:600}
-.error-wrap{padding:40px 20px;text-align:center}
-.error-ico{font-size:48px;margin-bottom:12px;display:block}
-.error-txt{font-size:14px;color:var(--txl);font-weight:600;line-height:1.55}
+.loading-txt{font-size:14px;color:var(--text-secondary);font-weight:600}
+.error-wrap{padding:60px 24px;text-align:center}
+.error-ico{font-size:48px;margin-bottom:16px;display:block}
+.error-txt{font-size:14px;color:var(--text-secondary);font-weight:600;line-height:1.6}
+
+/* ── ANIMATIONS ── */
+.animate-in{opacity:0;transform:translateY(16px);animation:slideIn .5s ease forwards}
+@keyframes slideIn{to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
@@ -127,17 +217,9 @@ var ST=[
 var SC=['linear-gradient(135deg,#2E7D32,#3B8B3B)','linear-gradient(135deg,#022C44,#0A3D5C)','linear-gradient(135deg,#4A148C,#7B1FA2)','linear-gradient(135deg,#BF360C,#E64A19)','linear-gradient(135deg,#01579B,#0277BD)','linear-gradient(135deg,#E8920D,#F5A623)'];
 
 function slugify(str){
-  return str.toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/[^a-z0-9]+/g,'-')
-    .replace(/^-|-$/g,'');
+  return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 }
-
-function getParam(name){
-  var params=new URLSearchParams(window.location.search);
-  return params.get(name)||'';
-}
-
+function getParam(name){return new URLSearchParams(window.location.search).get(name)||'';}
 function renderError(msg){
   document.getElementById('app').innerHTML='<div class="error-wrap"><span class="error-ico">😕</span><div class="error-txt">'+msg+'</div></div>';
 }
@@ -146,35 +228,29 @@ function renderClient(c){
   var si=c.stageIdx;
   var pct=Math.round(((si+1)/6)*100);
 
-  // Hero
   var heroHtml='<div class="hero">'
     +'<img src="'+LOGO+'" class="hero-logo" alt="Polaris Solar">'
     +'<div class="hero-tag">Acompanhamento de Obra</div>'
     +'<div class="hero-name">'+c.name+'</div>'
-    +'<div class="hero-sub">'+(c.power?c.power+' kWp':'')+(c.power&&c.contract?' • ':''+(c.contract||''))+'</div>'
+    +'<div class="hero-sub">'+(c.power?c.power+' kWp':'')+(c.power&&c.contract?' · ':'')+(c.contract||'')+'</div>'
     +'<div class="hero-badge"><span class="hero-badge-dot"></span>'+ST[si].ico+' '+ST[si].t+'</div>'
     +'</div>';
 
-  // Progress strip
   var stepsHtml='';
   for(var j=0;j<6;j++){
     var cls=j<si?'done':j===si?'now':'wait';
     stepsHtml+='<div class="prog-step '+cls+'">'
       +'<div class="prog-dot">'+(j<si?'✓':(j===si?ST[j].ico:(j+1)))+'</div>'
-      +'<div class="prog-step-label">'+ST[j].t.split(' ')[0]+'</div>'
-      +'</div>';
+      +'<div class="prog-step-label">'+ST[j].t.split(' ')[0]+'</div></div>';
   }
-  var progHtml='<div class="prog-wrap">'
-    +'<div class="prog-label"><span class="prog-label-l">Progresso geral</span><span class="prog-label-r">'+pct+'% concluído</span></div>'
+  var progHtml='<div class="prog-wrap animate-in" style="animation-delay:.1s">'
+    +'<div class="prog-header"><span class="prog-label">Progresso geral</span><span class="prog-pct">'+pct+'<span>%</span></span></div>'
     +'<div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>'
-    +'<div class="prog-steps">'+stepsHtml+'</div>'
-    +'</div>';
+    +'<div class="prog-steps">'+stepsHtml+'</div></div>';
 
-  // Current stage card
-  var stageHtml='<div class="sec">'
+  var stageHtml='<div class="sec animate-in" style="animation-delay:.2s">'
     +'<div class="sec-title">Etapa atual</div>'
-    +'<div class="stage-card">'
-    +'<div class="stage-top">'
+    +'<div class="stage-card"><div class="stage-top">'
     +'<div class="stage-ico" style="background:'+SC[si]+'">'+ST[si].ico+'</div>'
     +'<div class="stage-info"><div class="stage-num">Etapa '+(si+1)+' de 6</div>'
     +'<div class="stage-title">'+ST[si].t+'</div>'
@@ -182,42 +258,32 @@ function renderClient(c){
     +'<div class="stage-eta"><span class="stage-eta-ico">⏱</span><span class="stage-eta-txt">'+ST[si].eta+'</span></div>'
     +'</div></div>';
 
-  // Timeline
-  var tlHtml='<div class="sec" style="margin-top:0"><div class="sec-title">Histórico de etapas</div><div class="timeline">';
+  var tlHtml='<div class="sec animate-in" style="animation-delay:.3s;margin-top:0"><div class="sec-title">Histórico de etapas</div><div class="timeline">';
   for(var k=0;k<6;k++){
     var tcls=k<si?'done':k===si?'now':'wait';
-    tlHtml+='<div class="tl-item '+tcls+'">'
-      +'<div class="tl-left"><div class="tl-dot '+tcls+'">'+(k<si?'✓':ST[k].ico)+'</div><div class="tl-line"></div></div>'
-      +'<div class="tl-body"><div class="tl-title'+(tcls==='wait'?' wait':'')+'">'
-      +'Etapa '+(k+1)+': '+ST[k].t+'</div>'
-      +'<div class="tl-sub">'+ST[k].d+(k===si?' • '+ST[k].eta:'')+'</div>'
-      +'</div></div>';
+    tlHtml+='<div class="tl-item '+tcls+'"><div class="tl-left"><div class="tl-dot '+tcls+'">'
+      +(k<si?'✓':ST[k].ico)+'</div><div class="tl-line"></div></div>'
+      +'<div class="tl-body"><div class="tl-title'+(tcls==='wait'?' wait':'')+'">Etapa '+(k+1)+': '+ST[k].t+'</div>'
+      +'<div class="tl-sub">'+ST[k].d+(k===si?' · '+ST[k].eta:'')+'</div></div></div>';
   }
   tlHtml+='</div></div>';
 
-  // Info cards
-  var infoHtml='<div class="info-row">';
+  var infoHtml='<div class="info-row animate-in" style="animation-delay:.4s">';
   if(c.power) infoHtml+='<div class="info-card"><div class="info-card-label">Potência</div><div class="info-card-val">'+c.power+' kWp</div></div>';
   if(c.contract) infoHtml+='<div class="info-card"><div class="info-card-label">Contrato</div><div class="info-card-val small">'+c.contract+'</div></div>';
   if(c.date) infoHtml+='<div class="info-card"><div class="info-card-label">Fechamento</div><div class="info-card-val small">'+c.date+'</div></div>';
   infoHtml+='</div>';
 
-  // WhatsApp button
   var waMsg=encodeURIComponent('Olá! Sou '+c.name+' e gostaria de falar com a Polaris Solar sobre minha obra.');
-  var waHtml='<div class="wa-wrap">'
-    +'<a class="wa-btn" href="https://wa.me/5518997797774?text='+waMsg+'" target="_blank"><span class="wa-ico">💬</span> Falar com a Polaris</a>'
-    +'</div>';
+  var waHtml='<div class="wa-wrap animate-in" style="animation-delay:.5s">'
+    +'<a class="wa-btn" href="https://wa.me/5518997797774?text='+waMsg+'" target="_blank"><span class="wa-ico">💬</span> Falar com a Polaris</a></div>';
 
-  // Footer
-  var footerHtml='<div class="footer"><img src="'+LOGO+'" class="footer-logo"><div class="footer-txt">Polaris Energia Solar • Araçatuba – SP</div></div>';
+  var footerHtml='<div class="footer animate-in" style="animation-delay:.55s">'
+    +'<div class="footer-divider"></div>'
+    +'<img src="'+LOGO+'" class="footer-logo"><div class="footer-txt">Polaris Energia Solar · Araçatuba – SP</div></div>';
 
   document.getElementById('app').innerHTML=heroHtml+progHtml+stageHtml+tlHtml+infoHtml+waHtml+footerHtml;
-
-  // Animate progress bar
-  setTimeout(function(){
-    var el=document.getElementById('progFill');
-    if(el) el.style.width=pct+'%';
-  },100);
+  setTimeout(function(){var el=document.getElementById('progFill');if(el)el.style.width=pct+'%';},200);
 }
 
 function fetchAndFind(url,pi,clientSlug){
@@ -239,13 +305,7 @@ function fetchAndFind(url,pi,clientSlug){
         else if(ss.indexOf('4')>-1||ss.toLowerCase().indexOf('obra')>-1) si=3;
         else if(ss.indexOf('3')>-1||ss.toLowerCase().indexOf('aprov')>-1) si=2;
         else if(ss.indexOf('2')>-1||ss.toLowerCase().indexOf('doc')>-1) si=1;
-        found={
-          name:name.trim(),
-          power:row['Potência (kWp)']||row['Potencia']||row['kWp']||'',
-          contract:row['Contrato']||row['contrato']||'',
-          date:row['Data Fechamento']||row['Data']||'',
-          stageIdx:si
-        };
+        found={name:name.trim(),power:row['Potência (kWp)']||row['Potencia']||row['kWp']||'',contract:row['Contrato']||row['contrato']||'',date:row['Data Fechamento']||row['Data']||'',stageIdx:si};
       }
     });
     if(found) renderClient(found);
@@ -256,7 +316,6 @@ function fetchAndFind(url,pi,clientSlug){
   });
 }
 
-// INIT
 var clientId=getParam('id');
 if(!clientId){
   renderError('Link inválido. Solicite seu link de acompanhamento à equipe Polaris.');
