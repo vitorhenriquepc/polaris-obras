@@ -262,7 +262,10 @@ function renderClient(c){
 
 function fetchAndFind(url,pi,clientSlug){
   var fu=CORS_PROXIES[pi]+(pi===0?url:encodeURIComponent(url));
-  fetch(fu).then(function(r){
+  var controller=new AbortController();
+  var timer=setTimeout(function(){controller.abort();},8000);
+  fetch(fu,{signal:controller.signal}).then(function(r){
+    clearTimeout(timer);
     if(!r.ok) throw new Error('HTTP '+r.status);
     return r.text();
   }).then(function(csv){
