@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#011D2E">
+<title>Polaris Solar – Acompanhe sua Obra</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --dk:#011D2E;--nv:#022C44;--gr:#3B8B3B;--gd:#F5A623;
+  --bg:#F0F2ED;--card:#fff;--tx:#022C44;--txl:#7A8B96;--bd:#E2E8EC;
+  --sh:0 4px 24px rgba(0,0,0,0.10);--rd:20px;
+  --safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);
+}
+html,body{min-height:100%;background:var(--bg);font-family:'Plus Jakarta Sans',sans-serif;color:var(--tx);-webkit-font-smoothing:antialiased}
+body{padding-bottom:calc(32px + var(--safe-b))}
+
+/* ── HERO ── */
+.hero{background:var(--dk);padding:calc(var(--safe-t)+20px) 20px 32px;text-align:center;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 60% 0%,rgba(245,166,35,0.15) 0%,transparent 60%);pointer-events:none}
+.hero-logo{height:28px;margin-bottom:18px;filter:brightness(0) invert(1)}
+.hero-tag{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.45);margin-bottom:8px}
+.hero-name{font-size:24px;font-weight:900;color:#fff;letter-spacing:-0.5px;line-height:1.2;margin-bottom:4px}
+.hero-sub{font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:20px}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:50px;padding:7px 14px;font-size:12px;font-weight:700;color:#fff}
+.hero-badge-dot{width:8px;height:8px;border-radius:50%;background:var(--gd);box-shadow:0 0 8px rgba(245,166,35,0.7);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.6;transform:scale(0.9)}}
+
+/* ── PROGRESS STRIP ── */
+.prog-wrap{padding:20px 16px 0}
+.prog-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.prog-label-l{font-size:12px;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:0.5px}
+.prog-label-r{font-size:13px;font-weight:800;color:var(--nv)}
+.prog-track{height:8px;background:var(--bd);border-radius:4px;overflow:hidden}
+.prog-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--gr),#58B868);transition:width 1s cubic-bezier(.4,0,.2,1)}
+.prog-steps{display:flex;justify-content:space-between;margin-top:10px}
+.prog-step{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;position:relative}
+.prog-step:not(:last-child)::after{content:'';position:absolute;top:10px;left:60%;width:80%;height:2px;background:var(--bd);z-index:0}
+.prog-step.done::after,.prog-step.now::after{background:var(--gr)}
+.prog-dot{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;z-index:1;position:relative;background:var(--bd);color:var(--txl);transition:all 0.4s}
+.prog-step.done .prog-dot{background:var(--gr);color:#fff}
+.prog-step.now .prog-dot{background:var(--gd);color:var(--dk);box-shadow:0 0 0 4px rgba(245,166,35,0.25)}
+.prog-step-label{font-size:8px;font-weight:700;color:var(--txl);text-align:center;line-height:1.2;max-width:44px}
+.prog-step.done .prog-step-label,.prog-step.now .prog-step-label{color:var(--nv)}
+
+/* ── CURRENT STAGE CARD ── */
+.sec{padding:16px 16px 0}
+.sec-title{font-size:11px;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px}
+.stage-card{background:var(--card);border-radius:var(--rd);box-shadow:var(--sh);overflow:hidden}
+.stage-top{padding:20px 20px 16px;display:flex;align-items:flex-start;gap:14px}
+.stage-ico{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.stage-info{}
+.stage-num{font-size:10px;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px}
+.stage-title{font-size:17px;font-weight:800;color:var(--nv);line-height:1.2;margin-bottom:5px}
+.stage-desc{font-size:13px;color:var(--txl);line-height:1.55}
+.stage-eta{background:var(--bg);margin:0 16px 16px;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:8px}
+.stage-eta-ico{font-size:16px}
+.stage-eta-txt{font-size:13px;color:var(--nv);font-weight:600}
+
+/* ── TIMELINE ── */
+.timeline{padding:0 8px}
+.tl-item{display:flex;gap:12px;padding:0 8px 0 4px;margin-bottom:4px;position:relative}
+.tl-left{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:28px}
+.tl-dot{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.tl-dot.done{background:#E8F5E9;color:#2E7D32}
+.tl-dot.now{background:var(--gd);color:#fff}
+.tl-dot.wait{background:#F5F5F5;color:#bbb}
+.tl-line{width:2px;flex:1;background:var(--bd);margin:2px 0}
+.tl-item.done .tl-line{background:var(--gr)}
+.tl-item.now .tl-line{background:var(--bd)}
+.tl-item:last-child .tl-line{display:none}
+.tl-body{padding:2px 0 16px;flex:1}
+.tl-title{font-size:13px;font-weight:700;color:var(--nv);margin-bottom:2px}
+.tl-title.wait{color:#bbb}
+.tl-sub{font-size:11px;color:var(--txl)}
+
+/* ── INFO CARDS ── */
+.info-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 16px 0}
+.info-card{background:var(--card);border-radius:16px;padding:14px;box-shadow:var(--sh)}
+.info-card-label{font-size:9px;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
+.info-card-val{font-size:15px;font-weight:800;color:var(--nv)}
+.info-card-val.small{font-size:12px;font-weight:600}
+
+/* ── WA BUTTON ── */
+.wa-wrap{padding:20px 16px 0}
+.wa-btn{display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border:none;border-radius:16px;padding:16px;width:100%;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none;transition:all 0.2s;box-shadow:0 4px 20px rgba(37,211,102,0.3)}
+.wa-btn:active{transform:scale(0.97)}
+.wa-ico{font-size:22px}
+
+/* ── FOOTER ── */
+.footer{padding:24px 16px 0;text-align:center}
+.footer-logo{height:16px;opacity:0.3;margin-bottom:6px}
+.footer-txt{font-size:10px;color:var(--txl)}
+
+/* ── STATES ── */
+.loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center}
+.loading-spinner{width:36px;height:36px;border:3px solid var(--bd);border-top-color:var(--gr);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-txt{font-size:14px;color:var(--txl);font-weight:600}
+.error-wrap{padding:40px 20px;text-align:center}
+.error-ico{font-size:48px;margin-bottom:12px;display:block}
+.error-txt{font-size:14px;color:var(--txl);font-weight:600;line-height:1.55}
+</style>
+</head>
+<body>
+
+<div id="app"><div class="loading-wrap"><div class="loading-spinner"></div><div class="loading-txt">Carregando sua obra...</div></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script>
+var LOGO='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAB9AAAAFACAYAAADkjucAAAEAAElEQVR4nOzdebxkd13n/9f3+z3nVNVdeu9Op7uTdPaNJOyEhCWQBBAQATdGiSKijjoyMqOCMz9wnMGHzkNHH4wyDxWHQUREVhVQUEEhEDBsISH7RtJZutP7XWo553y/n98fp77nnqq+nYUkfZf+PPOo3L5169atqrPUqfP+fj5fg1oyDkuKw5LgnGPW9yEpYRLBY8iQ9imwbWeHHTu3M7GmjTeWEkOwCSKCRTASlvqpKHUcshgxgCC2RIwHDAGLkIJYDuw7yMyBg+z61gHYDeSYJEmkPNQ2jkwCs0Yolvh5KKWUUkoppZRSSimllFJKqcgs9QM4njksbVp4SnAJZRoo/QBSWHfOtJz/tDM48ZT1dKYT0glLEQoGPoBLsEkG1mCDx8hSPxOljlPiwAiYHDFCMNV1QlL9TISJtMXeex/koXv28bV/uhXZgzFhEikN0AfKJX4SSimllFJKKaWUUkoppZRSKkqW+gEczwIQCASE3PfAAQlsPGedXHz5szjxlI24doDE46UPFCUucWAdglCWBS1ndRiEUkvCErdiDBgEYwCkuphAlqTMz82wduMUZ55yKpNmgi/8/bck7J03SWuKcqDdI5RSSimllFJKKaWUUkoppZYTjV6XkMHisGRpStf3IAVOQH7oJ17Ohh3r6cs8A9/FJAFsVWZunMM4SxE85SCnlbbjj5RSx1gwUAXozTbsCSJp9U8RfD5gTbuNKQxZPsW9tzzEp//6X+EwJubvSimllFJKKaWUUkoppZRSannQCvQlNKxTpVv0IANSOPuiHaw7cYK5cj+2Y0isJWDw3iNSzXdugCQxpC4Dv7TPQanjmTFCnEPBEECqXaoAiCVJIaQZuMDs7AwbJjO2nraBk87bwq6vPwT50j12pZRSSimllFJKKaWUUkopRZiAdQEdAAAgAElEQVQN0JeadSBlVX0+gZz1lJ2USZ9S+lWrdgNgEesgCF5KKDzWBRwGCQ4j2khAqWOtnvPclECJBUw1CTqCBTyUhl5/hrmQs3HTOvrdeXre85TnnMuu7zwkFNoFRCmllFJKKaWUUkoppZRSajnRAH2JiaGaShk44cxpNmxdhyQFrVbCTG8WTIo1GanLcC5BpIBQECRH8FjnhneilDqWDAaxAAnVZhwwWKoW7tWudVD2mF63FkIPbzz9MGBi4zrWb1wHDp1EQymllFJKKaWUUkoppZRSapnRAH0pmUAIHjoWCDz7uU8n7Vhm8jls5sjaGV4SKC2+FIKUw5BOSKxBrCWIgOgk6Eoda8FUm55gsBg8BicGpKpBB3AuodvtYl2BFUiyjEGZMxjMsum8dez76qGlfRJKKaWUUkoppZRSSimllFJqhAbox4gxVampjIfdzkMpbDp3SrZuO4Eg87QnWhzuzdKamMB4A8Zhh/+56l4wAaAEA6H6Ril1TNmq+4OBqhR9/AJF7sk6GQFP4QuyLCF4gwDr1q5nH4eW6sErpZRSSimllFJKKaWUUkqpRdilfgDHCxEZCc+NMdWrbwQyOOv8M0laliJ4isLjbIL4gJHqJpZht2cxGLEYMZig4x+UWloWMwzPrVgEM5xRwRAwJFlab/uZyzDB4HPotKc5uO8gaPMIpZRSSimllFJKKaWUUkqpZUUT2CeZMeaIqnNjTHW9FXCQbnFy5vlnUkjASyB4aLVa5GWJNRYrYESwUrVvBxBjERMwYnUUhFJLIJhq5vPhd4ym4QIGnHMEKZFSSLIEPwATLLZw7L//0DF/zEoppZRSSimllFJKKaWUUurhafZ6jMVW7iGEKm9rISeffQLttS26xTzYBJu0SJI2wcfwPGAJYDxiAsNplgnAsNxVKXWMVdumrTpE1Nl5tWUGExAT8L6otnkPViwUMOEm2H3PQ3CgHg+jlFJKKaWUUkoppZRSSimllgkN0J9kR7Rtb15ngA7sPG87uelSOo9JHQGDLyExSdW23QiYAkwJpiSYgB9Ov6z5uVJLx0qognQEQwATK9EDECh9gXOu2vaDIfEJLdrcct2t4NEW7koppZRSSimllFJKKaWUUsuMtnA/RqytxiqEEBauNNA+EbacvJ4iGZC1MoKFchAIoWr/jHgggBlWnGMRhIADbFWZrpQ65kwdfldhOaasvrO2zsXFBIwREudwoZonfW7/HN+9+a5qAI0G6EoppZRSSimllFJKKaWUUsuKBujHQJzzvBmeO+fwLc+FzziDZMogeIKFIgjBWBhG5DGYi7/pjUVIEKr5l20Ao2XoSi2JunW7CYThQJdKiRhLmjp8mWMlICFgxPLd2++i2Dts364BulJKKaWUUkoppZRSSiml1LKiLdwfJ1Nf7EJ2VmXb1cUMA3RJsOIwWDAgWYBJ5CnPOJ/SlJTGkxd9imJAmjqSJMF7P2zRXi2mI3NyrT5XaqkZAIkbPBBbuZuSJLUURQEhxZQp1mfcd9fuqn17sWQPWSmllFJKKaWUUkoppZRSSh2FVqA/DjEnN9i6mbonVEF3fGUFQhlYk0xJL3SNp6R0gWCFZ770PHLrCWKAgHMG5wApQBbavksM5qT6ewE7LF8dXq0F6Eodc3XnB7Fg3DBEL4fzoFeDW8QHWkkHmTe0knUc3tfjruv3GusMITfoIBillFJKKaWUUkrBkR0s4/eigsiRLezizx7u/uLPkyShLKup55xzeO/r21lrcc5VBQDDnwP1bR7p7yillFJKrUZagf4EGTZUr76xLKTrgEsSekXfOBIEgRawETlh52aCbR6AytiFKpQbu1ihviillpYYhttmY6OnmiO9zAsIhpbtEPKEb3/tBuhD6EvVjUJ3wUoppZRSSimllKIKspNkodbJmGrgvoiQZVkddLdaLay1dajdarXq33HOYa2tw/dYnBPDc2ttHdBnWUaWZYQQKIqCyclJJiYmEBG896RpSpIkGp4rpZRS6rikFeiPg1DVj1oCMqxAh/rKOgd3NkEIeARPCQFOPG0jGzZvwNNfokevlHr84sZOlZiPVJRbHAYbHKltcXD/QW765l0LPzUWL1qBrpRSSimllFJKHe9ihbj3vg65Y9A9OTnJ/Pw8UIXenU5HNm7cyNq1a9m2bRtbtmxh586drF27ljVr1iAiHDhwgF27dnHvvfeyb98+Dh06xP79+5mbmzMhBLz35HmOMQbnHMaY+m+02236/T5lWWp4rpRSSqnjlgboj1OMzMzRrgyQlzkTdMgZQApYOOu80xDj0RbOSq1MYuLWW7VsFyDUOwKLEYszKRQWXwh33Hwn9DAkQGmQoB9ClVJKKaWUUkopRR2WQxWmhxDqqvFer8cFF1wgF110ERdffDHnnHMOO3fuZMeOHSPV51GsILfW1hXoe/bs4Z577uHWW2+V6667jn/7t3/jpptu4uDBgya2al+3bp0cOnTI9Pt9Op0OeZ7jvSfLMvI8PwavglJKKaXU8qGzZz9B3LAdcyAghIX27S4hFIGpbJK5fBZJYWKnlR/6+VdTtHtIFoZBulJq5Ym7UCGYACYgJmAErCS4MsEVGeVB+NsPfpruXWIIQG4x2GpfoYNolFJKKaWUUkopBXXLdO89nU6HV77ylfKa17yG5z//+WzcuJFOp4OIEEKo5yovigIRqdu3w0L7d6jat8eW77H6vCgK7rzzTt7//vfz3ve+l8OHDxugDstjFXpz7nSllFJKqeOJBuiP1/AVNDI6l7EMQ7EsaeHLAgDvAqRw0SvOlOe+/JnMhEMEUyJGK1GVWpkMYdi6XYYBOlT7A+dTkjwlkw4P3PoQn/nLqzEeZAZjgsXgEHy9r1BKKaWUUkoppdTxyRhTt0tPkoRXvvKV8gu/8AtcdtllpGkKVFXqMSCP38e5zptEZOS6xb6PAXxZljzwwAP8/u//Ph/72Md48MEH64p0GG0fr5RSSil1PNEA/fEwNAtQQezwWxsL0LFYAjneAAmk25BX/eRLmNjRwic5XrT6XKmVaqFleyNAF4sTS1K2aPk2tp/xr5+6mjv+7QGDAF1wZNVvSakBulJKKaWUUkoppdRut9/+TiJia97aWnFEFERiJiA74HZ4bHXJqQAUwAAAAAElFTkSuQmCC';
+
+var SHEET_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vSaKXjo4xi0XEQO0EyNOxviX_jbCa5zyOS0VldNFcdQQOtojNwlbnySCi-rBzoiljTg8kEDHLVZ-wth/pub?output=csv';
+var CORS_PROXIES=['','https://corsproxy.io/?','https://api.allorigins.win/raw?url='];
+
+var ST=[
+  {t:'Contrato Fechado',d:'Contrato assinado e pagamento confirmado.',eta:'Próxima etapa: 3 a 5 dias úteis',ico:'🎉'},
+  {t:'Documentação',d:'Elaboração do projeto técnico para a concessionária.',eta:'Prazo: 3 a 5 dias úteis',ico:'📄'},
+  {t:'Aprovação e Logística',d:'Projeto na concessionária e equipamentos sendo providenciados.',eta:'Prazo: 15 a 30 dias úteis',ico:'⚡'},
+  {t:'Execução da Obra',d:'Instalação dos painéis e inversor no seu imóvel.',eta:'Duração: 1 a 3 dias',ico:'🔨'},
+  {t:'Vistoria e Conexão',d:'Troca do medidor e vistoria da concessionária.',eta:'Prazo: 5 a 10 dias úteis',ico:'🔎'},
+  {t:'Sistema Ativo!',d:'Parabéns! Seu sistema está gerando energia limpa.',eta:'Gerando energia agora!',ico:'☀️'}
+];
+var SC=['linear-gradient(135deg,#2E7D32,#3B8B3B)','linear-gradient(135deg,#022C44,#0A3D5C)','linear-gradient(135deg,#4A148C,#7B1FA2)','linear-gradient(135deg,#BF360C,#E64A19)','linear-gradient(135deg,#01579B,#0277BD)','linear-gradient(135deg,#E8920D,#F5A623)'];
+
+function slugify(str){
+  return str.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-')
+    .replace(/^-|-$/g,'');
+}
+
+function getParam(name){
+  var params=new URLSearchParams(window.location.search);
+  return params.get(name)||'';
+}
+
+function renderError(msg){
+  document.getElementById('app').innerHTML='<div class="error-wrap"><span class="error-ico">😕</span><div class="error-txt">'+msg+'</div></div>';
+}
+
+function renderClient(c){
+  var si=c.stageIdx;
+  var pct=Math.round(((si+1)/6)*100);
+
+  // Hero
+  var heroHtml='<div class="hero">'
+    +'<img src="'+LOGO+'" class="hero-logo" alt="Polaris Solar">'
+    +'<div class="hero-tag">Acompanhamento de Obra</div>'
+    +'<div class="hero-name">'+c.name+'</div>'
+    +'<div class="hero-sub">'+(c.power?c.power+' kWp':'')+(c.power&&c.contract?' • ':''+(c.contract||''))+'</div>'
+    +'<div class="hero-badge"><span class="hero-badge-dot"></span>'+ST[si].ico+' '+ST[si].t+'</div>'
+    +'</div>';
+
+  // Progress strip
+  var stepsHtml='';
+  for(var j=0;j<6;j++){
+    var cls=j<si?'done':j===si?'now':'wait';
+    stepsHtml+='<div class="prog-step '+cls+'">'
+      +'<div class="prog-dot">'+(j<si?'✓':(j===si?ST[j].ico:(j+1)))+'</div>'
+      +'<div class="prog-step-label">'+ST[j].t.split(' ')[0]+'</div>'
+      +'</div>';
+  }
+  var progHtml='<div class="prog-wrap">'
+    +'<div class="prog-label"><span class="prog-label-l">Progresso geral</span><span class="prog-label-r">'+pct+'% concluído</span></div>'
+    +'<div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>'
+    +'<div class="prog-steps">'+stepsHtml+'</div>'
+    +'</div>';
+
+  // Current stage card
+  var stageHtml='<div class="sec">'
+    +'<div class="sec-title">Etapa atual</div>'
+    +'<div class="stage-card">'
+    +'<div class="stage-top">'
+    +'<div class="stage-ico" style="background:'+SC[si]+'">'+ST[si].ico+'</div>'
+    +'<div class="stage-info"><div class="stage-num">Etapa '+(si+1)+' de 6</div>'
+    +'<div class="stage-title">'+ST[si].t+'</div>'
+    +'<div class="stage-desc">'+ST[si].d+'</div></div></div>'
+    +'<div class="stage-eta"><span class="stage-eta-ico">⏱</span><span class="stage-eta-txt">'+ST[si].eta+'</span></div>'
+    +'</div></div>';
+
+  // Timeline
+  var tlHtml='<div class="sec" style="margin-top:0"><div class="sec-title">Histórico de etapas</div><div class="timeline">';
+  for(var k=0;k<6;k++){
+    var tcls=k<si?'done':k===si?'now':'wait';
+    tlHtml+='<div class="tl-item '+tcls+'">'
+      +'<div class="tl-left"><div class="tl-dot '+tcls+'">'+(k<si?'✓':ST[k].ico)+'</div><div class="tl-line"></div></div>'
+      +'<div class="tl-body"><div class="tl-title'+(tcls==='wait'?' wait':'')+'">'
+      +'Etapa '+(k+1)+': '+ST[k].t+'</div>'
+      +'<div class="tl-sub">'+ST[k].d+(k===si?' • '+ST[k].eta:'')+'</div>'
+      +'</div></div>';
+  }
+  tlHtml+='</div></div>';
+
+  // Info cards
+  var infoHtml='<div class="info-row">';
+  if(c.power) infoHtml+='<div class="info-card"><div class="info-card-label">Potência</div><div class="info-card-val">'+c.power+' kWp</div></div>';
+  if(c.contract) infoHtml+='<div class="info-card"><div class="info-card-label">Contrato</div><div class="info-card-val small">'+c.contract+'</div></div>';
+  if(c.date) infoHtml+='<div class="info-card"><div class="info-card-label">Fechamento</div><div class="info-card-val small">'+c.date+'</div></div>';
+  infoHtml+='</div>';
+
+  // WhatsApp button
+  var waMsg=encodeURIComponent('Olá! Sou '+c.name+' e gostaria de falar com a Polaris Solar sobre minha obra.');
+  var waHtml='<div class="wa-wrap">'
+    +'<a class="wa-btn" href="https://wa.me/5518997797774?text='+waMsg+'" target="_blank"><span class="wa-ico">💬</span> Falar com a Polaris</a>'
+    +'</div>';
+
+  // Footer
+  var footerHtml='<div class="footer"><img src="'+LOGO+'" class="footer-logo"><div class="footer-txt">Polaris Energia Solar • Araçatuba – SP</div></div>';
+
+  document.getElementById('app').innerHTML=heroHtml+progHtml+stageHtml+tlHtml+infoHtml+waHtml+footerHtml;
+
+  // Animate progress bar
+  setTimeout(function(){
+    var el=document.getElementById('progFill');
+    if(el) el.style.width=pct+'%';
+  },100);
+}
+
+function fetchAndFind(url,pi,clientSlug){
+  var fu=CORS_PROXIES[pi]+(pi===0?url:encodeURIComponent(url));
+  fetch(fu).then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.text();
+  }).then(function(csv){
+    if(csv.indexOf('<!DOCTYPE')>-1||csv.indexOf('<html')>-1) throw new Error('HTML');
+    var parsed=Papa.parse(csv,{header:true,skipEmptyLines:true});
+    if(!parsed.data||!parsed.data.length){renderError('Planilha vazia ou sem dados.');return;}
+    var found=null;
+    parsed.data.forEach(function(row){
+      var name=row['Cliente']||row['cliente']||row['Nome']||row['nome']||'';
+      if(slugify(name)===clientSlug){
+        var si=0,ss=(row['Etapa Atual']||row['Etapa']||'').toString();
+        if(ss.indexOf('6')>-1||ss.toLowerCase().indexOf('ativo')>-1) si=5;
+        else if(ss.indexOf('5')>-1||ss.toLowerCase().indexOf('vistor')>-1) si=4;
+        else if(ss.indexOf('4')>-1||ss.toLowerCase().indexOf('obra')>-1) si=3;
+        else if(ss.indexOf('3')>-1||ss.toLowerCase().indexOf('aprov')>-1) si=2;
+        else if(ss.indexOf('2')>-1||ss.toLowerCase().indexOf('doc')>-1) si=1;
+        found={
+          name:name.trim(),
+          power:row['Potência (kWp)']||row['Potencia']||row['kWp']||'',
+          contract:row['Contrato']||row['contrato']||'',
+          date:row['Data Fechamento']||row['Data']||'',
+          stageIdx:si
+        };
+      }
+    });
+    if(found) renderClient(found);
+    else renderError('Não encontramos uma obra com esse identificador.<br><br>Verifique o link ou entre em contato com a Polaris.');
+  }).catch(function(e){
+    if(pi<CORS_PROXIES.length-1) fetchAndFind(url,pi+1,clientSlug);
+    else renderError('Não foi possível carregar os dados no momento.<br>Tente novamente em alguns instantes.');
+  });
+}
+
+// INIT
+var clientId=getParam('id');
+if(!clientId){
+  renderError('Link inválido. Solicite seu link de acompanhamento à equipe Polaris.');
+} else {
+  fetchAndFind(SHEET_URL,0,clientId);
+}
+</script>
+</body>
+</html>
