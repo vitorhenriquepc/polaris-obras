@@ -170,34 +170,61 @@ body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--text);-we
 .sheet-btn-p{background:linear-gradient(135deg,var(--green),#2E7D32);color:#fff;box-shadow:0 4px 16px var(--green-glow)}
 .sheet-btn-s{background:var(--surface-alt);color:var(--navy);border:1px solid var(--border)}
 
-/* ── WHATSAPP CARD PREVIEW ── */
-.wc{border-radius:18px;overflow:hidden;box-shadow:var(--shadow-lg)}
-.wc-t{padding:24px 20px;position:relative}
-.wc-lg{height:20px;margin-bottom:14px;filter:brightness(0) invert(1)}
-.wc-st{font-size:9px;color:rgba(255,255,255,0.5);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:.8px}
-.wc-ti{font-size:18px;font-weight:800;color:#fff;margin-bottom:12px;line-height:1.2}
-.wc-ds{display:flex;gap:4px}.wd{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,0.15)}.wd-on{background:var(--gold)}.wd-nw{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,0.3)}
-.wc-b{padding:18px 20px}.wc-m{font-size:12px;color:#2A2A2A;line-height:1.6;margin-bottom:12px}.wc-m strong{color:var(--navy)}
+/* ── WHATSAPP CARD PREVIEW (redesign) ── */
+.wc{border-radius:18px;overflow:hidden;box-shadow:var(--shadow-lg);background:var(--surface)}
+.wc-t{padding:28px 24px 20px;background:linear-gradient(135deg,var(--navy-mid),var(--navy-light));position:relative}
+.wc-t::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(245,166,35,0.3),transparent)}
+.wc-lg{height:28px;margin-bottom:16px}
+.wc-st{font-size:10px;color:rgba(255,255,255,0.5);font-weight:800;margin-bottom:6px;text-transform:uppercase;letter-spacing:1.5px}
+.wc-ti{font-size:22px;font-weight:800;color:#fff;margin-bottom:16px;line-height:1.15}
+.wc-ds{display:flex;gap:4px;margin-bottom:0}
+.wd{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,0.12)}
+.wd-on{background:var(--gold)}
+.wd-nw{background:#fff;box-shadow:0 0 8px rgba(255,255,255,0.4)}
+.wc-b{padding:24px}
+.wc-m{font-size:14px;color:#2A2A2A;line-height:1.65;margin-bottom:16px}
+.wc-m strong{color:var(--navy);font-weight:800}
+.wc-eta{display:inline-flex;align-items:center;gap:8px;background:rgba(245,166,35,0.1);border-radius:var(--radius-sm);padding:10px 16px;font-size:13px;font-weight:700;color:#B8860B;margin-bottom:16px}
 .wc-e{font-size:11px;color:var(--text-muted);font-weight:600}
-.wc-f{display:flex;justify-content:space-between;padding:12px 20px;background:var(--surface-alt);font-size:10px;font-weight:600;color:var(--text-muted);border-top:1px solid var(--border-light)}
+.wc-f{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;background:var(--surface-alt);font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;border-top:1px solid var(--border-light)}
 
-/* ── TRACKER CARD (Sheet) ── */
-.tk{padding:20px;background:var(--surface);border-radius:18px;box-shadow:var(--shadow-lg)}
-.tk-h{text-align:center;margin-bottom:18px}
-.tk-h img{height:20px;margin-bottom:10px}
-.tk-h h3{font-size:16px;font-weight:800;color:var(--navy)}
-.tk-h small{font-size:10px;color:var(--text-muted);font-weight:500}
-.tk-br{width:100%;height:6px;background:var(--border-light);border-radius:3px;overflow:hidden;margin-bottom:18px}
-.tk-fl{height:100%;background:linear-gradient(90deg,var(--green),var(--green-light));border-radius:3px;transition:width .6s}
-.tk-s{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;position:relative}
-.tk-s:last-child{margin-bottom:0}
-.tk-ic{width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
-.tk-ic.done{background:rgba(59,139,59,0.1);color:#2E7D32}
-.tk-ic.now{background:var(--gold);color:#fff;box-shadow:0 2px 8px var(--gold-glow)}
+/* ── TRACKER CARD (redesign) ── */
+.tk{background:var(--surface);border-radius:18px;box-shadow:var(--shadow-lg);overflow:hidden}
+.tk-header{background:var(--navy);padding:28px 24px 24px;text-align:center;position:relative}
+.tk-header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(245,166,35,0.3),transparent)}
+.tk-header img{height:32px;margin-bottom:14px}
+.tk-header h3{font-size:18px;font-weight:800;color:#fff;margin-bottom:4px}
+.tk-header small{font-size:12px;color:rgba(255,255,255,0.45);font-weight:500}
+.tk-info{display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid var(--border-light)}
+.tk-info-left h4{font-size:16px;font-weight:800;color:var(--navy);margin-bottom:2px}
+.tk-info-left p{font-size:12px;color:var(--text-muted)}
+.tk-info-right{text-align:right}
+.tk-info-right span{font-size:12px;color:var(--text-secondary);font-weight:500}
+.tk-prog{padding:18px 24px}
+.tk-prog-label{display:flex;justify-content:space-between;margin-bottom:10px}
+.tk-prog-label span{font-size:12px;color:var(--text-secondary);font-weight:600}
+.tk-prog-label strong{font-size:22px;font-weight:800;color:var(--green)}
+.tk-br{width:100%;height:8px;background:var(--border-light);border-radius:4px;overflow:hidden;margin-bottom:12px}
+.tk-fl{height:100%;background:linear-gradient(90deg,var(--green),var(--green-light));border-radius:4px;transition:width .6s}
+.tk-dots{display:flex;gap:6px;margin-bottom:0}
+.tk-dot{flex:1;height:5px;border-radius:3px;background:var(--border-light)}
+.tk-dot.done{background:var(--green)}
+.tk-dot.now{background:#3A8FD6}
+.tk-stages{padding:8px 24px 20px}
+.tk-s{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--border-light)}
+.tk-s:last-child{border-bottom:none}
+.tk-ic{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0}
+.tk-ic.done{background:var(--green);color:#fff}
+.tk-ic.now{background:var(--gold);color:#fff;box-shadow:0 2px 10px var(--gold-glow)}
 .tk-ic.wait{background:var(--border-light);color:var(--text-muted)}
 .tk-si{flex:1}
-.tk-si strong{font-size:12px;display:block;color:var(--navy)}
-.tk-si small{font-size:10px;color:var(--text-muted)}
+.tk-si strong{font-size:14px;display:block;color:var(--navy);font-weight:700;margin-bottom:2px}
+.tk-si small{font-size:11px;color:var(--text-muted)}
+.tk-badge{font-size:9px;font-weight:800;padding:4px 10px;border-radius:50px;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
+.tk-badge.done{background:rgba(59,139,59,0.1);color:#2E7D32}
+.tk-badge.now{background:rgba(245,166,35,0.12);color:#B8860B}
+.tk-badge.wait{background:var(--border-light);color:var(--text-muted)}
+.tk-footer{padding:16px 24px;text-align:center;border-top:1px solid var(--border-light);font-size:11px;color:var(--text-muted);font-weight:500}
 
 /* ── TOAST ── */
 .toast{
@@ -266,14 +293,18 @@ body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--text);-we
 <script>
 var LOGO='https://vitorhenriquepc.github.io/polaris-obras/logo.png';
 var SHEET_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vSaKXjo4xi0XEQO0EyNOxviX_jbCa5zyOS0VldNFcdQQOtojNwlbnySCi-rBzoiljTg8kEDHLVZ-wth/pub?output=csv';
-var CORS_PROXIES=['https://corsproxy.io/?','https://api.allorigins.win/raw?url=','https://cors-anywhere.herokuapp.com/'];
+var CORS_PROXIES=[
+  function(u){return 'https://api.codetabs.com/v1/proxy?quest='+u;},
+  function(u){return 'https://corsproxy.io/?'+u;},
+  function(u){return 'https://api.allorigins.win/raw?url='+encodeURIComponent(u);}
+];
 var ST=[
-  {t:'Contrato Fechado',ico:'🎉'},
-  {t:'Documentação',ico:'📄'},
-  {t:'Aprovação e Logística',ico:'⚡'},
-  {t:'Execução da Obra',ico:'🔨'},
-  {t:'Vistoria e Conexão',ico:'🔎'},
-  {t:'Sistema Ativo!',ico:'☀️'}
+  {t:'Contrato Fechado',ico:'🎉',d:'Contrato assinado e pagamento confirmado.',wa:'Seu contrato foi confirmado e já estamos dando início ao seu projeto!',eta:'Próxima etapa: 3 a 5 dias úteis'},
+  {t:'Documentação',ico:'📄',d:'Elaboração do projeto técnico e documentos.',wa:'Estamos elaborando o projeto técnico e toda a documentação necessária.',eta:'Prazo: 3 a 5 dias úteis'},
+  {t:'Aprovação e Logística',ico:'⚡',d:'Projeto na concessionária + equipamentos.',wa:'Seu projeto está na concessionária e os equipamentos estão sendo providenciados.',eta:'Prazo: 15 a 30 dias úteis'},
+  {t:'Execução da Obra',ico:'🔨',d:'Instalação de painéis, inversor e conexões.',wa:'A instalação dos painéis e inversor está em andamento no seu imóvel!',eta:'Duração: 1 a 3 dias'},
+  {t:'Vistoria e Conexão',ico:'🔎',d:'Troca do medidor e vistoria.',wa:'Instalação concluída! Aguardando **vistoria e troca do medidor**.',eta:'Prazo: 5 a 10 dias úteis'},
+  {t:'Sistema Ativo!',ico:'☀️',d:'Gerando energia limpa e monitorado!',wa:'Seu sistema está **ativo e gerando energia limpa**! Parabéns!',eta:'Gerando energia agora!'}
 ];
 var SC=['linear-gradient(135deg,#2E7D32,#3B8B3B)','linear-gradient(135deg,#022C44,#0A3D5C)','linear-gradient(135deg,#4A148C,#7B1FA2)','linear-gradient(135deg,#BF360C,#E64A19)','linear-gradient(135deg,#01579B,#0277BD)','linear-gradient(135deg,#E8920D,#F5A623)'];
 var PC=['p1','p2','p3','p4','p5','p6'];
@@ -362,23 +393,24 @@ function filterClients(){
 
 function openWA(idx){
   var c=allClients[idx];var si=c.si;
-  var msg='Olá, *'+c.name+'*! 👋\n\nAqui é a equipe *Polaris Energia Solar*.\n\nSua obra está na etapa: *'+ST[si].t+'* (etapa '+(si+1)+' de 6).\n\n';
-  if(si<5) msg+='Em breve avançaremos para a próxima fase. Qualquer dúvida, estamos à disposição! 💚';
-  else msg+='Seu sistema está ativo e gerando energia limpa! ☀️';
+  var greet=si>=4?', quase lá!':(si>=2?', sua obra está avançando!':', bem-vindo(a)!');
+  var msg='Olá, *'+c.name+'*! 👋\n\nAqui é a equipe *Polaris Energia Solar*.\n\n'+ST[si].wa+'\n\n⏱ '+ST[si].eta;
   var link=window.location.origin+window.location.pathname.replace('index.html','')+'cliente.html?id='+slugify(c.name);
   msg+='\n\n🔗 Acompanhe aqui: '+link;
 
   var dsHtml='';
   for(var j=0;j<6;j++){var dcls=j<si?'wd-on':j===si?'wd-nw':'';dsHtml+='<div class="wd '+dcls+'"></div>';}
 
-  var html='<div class="wc"><div class="wc-t" style="background:'+SC[si]+'">'
+  var html='<div class="wc"><div class="wc-t">'
     +'<img src="'+LOGO+'" class="wc-lg">'
-    +'<div class="wc-st">Acompanhamento de Obra</div>'
-    +'<div class="wc-ti">'+c.name+'</div>'
+    +'<div class="wc-st">Etapa '+(si+1)+' de 6</div>'
+    +'<div class="wc-ti">'+ST[si].t+'</div>'
     +'<div class="wc-ds">'+dsHtml+'</div></div>'
-    +'<div class="wc-b"><div class="wc-m">'+msg.replace(/\n/g,'<br>').replace(/\*(.*?)\*/g,'<strong>$1</strong>')+'</div>'
-    +'<div class="wc-e">⏱ Atualizado agora</div></div>'
-    +'<div class="wc-f"><span>Polaris Energia Solar</span><span>Araçatuba · SP</span></div></div>';
+    +'<div class="wc-b">'
+    +'<div class="wc-m">'+ST[si].ico+' <strong>'+c.name+'</strong>'+greet+'<br><br>'+ST[si].wa.replace(/\*(.*?)\*/g,'<strong>$1</strong>')+'</div>'
+    +'<div class="wc-eta">⏱ '+ST[si].eta+'</div>'
+    +'</div>'
+    +'<div class="wc-f"><span>Polaris Energia Solar</span><span>'+ST[si].ico+'</span></div></div>';
   document.getElementById('waBody').innerHTML=html;
 
   var phone=c.phone||'5518997797774';
@@ -391,17 +423,35 @@ function openWA(idx){
 function openTK(idx){
   var c=allClients[idx];var si=c.si;
   var pct=Math.round(((si+1)/6)*100);
+  
+  var dotsHtml='';
+  for(var j=0;j<6;j++){
+    var dcls=j<si?'done':j===si?'now':'';
+    dotsHtml+='<div class="tk-dot '+dcls+'"></div>';
+  }
+  
   var stHtml='';
   for(var j=0;j<6;j++){
     var tcls=j<si?'done':j===si?'now':'wait';
-    stHtml+='<div class="tk-s"><div class="tk-ic '+tcls+'">'+(j<si?'✓':ST[j].ico)+'</div>'
-      +'<div class="tk-si"><strong>'+(j+1)+'. '+ST[j].t+'</strong>'
-      +'<small>'+(j<si?'Concluído':j===si?'Em andamento':'Pendente')+'</small></div></div>';
+    stHtml+='<div class="tk-s">'
+      +'<div class="tk-ic '+tcls+'">'+(j<si?'✓':(j+1))+'</div>'
+      +'<div class="tk-si"><strong>'+ST[j].t+'</strong><small>'+ST[j].d+'</small></div>'
+      +'<div class="tk-badge '+tcls+'">'+(j<si?'Concluído':j===si?'Em andamento':'Pendente')+'</div>'
+      +'</div>';
   }
-  var html='<div class="tk" id="tkCapture"><div class="tk-h"><img src="'+LOGO+'">'
-    +'<h3>'+c.name+'</h3><small>'+(c.power?c.power+' kWp · ':'')+(c.contract||'')+'</small></div>'
+  
+  var html='<div class="tk" id="tkCapture">'
+    +'<div class="tk-header"><img src="'+LOGO+'">'
+    +'<h3>Acompanhe seu Projeto</h3><small>Energia solar</small></div>'
+    +'<div class="tk-info"><div class="tk-info-left"><h4>'+c.name+'</h4>'
+    +'<p>'+(c.power?c.power+' kWp':'')+(c.power&&c.contract?' | ':'')+(c.contract||'')+'</p></div>'
+    +'<div class="tk-info-right"><span>Início: '+(c.date||'A definir')+'</span></div></div>'
+    +'<div class="tk-prog"><div class="tk-prog-label"><span>Progresso geral</span><strong>'+pct+'%</strong></div>'
     +'<div class="tk-br"><div class="tk-fl" style="width:'+pct+'%"></div></div>'
-    +stHtml+'</div>';
+    +'<div class="tk-dots">'+dotsHtml+'</div></div>'
+    +'<div class="tk-stages">'+stHtml+'</div>'
+    +'<div class="tk-footer">© 2026 Polaris Energia Solar | Pós-venda</div>'
+    +'</div>';
   document.getElementById('tkBody').innerHTML=html;
   showSheet('tkSheet');
 }
@@ -434,7 +484,7 @@ function captureTracker(){
 
 function fetchData(pi){
   var url=SHEET_URL;
-  var fu=CORS_PROXIES[pi]+(pi===0?url:encodeURIComponent(url));
+  var fu=CORS_PROXIES[pi](url);
   var btn=document.querySelector('.sync-btn');
   if(btn)btn.classList.add('loading');
 

@@ -148,8 +148,13 @@ body{padding-bottom:calc(40px + var(--safe-b))}
 .tl-item.wait .tl-line{background:var(--border-light)}
 .tl-item:last-child .tl-line{display:none}
 .tl-body{padding:4px 0 18px;flex:1}
+.tl-row{display:flex;align-items:center;justify-content:space-between}
 .tl-title{font-size:13px;font-weight:700;color:var(--navy)}
 .tl-title.wait{color:var(--text-muted)}
+.tl-badge{font-size:8px;font-weight:800;padding:3px 8px;border-radius:50px;text-transform:uppercase;letter-spacing:.4px;flex-shrink:0}
+.tl-badge.done{background:rgba(59,139,59,0.1);color:#2E7D32}
+.tl-badge.now{background:rgba(245,166,35,0.12);color:#B8860B}
+.tl-badge.wait{background:var(--border-light);color:var(--text-muted)}
 .tl-sub{font-size:11px;color:var(--text-secondary);line-height:1.5;margin-top:2px}
 
 /* ── INFO CARDS ── */
@@ -204,7 +209,11 @@ body{padding-bottom:calc(40px + var(--safe-b))}
 var LOGO='https://vitorhenriquepc.github.io/polaris-obras/logo.png';
 
 var SHEET_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vSaKXjo4xi0XEQO0EyNOxviX_jbCa5zyOS0VldNFcdQQOtojNwlbnySCi-rBzoiljTg8kEDHLVZ-wth/pub?output=csv';
-var CORS_PROXIES=['https://corsproxy.io/?','https://api.allorigins.win/raw?url=','https://cors-anywhere.herokuapp.com/'];
+var CORS_PROXIES=[
+  function(u){return 'https://api.codetabs.com/v1/proxy?quest='+u;},
+  function(u){return 'https://corsproxy.io/?'+u;},
+  function(u){return 'https://api.allorigins.win/raw?url='+encodeURIComponent(u);}
+];
 
 var ST=[
   {t:'Contrato Fechado',d:'Contrato assinado e pagamento confirmado.',eta:'Próxima etapa: 3 a 5 dias úteis',ico:'🎉'},
@@ -261,9 +270,11 @@ function renderClient(c){
   var tlHtml='<div class="sec animate-in" style="animation-delay:.3s;margin-top:0"><div class="sec-title">Histórico de etapas</div><div class="timeline">';
   for(var k=0;k<6;k++){
     var tcls=k<si?'done':k===si?'now':'wait';
+    var badgeText=k<si?'Concluído':k===si?'Em andamento':'Pendente';
     tlHtml+='<div class="tl-item '+tcls+'"><div class="tl-left"><div class="tl-dot '+tcls+'">'
       +(k<si?'✓':ST[k].ico)+'</div><div class="tl-line"></div></div>'
-      +'<div class="tl-body"><div class="tl-title'+(tcls==='wait'?' wait':'')+'">Etapa '+(k+1)+': '+ST[k].t+'</div>'
+      +'<div class="tl-body"><div class="tl-row"><div class="tl-title'+(tcls==='wait'?' wait':'')+'">'+ST[k].t+'</div>'
+      +'<div class="tl-badge '+tcls+'">'+badgeText+'</div></div>'
       +'<div class="tl-sub">'+ST[k].d+(k===si?' · '+ST[k].eta:'')+'</div></div></div>';
   }
   tlHtml+='</div></div>';
@@ -280,14 +291,14 @@ function renderClient(c){
 
   var footerHtml='<div class="footer animate-in" style="animation-delay:.55s">'
     +'<div class="footer-divider"></div>'
-    +'<img src="'+LOGO+'" class="footer-logo"><div class="footer-txt">Polaris Energia Solar · Araçatuba – SP</div></div>';
+    +'<div class="footer-txt">© 2026 Polaris Energia Solar | Pós-venda</div></div>';
 
   document.getElementById('app').innerHTML=heroHtml+progHtml+stageHtml+tlHtml+infoHtml+waHtml+footerHtml;
   setTimeout(function(){var el=document.getElementById('progFill');if(el)el.style.width=pct+'%';},200);
 }
 
 function fetchAndFind(url,pi,clientSlug){
-  var fu=CORS_PROXIES[pi]+(pi===0?url:encodeURIComponent(url));
+  var fu=CORS_PROXIES[pi](url);
   fetch(fu,{redirect:'follow'}).then(function(r){
     if(!r.ok) throw new Error('HTTP '+r.status);
     return r.text();
