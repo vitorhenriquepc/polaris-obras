@@ -394,13 +394,16 @@ function filterClients(){
 function openWA(idx){
   var c=allClients[idx];var si=c.si;
   var greet=si>=4?', quase lá!':(si>=2?', sua obra está avançando!':', bem-vindo(a)!');
-  var msg='Olá, *'+c.name+'*! 👋\n\nAqui é a equipe *Polaris Energia Solar*.\n\n'+ST[si].wa+'\n\n⏱ '+ST[si].eta;
+  
+  // Mensagem limpa para WhatsApp (sem emojis que quebram)
+  var msg='Ola, *'+c.name+'*!\n\nAqui e a equipe *Polaris Energia Solar*.\n\n'+ST[si].wa.replace(/\*/g,'')+'\n\nPrazo: '+ST[si].eta.replace(/.*: /,'')+'\n\nAcompanhe aqui: ';
   var link=window.location.origin+window.location.pathname.replace('index.html','')+'cliente.html?id='+slugify(c.name);
-  msg+='\n\n🔗 Acompanhe aqui: '+link;
+  msg+=link;
 
   var dsHtml='';
   for(var j=0;j<6;j++){var dcls=j<si?'wd-on':j===si?'wd-nw':'';dsHtml+='<div class="wd '+dcls+'"></div>';}
 
+  // Card visual mantém emojis (só aparece na prévia, não vai pro WA)
   var html='<div class="wc" id="waCapture"><div class="wc-t">'
     +'<img src="'+LOGO+'" class="wc-lg">'
     +'<div class="wc-st">Etapa '+(si+1)+' de 6</div>'
