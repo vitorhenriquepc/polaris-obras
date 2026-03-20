@@ -472,10 +472,36 @@ function copyLink(idx){
   else{var ta=document.createElement('textarea');ta.value=link;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Link copiado! 🔗');}
 }
 
+function convertImgsToBase64(container){
+  return new Promise(function(resolve){
+    var imgs=container.querySelectorAll('img');
+    if(!imgs.length){resolve();return;}
+    var done=0;
+    imgs.forEach(function(img){
+      if(img.src.indexOf('data:')===0){done++;if(done===imgs.length)resolve();return;}
+      var canvas=document.createElement('canvas');
+      var ctx=canvas.getContext('2d');
+      var newImg=new Image();
+      newImg.crossOrigin='anonymous';
+      newImg.onload=function(){
+        canvas.width=newImg.naturalWidth;
+        canvas.height=newImg.naturalHeight;
+        ctx.drawImage(newImg,0,0);
+        try{img.src=canvas.toDataURL('image/png');}catch(e){}
+        done++;if(done===imgs.length)resolve();
+      };
+      newImg.onerror=function(){done++;if(done===imgs.length)resolve();};
+      newImg.src=img.src+'?t='+Date.now();
+    });
+  });
+}
+
 function captureTracker(){
   var el=document.getElementById('tkCapture');
   if(el&&window.html2canvas){
-    html2canvas(el,{scale:2,backgroundColor:'#ffffff',borderRadius:18}).then(function(canvas){
+    convertImgsToBase64(el).then(function(){
+      return html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true,allowTaint:true});
+    }).then(function(canvas){
       var a=document.createElement('a');a.download='tracker-polaris.png';a.href=canvas.toDataURL('image/png');a.click();
       toast('Imagem salva! 📸');
     });
@@ -485,7 +511,9 @@ function captureTracker(){
 function captureWA(){
   var el=document.getElementById('waCapture');
   if(el&&window.html2canvas){
-    html2canvas(el,{scale:2,backgroundColor:'#ffffff',borderRadius:18}).then(function(canvas){
+    convertImgsToBase64(el).then(function(){
+      return html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true,allowTaint:true});
+    }).then(function(canvas){
       var a=document.createElement('a');a.download='whatsapp-polaris.png';a.href=canvas.toDataURL('image/png');a.click();
       toast('Imagem salva! 📸');
     });
