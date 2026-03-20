@@ -38,7 +38,7 @@ body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--text);-we
   position:relative;
 }
 .hdr::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(245,166,35,0.25),transparent)}
-.hdr img{height:24px}
+.hdr img{height:28px}
 .hdr-t h1{font-size:14px;font-weight:800;color:#fff;letter-spacing:-.3px}
 .hdr-t p{font-size:8px;color:var(--gold);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-top:1px}
 .hdr-r{margin-left:auto;display:flex;gap:8px;align-items:center}
@@ -413,7 +413,7 @@ function openWA(idx){
     +'<div class="wc-f"><span>Polaris Energia Solar</span><span>'+ST[si].ico+'</span></div></div>';
   document.getElementById('waBody').innerHTML=html;
 
-  var phone=c.phone||'5518997797774';
+  var phone=c.phone||'5518996906474';
   document.getElementById('waSend').onclick=function(){
     window.open('https://wa.me/'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank');
   };
