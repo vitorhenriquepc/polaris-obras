@@ -299,15 +299,17 @@ var CORS_PROXIES=[
   function(u){return 'https://api.allorigins.win/raw?url='+encodeURIComponent(u);}
 ];
 var ST=[
-  {t:'Contrato Fechado',ico:'🎉',d:'Contrato assinado e pagamento confirmado.',wa:'Seu contrato foi confirmado e já estamos dando início ao seu projeto!',eta:'Próxima etapa: 3 a 5 dias úteis'},
-  {t:'Documentação',ico:'📄',d:'Elaboração do projeto técnico e documentos.',wa:'Estamos elaborando o projeto técnico e toda a documentação necessária.',eta:'Prazo: 3 a 5 dias úteis'},
-  {t:'Aprovação e Logística',ico:'⚡',d:'Projeto na concessionária + equipamentos.',wa:'Seu projeto está na concessionária e os equipamentos estão sendo providenciados.',eta:'Prazo: 15 a 30 dias úteis'},
-  {t:'Execução da Obra',ico:'🔨',d:'Instalação de painéis, inversor e conexões.',wa:'A instalação dos painéis e inversor está em andamento no seu imóvel!',eta:'Duração: 1 a 3 dias'},
-  {t:'Vistoria e Conexão',ico:'🔎',d:'Troca do medidor e vistoria.',wa:'Instalação concluída! Aguardando **vistoria e troca do medidor**.',eta:'Prazo: 5 a 10 dias úteis'},
+  {t:'Contrato Fechado',ico:'🎉',d:'Contrato assinado e pagamento confirmado.',wa:'Seu contrato foi confirmado e já estamos dando início ao seu projeto!',eta:'Prazo: 1 a 2 dias úteis'},
+  {t:'Documentação do Projeto',ico:'📄',d:'Elaboração do projeto técnico e documentos.',wa:'Estamos elaborando o projeto técnico e toda a documentação necessária.',eta:'Prazo: 1 a 3 dias úteis'},
+  {t:'Aprovação na Concessionária',ico:'⚡',d:'Projeto enviado para aprovação na concessionária de energia.',wa:'Seu projeto foi enviado para aprovação na **concessionária de energia**.',eta:'Prazo: 1 a 15 dias úteis'},
+  {t:'Compra do Material',ico:'🛒',d:'Aquisição dos equipamentos para o projeto.',wa:'Estamos realizando a **compra dos equipamentos** do seu projeto!',eta:'Prazo: 1 a 2 dias úteis'},
+  {t:'Entrega do Material',ico:'📦',d:'Equipamentos a caminho para instalação.',wa:'Os equipamentos estão sendo **entregues** para iniciar a instalação!',eta:'Prazo: 1 a 15 dias úteis'},
+  {t:'Execução da Obra',ico:'🔨',d:'Instalação de painéis, inversor e conexões.',wa:'A instalação dos painéis e inversor está em andamento no seu imóvel!',eta:'Prazo: 1 a 7 dias úteis'},
+  {t:'Vistoria e Conexão',ico:'🔎',d:'Troca do medidor e vistoria da concessionária.',wa:'Instalação concluída! Aguardando **vistoria e troca do medidor**.',eta:'Prazo: 1 a 5 dias úteis'},
   {t:'Sistema Ativo!',ico:'☀️',d:'Gerando energia limpa e monitorado!',wa:'Seu sistema está **ativo e gerando energia limpa**! Parabéns!',eta:'Gerando energia agora!'}
 ];
-var SC=['linear-gradient(135deg,#2E7D32,#3B8B3B)','linear-gradient(135deg,#022C44,#0A3D5C)','linear-gradient(135deg,#4A148C,#7B1FA2)','linear-gradient(135deg,#BF360C,#E64A19)','linear-gradient(135deg,#01579B,#0277BD)','linear-gradient(135deg,#E8920D,#F5A623)'];
-var PC=['p1','p2','p3','p4','p5','p6'];
+var SC=['linear-gradient(135deg,#2E7D32,#3B8B3B)','linear-gradient(135deg,#022C44,#0A3D5C)','linear-gradient(135deg,#4A148C,#7B1FA2)','linear-gradient(135deg,#BF360C,#E64A19)','linear-gradient(135deg,#01579B,#0277BD)','linear-gradient(135deg,#E8920D,#F5A623)','linear-gradient(135deg,#00838F,#00ACC1)','linear-gradient(135deg,#F57F17,#FFD54F)'];
+var PC=['p1','p2','p3','p4','p5','p6','p5','p6'];
 var allClients=[];
 
 function slugify(s){return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
@@ -315,21 +317,23 @@ function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.c
 
 function parseStage(s){
   s=(s||'').toString();
-  if(s.indexOf('6')>-1||s.toLowerCase().indexOf('ativo')>-1) return 5;
-  if(s.indexOf('5')>-1||s.toLowerCase().indexOf('vistor')>-1) return 4;
-  if(s.indexOf('4')>-1||s.toLowerCase().indexOf('obra')>-1) return 3;
+  if(s.indexOf('8')>-1||s.toLowerCase().indexOf('ativo')>-1) return 7;
+  if(s.indexOf('7')>-1||s.toLowerCase().indexOf('vistor')>-1) return 6;
+  if(s.indexOf('6')>-1||s.toLowerCase().indexOf('obra')>-1||s.toLowerCase().indexOf('execu')>-1) return 5;
+  if(s.indexOf('5')>-1||s.toLowerCase().indexOf('entrega')>-1) return 4;
+  if(s.indexOf('4')>-1||s.toLowerCase().indexOf('compra')>-1) return 3;
   if(s.indexOf('3')>-1||s.toLowerCase().indexOf('aprov')>-1) return 2;
   if(s.indexOf('2')>-1||s.toLowerCase().indexOf('doc')>-1) return 1;
   return 0;
 }
 
 function renderStats(clients){
-  var counts=[0,0,0,0,0,0];
+  var counts=[0,0,0,0,0,0,0,0];
   clients.forEach(function(c){counts[c.si]++;});
-  var icos=['🎉','📄','⚡','🔨','🔎','☀️'];
+  var icos=['🎉','📄','⚡','🛒','📦','🔨','🔎','☀️'];
   var html='';
   html+='<div class="stat"><div class="stat-ico">📋</div><div><div class="stat-n">'+clients.length+'</div><div class="stat-l">Total</div></div></div>';
-  for(var i=0;i<6;i++){
+  for(var i=0;i<8;i++){
     if(counts[i]>0){
       html+='<div class="stat"><div class="stat-ico">'+icos[i]+'</div><div><div class="stat-n">'+counts[i]+'</div><div class="stat-l">'+ST[i].t.split(' ')[0]+'</div></div></div>';
     }
@@ -347,10 +351,7 @@ function renderCards(clients){
   clients.forEach(function(c,idx){
     var si=c.si;
     var prgHtml='';
-    for(var j=0;j<6;j++){
-      var cls=j<si?'done':j===si?'now':'';
-      prgHtml+='<div class="prg-s '+cls+'"></div>';
-    }
+    for(var j=0;j<8;j++){
     var link=window.location.origin+window.location.pathname.replace('index.html','')+'cliente.html?id='+slugify(c.name);
     html+='<div class="cc" id="cc'+idx+'" onclick="toggleCard('+idx+')" style="animation-delay:'+(idx*0.04)+'s">'
       +'<div class="cc-top">'
@@ -361,7 +362,7 @@ function renderCards(clients){
       +'</div>'
       +'<div class="cc-exp"><div class="cc-body">'
       +'<div class="prg"><div class="prg-bar">'+prgHtml+'</div>'
-      +'<div class="prg-txt">Etapa '+(si+1)+' de 6 · '+ST[si].t+'</div>'
+      +'<div class="prg-txt">Etapa '+(si+1)+' de 8 · '+ST[si].t+'</div>'
       +'<div class="prg-eta">⏱ Previsão: '+(c.date||'A definir')+'</div></div>'
       +'<div class="acts">'
       +'<button class="act act-wa" onclick="event.stopPropagation();openWA('+idx+')"><span class="act-ico">💬</span>WhatsApp</button>'
@@ -393,7 +394,7 @@ function filterClients(){
 
 function openWA(idx){
   var c=allClients[idx];var si=c.si;
-  var greet=si>=4?', quase lá!':(si>=2?', sua obra está avançando!':', bem-vindo(a)!');
+  var greet=si>=6?', quase lá!':(si>=3?', sua obra está avançando!':', bem-vindo(a)!');
   
   // Mensagem limpa para WhatsApp (sem emojis que quebram)
   var msg='Ola, *'+c.name+'*!\n\nAqui e a equipe *Polaris Energia Solar*.\n\n'+ST[si].wa.replace(/\*/g,'')+'\n\nPrazo: '+ST[si].eta.replace(/.*: /,'')+'\n\nAcompanhe aqui: ';
@@ -401,12 +402,12 @@ function openWA(idx){
   msg+=link;
 
   var dsHtml='';
-  for(var j=0;j<6;j++){var dcls=j<si?'wd-on':j===si?'wd-nw':'';dsHtml+='<div class="wd '+dcls+'"></div>';}
+  for(var j=0;j<8;j++){var dcls=j<si?'wd-on':j===si?'wd-nw':'';dsHtml+='<div class="wd '+dcls+'"></div>';}
 
   // Card visual mantém emojis (só aparece na prévia, não vai pro WA)
   var html='<div class="wc" id="waCapture"><div class="wc-t">'
     +'<img src="'+LOGO+'" class="wc-lg">'
-    +'<div class="wc-st">Etapa '+(si+1)+' de 6</div>'
+    +'<div class="wc-st">Etapa '+(si+1)+' de 8</div>'
     +'<div class="wc-ti">'+ST[si].t+'</div>'
     +'<div class="wc-ds">'+dsHtml+'</div></div>'
     +'<div class="wc-b">'
@@ -425,16 +426,16 @@ function openWA(idx){
 
 function openTK(idx){
   var c=allClients[idx];var si=c.si;
-  var pct=Math.round(((si+1)/6)*100);
+  var pct=Math.round(((si+1)/8)*100);
   
   var dotsHtml='';
-  for(var j=0;j<6;j++){
+  for(var j=0;j<8;j++){
     var dcls=j<si?'done':j===si?'now':'';
     dotsHtml+='<div class="tk-dot '+dcls+'"></div>';
   }
   
   var stHtml='';
-  for(var j=0;j<6;j++){
+  for(var j=0;j<8;j++){
     var tcls=j<si?'done':j===si?'now':'wait';
     stHtml+='<div class="tk-s">'
       +'<div class="tk-ic '+tcls+'">'+(j<si?'✓':(j+1))+'</div>'
