@@ -352,6 +352,9 @@ function renderCards(clients){
     var si=c.si;
     var prgHtml='';
     for(var j=0;j<8;j++){
+      var cls=j<si?'done':j===si?'now':'';
+      prgHtml+='<div class="prg-s '+cls+'"></div>';
+    }
     var link=window.location.origin+window.location.pathname.replace('index.html','')+'cliente.html?id='+slugify(c.name);
     html+='<div class="cc" id="cc'+idx+'" onclick="toggleCard('+idx+')" style="animation-delay:'+(idx*0.04)+'s">'
       +'<div class="cc-top">'
