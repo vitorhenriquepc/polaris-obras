@@ -37,9 +37,8 @@ body{padding-bottom:calc(40px + var(--safe-b))}
 }
 .hero::before{
   content:'';position:absolute;inset:0;
-  background:
-    radial-gradient(ellipse at 30% -20%,rgba(59,139,59,0.12) 0%,transparent 50%),
-    radial-gradient(ellipse at 70% -10%,rgba(245,166,35,0.10) 0%,transparent 50%);
+  background: radial-gradient(ellipse at 30% -20%,rgba(59,139,59,0.12) 0%,transparent 50%),
+              radial-gradient(ellipse at 70% -10%,rgba(245,166,35,0.10) 0%,transparent 50%);
   pointer-events:none;
 }
 .hero::after{
@@ -73,6 +72,62 @@ body{padding-bottom:calc(40px + var(--safe-b))}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
 @keyframes fadeDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── CARD CELEBRAÇÃO (entrega antecipada) ── */
+.celebrate-wrap{padding:20px 20px 0}
+.celebrate-card{
+  background:linear-gradient(135deg,#012E1A 0%,#014d29 50%,#022C44 100%);
+  border-radius:var(--radius-lg);
+  border:1px solid rgba(59,139,59,0.35);
+  box-shadow:0 8px 32px rgba(59,139,59,0.2),0 2px 8px rgba(0,0,0,0.3);
+  overflow:hidden;
+  position:relative;
+}
+.celebrate-card::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 80% -10%,rgba(245,166,35,0.12) 0%,transparent 60%),
+             radial-gradient(ellipse at 10% 110%,rgba(59,139,59,0.15) 0%,transparent 50%);
+  pointer-events:none;
+}
+.celebrate-inner{position:relative;z-index:1;padding:24px 20px 20px}
+.celebrate-trophy{
+  font-size:40px;display:block;text-align:center;margin-bottom:16px;
+  animation:bounceIn .8s cubic-bezier(.34,1.56,.64,1) .2s both;
+}
+@keyframes bounceIn{
+  0%{opacity:0;transform:scale(0.3)}
+  50%{transform:scale(1.1)}
+  100%{opacity:1;transform:scale(1)}
+}
+.celebrate-title{
+  font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--gold);text-align:center;margin-bottom:8px;
+}
+.celebrate-headline{
+  font-size:20px;font-weight:800;color:#fff;text-align:center;
+  line-height:1.25;margin-bottom:20px;
+}
+.celebrate-metrics{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;
+}
+.celebrate-metric{
+  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);
+  border-radius:var(--radius-sm);padding:14px 12px;text-align:center;
+}
+.celebrate-metric-val{
+  font-size:28px;font-weight:800;color:#fff;line-height:1;margin-bottom:4px;
+}
+.celebrate-metric-val.highlight{color:var(--gold)}
+.celebrate-metric-label{font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.6px}
+.celebrate-bar{background:rgba(255,255,255,0.08);border-radius:4px;height:6px;overflow:hidden;margin-bottom:6px}
+.celebrate-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--green),var(--green-light));transition:width 1.5s cubic-bezier(.22,1,.36,1)}
+.celebrate-bar-labels{display:flex;justify-content:space-between;font-size:9px;font-weight:600;color:rgba(255,255,255,0.3)}
+.celebrate-bar-labels span{color:var(--gold)}
+.celebrate-msg{
+  background:rgba(59,139,59,0.15);border:1px solid rgba(59,139,59,0.3);
+  border-radius:var(--radius-sm);padding:12px 14px;
+  font-size:12px;color:rgba(255,255,255,0.75);line-height:1.55;text-align:center;
+}
 
 /* ── PROGRESS ── */
 .prog-wrap{padding:24px 20px 0}
@@ -198,23 +253,30 @@ body{padding-bottom:calc(40px + var(--safe-b))}
 /* ── ANIMATIONS ── */
 .animate-in{opacity:0;transform:translateY(16px);animation:slideIn .5s ease forwards}
 @keyframes slideIn{to{opacity:1;transform:translateY(0)}}
+
+/* ── CONFETTI (etapa 8) ── */
+@keyframes confettiFall{
+  0%{transform:translateY(-20px) rotate(0deg);opacity:1}
+  100%{transform:translateY(80px) rotate(360deg);opacity:0}
+}
+.confetti-piece{
+  position:absolute;width:6px;height:6px;border-radius:1px;
+  animation:confettiFall 1.8s ease-in forwards;
+  pointer-events:none;
+}
 </style>
 </head>
 <body>
-
 <div id="app"><div class="loading-wrap"><div class="loading-spinner"></div><div class="loading-txt">Carregando sua obra...</div></div></div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script>
 var LOGO='https://vitorhenriquepc.github.io/polaris-obras/logo.png';
-
 var SHEET_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vSaKXjo4xi0XEQO0EyNOxviX_jbCa5zyOS0VldNFcdQQOtojNwlbnySCi-rBzoiljTg8kEDHLVZ-wth/pub?output=csv';
 var CORS_PROXIES=[
   function(u){return 'https://api.codetabs.com/v1/proxy?quest='+u;},
   function(u){return 'https://corsproxy.io/?'+u;},
   function(u){return 'https://api.allorigins.win/raw?url='+encodeURIComponent(u);}
 ];
-
 var ST=[
   {t:'Contrato Fechado',d:'Contrato assinado e pagamento confirmado.',eta:'Prazo: 1 a 2 dias úteis',ico:'🎉'},
   {t:'Documentação do Projeto',d:'Elaboração do projeto técnico e documentos.',eta:'Prazo: 1 a 3 dias úteis',ico:'📄'},
@@ -227,6 +289,108 @@ var ST=[
 ];
 var SC=['linear-gradient(135deg,#2E7D32,#3B8B3B)','linear-gradient(135deg,#022C44,#0A3D5C)','linear-gradient(135deg,#4A148C,#7B1FA2)','linear-gradient(135deg,#BF360C,#E64A19)','linear-gradient(135deg,#01579B,#0277BD)','linear-gradient(135deg,#E8920D,#F5A623)','linear-gradient(135deg,#00838F,#00ACC1)','linear-gradient(135deg,#F57F17,#FFD54F)'];
 
+// ── Utilidades de data ──
+function parseDateBR(str) {
+  if (!str) return null;
+  str = str.trim();
+  // Aceita dd/mm/yyyy ou dd/mm/yy
+  var parts = str.split('/');
+  if (parts.length === 3) {
+    var d = parseInt(parts[0],10);
+    var m = parseInt(parts[1],10) - 1;
+    var y = parseInt(parts[2],10);
+    if (y < 100) y += 2000;
+    var dt = new Date(y, m, d);
+    return isNaN(dt.getTime()) ? null : dt;
+  }
+  // Tenta ISO yyyy-mm-dd
+  var iso = new Date(str);
+  return isNaN(iso.getTime()) ? null : iso;
+}
+
+function diffDays(d1, d2) {
+  // d2 - d1 em dias inteiros
+  var ms = d2.getTime() - d1.getTime();
+  return Math.round(ms / (1000 * 60 * 60 * 24));
+}
+
+// ── Card de celebração ──
+function buildCelebrateCard(c) {
+  var prazoContratual = 60;
+  var prazoMeta = 30;
+  var dtFecha = parseDateBR(c.dateStart);
+  var dtConclui = parseDateBR(c.dateEnd);
+
+  // Se não tiver datas, mostra card simples
+  if (!dtFecha || !dtConclui) {
+    return '<div class="celebrate-wrap animate-in" style="animation-delay:.1s">'
+      + '<div class="celebrate-card"><div class="celebrate-inner">'
+      + '<span class="celebrate-trophy">🏆</span>'
+      + '<div class="celebrate-title">Obra Concluída</div>'
+      + '<div class="celebrate-headline">Seu sistema está ativo e gerando energia! ☀️</div>'
+      + '<div class="celebrate-msg">Parabéns pela escolha pela energia solar. A Polaris agradece a confiança e está sempre à disposição.</div>'
+      + '</div></div></div>';
+  }
+
+  var diasCorridos = diffDays(dtFecha, dtConclui);
+  var diasAntesContrato = prazoContratual - diasCorridos;
+  var diasAntesMeta = prazoMeta - diasCorridos;
+
+  var pct = Math.min(100, Math.round((diasCorridos / prazoContratual) * 100));
+
+  var headline = '';
+  var msgTxt = '';
+
+  if (diasAntesContrato > 0) {
+    headline = 'Entregamos <strong>' + diasAntesContrato + ' dias antes</strong> do prazo! 🚀';
+    msgTxt = 'Seu sistema foi ativado em <strong>' + diasCorridos + ' dias</strong> — ' + diasAntesContrato + ' dias antes do prazo contratual de 60 dias. Isso é a Polaris comprometida com você!';
+  } else if (diasAntesContrato === 0) {
+    headline = 'Entregamos <strong>no prazo exato</strong>! ✅';
+    msgTxt = 'Seu sistema foi ativado em exatamente <strong>' + diasCorridos + ' dias</strong>, dentro do prazo contratual. Obrigado pela confiança!';
+  } else {
+    headline = 'Obra concluída! ☀️';
+    msgTxt = 'Seu sistema foi ativado e está gerando energia limpa. A equipe Polaris agradece a confiança!';
+  }
+
+  var html = '<div class="celebrate-wrap animate-in" style="animation-delay:.1s">'
+    + '<div class="celebrate-card" id="celebrateCard"><div class="celebrate-inner">'
+    + '<span class="celebrate-trophy">🏆</span>'
+    + '<div class="celebrate-title">Obra Concluída com Sucesso</div>'
+    + '<div class="celebrate-headline">' + headline + '</div>'
+    + '<div class="celebrate-metrics">'
+    + '<div class="celebrate-metric"><div class="celebrate-metric-val highlight">' + diasCorridos + '<small style="font-size:14px;font-weight:700"> dias</small></div><div class="celebrate-metric-label">Tempo de obra</div></div>'
+    + '<div class="celebrate-metric"><div class="celebrate-metric-val highlight">' + (diasAntesContrato > 0 ? diasAntesContrato : 0) + '<small style="font-size:14px;font-weight:700"> dias</small></div><div class="celebrate-metric-label">Antes do prazo</div></div>'
+    + '</div>'
+    + '<div class="celebrate-bar"><div class="celebrate-bar-fill" id="celebBar" style="width:0%"></div></div>'
+    + '<div class="celebrate-bar-labels"><span>' + diasCorridos + 'd</span><span>' + prazoMeta + 'd meta</span><span style="color:var(--text-muted)">' + prazoContratual + 'd contrato</span></div>'
+    + '<br>'
+    + '<div class="celebrate-msg">' + msgTxt + '</div>'
+    + '</div></div></div>';
+
+  return html;
+}
+
+// ── Confetti ──
+function launchConfetti(container) {
+  var colors = ['#F5A623','#3B8B3B','#58B868','#FFD580','#fff','#f5f5f5'];
+  for (var i = 0; i < 28; i++) {
+    (function(i) {
+      setTimeout(function() {
+        var el = document.createElement('div');
+        el.className = 'confetti-piece';
+        el.style.left = Math.random() * 100 + '%';
+        el.style.top = '0';
+        el.style.background = colors[Math.floor(Math.random() * colors.length)];
+        el.style.animationDelay = (Math.random() * 0.6) + 's';
+        el.style.animationDuration = (1.4 + Math.random() * 0.8) + 's';
+        el.style.transform = 'rotate(' + Math.random()*360 + 'deg)';
+        container.appendChild(el);
+        setTimeout(function(){el.remove();}, 3000);
+      }, i * 60);
+    })(i);
+  }
+}
+
 function slugify(str){
   return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 }
@@ -238,6 +402,7 @@ function renderError(msg){
 function renderClient(c){
   var si=c.stageIdx;
   var pct=Math.round(((si+1)/8)*100);
+  var isAtivo = si === 7;
 
   var heroHtml='<div class="hero">'
     +'<img src="'+LOGO+'" class="hero-logo" alt="Polaris Solar">'
@@ -247,6 +412,9 @@ function renderClient(c){
     +'<div class="hero-badge"><span class="hero-badge-dot"></span>'+ST[si].ico+' '+ST[si].t+'</div>'
     +'</div>';
 
+  // Card de celebração (só quando Sistema Ativo)
+  var celebrateHtml = isAtivo ? buildCelebrateCard(c) : '';
+
   var stepsHtml='';
   for(var j=0;j<8;j++){
     var cls=j<si?'done':j===si?'now':'wait';
@@ -254,12 +422,12 @@ function renderClient(c){
       +'<div class="prog-dot">'+(j<si?'✓':(j===si?ST[j].ico:(j+1)))+'</div>'
       +'<div class="prog-step-label">'+ST[j].t.split(' ')[0]+'</div></div>';
   }
-  var progHtml='<div class="prog-wrap animate-in" style="animation-delay:.1s">'
+  var progHtml='<div class="prog-wrap animate-in" style="animation-delay:.2s">'
     +'<div class="prog-header"><span class="prog-label">Progresso geral</span><span class="prog-pct">'+pct+'<span>%</span></span></div>'
     +'<div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>'
     +'<div class="prog-steps">'+stepsHtml+'</div></div>';
 
-  var stageHtml='<div class="sec animate-in" style="animation-delay:.2s">'
+  var stageHtml='<div class="sec animate-in" style="animation-delay:.3s">'
     +'<div class="sec-title">Etapa atual</div>'
     +'<div class="stage-card"><div class="stage-top">'
     +'<div class="stage-ico" style="background:'+SC[si]+'">'+ST[si].ico+'</div>'
@@ -269,7 +437,7 @@ function renderClient(c){
     +'<div class="stage-eta"><span class="stage-eta-ico">⏱</span><span class="stage-eta-txt">'+ST[si].eta+'</span></div>'
     +'</div></div>';
 
-  var tlHtml='<div class="sec animate-in" style="animation-delay:.3s;margin-top:0"><div class="sec-title">Histórico de etapas</div><div class="timeline">';
+  var tlHtml='<div class="sec animate-in" style="animation-delay:.4s;margin-top:0"><div class="sec-title">Histórico de etapas</div><div class="timeline">';
   for(var k=0;k<8;k++){
     var tcls=k<si?'done':k===si?'now':'wait';
     var badgeText=k<si?'Concluído':k===si?'Em andamento':'Pendente';
@@ -281,22 +449,44 @@ function renderClient(c){
   }
   tlHtml+='</div></div>';
 
-  var infoHtml='<div class="info-row animate-in" style="animation-delay:.4s">';
+  var infoHtml='<div class="info-row animate-in" style="animation-delay:.5s">';
   if(c.power) infoHtml+='<div class="info-card"><div class="info-card-label">Potência</div><div class="info-card-val">'+c.power+' kWp</div></div>';
   if(c.contract) infoHtml+='<div class="info-card"><div class="info-card-label">Contrato</div><div class="info-card-val small">'+c.contract+'</div></div>';
-  if(c.date) infoHtml+='<div class="info-card"><div class="info-card-label">Fechamento</div><div class="info-card-val small">'+c.date+'</div></div>';
+  if(c.dateStart) infoHtml+='<div class="info-card"><div class="info-card-label">Fechamento</div><div class="info-card-val small">'+c.dateStart+'</div></div>';
+  if(c.dateEnd) infoHtml+='<div class="info-card"><div class="info-card-label">Ativação</div><div class="info-card-val small">'+c.dateEnd+'</div></div>';
   infoHtml+='</div>';
 
   var waMsg=encodeURIComponent('Olá! Sou '+c.name+' e gostaria de falar com a Polaris Solar sobre minha obra.');
-  var waHtml='<div class="wa-wrap animate-in" style="animation-delay:.5s">'
+  var waHtml='<div class="wa-wrap animate-in" style="animation-delay:.6s">'
     +'<a class="wa-btn" href="https://wa.me/5518996906474?text='+waMsg+'" target="_blank"><span class="wa-ico">💬</span> Falar com a Polaris</a></div>';
 
-  var footerHtml='<div class="footer animate-in" style="animation-delay:.55s">'
+  var footerHtml='<div class="footer animate-in" style="animation-delay:.65s">'
     +'<div class="footer-divider"></div>'
     +'<div class="footer-txt">© 2026 Polaris Energia Solar | Pós-venda</div></div>';
 
-  document.getElementById('app').innerHTML=heroHtml+progHtml+stageHtml+tlHtml+infoHtml+waHtml+footerHtml;
-  setTimeout(function(){var el=document.getElementById('progFill');if(el)el.style.width=pct+'%';},200);
+  document.getElementById('app').innerHTML=heroHtml+celebrateHtml+progHtml+stageHtml+tlHtml+infoHtml+waHtml+footerHtml;
+
+  // Animar barras
+  setTimeout(function(){
+    var pf=document.getElementById('progFill');
+    if(pf) pf.style.width=pct+'%';
+    var cb=document.getElementById('celebBar');
+    if(cb){
+      var dtFecha = parseDateBR(c.dateStart);
+      var dtConclui = parseDateBR(c.dateEnd);
+      if(dtFecha && dtConclui){
+        var diasCorridos = diffDays(dtFecha, dtConclui);
+        var pctBar = Math.min(100, Math.round((diasCorridos / 60) * 100));
+        cb.style.width = pctBar + '%';
+      }
+    }
+  }, 200);
+
+  // Confetti se ativo
+  if(isAtivo){
+    var card = document.getElementById('celebrateCard');
+    if(card) setTimeout(function(){ launchConfetti(card); }, 600);
+  }
 }
 
 function fetchAndFind(url,pi,clientSlug){
@@ -320,7 +510,14 @@ function fetchAndFind(url,pi,clientSlug){
         else if(ss.indexOf('4')>-1||ss.toLowerCase().indexOf('compra')>-1) si=3;
         else if(ss.indexOf('3')>-1||ss.toLowerCase().indexOf('aprov')>-1) si=2;
         else if(ss.indexOf('2')>-1||ss.toLowerCase().indexOf('doc')>-1) si=1;
-        found={name:name.trim(),power:row['Potência (kWp)']||row['Potencia']||row['kWp']||'',contract:row['Contrato']||row['contrato']||'',date:row['Data Fechamento']||row['Data']||'',stageIdx:si};
+        found={
+          name:name.trim(),
+          power:row['Potência (kWp)']||row['Potencia']||row['kWp']||'',
+          contract:row['Contrato']||row['contrato']||'',
+          dateStart:row['Data Fechamento']||row['Data Inicio']||row['Data']||'',
+          dateEnd:row['Data Conclusão']||row['Data Conclusao']||row['Data Ativacao']||row['Data Ativação']||'',
+          stageIdx:si
+        };
       }
     });
     if(found) renderClient(found);
