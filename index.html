@@ -439,7 +439,7 @@ function fetchData(pi){
     parsed.data.forEach(function(row){
       var name=row['Cliente']||row['cliente']||row['Nome']||row['nome']||'';
       if(!name.trim())return;
-      allClients.push({name:name.trim(),power:row['Potência (kWp)']||row['Potencia']||row['kWp']||'',contract:row['Contrato']||row['contrato']||'',date:row['Data Fechamento']||row['Data']||'',dateStart:row['Data Fechamento']||row['Data Inicio']||row['Data']||'',dateEnd:row['Data Conclusão']||row['Data Conclusao']||row['Data Ativacao']||row['Data Ativação']||'',phone:row['Telefone']||row['telefone']||row['WhatsApp']||row['whatsapp']||'',si:parseStage(row['Etapa Atual']||row['Etapa']||'')});
+      allClients.push({name:name.trim(),power:row['Potência (kWp)']||row['Potencia']||row['kWp']||'',contract:row['Contrato']||row['contrato']||'',date:row['Data Fechamento']||row['Data']||'',dateStart:row['Data Fechamento']||row['Data Inicio']||row['Data']||'',dateEnd:row['Data Conclusão']||row['Data Conclusao']||row['Data de conclusão']||row['Data de Conclusão']||row['Data de conclusao']||row['Data Ativacao']||row['Data Ativação']||'',phone:row['Telefone']||row['telefone']||row['WhatsApp']||row['whatsapp']||'',si:parseStage(row['Etapa Atual']||row['Etapa']||'')});
     });
     renderStats(allClients);renderCards(allClients);if(btn)btn.classList.remove('loading');toast('Dados atualizados ✓');
   }).catch(function(e){if(btn)btn.classList.remove('loading');if(pi<CORS_PROXIES.length-1)fetchData(pi+1);else document.getElementById('clientList').innerHTML='<div class="empty"><span class="empty-ico">⚠️</span>Erro ao carregar. Tente sincronizar.</div>';});
