@@ -45,10 +45,16 @@ html,body{min-height:100%;background:var(--bg);font-family:'Manrope',sans-serif;
 /* ── STATS BAR ── */
 .stats-bar{display:flex;gap:10px;padding:14px 16px 0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .stats-bar::-webkit-scrollbar{display:none}
-.stat{background:var(--surface);border-radius:var(--radius-sm);padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;box-shadow:var(--shadow-sm);border:1px solid var(--border-light)}
-.stat-ico{font-size:18px}
-.stat-n{font-size:15px;font-weight:800;color:var(--navy)}
-.stat-l{font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px}
+.stat{background:var(--surface);border-radius:var(--radius-sm);padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;box-shadow:var(--shadow-sm);border:1px solid var(--border-light);cursor:pointer;transition:all .18s;user-select:none;-webkit-user-select:none}
+.stat:active{transform:scale(.94)}
+.stat.active{background:var(--navy);border-color:var(--navy);box-shadow:0 4px 14px rgba(1,29,46,0.25)}
+.stat.active .stat-n{color:#fff}
+.stat.active .stat-l{color:rgba(255,255,255,0.5)}
+.stat.active .stat-ico{filter:brightness(1.2)}
+.stat-ico{font-size:18px;transition:transform .18s}
+.stat.active .stat-ico{transform:scale(1.15)}
+.stat-n{font-size:15px;font-weight:800;color:var(--navy);transition:color .18s}
+.stat-l{font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;transition:color .18s}
 
 /* ── LIST ── */
 .list-wrap{padding:14px 16px 0}
@@ -270,6 +276,7 @@ var ST=[
 var SC=['linear-gradient(135deg,#2E7D32,#3B8B3B)','linear-gradient(135deg,#022C44,#0A3D5C)','linear-gradient(135deg,#4A148C,#7B1FA2)','linear-gradient(135deg,#BF360C,#E64A19)','linear-gradient(135deg,#01579B,#0277BD)','linear-gradient(135deg,#E8920D,#F5A623)','linear-gradient(135deg,#00838F,#00ACC1)','linear-gradient(135deg,#F57F17,#FFD54F)'];
 var PC=['p1','p2','p3','p4','p5','p6','p5','p6'];
 var allClients=[];
+var activeStage=-1;
 
 // Init logo
 document.getElementById('hdrLogo').src = LOGO;
@@ -317,9 +324,14 @@ function parseStage(s){
 function renderStats(clients){
   var counts=[0,0,0,0,0,0,0,0];clients.forEach(function(c){counts[c.si]++;});
   var icos=['🎉','📄','⚡','🛒','📦','🔨','🔎','☀️'];var html='';
-  html+='<div class="stat"><div class="stat-ico">📋</div><div><div class="stat-n">'+clients.length+'</div><div class="stat-l">Total</div></div></div>';
-  for(var i=0;i<8;i++){if(counts[i]>0){html+='<div class="stat"><div class="stat-ico">'+icos[i]+'</div><div><div class="stat-n">'+counts[i]+'</div><div class="stat-l">'+ST[i].t.split(' ')[0]+'</div></div></div>';}}
-  document.getElementById('statsBar').innerHTML=html;document.getElementById('countBadge').textContent=clients.length;
+  html+='<div class="stat" data-si="-1" onclick="filterByStage(-1)"><div class="stat-ico">📋</div><div><div class="stat-n">'+clients.length+'</div><div class="stat-l">Total</div></div></div>';
+  for(var i=0;i<8;i++){if(counts[i]>0){html+='<div class="stat" data-si="'+i+'" onclick="filterByStage('+i+')"><div class="stat-ico">'+icos[i]+'</div><div><div class="stat-n">'+counts[i]+'</div><div class="stat-l">'+ST[i].t.split(' ')[0]+'</div></div></div>';}}
+  document.getElementById('statsBar').innerHTML=html;
+  document.getElementById('countBadge').textContent=clients.length;
+  // Restaura estado ativo após re-render
+  var sel=document.querySelector('.stat[data-si="'+activeStage+'"]');
+  if(sel)sel.classList.add('active');
+  else{var tot=document.querySelector('.stat[data-si="-1"]');if(tot)tot.classList.add('active');}
 }
 
 function renderCards(clients){
@@ -361,11 +373,25 @@ function toggleCard(idx){
   else{document.querySelectorAll('.cc.open').forEach(function(c){c.classList.remove('open');});el.classList.add('open');setTimeout(function(){el.scrollIntoView({behavior:'smooth',block:'nearest'});},100);}
 }
 
-function filterClients(){
+function filterByStage(si){
+  activeStage=si;
+  document.querySelectorAll('.stat').forEach(function(el){el.classList.remove('active');});
+  var sel=document.querySelector('.stat[data-si="'+si+'"]');
+  if(sel){sel.classList.add('active');sel.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});}
+  applyFilters();
+}
+
+function applyFilters(){
   var q=document.getElementById('searchInput').value.toLowerCase();
-  var filtered=allClients.filter(function(c){return c.name.toLowerCase().indexOf(q)>-1||(c.contract||'').toLowerCase().indexOf(q)>-1;});
+  var filtered=allClients.filter(function(c){
+    var matchQ=c.name.toLowerCase().indexOf(q)>-1||(c.contract||'').toLowerCase().indexOf(q)>-1;
+    var matchS=activeStage===-1||c.si===activeStage;
+    return matchQ&&matchS;
+  });
   renderCards(filtered);
 }
+
+function filterClients(){applyFilters();}
 
 function openWA(idx){
   var c=allClients[idx];var si=c.si;
@@ -441,7 +467,10 @@ function fetchData(pi){
       if(!name.trim())return;
       allClients.push({name:name.trim(),power:row['Potência (kWp)']||row['Potencia']||row['kWp']||'',contract:row['Contrato']||row['contrato']||'',date:row['Data Fechamento']||row['Data']||'',dateStart:row['Data Fechamento']||row['Data Inicio']||row['Data']||'',dateEnd:row['Data Conclusão']||row['Data Conclusao']||row['Data de conclusão']||row['Data de Conclusão']||row['Data de conclusao']||row['Data Ativacao']||row['Data Ativação']||'',phone:row['Telefone']||row['telefone']||row['WhatsApp']||row['whatsapp']||'',si:parseStage(row['Etapa Atual']||row['Etapa']||'')});
     });
-    renderStats(allClients);renderCards(allClients);if(btn)btn.classList.remove('loading');toast('Dados atualizados ✓');
+    renderStats(allClients);renderCards(allClients);
+    // Marca Total como ativo por padrão ao carregar
+    setTimeout(function(){var tot=document.querySelector('.stat[data-si="-1"]');if(tot)tot.classList.add('active');},0);
+    if(btn)btn.classList.remove('loading');toast('Dados atualizados ✓');
   }).catch(function(e){if(btn)btn.classList.remove('loading');if(pi<CORS_PROXIES.length-1)fetchData(pi+1);else document.getElementById('clientList').innerHTML='<div class="empty"><span class="empty-ico">⚠️</span>Erro ao carregar. Tente sincronizar.</div>';});
 }
 
