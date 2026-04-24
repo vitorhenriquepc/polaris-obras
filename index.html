@@ -25,8 +25,6 @@
   --safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);
 }
 html,body{min-height:100%;background:var(--bg);font-family:'Manrope',sans-serif;color:var(--text);-webkit-font-smoothing:antialiased;padding-bottom:calc(32px + var(--safe-b))}
-
-/* ── HEADER ── */
 .hdr{background:var(--navy);padding:calc(var(--safe-t)+20px) 20px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 2px 12px rgba(0,0,0,0.2)}
 .hdr img{height:32px}
 .hdr-right{display:flex;align-items:center;gap:10px}
@@ -34,15 +32,11 @@ html,body{min-height:100%;background:var(--bg);font-family:'Manrope',sans-serif;
 .sync-btn{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:50px;color:#fff;font-size:12px;font-weight:700;padding:6px 14px;cursor:pointer;font-family:inherit;transition:all .2s;display:flex;align-items:center;gap:5px}
 .sync-btn:active{transform:scale(.96)}
 .sync-btn.loading{opacity:.5;pointer-events:none}
-
-/* ── SEARCH ── */
 .search-wrap{padding:16px 16px 0}
 .search-box{background:var(--surface);border-radius:var(--radius);padding:0 16px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-sm);border:1px solid var(--border-light)}
 .search-ico{font-size:16px;opacity:.4}
 .search-box input{flex:1;border:none;outline:none;font-family:inherit;font-size:14px;color:var(--text);padding:14px 0;background:transparent}
 .search-box input::placeholder{color:var(--text-muted)}
-
-/* ── STATS BAR ── */
 .stats-bar{display:flex;gap:10px;padding:14px 16px 0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .stats-bar::-webkit-scrollbar{display:none}
 .stat{background:var(--surface);border-radius:var(--radius-sm);padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;box-shadow:var(--shadow-sm);border:1px solid var(--border-light);cursor:pointer;transition:all .18s;user-select:none;-webkit-user-select:none}
@@ -55,20 +49,10 @@ html,body{min-height:100%;background:var(--bg);font-family:'Manrope',sans-serif;
 .stat.active .stat-ico{transform:scale(1.15)}
 .stat-n{font-size:15px;font-weight:800;color:var(--navy);transition:color .18s}
 .stat-l{font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;transition:color .18s}
-
-/* ── LIST ── */
 .list-wrap{padding:14px 16px 0}
 .empty{padding:48px 24px;text-align:center;color:var(--text-muted);font-size:14px;font-weight:600}
 .empty-ico{display:block;font-size:40px;margin-bottom:12px}
-
-/* ── CLIENT CARD ── */
-.cc{
-  background:var(--surface);border-radius:var(--radius-lg);
-  box-shadow:var(--shadow-sm);border:1px solid var(--border-light);
-  margin-bottom:10px;overflow:hidden;cursor:pointer;
-  transition:box-shadow .2s,transform .15s;
-  animation:slideIn .4s ease both;
-}
+.cc{background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);border:1px solid var(--border-light);margin-bottom:10px;overflow:hidden;cursor:pointer;transition:box-shadow .2s,transform .15s;animation:slideIn .4s ease both;}
 .cc:active{transform:scale(.99)}
 .cc.open{box-shadow:var(--shadow-md)}
 @keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
@@ -84,14 +68,10 @@ html,body{min-height:100%;background:var(--bg);font-family:'Manrope',sans-serif;
 .p4{background:rgba(191,54,12,0.08);color:#BF360C}
 .p5{background:rgba(1,87,155,0.08);color:#01579B}
 .p6{background:rgba(232,146,13,0.12);color:#B8660B}
-
-/* ── EXPANDIDO ── */
 .cc-exp{max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.22,1,.36,1)}
 .cc.open .cc-exp{max-height:600px}
 .cc-body{padding:0 16px 16px}
 .cc-divider{height:1px;background:var(--border-light);margin-bottom:14px}
-
-/* ── PROGRESS MINI ── */
 .prg{background:var(--surface-alt);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;border:1px solid var(--border-light)}
 .prg-bar{display:flex;gap:3px;margin-bottom:8px}
 .prg-s{height:5px;flex:1;border-radius:2px;background:var(--border);transition:background .3s}
@@ -99,8 +79,6 @@ html,body{min-height:100%;background:var(--bg);font-family:'Manrope',sans-serif;
 .prg-s.now{background:var(--gold)}
 .prg-txt{font-size:11px;font-weight:700;color:var(--navy)}
 .prg-eta{font-size:10px;color:var(--text-muted);font-weight:600;margin-top:3px}
-
-/* ── ACTIONS ── */
 .acts{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .act{display:flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:var(--radius-sm);padding:10px 8px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;transition:all .18s}
 .act:active{transform:scale(.96)}
@@ -109,22 +87,11 @@ html,body{min-height:100%;background:var(--bg);font-family:'Manrope',sans-serif;
 .act-tk{background:linear-gradient(135deg,var(--navy),var(--navy-light));color:#fff}
 .act-cp{background:var(--surface-alt);color:var(--text);border:1px solid var(--border-light)}
 .act-lk{background:var(--surface-alt);color:var(--text);border:1px solid var(--border-light)}
-
-/* ── CELEBRAÇÃO MINI (card etapa 8 no painel) ── */
-.cc-celebrate{
-  background:linear-gradient(135deg,#012E1A,#014d29);
-  border:1px solid rgba(59,139,59,0.4);
-  border-radius:var(--radius-sm);
-  padding:10px 12px;
-  margin-bottom:12px;
-  display:flex;align-items:center;gap:10px;
-}
+.cc-celebrate{background:linear-gradient(135deg,#012E1A,#014d29);border:1px solid rgba(59,139,59,0.4);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px;}
 .cc-celebrate-ico{font-size:20px}
 .cc-celebrate-info{}
 .cc-celebrate-title{font-size:11px;font-weight:800;color:var(--gold);letter-spacing:.5px}
 .cc-celebrate-sub{font-size:10px;color:rgba(255,255,255,0.6);font-weight:600;margin-top:2px}
-
-/* ── OVERLAY / SHEETS ── */
 .overlay{position:fixed;inset:0;background:rgba(1,29,46,0.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:100;opacity:0;pointer-events:none;transition:opacity .3s}
 .overlay.show{opacity:1;pointer-events:all}
 .sheet{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-radius:24px 24px 0 0;padding:20px 0 calc(24px + var(--safe-b));z-index:101;transform:translateY(100%);transition:transform .35s cubic-bezier(.22,1,.36,1);max-height:92vh;overflow-y:auto}
@@ -137,8 +104,6 @@ html,body{min-height:100%;background:var(--bg);font-family:'Manrope',sans-serif;
 .sheet-btn-save{background:var(--surface-alt);color:var(--text);border:1px solid var(--border-light)}
 .sheet-btn-send{background:linear-gradient(135deg,#25D366,#128C7E);color:#fff}
 .sheet-btn-close{background:var(--surface-alt);color:var(--text);border:1px solid var(--border-light)}
-
-/* ── WA CARD PREVIEW ── */
 #waBody{padding:0 20px}
 .wc{border-radius:16px;overflow:hidden;box-shadow:var(--shadow-lg)}
 .wc-t{background:var(--navy);padding:20px;text-align:center}
@@ -152,7 +117,6 @@ html,body{min-height:100%;background:var(--bg);font-family:'Manrope',sans-serif;
 .wc-b{background:var(--surface);padding:18px}
 .wc-m{font-size:13px;color:var(--text);line-height:1.6;margin-bottom:12px}
 .wc-eta{font-size:11px;color:var(--text-muted);font-weight:600;background:var(--surface-alt);padding:8px 12px;border-radius:8px;border:1px solid var(--border-light)}
-/* Card celebração WA (etapa 8) */
 .wc-celebrate{background:linear-gradient(135deg,#012E1A,#014d29);padding:14px 18px;border-top:1px solid rgba(59,139,59,0.3)}
 .wc-celebrate-line{font-size:12px;color:rgba(255,255,255,0.8);font-weight:600;line-height:1.5}
 .wc-celebrate-metrics{display:flex;gap:10px;margin-top:10px}
@@ -160,8 +124,6 @@ html,body{min-height:100%;background:var(--bg);font-family:'Manrope',sans-serif;
 .wc-celebrate-v{font-size:20px;font-weight:800;color:var(--gold);line-height:1}
 .wc-celebrate-l{font-size:8px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;margin-top:2px}
 .wc-f{background:var(--surface-alt);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:var(--text-muted);border-top:1px solid var(--border-light)}
-
-/* ── TRACKER ── */
 #tkBody{padding:0 20px}
 .tk{border-radius:16px;overflow:hidden;box-shadow:var(--shadow-lg)}
 .tk-header{background:var(--navy);padding:20px;text-align:center}
@@ -195,8 +157,6 @@ html,body{min-height:100%;background:var(--bg);font-family:'Manrope',sans-serif;
 .tk-badge.now{background:rgba(245,166,35,0.12);color:#B8660B}
 .tk-badge.wait{background:var(--border-light);color:var(--text-muted)}
 .tk-footer{background:var(--surface-alt);padding:12px 16px;text-align:center;font-size:10px;font-weight:700;color:var(--text-muted);border-top:1px solid var(--border-light)}
-
-/* ── TOAST ── */
 .toast{position:fixed;bottom:calc(32px + var(--safe-b));left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;font-size:13px;font-weight:700;padding:12px 20px;border-radius:50px;opacity:0;transition:all .3s;z-index:200;white-space:nowrap;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
@@ -221,10 +181,8 @@ html,body{min-height:100%;background:var(--bg);font-family:'Manrope',sans-serif;
 <div class="stats-bar" id="statsBar"></div>
 <div class="list-wrap" id="clientList"><div class="empty"><span class="empty-ico">⏳</span>Carregando obras...</div></div>
 
-<!-- Overlay -->
 <div class="overlay" id="overlay" onclick="closeSheet()"></div>
 
-<!-- Sheet WhatsApp -->
 <div class="sheet" id="waSheet">
   <div style="padding:0 20px">
     <div class="sheet-handle"></div>
@@ -240,7 +198,6 @@ html,body{min-height:100%;background:var(--bg);font-family:'Manrope',sans-serif;
   </div>
 </div>
 
-<!-- Sheet Tracker -->
 <div class="sheet" id="tkSheet">
   <div style="padding:0 20px">
     <div class="sheet-handle"></div>
@@ -271,20 +228,18 @@ var ST=[
   {t:'Entrega do Material',ico:'📦',d:'Equipamentos a caminho para instalação.',wa:'Os equipamentos estão sendo *entregues* para iniciar a instalação!',eta:'Prazo: 1 a 15 dias úteis'},
   {t:'Execução da Obra',ico:'🔨',d:'Instalação de painéis, inversor e conexões.',wa:'A instalação dos painéis e inversor está em andamento no seu imóvel!',eta:'Prazo: 1 a 7 dias úteis'},
   {t:'Vistoria e Conexão',ico:'🔎',d:'Troca do medidor e vistoria da concessionária.',wa:'Instalação concluída! Aguardando *vistoria e troca do medidor*.',eta:'Prazo: 1 a 5 dias úteis'},
-  {t:'Sistema Ativo!',ico:'☀️',d:'Gerando energia limpa e monitorado!',wa:'',eta:'Gerando energia agora!'} // WA gerado dinamicamente para etapa 8
+  {t:'Sistema Ativo!',ico:'☀️',d:'Gerando energia limpa e monitorado!',wa:'',eta:'Gerando energia agora!'}
 ];
 var SC=['linear-gradient(135deg,#2E7D32,#3B8B3B)','linear-gradient(135deg,#022C44,#0A3D5C)','linear-gradient(135deg,#4A148C,#7B1FA2)','linear-gradient(135deg,#BF360C,#E64A19)','linear-gradient(135deg,#01579B,#0277BD)','linear-gradient(135deg,#E8920D,#F5A623)','linear-gradient(135deg,#00838F,#00ACC1)','linear-gradient(135deg,#F57F17,#FFD54F)'];
 var PC=['p1','p2','p3','p4','p5','p6','p5','p6'];
 var allClients=[];
 var activeStage=-1;
 
-// Init logo
 document.getElementById('hdrLogo').src = LOGO;
 
 function slugify(s){return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
 function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2500);}
 
-// ── Utilitários de data ──
 function parseDateBR(str){
   if(!str) return null;
   str=str.trim();
@@ -309,15 +264,20 @@ function buildWAMsgAtivo(c){
   return {msg:msg,diasCorridos:diasCorridos,diasAntes:diasAntes};
 }
 
+// ── CORREÇÃO 2: parseStage robusto — verifica texto primeiro, depois número exato ──
 function parseStage(s){
-  s=(s||'').toString();
-  if(s.indexOf('8')>-1||s.toLowerCase().indexOf('ativo')>-1) return 7;
-  if(s.indexOf('7')>-1||s.toLowerCase().indexOf('vistor')>-1) return 6;
-  if(s.indexOf('6')>-1||s.toLowerCase().indexOf('obra')>-1||s.toLowerCase().indexOf('execu')>-1) return 5;
-  if(s.indexOf('5')>-1||s.toLowerCase().indexOf('entrega')>-1) return 4;
-  if(s.indexOf('4')>-1||s.toLowerCase().indexOf('compra')>-1) return 3;
-  if(s.indexOf('3')>-1||s.toLowerCase().indexOf('aprov')>-1) return 2;
-  if(s.indexOf('2')>-1||s.toLowerCase().indexOf('doc')>-1) return 1;
+  s=(s||'').toString().trim();
+  var sl=s.toLowerCase();
+  if(sl.indexOf('ativo')>-1) return 7;
+  if(sl.indexOf('vistor')>-1) return 6;
+  if(sl.indexOf('execu')>-1||sl.indexOf('obra')>-1) return 5;
+  if(sl.indexOf('entrega')>-1) return 4;
+  if(sl.indexOf('compra')>-1) return 3;
+  if(sl.indexOf('aprov')>-1) return 2;
+  if(sl.indexOf('doc')>-1) return 1;
+  if(sl.indexOf('contrato')>-1||sl.indexOf('fechado')>-1) return 0;
+  var m=s.match(/\d+/);
+  if(m){var n=parseInt(m[0],10);if(n>=1&&n<=8)return n-1;}
   return 0;
 }
 
@@ -328,16 +288,17 @@ function renderStats(clients){
   for(var i=0;i<8;i++){if(counts[i]>0){html+='<div class="stat" data-si="'+i+'" onclick="filterByStage('+i+')"><div class="stat-ico">'+icos[i]+'</div><div><div class="stat-n">'+counts[i]+'</div><div class="stat-l">'+ST[i].t.split(' ')[0]+'</div></div></div>';}}
   document.getElementById('statsBar').innerHTML=html;
   document.getElementById('countBadge').textContent=clients.length;
-  // Restaura estado ativo após re-render
   var sel=document.querySelector('.stat[data-si="'+activeStage+'"]');
   if(sel)sel.classList.add('active');
   else{var tot=document.querySelector('.stat[data-si="-1"]');if(tot)tot.classList.add('active');}
 }
 
+// ── CORREÇÃO 1: renderCards usa gidx (índice global) nos onclick — corrige bug do cliente errado ao filtrar ──
 function renderCards(clients){
   if(!clients.length){document.getElementById('clientList').innerHTML='<div class="empty"><span class="empty-ico">🔍</span>Nenhum cliente encontrado</div>';return;}
   var html='';
-  clients.forEach(function(c,idx){var gidx=allClients.indexOf(c);
+  clients.forEach(function(c,idx){
+    var gidx=allClients.indexOf(c);
     var si=c.si;var prgHtml='';
     for(var j=0;j<8;j++){var cls=j<si?'done':j===si?'now':'';prgHtml+='<div class="prg-s '+cls+'"></div>';}
     var link=window.location.origin+window.location.pathname.replace('index.html','')+'cliente.html?id='+slugify(c.name);
@@ -348,7 +309,7 @@ function renderCards(clients){
         celebrateHtml='<div class="cc-divider"></div><div class="cc-celebrate"><span class="cc-celebrate-ico">🏆</span><div class="cc-celebrate-info"><div class="cc-celebrate-title">ENTREGA ANTECIPADA</div><div class="cc-celebrate-sub">Concluído em '+dias+' dias'+(antes>0?' · '+antes+' dias antes do prazo':'')+'</div></div></div>';
       }
     }
-    html+='<div class="cc" id="cc'+idx+'" onclick="toggleCard('+idx+')" style="animation-delay:'+(idx*0.04)+'s">'
+    html+='<div class="cc" id="cc'+gidx+'" onclick="toggleCard('+gidx+')" style="animation-delay:'+(idx*0.04)+'s">'
       +'<div class="cc-top"><div class="cc-av" style="background:'+SC[si]+'">'+ST[si].ico+'</div>'
       +'<div class="cc-info"><div class="cc-name">'+c.name+'</div><div class="cc-sub">'+(c.power?c.power+' kWp':'')+(c.power&&c.contract?' · ':'')+(c.contract||'')+'</div></div>'
       +'<div class="cc-pill '+PC[si]+'">'+ST[si].t+'</div></div>'
@@ -358,17 +319,17 @@ function renderCards(clients){
       +'<div class="prg-txt">Etapa '+(si+1)+' de 8 · '+ST[si].t+'</div>'
       +'<div class="prg-eta">⏱ Previsão: '+(c.date||'A definir')+'</div></div>'
       +'<div class="acts">'
-      +'<button class="act act-wa" onclick="event.stopPropagation();openWA('+idx+')"><span class="act-ico">💬</span>WhatsApp</button>'
-      +'<button class="act act-tk" onclick="event.stopPropagation();openTK('+idx+')"><span class="act-ico">📊</span>Tracker</button>'
-      +'<button class="act act-cp" onclick="event.stopPropagation();copyLink('+idx+')"><span class="act-ico">🔗</span>Copiar Link</button>'
+      +'<button class="act act-wa" onclick="event.stopPropagation();openWA('+gidx+')"><span class="act-ico">💬</span>WhatsApp</button>'
+      +'<button class="act act-tk" onclick="event.stopPropagation();openTK('+gidx+')"><span class="act-ico">📊</span>Tracker</button>'
+      +'<button class="act act-cp" onclick="event.stopPropagation();copyLink('+gidx+')"><span class="act-ico">🔗</span>Copiar Link</button>'
       +'<button class="act act-lk" onclick="event.stopPropagation();window.open(\''+link+'\',\'_blank\')"><span class="act-ico">👁</span>Visualizar</button>'
       +'</div></div></div></div>';
   });
   document.getElementById('clientList').innerHTML=html;
 }
 
-function toggleCard(idx){
-  var el=document.getElementById('cc'+idx);
+function toggleCard(gidx){
+  var el=document.getElementById('cc'+gidx);
   if(el.classList.contains('open')){el.classList.remove('open');}
   else{document.querySelectorAll('.cc.open').forEach(function(c){c.classList.remove('open');});el.classList.add('open');setTimeout(function(){el.scrollIntoView({behavior:'smooth',block:'nearest'});},100);}
 }
@@ -393,8 +354,8 @@ function applyFilters(){
 
 function filterClients(){applyFilters();}
 
-function openWA(idx){
-  var c=allClients[idx];var si=c.si;
+function openWA(gidx){
+  var c=allClients[gidx];var si=c.si;
   var phone=c.phone||'5518996906474';
   var link=window.location.origin+window.location.pathname.replace('index.html','')+'cliente.html?id='+slugify(c.name);
   var msgFinal='';var dsHtml='';
@@ -424,8 +385,8 @@ function openWA(idx){
   showSheet('waSheet');
 }
 
-function openTK(idx){
-  var c=allClients[idx];var si=c.si;var pct=Math.round(((si+1)/8)*100);
+function openTK(gidx){
+  var c=allClients[gidx];var si=c.si;var pct=Math.round(((si+1)/8)*100);
   var dotsHtml='';for(var j=0;j<8;j++){var dcls=j<si?'done':j===si?'now':'';dotsHtml+='<div class="tk-dot '+dcls+'"></div>';}
   var stHtml='';
   for(var j=0;j<8;j++){var tcls=j<si?'done':j===si?'now':'wait';stHtml+='<div class="tk-s"><div class="tk-ic '+tcls+'">'+(j<si?'✓':(j+1))+'</div><div class="tk-si"><strong>'+ST[j].t+'</strong><small>'+ST[j].d+'</small></div><div class="tk-badge '+tcls+'">'+(j<si?'Concluído':j===si?'Em andamento':'Pendente')+'</div></div>';}
@@ -439,8 +400,8 @@ function openTK(idx){
 function showSheet(id){document.getElementById('overlay').classList.add('show');document.getElementById(id).classList.add('show');}
 function closeSheet(){document.getElementById('overlay').classList.remove('show');document.querySelectorAll('.sheet').forEach(function(s){s.classList.remove('show');});}
 
-function copyLink(idx){
-  var c=allClients[idx];var link=window.location.origin+window.location.pathname.replace('index.html','')+'cliente.html?id='+slugify(c.name);
+function copyLink(gidx){
+  var c=allClients[gidx];var link=window.location.origin+window.location.pathname.replace('index.html','')+'cliente.html?id='+slugify(c.name);
   if(navigator.clipboard){navigator.clipboard.writeText(link).then(function(){toast('Link copiado! 🔗');});}
   else{var ta=document.createElement('textarea');ta.value=link;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Link copiado! 🔗');}
 }
@@ -468,7 +429,6 @@ function fetchData(pi){
       allClients.push({name:name.trim(),power:row['Potência (kWp)']||row['Potencia']||row['kWp']||'',contract:row['Contrato']||row['contrato']||'',date:row['Data Fechamento']||row['Data']||'',dateStart:row['Data Fechamento']||row['Data Inicio']||row['Data']||'',dateEnd:row['Data Conclusão']||row['Data Conclusao']||row['Data de conclusão']||row['Data de Conclusão']||row['Data de conclusao']||row['Data Ativacao']||row['Data Ativação']||'',phone:row['Telefone']||row['telefone']||row['WhatsApp']||row['whatsapp']||'',si:parseStage(row['Etapa Atual']||row['Etapa']||'')});
     });
     renderStats(allClients);renderCards(allClients);
-    // Marca Total como ativo por padrão ao carregar
     setTimeout(function(){var tot=document.querySelector('.stat[data-si="-1"]');if(tot)tot.classList.add('active');},0);
     if(btn)btn.classList.remove('loading');toast('Dados atualizados ✓');
   }).catch(function(e){if(btn)btn.classList.remove('loading');if(pi<CORS_PROXIES.length-1)fetchData(pi+1);else document.getElementById('clientList').innerHTML='<div class="empty"><span class="empty-ico">⚠️</span>Erro ao carregar. Tente sincronizar.</div>';});
