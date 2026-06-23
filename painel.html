@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="theme-color" content="#011D2E">
+<title>Polaris Obras — Painel</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* =================================================================
+   CONFIG VISUAL — paleta Polaris
+   ================================================================= */
+:root{
+  --navy:#011D2E; --navy2:#06314a; --green:#3B8B3B; --gold:#F5A623;
+  --bg:#0a1622; --card:#0f2233; --card2:#13293c;
+  --border:#1d3850; --txt:#eaf2f8; --muted:#8fa6b8; --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Manrope',system-ui,sans-serif;background:
+  radial-gradient(1200px 600px at 80% -10%, #0c2740 0%, transparent 60%),
+  var(--bg); color:var(--txt); min-height:100vh; padding-bottom:90px}
+a{color:inherit}
+.wrap{max-width:980px;margin:0 auto;padding:16px}
+
+/* ---- Topbar ---- */
+.topbar{display:flex;align-items:center;gap:12px;padding:14px 16px;
+  background:rgba(1,29,46,.85);backdrop-filter:blur(10px);
+  position:sticky;top:0;z-index:30;border-bottom:1px solid var(--border)}
+.topbar img{height:30px}
+.topbar .ttl{font-weight:800;font-size:16px;letter-spacing:.3px}
+.topbar .ttl span{color:var(--gold)}
+.topbar .who{margin-left:auto;font-size:12px;color:var(--muted);text-align:right;line-height:1.3}
+.btn-out{background:none;border:1px solid var(--border);color:var(--muted);
+  border-radius:9px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:inherit}
+.btn-out:hover{color:var(--txt);border-color:var(--gold)}
+
+/* ---- Stats chips ---- */
+.stats{display:flex;gap:8px;overflow-x:auto;padding:14px 2px 4px;scrollbar-width:none}
+.stats::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;background:var(--card);border:1px solid var(--border);
+  border-radius:12px;padding:9px 13px;cursor:pointer;transition:.15s;min-width:74px;text-align:center}
+.chip:hover{border-color:var(--gold)}
+.chip.on{border-color:var(--gold);background:var(--card2)}
+.chip .n{font-size:19px;font-weight:800}
+.chip .l{font-size:10.5px;color:var(--muted);margin-top:1px;white-space:nowrap}
+.chip.total .n{color:var(--gold)}
+
+/* ---- Toolbar ---- */
+.toolbar{display:flex;gap:8px;margin:12px 0}
+.search{flex:1;display:flex;align-items:center;gap:8px;background:var(--card);
+  border:1px solid var(--border);border-radius:11px;padding:0 12px}
+.search input{flex:1;background:none;border:none;outline:none;color:var(--txt);
+  font-family:inherit;font-size:14px;padding:11px 0}
+.search input::placeholder{color:var(--muted)}
+.btn-new{background:linear-gradient(135deg,var(--green),#2f7030);border:none;color:#fff;
+  font-weight:700;border-radius:11px;padding:0 16px;font-family:inherit;font-size:14px;cursor:pointer;white-space:nowrap}
+.btn-new:hover{filter:brightness(1.08)}
+
+/* ---- Cards ---- */
+.list{display:flex;flex-direction:column;gap:11px}
+.obra{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px;transition:.15s}
+.obra:hover{border-color:#2a4d6e}
+.obra .top{display:flex;align-items:flex-start;gap:10px}
+.obra .nm{font-weight:700;font-size:15.5px;line-height:1.25}
+.obra .meta{font-size:12px;color:var(--muted);margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 10px}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;
+  padding:4px 9px;border-radius:20px;white-space:nowrap}
+.b-stage{background:rgba(245,166,35,.13);color:var(--gold);border:1px solid rgba(245,166,35,.3)}
+.b-st{margin-left:auto}
+.b-fim{background:rgba(59,139,59,.16);color:#7ed07e;border:1px solid rgba(59,139,59,.35)}
+.b-and{background:rgba(120,170,210,.13);color:#9cc4e4;border:1px solid rgba(120,170,210,.3)}
+.b-out{background:rgba(143,166,184,.12);color:var(--muted);border:1px solid var(--border)}
+
+.ctrls{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px;align-items:center}
+.ctrls select{background:var(--card2);border:1px solid var(--border);color:var(--txt);
+  border-radius:9px;padding:8px 9px;font-family:inherit;font-size:12.5px;cursor:pointer;outline:none}
+.act{border:none;border-radius:9px;padding:8px 11px;font-family:inherit;font-size:12.5px;
+  font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.act-adv{background:var(--gold);color:#3a2a00}
+.act-adv:disabled{opacity:.4;cursor:default}
+.act-wa{background:#1f8a4c;color:#fff}
+.act-gh{background:var(--card2);border:1px solid var(--border);color:var(--muted)}
+.act-gh:hover{color:var(--txt);border-color:var(--gold)}
+
+/* ---- Empty / loading ---- */
+.empty{text-align:center;color:var(--muted);padding:60px 20px}
+.empty .i{font-size:40px;display:block;margin-bottom:12px}
+.spinner{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--gold);
+  border-radius:50%;animation:spin .7s linear infinite;margin:60px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---- Banner config ---- */
+.cfg{background:rgba(245,166,35,.12);border:1px solid var(--gold);color:#ffe;
+  border-radius:12px;padding:14px 16px;margin:14px 0;font-size:13.5px;line-height:1.5}
+.cfg code{background:rgba(0,0,0,.35);padding:1px 6px;border-radius:5px;color:var(--gold)}
+
+/* ---- Login ---- */
+.login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.login .box{background:var(--card);border:1px solid var(--border);border-radius:18px;
+  padding:30px 26px;width:100%;max-width:360px;text-align:center}
+.login img{height:42px;margin-bottom:6px}
+.login h1{font-size:18px;font-weight:800;margin-bottom:4px}
+.login h1 span{color:var(--gold)}
+.login p{color:var(--muted);font-size:13px;margin-bottom:20px}
+.login input{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--txt);
+  border-radius:11px;padding:13px 14px;font-family:inherit;font-size:14px;margin-bottom:11px;outline:none}
+.login input:focus{border-color:var(--gold)}
+.login button{width:100%;background:linear-gradient(135deg,var(--green),#2f7030);border:none;color:#fff;
+  font-weight:700;border-radius:11px;padding:13px;font-family:inherit;font-size:15px;cursor:pointer;margin-top:4px}
+.login .err{color:#ff9a9a;font-size:12.5px;min-height:18px;margin-top:8px}
+
+/* ---- Modal ---- */
+.ov{position:fixed;inset:0;background:rgba(0,5,12,.7);backdrop-filter:blur(4px);
+  display:none;align-items:flex-end;justify-content:center;z-index:50}
+.ov.on{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:18px 18px 0 0;
+  width:100%;max-width:560px;max-height:90vh;overflow-y:auto;padding:22px 20px 30px}
+@media(min-width:600px){.ov{align-items:center}.modal{border-radius:18px}}
+.modal h2{font-size:17px;font-weight:800;margin-bottom:16px}
+.fld{margin-bottom:12px}
+.fld label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;font-weight:600}
+.fld input,.fld select,.fld textarea{width:100%;background:var(--card2);border:1px solid var(--border);
+  color:var(--txt);border-radius:10px;padding:11px 12px;font-family:inherit;font-size:14px;outline:none}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--gold)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal .row{display:flex;gap:10px;margin-top:8px}
+.modal .save{flex:1;background:linear-gradient(135deg,var(--green),#2f7030);border:none;color:#fff;
+  font-weight:700;border-radius:11px;padding:13px;font-family:inherit;font-size:15px;cursor:pointer}
+.modal .cancel{background:none;border:1px solid var(--border);color:var(--muted);border-radius:11px;
+  padding:13px 18px;font-family:inherit;font-size:14px;cursor:pointer}
+
+/* ---- Toast ---- */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);
+  background:var(--navy2);border:1px solid var(--gold);color:var(--txt);padding:12px 20px;
+  border-radius:12px;font-size:13.5px;font-weight:600;z-index:99;transition:.3s;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.toast.on{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- ===================================================================
+     ⚙️  CONFIGURAÇÃO — PREENCHA AS DUAS LINHAS ABAIXO
+     Pegue em: Supabase > Project Settings > API
+       • Project URL          -> SUPABASE_URL
+       • Project API keys (anon public) -> SUPABASE_ANON_KEY
+==================================================================== -->
+<script>
+  const SUPABASE_URL      = "https://dakubhcgohiwzyqiegqf.supabase.co";  // ✅ já preenchido
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRha3ViaGNnb2hpd3p5cWllZ3FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMjExMTIsImV4cCI6MjA5Nzc5NzExMn0.Vdgp6B0TBVOSz-NT5vka9jXCdIT0iNhu1dbmvhLbWQ0";  // ✅ já preenchido
+  const CLIENT_BASE_URL   = "https://obras.polarisenergiasolar.com/cliente.html"; // link do cliente
+  const PRAZO_CONTRATUAL  = 60; // dias — usado na mensagem de "Sistema Ativo"
+</script>
+
+<div id="root"></div>
+
+<script>
+/* ================================================================
+   INICIALIZAÇÃO
+   ================================================================ */
+const NEEDS_CFG = SUPABASE_URL.startsWith("COLE_AQUI") || SUPABASE_ANON_KEY.startsWith("COLE_AQUI");
+let sb = null;
+if(!NEEDS_CFG){ sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
+
+let ET = {};        // catálogo de etapas {numero: {...}}
+let OBRAS = [];     // obras carregadas
+let filtroEtapa = null, busca = "";
+let rtChannel = null;
+
+const root = document.getElementById('root');
+const LOGO = "https://obras.polarisenergiasolar.com/logo.png";
+
+/* ---------- util ---------- */
+function slugify(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function diffDays(a,b){return Math.round((b-a)/86400000);}
+function parseDate(s){if(!s)return null;const d=new Date(s);return isNaN(d)?null:d;}
+function diasAtras(iso){const d=parseDate(iso);if(!d)return '';const n=diffDays(d,new Date());return n<=0?'hoje':(n===1?'ontem':'há '+n+'d');}
+function toast(m){let t=document.getElementById('tst');if(!t){t=document.createElement('div');t.id='tst';t.className='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2600);}
+function waPhone(tel){let d=(tel||'').replace(/\D/g,'');if(!d)return '';if(d.length<=11&&!d.startsWith('55'))d='55'+d;return d;}
+
+/* ================================================================
+   FLUXO PRINCIPAL
+   ================================================================ */
+async function boot(){
+  if(NEEDS_CFG){ renderConfigNeeded(); return; }
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session){ renderLogin(); return; }
+  await renderApp(session);
+  sb.auth.onAuthStateChange((_e, s)=>{ if(!s) renderLogin(); });
+}
+
+/* ---------- tela: falta config ---------- */
+function renderConfigNeeded(){
+  root.innerHTML = `<div class="wrap"><div class="cfg" style="margin-top:40px">
+    <b>⚙️ Falta configurar o painel.</b><br><br>
+    Abra este arquivo e preencha, lá no topo do &lt;script&gt;:
+    <br>• <code>SUPABASE_URL</code><br>• <code>SUPABASE_ANON_KEY</code><br><br>
+    Você pega os dois em <b>Supabase → Project Settings → API</b>.
+  </div></div>`;
+}
+
+/* ---------- tela: login ---------- */
+function renderLogin(){
+  if(rtChannel){ sb.removeChannel(rtChannel); rtChannel=null; }
+  root.innerHTML = `<div class="login"><div class="box">
+    <img src="${LOGO}" onerror="this.style.display='none'">
+    <h1>Polaris <span>Obras</span></h1>
+    <p>Painel da equipe — acesso restrito</p>
+    <input id="email" type="email" placeholder="seu e-mail" autocomplete="username">
+    <input id="senha" type="password" placeholder="senha" autocomplete="current-password">
+    <button id="bLogin">Entrar</button>
+    <div class="err" id="loginErr"></div>
+  </div></div>`;
+  const doLogin = async ()=>{
+    const email=document.getElementById('email').value.trim();
+    const password=document.getElementById('senha').value;
+    const errEl=document.getElementById('loginErr');
+    if(!email||!password){errEl.textContent='Preencha e-mail e senha.';return;}
+    document.getElementById('bLogin').textContent='Entrando...';
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if(error){ errEl.textContent='E-mail ou senha incorretos.'; document.getElementById('bLogin').textContent='Entrar'; return; }
+    renderApp(data.session);
+  };
+  document.getElementById('bLogin').onclick = doLogin;
+  document.getElementById('senha').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+}
+
+/* ---------- app ---------- */
+async function renderApp(session){
+  root.innerHTML = `
+    <div class="topbar">
+      <img src="${LOGO}" onerror="this.style.display='none'">
+      <div class="ttl">Polaris <span>Obras</span></div>
+      <div class="who">${esc(session.user.email)}<br><button class="btn-out" id="bOut">sair</button></div>
+    </div>
+    <div class="wrap">
+      <div class="stats" id="stats"></div>
+      <div class="toolbar">
+        <div class="search">🔍 <input id="busca" placeholder="Buscar cliente ou contrato..."></div>
+        <button class="btn-new" id="bNew">+ Nova obra</button>
+      </div>
+      <div class="list" id="list"><div class="spinner"></div></div>
+    </div>`;
+  document.getElementById('bOut').onclick = async ()=>{ await sb.auth.signOut(); };
+  document.getElementById('bNew').onclick = ()=> openForm(null);
+  document.getElementById('busca').addEventListener('input', e=>{ busca=e.target.value.toLowerCase(); renderList(); });
+
+  await loadEtapas();
+  await loadObras();
+  subscribeRealtime();
+}
+
+async function loadEtapas(){
+  const { data, error } = await sb.from('etapas').select('*').order('numero');
+  if(error){ toast('Erro ao carregar etapas'); return; }
+  ET = {}; (data||[]).forEach(e=> ET[e.numero]=e);
+}
+
+async function loadObras(){
+  const { data, error } = await sb.from('obras').select('*');
+  if(error){ document.getElementById('list').innerHTML=`<div class="empty"><span class="i">⚠️</span>Erro ao carregar: ${esc(error.message)}</div>`; return; }
+  OBRAS = data||[];
+  renderStats(); renderList();
+}
+
+/* ---------- stats ---------- */
+function renderStats(){
+  const cont={}; OBRAS.forEach(o=> cont[o.etapa_numero]=(cont[o.etapa_numero]||0)+1);
+  let h=`<div class="chip total ${filtroEtapa===null?'on':''}" onclick="setFiltro(null)"><div class="n">${OBRAS.length}</div><div class="l">Total</div></div>`;
+  for(let n=8;n>=0;n--){ if(!cont[n]) continue; const e=ET[n]||{nome:'?',icone:''};
+    h+=`<div class="chip ${filtroEtapa===n?'on':''}" onclick="setFiltro(${n})"><div class="n">${cont[n]}</div><div class="l">${e.icone||''} ${esc((e.nome||'').replace('!',''))}</div></div>`; }
+  document.getElementById('stats').innerHTML=h;
+}
+function setFiltro(n){ filtroEtapa=(filtroEtapa===n?null:n); renderStats(); renderList(); }
+
+/* ---------- lista ---------- */
+function statusBadge(s){
+  const cls = s==='Finalizado'?'b-fim': s==='Em andamento'?'b-and':'b-out';
+  return `<span class="badge b-st ${cls}">${esc(s)}</span>`;
+}
+function renderList(){
+  let arr=OBRAS.slice();
+  if(filtroEtapa!==null) arr=arr.filter(o=>o.etapa_numero===filtroEtapa);
+  if(busca) arr=arr.filter(o=> (o.cliente||'').toLowerCase().includes(busca) || (o.contrato||'').includes(busca));
+  // ordena: não finalizadas primeiro, depois por etapa desc, depois nome
+  arr.sort((a,b)=>{
+    const fa=a.status==='Finalizado'?1:0, fb=b.status==='Finalizado'?1:0;
+    if(fa!==fb) return fa-fb;
+    if(b.etapa_numero!==a.etapa_numero) return b.etapa_numero-a.etapa_numero;
+    return (a.cliente||'').localeCompare(b.cliente||'');
+  });
+  const el=document.getElementById('list');
+  if(!arr.length){ el.innerHTML=`<div class="empty"><span class="i">📋</span>Nenhuma obra encontrada.</div>`; return; }
+  el.innerHTML = arr.map(cardHtml).join('');
+}
+function cardHtml(o){
+  const e=ET[o.etapa_numero]||{nome:'?',icone:''};
+  const metaBits=[];
+  if(o.contrato) metaBits.push('#'+esc(o.contrato));
+  if(o.potencia_kwp) metaBits.push(esc(String(o.potencia_kwp).replace('.',','))+' kWp');
+  metaBits.push('atualizado '+diasAtras(o.atualizado_em));
+  if(o.observacoes) metaBits.push('📝 '+esc(o.observacoes));
+  const opts=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===o.etapa_numero?'selected':''}>${(ET[n]?.icone||'')} ${n} - ${esc((ET[n]?.nome||'').replace('!',''))}</option>`).join('');
+  const stOpts=['Boas-vindas','Em andamento','Finalizado','A configurar'].map(s=>`<option ${s===o.status?'selected':''}>${s}</option>`).join('');
+  return `<div class="obra" data-id="${o.id}">
+    <div class="top">
+      <div>
+        <div class="nm">${esc(o.cliente)}</div>
+        <div class="meta">${metaBits.join('<span>•</span>')}</div>
+      </div>
+      <span class="badge b-stage">${e.icone||''} ${esc((e.nome||'').replace('!',''))}</span>
+    </div>
+    <div class="ctrls">
+      <select onchange="mudarEtapa('${o.id}',this.value)" title="Etapa">${opts}</select>
+      <button class="act act-adv" ${o.etapa_numero>=8?'disabled':''} onclick="avancar('${o.id}')">Avançar ▶</button>
+      <select onchange="mudarStatus('${o.id}',this.value)" title="Status">${stOpts}</select>
+      <button class="act act-wa" onclick="enviarWA('${o.id}')">💬 WhatsApp</button>
+      <button class="act act-gh" onclick="copiarLink('${o.id}')">🔗 Link</button>
+      <button class="act act-gh" onclick="openForm('${o.id}')">✏️</button>
+    </div>
+  </div>`;
+}
+
+/* ---------- ações ---------- */
+function getObra(id){ return OBRAS.find(o=>o.id===id); }
+
+async function mudarEtapa(id,n){
+  n=parseInt(n,10);
+  const patch={etapa_numero:n};
+  if(n===8){ const o=getObra(id); if(!o.data_conclusao) patch.data_conclusao=new Date().toISOString().slice(0,10); patch.status='Finalizado'; }
+  const { error } = await sb.from('obras').update(patch).eq('id',id);
+  if(error){ toast('Erro ao salvar'); return; }
+  toast('Etapa atualizada ✓');
+  await loadObras();
+}
+async function avancar(id){
+  const o=getObra(id); if(o.etapa_numero>=8) return;
+  await mudarEtapa(id, o.etapa_numero+1);
+}
+async function mudarStatus(id,s){
+  const { error } = await sb.from('obras').update({status:s}).eq('id',id);
+  if(error){ toast('Erro ao salvar'); return; }
+  toast('Status atualizado ✓'); await loadObras();
+}
+function copiarLink(id){
+  const o=getObra(id); const url=`${CLIENT_BASE_URL}?id=${o.slug}`;
+  navigator.clipboard.writeText(url).then(()=>toast('Link copiado ✓')).catch(()=>prompt('Link do cliente:',url));
+}
+
+/* ---------- mensagem de WhatsApp ---------- */
+function buildWA(o){
+  const e=ET[o.etapa_numero]||{};
+  if(o.etapa_numero===8){
+    const dF=parseDate(o.data_fechamento), dC=parseDate(o.data_conclusao);
+    let dias=null, antes=null;
+    if(dF&&dC){ dias=diffDays(dF,dC); antes=PRAZO_CONTRATUAL-dias; }
+    if(dias!==null && antes>0)
+      return `☀️ *${o.cliente}*, temos uma ótima notícia!\n\nSeu sistema solar foi *ativado* — e com muito orgulho: entregamos sua obra *${antes} dias antes* do prazo contratual! 🚀\n\n📊 Prazo contratual: ${PRAZO_CONTRATUAL} dias\n✅ Entregamos em: *${dias} dias*\n\nSeu sistema já está gerando energia limpa e reduzindo sua conta. 🌱\n\n*Equipe Polaris Energia Solar* ☀️`;
+    if(dias!==null && antes===0)
+      return `☀️ *${o.cliente}*, seu sistema foi *ativado* no prazo! ✅\n\nEntregamos em exatamente *${dias} dias*, dentro do prazo contratual.\n\nSeu sistema já está gerando energia limpa. 🌱\n\n*Equipe Polaris Energia Solar* ☀️`;
+    return `☀️ *${o.cliente}*, seu sistema solar foi *ativado*! Parabéns! 🚀\n\nSeu sistema já está gerando energia limpa e reduzindo sua conta. 🌱\n\n*Equipe Polaris Energia Solar* ☀️`;
+  }
+  let msg=`Olá *${o.cliente}*! 👋\n\n`;
+  if(e.mensagem_wa) msg+=e.mensagem_wa+'\n\n';
+  msg+=`📍 Etapa atual: *${(e.nome||'').replace('!','')}*`;
+  if(e.prazo_texto) msg+=`\n⏱️ ${e.prazo_texto}`;
+  msg+=`\n\nVocê pode acompanhar sua obra em tempo real neste link:\n${CLIENT_BASE_URL}?id=${o.slug}\n\n*Equipe Polaris Energia Solar* ☀️`;
+  return msg;
+}
+function enviarWA(id){
+  const o=getObra(id); const fone=waPhone(o.telefone);
+  const txt=encodeURIComponent(buildWA(o));
+  if(!fone){
+    toast('Cadastre o WhatsApp do cliente primeiro');
+    openForm(id, true); return;
+  }
+  window.open(`https://wa.me/${fone}?text=${txt}`,'_blank');
+}
+
+/* ---------- formulário (nova / editar) ---------- */
+function openForm(id, focoFone){
+  const o = id ? getObra(id) : {};
+  const novo = !id;
+  const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovForm';
+  const stOpts=['Boas-vindas','Em andamento','Finalizado','A configurar'].map(s=>`<option ${s===(o.status||'Em andamento')?'selected':''}>${s}</option>`).join('');
+  const etOpts=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===(o.etapa_numero??1)?'selected':''}>${n} - ${(ET[n]?.nome||'').replace('!','')}</option>`).join('');
+  ov.innerHTML=`<div class="modal">
+    <h2>${novo?'Nova obra':'Editar obra'}</h2>
+    <div class="fld"><label>Cliente *</label><input id="f_cli" value="${esc(o.cliente||'')}" placeholder="Nome do cliente"></div>
+    <div class="grid2">
+      <div class="fld"><label>WhatsApp (DDD+número)</label><input id="f_tel" value="${esc(o.telefone||'')}" placeholder="18996906474"></div>
+      <div class="fld"><label>Contrato</label><input id="f_con" value="${esc(o.contrato||'')}" placeholder="4147"></div>
+    </div>
+    <div class="grid2">
+      <div class="fld"><label>Potência (kWp)</label><input id="f_pot" value="${o.potencia_kwp!=null?String(o.potencia_kwp).replace('.',','):''}" placeholder="8,54"></div>
+      <div class="fld"><label>Status</label><select id="f_st">${stOpts}</select></div>
+    </div>
+    <div class="grid2">
+      <div class="fld"><label>Etapa</label><select id="f_et">${etOpts}</select></div>
+      <div class="fld"><label>Data fechamento</label><input id="f_dtf" type="date" value="${o.data_fechamento||''}"></div>
+    </div>
+    <div class="grid2">
+      <div class="fld"><label>Data conclusão</label><input id="f_dtc" type="date" value="${o.data_conclusao||''}"></div>
+      <div class="fld"><label>Observações</label><input id="f_obs" value="${esc(o.observacoes||'')}" placeholder="opcional"></div>
+    </div>
+    <div class="row">
+      <button class="cancel" onclick="document.getElementById('ovForm').remove()">Cancelar</button>
+      <button class="save" id="f_save">${novo?'Criar obra':'Salvar'}</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  if(focoFone) setTimeout(()=>document.getElementById('f_tel').focus(),50);
+  document.getElementById('f_save').onclick = ()=> salvarForm(id);
+}
+async function salvarForm(id){
+  const cli=document.getElementById('f_cli').value.trim();
+  if(!cli){ toast('Informe o nome do cliente'); return; }
+  const potRaw=document.getElementById('f_pot').value.trim().replace(',','.');
+  const rec={
+    cliente:cli,
+    telefone:document.getElementById('f_tel').value.replace(/\D/g,'')||null,
+    contrato:document.getElementById('f_con').value.replace(/\D/g,'')||null,
+    potencia_kwp: potRaw?parseFloat(potRaw):null,
+    status:document.getElementById('f_st').value,
+    etapa_numero:parseInt(document.getElementById('f_et').value,10),
+    data_fechamento:document.getElementById('f_dtf').value||null,
+    data_conclusao:document.getElementById('f_dtc').value||null,
+    observacoes:document.getElementById('f_obs').value.trim()||null
+  };
+  document.getElementById('f_save').textContent='Salvando...';
+  let error;
+  if(id){ ({ error } = await sb.from('obras').update(rec).eq('id',id)); }
+  else {
+    rec.slug = await slugUnico(slugify(cli));
+    ({ error } = await sb.from('obras').insert(rec));
+  }
+  if(error){ toast('Erro: '+error.message); document.getElementById('f_save').textContent='Salvar'; return; }
+  document.getElementById('ovForm').remove();
+  toast(id?'Obra salva ✓':'Obra criada ✓');
+  await loadObras();
+}
+async function slugUnico(base){
+  if(!base) base='cliente';
+  let slug=base, i=1;
+  while(OBRAS.some(o=>o.slug===slug)){ i++; slug=base+'-'+i; }
+  return slug;
+}
+
+/* ---------- realtime ---------- */
+function subscribeRealtime(){
+  if(rtChannel) return;
+  rtChannel = sb.channel('obras-rt')
+    .on('postgres_changes',{event:'*',schema:'public',table:'obras'},()=>{ loadObras(); })
+    .subscribe();
+}
+
+boot();
+</script>
+</body>
+</html>

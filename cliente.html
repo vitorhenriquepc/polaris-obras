@@ -3,537 +3,289 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#011D2E">
-<title>Polaris Solar – Acompanhe sua Obra</title>
+<title>Polaris Solar — Acompanhe sua Obra</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{
-  --navy:#011D2E;--navy-mid:#022C44;--navy-light:#0A3D5C;
-  --green:#3B8B3B;--green-light:#58B868;--green-glow:rgba(59,139,59,0.25);
-  --gold:#F5A623;--gold-light:#FFD580;--gold-glow:rgba(245,166,35,0.3);
-  --bg:#F7F8F6;--surface:#FFFFFF;--surface-alt:#F0F2ED;
-  --text:#022C44;--text-secondary:#6B7D8A;--text-muted:#9EABB5;
-  --border:#E2E8EC;--border-light:#EEF1F4;
-  --shadow-sm:0 1px 3px rgba(1,29,46,0.06);
-  --shadow-md:0 4px 16px rgba(1,29,46,0.08);
-  --shadow-lg:0 8px 32px rgba(1,29,46,0.12);
-  --shadow-glow:0 4px 24px rgba(245,166,35,0.15);
-  --radius:16px;--radius-sm:10px;--radius-lg:24px;
-  --safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);
+  --navy:#011D2E; --navy2:#06314a; --green:#3B8B3B; --gold:#F5A623;
+  --bg:#081522; --card:rgba(255,255,255,.04); --line:rgba(255,255,255,.09);
+  --txt:#eef4f9; --muted:#93a8ba;
 }
-html{scroll-behavior:smooth}
-html,body{min-height:100%;background:var(--bg);font-family:'Manrope',sans-serif;color:var(--text);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
-body{padding-bottom:calc(40px + var(--safe-b))}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Manrope',system-ui,sans-serif;color:var(--txt);min-height:100vh;
+  background:radial-gradient(900px 500px at 50% -10%,#0d2c47 0%,transparent 60%),var(--bg);
+  padding:0 16px 50px}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
+.wrap{max-width:560px;margin:0 auto}
 
-/* ── HERO ── */
-.hero{
-  background:var(--navy);
-  padding:calc(var(--safe-t)+48px) 24px 40px;
-  text-align:center;
-  position:relative;
-  overflow:hidden;
-}
-.hero::before{
-  content:'';position:absolute;inset:0;
-  background: radial-gradient(ellipse at 30% -20%,rgba(59,139,59,0.12) 0%,transparent 50%),
-              radial-gradient(ellipse at 70% -10%,rgba(245,166,35,0.10) 0%,transparent 50%);
-  pointer-events:none;
-}
-.hero::after{
-  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent,rgba(245,166,35,0.3),transparent);
-}
-.hero-logo{height:40px;margin:0 auto 28px;display:block;opacity:0;animation:fadeDown .6s ease .1s forwards}
-.hero-tag{
-  font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
-  color:var(--gold);margin-bottom:12px;opacity:0;animation:fadeDown .6s ease .2s forwards;
-}
-.hero-name{
-  font-size:26px;font-weight:800;color:#fff;letter-spacing:-0.5px;
-  line-height:1.15;margin-bottom:6px;opacity:0;animation:fadeDown .6s ease .3s forwards;
-}
-.hero-sub{
-  font-size:13px;color:rgba(255,255,255,0.45);margin-bottom:24px;
-  font-weight:500;opacity:0;animation:fadeDown .6s ease .35s forwards;
-}
-.hero-badge{
-  display:inline-flex;align-items:center;gap:8px;
-  background:rgba(255,255,255,0.06);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  border:1px solid rgba(255,255,255,0.08);border-radius:50px;
-  padding:10px 20px;font-size:13px;font-weight:700;color:#fff;
-  opacity:0;animation:fadeUp .6s ease .45s forwards;
-}
-.hero-badge-dot{
-  width:8px;height:8px;border-radius:50%;background:var(--gold);
-  box-shadow:0 0 12px var(--gold-glow);animation:pulse 2s ease-in-out infinite;
-}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
-@keyframes fadeDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
-@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+/* header */
+.head{display:flex;flex-direction:column;align-items:center;text-align:center;padding:26px 0 8px}
+.head img{height:34px;margin-bottom:18px}
+.hi{font-size:24px;font-weight:800;letter-spacing:-.3px}
+.hi span{color:var(--gold)}
+.sub{color:var(--muted);font-size:13.5px;margin-top:3px}
 
-/* ── CARD CELEBRAÇÃO (entrega antecipada) ── */
-.celebrate-wrap{padding:20px 20px 0}
-.celebrate-card{
-  background:linear-gradient(135deg,#012E1A 0%,#014d29 50%,#022C44 100%);
-  border-radius:var(--radius-lg);
-  border:1px solid rgba(59,139,59,0.35);
-  box-shadow:0 8px 32px rgba(59,139,59,0.2),0 2px 8px rgba(0,0,0,0.3);
-  overflow:hidden;
-  position:relative;
-}
-.celebrate-card::before{
-  content:'';position:absolute;inset:0;
-  background:radial-gradient(ellipse at 80% -10%,rgba(245,166,35,0.12) 0%,transparent 60%),
-             radial-gradient(ellipse at 10% 110%,rgba(59,139,59,0.15) 0%,transparent 50%);
-  pointer-events:none;
-}
-.celebrate-inner{position:relative;z-index:1;padding:24px 20px 20px}
-.celebrate-trophy{
-  font-size:40px;display:block;text-align:center;margin-bottom:16px;
-  animation:bounceIn .8s cubic-bezier(.34,1.56,.64,1) .2s both;
-}
-@keyframes bounceIn{
-  0%{opacity:0;transform:scale(0.3)}
-  50%{transform:scale(1.1)}
-  100%{opacity:1;transform:scale(1)}
-}
-.celebrate-title{
-  font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
-  color:var(--gold);text-align:center;margin-bottom:8px;
-}
-.celebrate-headline{
-  font-size:20px;font-weight:800;color:#fff;text-align:center;
-  line-height:1.25;margin-bottom:20px;
-}
-.celebrate-metrics{
-  display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;
-}
-.celebrate-metric{
-  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);
-  border-radius:var(--radius-sm);padding:14px 12px;text-align:center;
-}
-.celebrate-metric-val{
-  font-size:28px;font-weight:800;color:#fff;line-height:1;margin-bottom:4px;
-}
-.celebrate-metric-val.highlight{color:var(--gold)}
-.celebrate-metric-label{font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.6px}
-.celebrate-bar{background:rgba(255,255,255,0.08);border-radius:4px;height:6px;overflow:hidden;margin-bottom:6px}
-.celebrate-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--green),var(--green-light));transition:width 1.5s cubic-bezier(.22,1,.36,1)}
-.celebrate-bar-labels{display:flex;justify-content:space-between;font-size:9px;font-weight:600;color:rgba(255,255,255,0.3)}
-.celebrate-bar-labels span{color:var(--gold)}
-.celebrate-msg{
-  background:rgba(59,139,59,0.15);border:1px solid rgba(59,139,59,0.3);
-  border-radius:var(--radius-sm);padding:12px 14px;
-  font-size:12px;color:rgba(255,255,255,0.75);line-height:1.55;text-align:center;
-}
+/* status hero */
+.hero{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:24px;margin:18px 0;
+  text-align:center;backdrop-filter:blur(8px);position:relative;overflow:hidden}
+.hero .ico{font-size:46px;line-height:1}
+.hero .stg{font-size:21px;font-weight:800;margin-top:10px}
+.hero .stgd{color:var(--muted);font-size:13.5px;margin-top:6px;line-height:1.5}
+.prog{margin-top:18px}
+.prog .bar{height:9px;background:rgba(255,255,255,.08);border-radius:20px;overflow:hidden}
+.prog .fill{height:100%;background:linear-gradient(90deg,var(--green),var(--gold));border-radius:20px;
+  transition:width 1s cubic-bezier(.2,.8,.2,1)}
+.prog .lbl{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:8px;font-weight:600}
 
-/* ── PROGRESS ── */
-.prog-wrap{padding:24px 20px 0}
-.prog-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
-.prog-label{font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.8px}
-.prog-pct{font-size:20px;font-weight:800;color:var(--navy)}
-.prog-pct span{font-size:12px;color:var(--text-secondary);font-weight:600}
-.prog-track{height:6px;background:var(--border);border-radius:3px;overflow:hidden;position:relative}
-.prog-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--green),var(--green-light));transition:width 1.2s cubic-bezier(.22,1,.36,1);position:relative}
-.prog-fill::after{
-  content:'';position:absolute;right:0;top:-1px;bottom:-1px;width:20px;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.4));
-  border-radius:0 3px 3px 0;
-}
-.prog-steps{display:flex;justify-content:space-between;margin-top:16px;gap:2px}
-.prog-step{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1}
-.prog-dot{
-  width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  font-size:9px;font-weight:800;z-index:1;position:relative;transition:all .4s;
-  background:var(--border-light);color:var(--text-muted);border:2px solid var(--border);
-}
-.prog-step.done .prog-dot{background:var(--green);color:#fff;border-color:var(--green);box-shadow:0 2px 8px var(--green-glow)}
-.prog-step.now .prog-dot{background:var(--gold);color:var(--navy);border-color:var(--gold);box-shadow:0 0 0 4px var(--gold-glow)}
-.prog-step-label{font-size:7.5px;font-weight:700;color:var(--text-muted);text-align:center;line-height:1.15;max-width:48px;text-transform:uppercase;letter-spacing:.3px}
-.prog-step.done .prog-step-label{color:var(--green)}
-.prog-step.now .prog-step-label{color:var(--navy);font-weight:800}
+/* forecast */
+.fc{display:flex;gap:12px;align-items:center;background:rgba(245,166,35,.09);border:1px solid rgba(245,166,35,.28);
+  border-radius:14px;padding:14px 16px;margin-bottom:18px}
+.fc .e{font-size:22px}
+.fc .t{font-size:12px;color:var(--muted)}
+.fc .d{font-size:16px;font-weight:800;color:var(--gold)}
+.fc small{display:block;color:var(--muted);font-size:11px;margin-top:2px;font-weight:500}
 
-/* ── STAGE CARD ── */
-.sec{padding:20px 20px 0}
-.sec-title{
-  font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;
-  letter-spacing:1.2px;margin-bottom:12px;
-}
-.stage-card{
-  background:var(--surface);border-radius:var(--radius-lg);
-  box-shadow:var(--shadow-md);overflow:hidden;
-  border:1px solid var(--border-light);
-}
-.stage-top{padding:24px 20px 18px;display:flex;align-items:flex-start;gap:16px}
-.stage-ico{
-  width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;
-  font-size:24px;flex-shrink:0;position:relative;
-}
-.stage-ico::after{
-  content:'';position:absolute;inset:-2px;border-radius:18px;
-  background:inherit;opacity:.15;z-index:-1;filter:blur(8px);
-}
-.stage-num{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
-.stage-title{font-size:18px;font-weight:800;color:var(--navy);line-height:1.2;margin-bottom:6px}
-.stage-desc{font-size:13px;color:var(--text-secondary);line-height:1.6}
-.stage-eta{
-  background:var(--surface-alt);margin:0 16px 16px;border-radius:var(--radius-sm);
-  padding:14px 16px;display:flex;align-items:center;gap:10px;
-  border:1px solid var(--border-light);
-}
-.stage-eta-ico{font-size:16px}
-.stage-eta-txt{font-size:13px;color:var(--navy);font-weight:600}
+/* action hint */
+.hint{background:rgba(120,170,210,.08);border:1px solid rgba(120,170,210,.25);border-radius:14px;
+  padding:13px 16px;margin-bottom:18px;font-size:13px;line-height:1.55}
+.hint b{color:#9cc4e4}
 
-/* ── TIMELINE ── */
-.timeline{padding:0 8px}
-.tl-item{display:flex;gap:14px;padding:0 8px 0 4px;margin-bottom:2px}
-.tl-left{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:32px}
-.tl-dot{
-  width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;
-  font-size:14px;flex-shrink:0;transition:all .3s;
-}
-.tl-dot.done{background:rgba(59,139,59,0.1);color:var(--green)}
-.tl-dot.now{background:var(--gold);color:#fff;box-shadow:0 3px 12px var(--gold-glow)}
-.tl-dot.wait{background:var(--border-light);color:var(--text-muted)}
-.tl-line{width:2px;flex:1;margin:3px 0;border-radius:1px;transition:background .3s}
-.tl-item.done .tl-line{background:linear-gradient(180deg,var(--green),var(--green))}
-.tl-item.now .tl-line{background:linear-gradient(180deg,var(--gold),var(--border))}
-.tl-item.wait .tl-line{background:var(--border-light)}
-.tl-item:last-child .tl-line{display:none}
-.tl-body{padding:4px 0 18px;flex:1}
-.tl-row{display:flex;align-items:center;justify-content:space-between}
-.tl-title{font-size:13px;font-weight:700;color:var(--navy)}
-.tl-title.wait{color:var(--text-muted)}
-.tl-badge{font-size:8px;font-weight:800;padding:3px 8px;border-radius:50px;text-transform:uppercase;letter-spacing:.4px;flex-shrink:0}
-.tl-badge.done{background:rgba(59,139,59,0.1);color:#2E7D32}
-.tl-badge.now{background:rgba(245,166,35,0.12);color:#B8860B}
-.tl-badge.wait{background:var(--border-light);color:var(--text-muted)}
-.tl-sub{font-size:11px;color:var(--text-secondary);line-height:1.5;margin-top:2px}
+/* timeline */
+.tl{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:8px 18px;margin-bottom:18px}
+.step{display:flex;gap:14px;padding:13px 0;position:relative}
+.step:not(:last-child)::before{content:'';position:absolute;left:15px;top:34px;bottom:-4px;width:2px;background:var(--line)}
+.step.done:not(:last-child)::before{background:var(--green)}
+.dot{flex:0 0 32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:15px;background:rgba(255,255,255,.06);border:2px solid var(--line);z-index:1}
+.step.done .dot{background:var(--green);border-color:var(--green)}
+.step.curr .dot{background:var(--gold);border-color:var(--gold);box-shadow:0 0 0 5px rgba(245,166,35,.15);
+  animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 5px rgba(245,166,35,.15)}50%{box-shadow:0 0 0 9px rgba(245,166,35,.05)}}
+.step .info{padding-top:5px}
+.step .nm{font-size:14px;font-weight:700}
+.step.future .nm{color:var(--muted);font-weight:600}
+.step .dt{font-size:11.5px;color:var(--muted);margin-top:2px}
+.step.curr .nm{color:var(--gold)}
 
-/* ── INFO CARDS ── */
-.info-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:20px 20px 0}
-.info-card{
-  background:var(--surface);border-radius:var(--radius);padding:16px;
-  box-shadow:var(--shadow-sm);border:1px solid var(--border-light);
-}
-.info-card-label{font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
-.info-card-val{font-size:16px;font-weight:800;color:var(--navy)}
-.info-card-val.small{font-size:12px;font-weight:700}
+/* fotos */
+.fotos{margin-bottom:18px}
+.fotos h3{font-size:13px;color:var(--muted);font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
+.fotos .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.fotos img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
 
-/* ── WA BUTTON ── */
-.wa-wrap{padding:24px 20px 0}
-.wa-btn{
-  display:flex;align-items:center;justify-content:center;gap:10px;
-  background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;
-  border:none;border-radius:var(--radius);padding:18px;width:100%;
-  font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;
-  text-decoration:none;transition:all .25s;
-  box-shadow:0 4px 20px rgba(37,211,102,0.25);
-}
-.wa-btn:active{transform:scale(.97);box-shadow:0 2px 12px rgba(37,211,102,0.3)}
-.wa-ico{font-size:22px}
+/* celebration */
+.celeb{background:linear-gradient(150deg,rgba(59,139,59,.18),rgba(245,166,35,.12));
+  border:1px solid rgba(245,166,35,.3);border-radius:20px;padding:26px 22px;text-align:center;margin-bottom:18px}
+.celeb .big{font-size:40px}
+.celeb .ttl{font-size:22px;font-weight:800;margin-top:8px}
+.celeb .msg{font-size:14px;color:var(--txt);margin-top:10px;line-height:1.55}
+.celeb .badge{display:inline-block;background:rgba(245,166,35,.18);border:1px solid var(--gold);color:var(--gold);
+  font-weight:800;font-size:13px;padding:6px 14px;border-radius:20px;margin-top:14px}
 
-/* ── FOOTER ── */
-.footer{padding:32px 20px 0;text-align:center}
-.footer-divider{width:40px;height:2px;background:var(--border);border-radius:1px;margin:0 auto 16px}
-.footer-logo{height:18px;opacity:.25;margin-bottom:8px}
-.footer-txt{font-size:10px;color:var(--text-muted);letter-spacing:.3px}
+/* CTA funnel */
+.cta{display:flex;align-items:center;gap:13px;width:100%;background:var(--card);border:1px solid var(--line);
+  border-radius:14px;padding:15px 16px;margin-bottom:10px;text-decoration:none;color:var(--txt);transition:.15s;cursor:pointer}
+.cta:hover{border-color:var(--gold);transform:translateY(-1px)}
+.cta .e{font-size:24px}
+.cta .tx b{display:block;font-size:14.5px;font-weight:700}
+.cta .tx span{font-size:12px;color:var(--muted)}
+.cta .arr{margin-left:auto;color:var(--muted);font-size:18px}
+.sec-ttl{font-size:13px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:22px 4px 12px}
 
-/* ── STATES ── */
-.loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;text-align:center}
-.loading-spinner{width:32px;height:32px;border:2.5px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:20px}
+/* footer */
+.foot{text-align:center;margin-top:26px}
+.foot .wa{display:inline-flex;align-items:center;gap:8px;background:#1f8a4c;color:#fff;text-decoration:none;
+  font-weight:700;font-size:14px;padding:13px 22px;border-radius:30px}
+.foot p{color:var(--muted);font-size:11.5px;margin-top:16px}
+
+/* states */
+.center{min-height:80vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px}
+.spin{width:38px;height:38px;border:3px solid var(--line);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loading-txt{font-size:14px;color:var(--text-secondary);font-weight:600}
-.error-wrap{padding:60px 24px;text-align:center}
-.error-ico{font-size:48px;margin-bottom:16px;display:block}
-.error-txt{font-size:14px;color:var(--text-secondary);font-weight:600;line-height:1.6}
-
-/* ── ANIMATIONS ── */
-.animate-in{opacity:0;transform:translateY(16px);animation:slideIn .5s ease forwards}
-@keyframes slideIn{to{opacity:1;transform:translateY(0)}}
-
-/* ── CONFETTI (etapa 8) ── */
-@keyframes confettiFall{
-  0%{transform:translateY(-20px) rotate(0deg);opacity:1}
-  100%{transform:translateY(80px) rotate(360deg);opacity:0}
-}
-.confetti-piece{
-  position:absolute;width:6px;height:6px;border-radius:1px;
-  animation:confettiFall 1.8s ease-in forwards;
-  pointer-events:none;
-}
+.center .e{font-size:46px}
+.center .m{color:var(--muted);font-size:14px;max-width:300px;line-height:1.5}
 </style>
 </head>
 <body>
-<div id="app"><div class="loading-wrap"><div class="loading-spinner"></div><div class="loading-txt">Carregando sua obra...</div></div></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<canvas id="confetti"></canvas>
+<div class="wrap" id="app">
+  <div class="center"><div class="spin"></div><div class="m">Carregando sua obra...</div></div>
+</div>
+
 <script>
-var LOGO='logo.png';
-var SHEET_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vSaKXjo4xi0XEQO0EyNOxviX_jbCa5zyOS0VldNFcdQQOtojNwlbnySCi-rBzoiljTg8kEDHLVZ-wth/pub?output=csv';
-var CORS_PROXIES=[
-  function(u){return 'https://api.codetabs.com/v1/proxy?quest='+u;},
-  function(u){return 'https://corsproxy.io/?'+u;},
-  function(u){return 'https://api.allorigins.win/raw?url='+encodeURIComponent(u);}
-];
-var ST=[
-  {t:'Contrato Fechado',d:'Contrato assinado e pagamento confirmado.',eta:'Prazo: 1 a 2 dias úteis',ico:'🎉'},
-  {t:'Documentação do Projeto',d:'Elaboração do projeto técnico e documentos.',eta:'Prazo: 1 a 3 dias úteis',ico:'📄'},
-  {t:'Aprovação na Concessionária',d:'Projeto enviado para aprovação na concessionária de energia.',eta:'Prazo: 1 a 15 dias úteis',ico:'⚡'},
-  {t:'Compra do Material',d:'Aquisição dos equipamentos para o projeto.',eta:'Prazo: 1 a 2 dias úteis',ico:'🛒'},
-  {t:'Entrega do Material',d:'Equipamentos a caminho para instalação.',eta:'Prazo: 1 a 15 dias úteis',ico:'📦'},
-  {t:'Execução da Obra',d:'Instalação dos painéis e inversor no seu imóvel.',eta:'Prazo: 1 a 7 dias úteis',ico:'🔨'},
-  {t:'Vistoria e Conexão',d:'Troca do medidor e vistoria da concessionária.',eta:'Prazo: 1 a 5 dias úteis',ico:'🔎'},
-  {t:'Sistema Ativo!',d:'Parabéns! Seu sistema está gerando energia limpa.',eta:'Gerando energia agora!',ico:'☀️'}
-];
-var SC=['linear-gradient(135deg,#2E7D32,#3B8B3B)','linear-gradient(135deg,#022C44,#0A3D5C)','linear-gradient(135deg,#4A148C,#7B1FA2)','linear-gradient(135deg,#BF360C,#E64A19)','linear-gradient(135deg,#01579B,#0277BD)','linear-gradient(135deg,#E8920D,#F5A623)','linear-gradient(135deg,#00838F,#00ACC1)','linear-gradient(135deg,#F57F17,#FFD54F)'];
+/* ===== CONFIG ===== */
+const SUPABASE_URL = "https://dakubhcgohiwzyqiegqf.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRha3ViaGNnb2hpd3p5cWllZ3FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMjExMTIsImV4cCI6MjA5Nzc5NzExMn0.Vdgp6B0TBVOSz-NT5vka9jXCdIT0iNhu1dbmvhLbWQ0";
+const PRAZO_CONTRATUAL = 60;
+const WHATSAPP_POSVENDA = "5518996906474";
+const INDICA_URL  = "https://indica.polarisenergiasolar.com";
+const MONITOR_URL = ""; // ⬅️ cole o link do app de monitoramento (deixe vazio p/ ocultar)
+const REVIEW_URL  = ""; // ⬅️ cole o link de avaliação no Google (deixe vazio p/ ocultar)
 
-// ── Utilidades de data ──
-function parseDateBR(str) {
-  if (!str) return null;
-  str = str.trim();
-  // Aceita dd/mm/yyyy ou dd/mm/yy
-  var parts = str.split('/');
-  if (parts.length === 3) {
-    var d = parseInt(parts[0],10);
-    var m = parseInt(parts[1],10) - 1;
-    var y = parseInt(parts[2],10);
-    if (y < 100) y += 2000;
-    var dt = new Date(y, m, d);
-    return isNaN(dt.getTime()) ? null : dt;
-  }
-  // Tenta ISO yyyy-mm-dd
-  var iso = new Date(str);
-  return isNaN(iso.getTime()) ? null : iso;
-}
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const app = document.getElementById('app');
+const LOGO = "https://obras.polarisenergiasolar.com/logo.png";
 
-function diffDays(d1, d2) {
-  // d2 - d1 em dias inteiros
-  var ms = d2.getTime() - d1.getTime();
-  return Math.round(ms / (1000 * 60 * 60 * 24));
-}
+/* dica do que o cliente precisa fazer em cada etapa (opcional) */
+const ACOES = {
+  3:'Esta fase corre na <b>concessionária</b> — o prazo é dela. Estamos acompanhando de perto.',
+  5:'Garanta um local para receber os equipamentos quando chegarem.',
+  6:'Nossa equipe vai combinar com você o <b>acesso ao local</b> da instalação.',
+  7:'A concessionária fará a <b>troca do medidor</b> — pode ser necessário acesso ao seu padrão.'
+};
 
-// ── Card de celebração ──
-function buildCelebrateCard(c) {
-  var prazoContratual = 60;
-  var prazoMeta = 30;
-  var dtFecha = parseDateBR(c.dateStart);
-  var dtConclui = parseDateBR(c.dateEnd);
+/* util */
+const ET = {};
+function getParam(n){return new URLSearchParams(location.search).get(n)||'';}
+function parseDate(s){if(!s)return null;const d=new Date(s);return isNaN(d)?null:d;}
+function fmt(d){return d?String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear():'';}
+function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
+function diffDays(a,b){return Math.round((b-a)/86400000);}
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
-  // Se não tiver datas, mostra card simples
-  if (!dtFecha || !dtConclui) {
-    return '<div class="celebrate-wrap animate-in" style="animation-delay:.1s">'
-      + '<div class="celebrate-card"><div class="celebrate-inner">'
-      + '<span class="celebrate-trophy">🏆</span>'
-      + '<div class="celebrate-title">Obra Concluída</div>'
-      + '<div class="celebrate-headline">Seu sistema está ativo e gerando energia! ☀️</div>'
-      + '<div class="celebrate-msg">Parabéns pela escolha pela energia solar. A Polaris agradece a confiança e está sempre à disposição.</div>'
-      + '</div></div></div>';
-  }
-
-  var diasCorridos = diffDays(dtFecha, dtConclui);
-  var diasAntesContrato = prazoContratual - diasCorridos;
-  var diasAntesMeta = prazoMeta - diasCorridos;
-
-  var pct = Math.min(100, Math.round((diasCorridos / prazoContratual) * 100));
-
-  var headline = '';
-  var msgTxt = '';
-
-  if (diasAntesContrato > 0) {
-    headline = 'Entregamos <strong>' + diasAntesContrato + ' dias antes</strong> do prazo! 🚀';
-    msgTxt = 'Seu sistema foi ativado em <strong>' + diasCorridos + ' dias</strong> — ' + diasAntesContrato + ' dias antes do prazo contratual de 60 dias. Isso é a Polaris comprometida com você!';
-  } else if (diasAntesContrato === 0) {
-    headline = 'Entregamos <strong>no prazo exato</strong>! ✅';
-    msgTxt = 'Seu sistema foi ativado em exatamente <strong>' + diasCorridos + ' dias</strong>, dentro do prazo contratual. Obrigado pela confiança!';
-  } else {
-    headline = 'Obra concluída! ☀️';
-    msgTxt = 'Seu sistema foi ativado e está gerando energia limpa. A equipe Polaris agradece a confiança!';
-  }
-
-  var html = '<div class="celebrate-wrap animate-in" style="animation-delay:.1s">'
-    + '<div class="celebrate-card" id="celebrateCard"><div class="celebrate-inner">'
-    + '<span class="celebrate-trophy">🏆</span>'
-    + '<div class="celebrate-title">Obra Concluída com Sucesso</div>'
-    + '<div class="celebrate-headline">' + headline + '</div>'
-    + '<div class="celebrate-metrics">'
-    + '<div class="celebrate-metric"><div class="celebrate-metric-val highlight">' + diasCorridos + '<small style="font-size:14px;font-weight:700"> dias</small></div><div class="celebrate-metric-label">Tempo de obra</div></div>'
-    + '<div class="celebrate-metric"><div class="celebrate-metric-val highlight">' + (diasAntesContrato > 0 ? diasAntesContrato : 0) + '<small style="font-size:14px;font-weight:700"> dias</small></div><div class="celebrate-metric-label">Antes do prazo</div></div>'
-    + '</div>'
-    + '<div class="celebrate-bar"><div class="celebrate-bar-fill" id="celebBar" style="width:0%"></div></div>'
-    + '<div class="celebrate-bar-labels"><span>' + diasCorridos + 'd</span><span>' + prazoMeta + 'd meta</span><span style="color:var(--text-muted)">' + prazoContratual + 'd contrato</span></div>'
-    + '<br>'
-    + '<div class="celebrate-msg">' + msgTxt + '</div>'
-    + '</div></div></div>';
-
-  return html;
-}
-
-// ── Confetti ──
-function launchConfetti(container) {
-  var colors = ['#F5A623','#3B8B3B','#58B868','#FFD580','#fff','#f5f5f5'];
-  for (var i = 0; i < 28; i++) {
-    (function(i) {
-      setTimeout(function() {
-        var el = document.createElement('div');
-        el.className = 'confetti-piece';
-        el.style.left = Math.random() * 100 + '%';
-        el.style.top = '0';
-        el.style.background = colors[Math.floor(Math.random() * colors.length)];
-        el.style.animationDelay = (Math.random() * 0.6) + 's';
-        el.style.animationDuration = (1.4 + Math.random() * 0.8) + 's';
-        el.style.transform = 'rotate(' + Math.random()*360 + 'deg)';
-        container.appendChild(el);
-        setTimeout(function(){el.remove();}, 3000);
-      }, i * 60);
-    })(i);
+async function carregar(){
+  const id = getParam('id');
+  if(!id){ return erro('🔗','Link incompleto','Use o link completo que a Polaris te enviou, com o seu identificador.'); }
+  try{
+    const [etRes, obRes] = await Promise.all([
+      sb.from('etapas').select('*').order('numero'),
+      sb.rpc('get_obra_publica',{ p_slug:id })
+    ]);
+    if(etRes.error) throw etRes.error;
+    if(obRes.error) throw obRes.error;
+    (etRes.data||[]).forEach(e=>ET[e.numero]=e);
+    if(!obRes.data){ return erro('😕','Obra não encontrada','Confira o link com a nossa equipe — pode ter havido um erro de digitação.'); }
+    render(obRes.data);
+  }catch(e){
+    erro('⚠️','Não foi possível carregar','Tente novamente em instantes. Se continuar, fale com a gente no WhatsApp.');
   }
 }
 
-function slugify(str){
-  return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-}
-function getParam(name){return new URLSearchParams(window.location.search).get(name)||'';}
-function renderError(msg){
-  document.getElementById('app').innerHTML='<div class="error-wrap"><span class="error-ico">😕</span><div class="error-txt">'+msg+'</div></div>';
+function erro(e,t,m){
+  app.innerHTML=`<div class="center"><div class="e">${e}</div><div style="font-size:18px;font-weight:800">${t}</div>
+    <div class="m">${m}</div>
+    <a class="wa" style="margin-top:8px" href="https://wa.me/${WHATSAPP_POSVENDA}">💬 Falar com a Polaris</a></div>`;
 }
 
-function renderClient(c){
-  var si=c.stageIdx;
-  var pct=Math.round(((si+1)/8)*100);
-  var isAtivo = si === 7;
+function render(o){
+  const et = o.etapa || ET[o.etapa_numero] || {};
+  const n = o.etapa_numero;
+  const pct = Math.round((Math.max(n,0)/8)*100);
+  const dF = parseDate(o.data_fechamento);
+  const dC = parseDate(o.data_conclusao);
+  const primeiroNome = (o.cliente||'').split(' ')[0];
 
-  var heroHtml='<div class="hero">'
-    +'<img src="'+LOGO+'" class="hero-logo" alt="Polaris Solar">'
-    +'<div class="hero-tag">Acompanhamento de Obra</div>'
-    +'<div class="hero-name">'+c.name+'</div>'
-    +'<div class="hero-sub">'+(c.power?c.power+' kWp':'')+(c.power&&c.contract?' · ':'')+(c.contract||'')+'</div>'
-    +'<div class="hero-badge"><span class="hero-badge-dot"></span>'+ST[si].ico+' '+ST[si].t+'</div>'
-    +'</div>';
+  let html = `<div class="head"><img src="${LOGO}" onerror="this.style.display='none'">
+    <div class="hi">Olá, <span>${esc(primeiroNome)}</span>!</div>
+    <div class="sub">Acompanhe a sua obra Polaris em tempo real</div></div>`;
 
-  // Card de celebração (só quando Sistema Ativo)
-  var celebrateHtml = isAtivo ? buildCelebrateCard(c) : '';
+  // hero
+  html += `<div class="hero">
+      <div class="ico">${et.icone||'☀️'}</div>
+      <div class="stg">${esc((et.nome||'').replace('!',''))}</div>
+      <div class="stgd">${esc(et.descricao||'')}</div>
+      <div class="prog">
+        <div class="bar"><div class="fill" style="width:0%" id="fill"></div></div>
+        <div class="lbl"><span>Etapa ${n} de 8</span><span>${pct}%</span></div>
+      </div>
+    </div>`;
 
-  var stepsHtml='';
-  for(var j=0;j<8;j++){
-    var cls=j<si?'done':j===si?'now':'wait';
-    stepsHtml+='<div class="prog-step '+cls+'">'
-      +'<div class="prog-dot">'+(j<si?'✓':(j===si?ST[j].ico:(j+1)))+'</div>'
-      +'<div class="prog-step-label">'+ST[j].t.split(' ')[0]+'</div></div>';
+  // forecast (só antes de ativar)
+  if(n>=1 && n<8 && dF){
+    const prev = addDays(dF, PRAZO_CONTRATUAL);
+    html += `<div class="fc"><div class="e">📅</div><div>
+        <div class="t">Previsão de ativação</div>
+        <div class="d">até ${fmt(prev)}</div>
+        <small>dentro do prazo contratual de ${PRAZO_CONTRATUAL} dias</small>
+      </div></div>`;
   }
-  var progHtml='<div class="prog-wrap animate-in" style="animation-delay:.2s">'
-    +'<div class="prog-header"><span class="prog-label">Progresso geral</span><span class="prog-pct">'+pct+'<span>%</span></span></div>'
-    +'<div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>'
-    +'<div class="prog-steps">'+stepsHtml+'</div></div>';
 
-  var stageHtml='<div class="sec animate-in" style="animation-delay:.3s">'
-    +'<div class="sec-title">Etapa atual</div>'
-    +'<div class="stage-card"><div class="stage-top">'
-    +'<div class="stage-ico" style="background:'+SC[si]+'">'+ST[si].ico+'</div>'
-    +'<div class="stage-info"><div class="stage-num">Etapa '+(si+1)+' de 8</div>'
-    +'<div class="stage-title">'+ST[si].t+'</div>'
-    +'<div class="stage-desc">'+ST[si].d+'</div></div></div>'
-    +'<div class="stage-eta"><span class="stage-eta-ico">⏱</span><span class="stage-eta-txt">'+ST[si].eta+'</span></div>'
-    +'</div></div>';
-
-  var tlHtml='<div class="sec animate-in" style="animation-delay:.4s;margin-top:0"><div class="sec-title">Histórico de etapas</div><div class="timeline">';
-  for(var k=0;k<8;k++){
-    var tcls=k<si?'done':k===si?'now':'wait';
-    var badgeText=k<si?'Concluído':k===si?'Em andamento':'Pendente';
-    tlHtml+='<div class="tl-item '+tcls+'"><div class="tl-left"><div class="tl-dot '+tcls+'">'
-      +(k<si?'✓':ST[k].ico)+'</div><div class="tl-line"></div></div>'
-      +'<div class="tl-body"><div class="tl-row"><div class="tl-title'+(tcls==='wait'?' wait':'')+'">'+ST[k].t+'</div>'
-      +'<div class="tl-badge '+tcls+'">'+badgeText+'</div></div>'
-      +'<div class="tl-sub">'+ST[k].d+(k===si?' · '+ST[k].eta:'')+'</div></div></div>';
-  }
-  tlHtml+='</div></div>';
-
-  var infoHtml='<div class="info-row animate-in" style="animation-delay:.5s">';
-  if(c.power) infoHtml+='<div class="info-card"><div class="info-card-label">Potência</div><div class="info-card-val">'+c.power+' kWp</div></div>';
-  if(c.contract) infoHtml+='<div class="info-card"><div class="info-card-label">Contrato</div><div class="info-card-val small">'+c.contract+'</div></div>';
-  if(c.dateStart) infoHtml+='<div class="info-card"><div class="info-card-label">Fechamento</div><div class="info-card-val small">'+c.dateStart+'</div></div>';
-  if(c.dateEnd) infoHtml+='<div class="info-card"><div class="info-card-label">Ativação</div><div class="info-card-val small">'+c.dateEnd+'</div></div>';
-  infoHtml+='</div>';
-
-  var waMsg=encodeURIComponent('Olá! Sou '+c.name+' e gostaria de falar com a Polaris Solar sobre minha obra.');
-  var waHtml='<div class="wa-wrap animate-in" style="animation-delay:.6s">'
-    +'<a class="wa-btn" href="https://wa.me/5518996906474?text='+waMsg+'" target="_blank"><span class="wa-ico">💬</span> Falar com a Polaris</a></div>';
-
-  var footerHtml='<div class="footer animate-in" style="animation-delay:.65s">'
-    +'<div class="footer-divider"></div>'
-    +'<div class="footer-txt">© 2026 Polaris Energia Solar | Pós-venda</div></div>';
-
-  document.getElementById('app').innerHTML=heroHtml+celebrateHtml+progHtml+stageHtml+tlHtml+infoHtml+waHtml+footerHtml;
-
-  // Animar barras
-  setTimeout(function(){
-    var pf=document.getElementById('progFill');
-    if(pf) pf.style.width=pct+'%';
-    var cb=document.getElementById('celebBar');
-    if(cb){
-      var dtFecha = parseDateBR(c.dateStart);
-      var dtConclui = parseDateBR(c.dateEnd);
-      if(dtFecha && dtConclui){
-        var diasCorridos = diffDays(dtFecha, dtConclui);
-        var pctBar = Math.min(100, Math.round((diasCorridos / 60) * 100));
-        cb.style.width = pctBar + '%';
-      }
+  // celebration (ativo)
+  if(n===8){
+    let badge='', msg='Seu sistema já está gerando energia limpa e reduzindo sua conta. 🌱';
+    if(dF&&dC){
+      const dias=diffDays(dF,dC), antes=PRAZO_CONTRATUAL-dias;
+      if(antes>0){ badge=`🚀 Entregue ${antes} dias antes do prazo`; msg=`Concluímos em <b>${dias} dias</b> — bem antes dos ${PRAZO_CONTRATUAL} dias do contrato!`; }
+      else if(antes===0){ badge=`✅ Entregue no prazo`; msg=`Concluímos em exatamente <b>${dias} dias</b>.`; }
     }
-  }, 200);
-
-  // Confetti se ativo
-  if(isAtivo){
-    var card = document.getElementById('celebrateCard');
-    if(card) setTimeout(function(){ launchConfetti(card); }, 600);
+    html += `<div class="celeb"><div class="big">🎉</div>
+        <div class="ttl">Sistema Ativo!</div>
+        <div class="msg">${msg}</div>
+        ${badge?`<div class="badge">${badge}</div>`:''}
+      </div>`;
+  } else {
+    // dica da etapa atual
+    if(ACOES[n]) html += `<div class="hint"><b>👉 O que esperar agora:</b> ${ACOES[n]}</div>`;
   }
+
+  // timeline
+  html += `<div class="tl">`;
+  const hist = {}; (o.historico||[]).forEach(h=>{ hist[h.etapa_numero]=h.entrou_em; });
+  for(let i=1;i<=8;i++){
+    const e=ET[i]||{}; const cls = i<n?'done': i===n?'curr':'future';
+    const dot = i<n?'✓':(e.icone||'');
+    const dt = hist[i]?('em '+fmt(parseDate(hist[i]))):'';
+    html += `<div class="step ${cls}"><div class="dot">${dot}</div>
+        <div class="info"><div class="nm">${esc((e.nome||'').replace('!',''))}</div>
+        ${dt?`<div class="dt">${dt}</div>`:''}</div></div>`;
+  }
+  html += `</div>`;
+
+  // fotos
+  if(o.fotos && o.fotos.length){
+    html += `<div class="fotos"><h3>📸 Fotos da sua instalação</h3><div class="grid">`;
+    o.fotos.forEach(f=>{ html += `<img src="${esc(f.url)}" alt="${esc(f.legenda||'')}" loading="lazy">`; });
+    html += `</div></div>`;
+  }
+
+  // funil pós-ativação
+  if(n===8){
+    html += `<div class="sec-ttl">Aproveite ao máximo sua energia solar</div>`;
+    if(MONITOR_URL) html += cta('📲','Monitore sua geração','Veja quanto sua usina produz',MONITOR_URL);
+    html += cta('🎁','Indique e Ganhe R$200','Indique amigos e receba por cada instalação',INDICA_URL);
+    html += cta('🛠️','Plano de manutenção','Mantenha sua usina sempre no máximo',`https://wa.me/${WHATSAPP_POSVENDA}?text=${encodeURIComponent('Olá! Quero saber mais sobre os planos de manutenção (O&M) da Polaris.')}`);
+    if(REVIEW_URL) html += cta('⭐','Avalie a Polaris','Conte como foi sua experiência',REVIEW_URL);
+  }
+
+  // footer
+  html += `<div class="foot"><a class="wa" href="https://wa.me/${WHATSAPP_POSVENDA}?text=${encodeURIComponent('Olá! Tenho uma dúvida sobre a minha obra.')}">💬 Falar com a Polaris</a>
+      <p>Polaris Energia Solar • Atualizado em tempo real</p></div>`;
+
+  app.innerHTML = `<div class="wrap">${html}</div>`;
+  setTimeout(()=>{ const f=document.getElementById('fill'); if(f) f.style.width=pct+'%'; }, 100);
+  if(n===8) lancarConfete();
 }
 
-function fetchAndFind(url,pi,clientSlug){
-  var fu=CORS_PROXIES[pi](url);
-  fetch(fu,{redirect:'follow'}).then(function(r){
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    return r.text();
-  }).then(function(csv){
-    if(csv.indexOf('<!DOCTYPE')>-1||csv.indexOf('<html')>-1) throw new Error('HTML');
-    var parsed=Papa.parse(csv,{header:true,skipEmptyLines:true});
-    if(!parsed.data||!parsed.data.length){renderError('Planilha vazia ou sem dados.');return;}
-    var found=null;
-    parsed.data.forEach(function(row){
-      var name=row['Cliente']||row['cliente']||row['Nome']||row['nome']||'';
-      if(slugify(name)===clientSlug){
-        var si=0,ss=(row['Etapa Atual']||row['Etapa']||'').toString();
-        if(ss.indexOf('8')>-1||ss.toLowerCase().indexOf('ativo')>-1) si=7;
-        else if(ss.indexOf('7')>-1||ss.toLowerCase().indexOf('vistor')>-1) si=6;
-        else if(ss.indexOf('6')>-1||ss.toLowerCase().indexOf('obra')>-1||ss.toLowerCase().indexOf('execu')>-1) si=5;
-        else if(ss.indexOf('5')>-1||ss.toLowerCase().indexOf('entrega')>-1) si=4;
-        else if(ss.indexOf('4')>-1||ss.toLowerCase().indexOf('compra')>-1) si=3;
-        else if(ss.indexOf('3')>-1||ss.toLowerCase().indexOf('aprov')>-1) si=2;
-        else if(ss.indexOf('2')>-1||ss.toLowerCase().indexOf('doc')>-1) si=1;
-        found={
-          name:name.trim(),
-          power:row['Potência (kWp)']||row['Potencia']||row['kWp']||'',
-          contract:row['Contrato']||row['contrato']||'',
-          dateStart:row['Data Fechamento']||row['Data Inicio']||row['Data']||'',
-          dateEnd:row['Data Conclusão']||row['Data Conclusao']||row['Data de conclusão']||row['Data de Conclusão']||row['Data de conclusao']||row['Data Ativacao']||row['Data Ativação']||'',
-          stageIdx:si
-        };
-      }
-    });
-    if(found) renderClient(found);
-    else renderError('Não encontramos uma obra com esse identificador.<br><br>Verifique o link ou entre em contato com a Polaris.');
-  }).catch(function(e){
-    if(pi<CORS_PROXIES.length-1) fetchAndFind(url,pi+1,clientSlug);
-    else renderError('Não foi possível carregar os dados no momento.<br>Tente novamente em alguns instantes.');
-  });
+function cta(e,t,s,href){
+  return `<a class="cta" href="${href}" target="_blank" rel="noopener"><div class="e">${e}</div>
+    <div class="tx"><b>${t}</b><span>${s}</span></div><div class="arr">›</div></a>`;
 }
 
-var clientId=getParam('id');
-if(!clientId){
-  renderError('Link inválido. Solicite seu link de acompanhamento à equipe Polaris.');
-} else {
-  fetchAndFind(SHEET_URL,0,clientId);
+/* confete simples */
+function lancarConfete(){
+  const cv=document.getElementById('confetti'), ctx=cv.getContext('2d');
+  cv.width=innerWidth; cv.height=innerHeight;
+  const cols=['#F5A623','#3B8B3B','#fff','#9cc4e4'];
+  let parts=Array.from({length:120},()=>({x:Math.random()*cv.width,y:Math.random()*-cv.height,
+    r:4+Math.random()*5,c:cols[Math.floor(Math.random()*cols.length)],
+    vy:2+Math.random()*3,vx:-1+Math.random()*2,a:Math.random()*Math.PI}));
+  let t=0;
+  (function anim(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    parts.forEach(p=>{p.y+=p.vy;p.x+=p.vx;p.a+=.1;
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.fillStyle=p.c;
+      ctx.fillRect(-p.r/2,-p.r/2,p.r,p.r);ctx.restore();});
+    t++; if(t<260) requestAnimationFrame(anim); else ctx.clearRect(0,0,cv.width,cv.height);
+  })();
 }
+
+/* atualiza ao voltar pra aba e a cada 60s (sem precisar recarregar) */
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) carregar(); });
+setInterval(()=>{ if(!document.hidden) carregar(); }, 60000);
+
+carregar();
 </script>
 </body>
 </html>
