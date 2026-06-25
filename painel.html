@@ -83,6 +83,16 @@ a{color:inherit}
 .act-wa{background:#1f8a4c;color:#fff}
 .act-gh{background:var(--card2);border:1px solid var(--border);color:var(--muted)}
 .act-gh:hover{color:var(--txt);border-color:var(--gold)}
+.act-grp{background:#3B8B3B;color:#fff}
+.btn-equipe{background:var(--card2);border:1px solid var(--border);color:var(--txt);border-radius:11px;padding:0 14px;font-family:inherit;font-size:16px;cursor:pointer}
+.btn-equipe:hover{border-color:var(--gold)}
+.eqlist{display:flex;flex-direction:column;gap:8px;max-height:48vh;overflow-y:auto}
+.eqrow{display:flex;align-items:center;justify-content:space-between;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.eqrow.off{opacity:.5}
+.eqrow b{display:block;font-size:14px}
+.eqrow span{font-size:12px;color:var(--muted)}
+.eqact button{background:none;border:none;cursor:pointer;font-size:16px;padding:4px}
+.eqempty{color:var(--muted);text-align:center;padding:20px}
 
 /* ---- Empty / loading ---- */
 .empty{text-align:center;color:var(--muted);padding:60px 20px}
@@ -165,6 +175,7 @@ if(!NEEDS_CFG){ sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
 
 let ET = {};        // catálogo de etapas {numero: {...}}
 let OBRAS = [];     // obras carregadas
+let EQUIPE = [];    // equipe (para vendedor e grupos)
 let filtroEtapa = null, busca = "";
 let rtChannel = null;
 
@@ -239,15 +250,18 @@ async function renderApp(session){
       <div class="stats" id="stats"></div>
       <div class="toolbar">
         <div class="search">🔍 <input id="busca" placeholder="Buscar cliente ou contrato..."></div>
+        <button class="btn-equipe" id="bEquipe" title="Gerenciar equipe">👥</button>
         <button class="btn-new" id="bNew">+ Nova obra</button>
       </div>
       <div class="list" id="list"><div class="spinner"></div></div>
     </div>`;
   document.getElementById('bOut').onclick = async ()=>{ await sb.auth.signOut(); };
   document.getElementById('bNew').onclick = ()=> openForm(null);
+  document.getElementById('bEquipe').onclick = ()=> openEquipe();
   document.getElementById('busca').addEventListener('input', e=>{ busca=e.target.value.toLowerCase(); renderList(); });
 
   await loadEtapas();
+  await loadEquipe();
   await loadObras();
   subscribeRealtime();
 }
@@ -316,7 +330,10 @@ function cardHtml(o){
       <select onchange="mudarEtapa('${o.id}',this.value)" title="Etapa">${opts}</select>
       <button class="act act-adv" ${o.etapa_numero>=8?'disabled':''} onclick="avancar('${o.id}')">Avançar ▶</button>
       <select onchange="mudarStatus('${o.id}',this.value)" title="Status">${stOpts}</select>
-      <button class="act act-wa" onclick="enviarWA('${o.id}')">💬 WhatsApp</button>
+      <button class="act act-wa" onclick="enviarWA('${o.id}')">💬 Cliente</button>
+      ${o.whatsapp_grupo_id
+        ? `<button class="act act-grp" onclick="notificarGrupo('${o.id}')" title="Avisar no grupo do cliente">📣 Grupo</button>`
+        : `<button class="act act-gh" onclick="criarGrupo('${o.id}')" title="Criar grupo do cliente">➕ Grupo</button>`}
       <button class="act act-gh" onclick="copiarLink('${o.id}')">🔗 Link</button>
       <button class="act act-gh" onclick="openForm('${o.id}')">✏️</button>
     </div>
@@ -386,6 +403,7 @@ function openForm(id, focoFone){
   const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovForm';
   const stOpts=['Boas-vindas','Em andamento','Finalizado','A configurar'].map(s=>`<option ${s===(o.status||'Em andamento')?'selected':''}>${s}</option>`).join('');
   const etOpts=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===(o.etapa_numero??1)?'selected':''}>${n} - ${(ET[n]?.nome||'').replace('!','')}</option>`).join('');
+  const vendOpts='<option value="">— Vendedor —</option>'+EQUIPE.filter(p=>p.papel==='Vendedor').map(p=>`<option value="${p.id}" ${p.id===o.vendedor_id?'selected':''}>${esc(p.nome)}</option>`).join('');
   ov.innerHTML=`<div class="modal">
     <h2>${novo?'Nova obra':'Editar obra'}</h2>
     <div class="fld"><label>Cliente *</label><input id="f_cli" value="${esc(o.cliente||'')}" placeholder="Nome do cliente"></div>
@@ -404,6 +422,10 @@ function openForm(id, focoFone){
     <div class="grid2">
       <div class="fld"><label>Data conclusão</label><input id="f_dtc" type="date" value="${o.data_conclusao||''}"></div>
       <div class="fld"><label>Observações</label><input id="f_obs" value="${esc(o.observacoes||'')}" placeholder="opcional"></div>
+    </div>
+    <div class="grid2">
+      <div class="fld"><label>Vendedor</label><select id="f_vend">${vendOpts}</select></div>
+      <div class="fld"><label>ID do grupo WhatsApp</label><input id="f_grp" value="${esc(o.whatsapp_grupo_id||'')}" placeholder="cole se o grupo já existe"></div>
     </div>
     <div class="row">
       <button class="cancel" onclick="document.getElementById('ovForm').remove()">Cancelar</button>
@@ -428,7 +450,9 @@ async function salvarForm(id){
     etapa_numero:parseInt(document.getElementById('f_et').value,10),
     data_fechamento:document.getElementById('f_dtf').value||null,
     data_conclusao:document.getElementById('f_dtc').value||null,
-    observacoes:document.getElementById('f_obs').value.trim()||null
+    observacoes:document.getElementById('f_obs').value.trim()||null,
+    vendedor_id:document.getElementById('f_vend').value||null,
+    whatsapp_grupo_id:document.getElementById('f_grp').value.trim()||null
   };
   document.getElementById('f_save').textContent='Salvando...';
   let error;
@@ -447,6 +471,97 @@ async function slugUnico(base){
   let slug=base, i=1;
   while(OBRAS.some(o=>o.slug===slug)){ i++; slug=base+'-'+i; }
   return slug;
+}
+
+/* ---------- equipe ---------- */
+async function loadEquipe(){
+  const { data } = await sb.from('equipe').select('*').order('papel').order('nome');
+  EQUIPE = data||[];
+}
+function reabrirEquipe(){ const o=document.getElementById('ovEquipe'); if(o){ o.remove(); openEquipe(); } }
+function openEquipe(){
+  const linhas = EQUIPE.map(p=>`<div class="eqrow ${p.ativo?'':'off'}">
+      <div><b>${esc(p.nome)}</b><span>${esc(p.papel)} • ${esc(p.telefone)}</span></div>
+      <div class="eqact">
+        <button onclick="toggleAtivo('${p.id}',${!p.ativo})" title="${p.ativo?'Ativo (clique p/ desativar)':'Inativo (clique p/ ativar)'}">${p.ativo?'🟢':'⚪'}</button>
+        <button onclick="editEquipe('${p.id}')">✏️</button>
+      </div></div>`).join('') || '<div class="eqempty">Nenhum membro cadastrado.</div>';
+  const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovEquipe';
+  ov.innerHTML=`<div class="modal">
+    <h2>👥 Equipe</h2>
+    <p style="color:var(--muted);font-size:12.5px;margin:-8px 0 14px">Quem entra nos grupos dos clientes. Desative quem sair da empresa.</p>
+    <div class="eqlist">${linhas}</div>
+    <button class="save" style="margin-top:14px" onclick="editEquipe(null)">+ Adicionar pessoa</button>
+    <button class="cancel" style="width:100%;margin-top:8px" onclick="document.getElementById('ovEquipe').remove()">Fechar</button>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+}
+function editEquipe(id){
+  const p = id ? EQUIPE.find(x=>x.id===id) : {};
+  const novo=!id;
+  const pOpts=['Vendedor','Diretor','Pós-venda','Engenharia','Outro'].map(x=>`<option ${x===(p.papel||'Vendedor')?'selected':''}>${x}</option>`).join('');
+  const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovEqForm';
+  ov.innerHTML=`<div class="modal">
+    <h2>${novo?'Nova pessoa':'Editar pessoa'}</h2>
+    <div class="fld"><label>Nome *</label><input id="e_nome" value="${esc(p.nome||'')}"></div>
+    <div class="grid2">
+      <div class="fld"><label>Papel</label><select id="e_papel">${pOpts}</select></div>
+      <div class="fld"><label>WhatsApp (DDD+nº) *</label><input id="e_tel" value="${esc(p.telefone||'')}" placeholder="18999999999"></div>
+    </div>
+    <div class="row">
+      ${novo?'':`<button class="cancel" onclick="delEquipe('${id}')" style="color:#ff9a9a">Excluir</button>`}
+      <button class="save" id="e_save">${novo?'Adicionar':'Salvar'}</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  document.getElementById('e_save').onclick = async ()=>{
+    const nome=document.getElementById('e_nome').value.trim();
+    let tel=document.getElementById('e_tel').value.replace(/\D/g,'');
+    if(!nome||!tel){ toast('Preencha nome e telefone'); return; }
+    if(tel.length<=11 && !tel.startsWith('55')) tel='55'+tel;
+    const rec={ nome, papel:document.getElementById('e_papel').value, telefone:tel };
+    let error;
+    if(id){ ({error}=await sb.from('equipe').update(rec).eq('id',id)); }
+    else   { ({error}=await sb.from('equipe').insert(rec)); }
+    if(error){ toast('Erro: '+error.message); return; }
+    document.getElementById('ovEqForm').remove();
+    await loadEquipe(); reabrirEquipe(); toast('Equipe atualizada ✓');
+  };
+}
+async function toggleAtivo(id,val){
+  const { error } = await sb.from('equipe').update({ativo:val}).eq('id',id);
+  if(error){ toast('Erro: '+error.message); return; }
+  await loadEquipe(); reabrirEquipe();
+}
+async function delEquipe(id){
+  if(!confirm('Excluir esta pessoa da equipe?')) return;
+  const { error } = await sb.from('equipe').delete().eq('id',id);
+  if(error){ toast('Erro: '+error.message); return; }
+  const f=document.getElementById('ovEqForm'); if(f) f.remove();
+  await loadEquipe(); reabrirEquipe(); toast('Removido ✓');
+}
+
+/* ---------- grupos de WhatsApp (Z-API) ---------- */
+async function criarGrupo(id){
+  const o=getObra(id);
+  if(!o.telefone){ toast('Cadastre o telefone do cliente primeiro'); openForm(id,true); return; }
+  if(!confirm(`Criar o grupo "Polaris ☀️ ${o.cliente}${o.contrato?' #'+o.contrato:''}" e enviar as boas-vindas?\n\nVai adicionar: cliente${o.vendedor_id?' + vendedor':''} + engenharia + pós-venda.`)) return;
+  toast('Criando grupo...');
+  const { data, error } = await sb.functions.invoke('criar-grupo', { body:{ obra_id:id } });
+  if(error || (data&&data.error)){ toast('Erro: '+((data&&data.error)||error.message||'falha')); return; }
+  toast('Grupo criado e boas-vindas enviadas ✓');
+  await loadObras();
+}
+async function notificarGrupo(id){
+  const o=getObra(id);
+  if(!o.whatsapp_grupo_id){ toast('Esta obra ainda não tem grupo'); return; }
+  if(!confirm('Enviar a mensagem da etapa atual no grupo do cliente?')) return;
+  toast('Enviando...');
+  const { data, error } = await sb.functions.invoke('notificar-grupo', { body:{ grupo_id:o.whatsapp_grupo_id, message:buildWA(o) } });
+  if(error || (data&&data.error)){ toast('Erro: '+((data&&data.error)||error.message||'falha')); return; }
+  toast('Mensagem enviada no grupo ✓');
 }
 
 /* ---------- realtime ---------- */
