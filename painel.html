@@ -544,13 +544,19 @@ async function delEquipe(id){
 }
 
 /* ---------- grupos de WhatsApp (Z-API) ---------- */
+async function invokeFn(name, body){
+  const { data, error } = await sb.functions.invoke(name, { body });
+  if(error){ let m=error.message; try{ const j=await error.context.json(); if(j&&j.error) m=j.error; }catch(_){} return { error:m }; }
+  if(data&&data.error) return { error:data.error };
+  return { data };
+}
 async function criarGrupo(id){
   const o=getObra(id);
   if(!o.telefone){ toast('Cadastre o telefone do cliente primeiro'); openForm(id,true); return; }
   if(!confirm(`Criar o grupo "Polaris ☀️ ${o.cliente}${o.contrato?' #'+o.contrato:''}" e enviar as boas-vindas?\n\nVai adicionar: cliente${o.vendedor_id?' + vendedor':''} + engenharia + pós-venda.`)) return;
   toast('Criando grupo...');
-  const { data, error } = await sb.functions.invoke('criar-grupo', { body:{ obra_id:id } });
-  if(error || (data&&data.error)){ toast('Erro: '+((data&&data.error)||error.message||'falha')); return; }
+  const r = await invokeFn('criar-grupo', { obra_id:id });
+  if(r.error){ toast('Erro: '+r.error); return; }
   toast('Grupo criado e boas-vindas enviadas ✓');
   await loadObras();
 }
@@ -559,8 +565,8 @@ async function notificarGrupo(id){
   if(!o.whatsapp_grupo_id){ toast('Esta obra ainda não tem grupo'); return; }
   if(!confirm('Enviar a mensagem da etapa atual no grupo do cliente?')) return;
   toast('Enviando...');
-  const { data, error } = await sb.functions.invoke('notificar-grupo', { body:{ grupo_id:o.whatsapp_grupo_id, message:buildWA(o) } });
-  if(error || (data&&data.error)){ toast('Erro: '+((data&&data.error)||error.message||'falha')); return; }
+  const r = await invokeFn('notificar-grupo', { grupo_id:o.whatsapp_grupo_id, message:buildWA(o) });
+  if(r.error){ toast('Erro: '+r.error); return; }
   toast('Mensagem enviada no grupo ✓');
 }
 
