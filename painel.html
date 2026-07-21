@@ -411,12 +411,19 @@ return msg;
 }
 function enviarWA(id){
 const o=getObra(id); const fone=waPhone(o.telefone);
-const txt=encodeURIComponent(buildWA(o));
+const msg=buildWA(o);
 if(!fone){
 toast('Cadastre o WhatsApp do cliente primeiro');
 openForm(id, true); return;
 }
-window.open(`https://wa.me/${fone}?text=${txt}`,'_blank');
+const mobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+if(mobile){
+window.open(`https://wa.me/${fone}?text=${encodeURIComponent(msg)}`,'_blank');
+}else{
+// WhatsApp Desktop corrompe emojis via link — copiamos a mensagem para colar
+navigator.clipboard.writeText(msg).then(()=>toast('📋 Mensagem copiada! Cole no chat com Ctrl+V')).catch(()=>{});
+window.open(`https://wa.me/${fone}`,'_blank');
+}
 }
 
 /* ---------- formulário (nova / editar) ---------- */
