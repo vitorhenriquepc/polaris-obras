@@ -191,6 +191,7 @@ let rtChannel = null;
 
 const root = document.getElementById('root');
 const LOGO = "https://obras.polarisenergiasolar.com/logo.png";
+const LOGO_CLARO = "https://obras.polarisenergiasolar.com/logo-claro.png";
 
 /* ---------- util ---------- */
 function slugify(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
@@ -200,7 +201,7 @@ function parseDate(s){if(!s)return null;const d=new Date(s);return isNaN(d)?null
 function diasAtras(iso){const d=parseDate(iso);if(!d)return '';const n=diffDays(d,new Date());return n<=0?'hoje':(n===1?'ontem':'há '+n+'d');}
 function toast(m){let t=document.getElementById('tst');if(!t){t=document.createElement('div');t.id='tst';t.className='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2600);}
 function temaAtual(){try{return localStorage.getItem('polaris-tema')||'dark'}catch(_){return 'dark'}}
-function aplicarTema(t){document.documentElement.setAttribute('data-theme',t);const b=document.getElementById('bTema');if(b)b.textContent=t==='dark'?'🌙':'☀️';try{localStorage.setItem('polaris-tema',t)}catch(_){}}
+function aplicarTema(t){document.documentElement.setAttribute('data-theme',t);const b=document.getElementById('bTema');if(b)b.textContent=t==='dark'?'🌙':'☀️';document.querySelectorAll('.topbar img, .login img').forEach(function(i){i.src=(t==='light'?LOGO_CLARO:LOGO);});try{localStorage.setItem('polaris-tema',t)}catch(_){}}
 function toggleTema(){aplicarTema(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')}
 aplicarTema(temaAtual());
 function waPhone(tel){let d=(tel||'').replace(/\D/g,'');if(!d)return '';if(d.length<=11&&!d.startsWith('55'))d='55'+d;return d;}
