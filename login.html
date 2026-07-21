@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="theme-color" content="#011D2E">
+<title>Polaris Solar – Acesso</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root, html[data-theme="dark"]{
+  --bg:#011D2E;--bg-grad:radial-gradient(1200px 800px at 80% -10%,#0A3D5C 0%,#011D2E 55%);
+  --surface:#062A40;--surface-alt:#0A3450;
+  --text:#EAF2F7;--text-sec:#9FB6C4;--text-muted:#5F778A;
+  --border:rgba(255,255,255,0.09);--input-bg:rgba(255,255,255,0.05);
+  --navy:#011D2E;--green:#3B8B3B;--green-l:#58B868;--gold:#F5A623;
+  --shadow:0 20px 60px rgba(0,0,0,0.45);
+}
+html[data-theme="light"]{
+  --bg:#F0F2ED;--bg-grad:radial-gradient(1200px 800px at 80% -10%,#DCE8E0 0%,#F0F2ED 55%);
+  --surface:#FFFFFF;--surface-alt:#F7F8F6;
+  --text:#022C44;--text-sec:#4A6273;--text-muted:#9EABB5;
+  --border:#E2E8EC;--input-bg:#F7F8F6;
+  --shadow:0 20px 60px rgba(1,29,46,0.12);
+}
+body{min-height:100vh;background:var(--bg);background-image:var(--bg-grad);font-family:'Manrope',sans-serif;color:var(--text);display:flex;align-items:center;justify-content:center;padding:20px;transition:background .3s}
+.card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:36px 30px;box-shadow:var(--shadow);position:relative}
+.theme-btn{position:absolute;top:18px;right:18px;background:var(--surface-alt);border:1px solid var(--border);border-radius:50px;width:38px;height:38px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .2s}
+.theme-btn:active{transform:scale(.9)}
+.logo{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:26px}
+.logo-mark{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--green),#F5A623);display:flex;align-items:center;justify-content:center;font-size:28px}
+.logo h1{font-size:19px;font-weight:800;letter-spacing:.5px}
+.logo p{font-size:11px;color:var(--text-sec);font-weight:600;text-transform:uppercase;letter-spacing:2px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.field input{width:100%;background:var(--input-bg);border:1px solid var(--border);border-radius:12px;padding:13px 14px;font-family:inherit;font-size:14px;color:var(--text);outline:none;transition:border .2s}
+.field input:focus{border-color:var(--green)}
+.btn{width:100%;border:none;border-radius:12px;padding:14px;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer;transition:all .2s;margin-top:6px}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.5;pointer-events:none}
+.btn-main{background:linear-gradient(135deg,var(--green),var(--green-l));color:#fff;box-shadow:0 6px 20px rgba(59,139,59,.35)}
+.links{display:flex;justify-content:space-between;margin-top:16px}
+.links a{font-size:12px;font-weight:700;color:var(--text-sec);text-decoration:none;cursor:pointer}
+.links a:hover{color:var(--green-l)}
+.msg{border-radius:12px;padding:12px 14px;font-size:13px;font-weight:600;margin-bottom:14px;display:none;line-height:1.5}
+.msg.err{display:block;background:rgba(220,60,60,.12);color:#E57373;border:1px solid rgba(220,60,60,.3)}
+.msg.ok{display:block;background:rgba(59,139,59,.12);color:var(--green-l);border:1px solid rgba(59,139,59,.3)}
+.mode-title{font-size:15px;font-weight:800;text-align:center;margin-bottom:18px;color:var(--text)}
+.hidden{display:none!important}
+.foot{text-align:center;margin-top:22px;font-size:10px;color:var(--text-muted);font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">🌙</button>
+  <div class="logo">
+    <div class="logo-mark">☀️</div>
+    <h1>Polaris Solar</h1>
+    <p>Pós-venda · Obras</p>
+  </div>
+
+  <div class="msg" id="msg"></div>
+
+  <!-- LOGIN -->
+  <div id="modeLogin">
+    <div class="field"><label>Email</label><input type="email" id="loginEmail" placeholder="seu@polarisenergiasolar.com" autocomplete="username"></div>
+    <div class="field"><label>Senha</label><input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="btn btn-main" id="btnLogin" onclick="doLogin()">Entrar</button>
+    <div class="links">
+      <a onclick="setMode('signup')">Primeiro acesso</a>
+      <a onclick="setMode('reset')">Esqueci minha senha</a>
+    </div>
+  </div>
+
+  <!-- PRIMEIRO ACESSO -->
+  <div id="modeSignup" class="hidden">
+    <div class="mode-title">🔐 Primeiro acesso — criar senha</div>
+    <div class="field"><label>Email autorizado</label><input type="email" id="suEmail" placeholder="seu@polarisenergiasolar.com"></div>
+    <div class="field"><label>Nova senha (mín. 6 caracteres)</label><input type="password" id="suPass" placeholder="••••••••" autocomplete="new-password"></div>
+    <div class="field"><label>Confirmar senha</label><input type="password" id="suPass2" placeholder="••••••••" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSignup()"></div>
+    <button class="btn btn-main" id="btnSignup" onclick="doSignup()">Criar acesso</button>
+    <div class="links"><a onclick="setMode('login')">← Voltar ao login</a></div>
+  </div>
+
+  <!-- RESET -->
+  <div id="modeReset" class="hidden">
+    <div class="mode-title">🔁 Recuperar senha</div>
+    <div class="field"><label>Email</label><input type="email" id="rsEmail" placeholder="seu@polarisenergiasolar.com" onkeydown="if(event.key==='Enter')doReset()"></div>
+    <button class="btn btn-main" id="btnReset" onclick="doReset()">Enviar link de recuperação</button>
+    <div class="links"><a onclick="setMode('login')">← Voltar ao login</a></div>
+  </div>
+
+  <!-- NOVA SENHA (após link de recuperação) -->
+  <div id="modeNewPass" class="hidden">
+    <div class="mode-title">🔑 Definir nova senha</div>
+    <div class="field"><label>Nova senha</label><input type="password" id="npPass" placeholder="••••••••" autocomplete="new-password"></div>
+    <div class="field"><label>Confirmar</label><input type="password" id="npPass2" placeholder="••••••••" autocomplete="new-password" onkeydown="if(event.key==='Enter')doNewPass()"></div>
+    <button class="btn btn-main" id="btnNewPass" onclick="doNewPass()">Salvar nova senha</button>
+  </div>
+
+  <div class="foot">© Polaris Energia Solar</div>
+</div>
+
+<script>
+var SUPABASE_URL='https://dakubhcgohiwzyqiegqf.supabase.co';
+var SUPABASE_KEY='sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx';
+var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+/* ── Tema ── */
+function applyTheme(t){document.documentElement.setAttribute('data-theme',t);document.getElementById('themeBtn').textContent=t==='dark'?'🌙':'☀️';try{localStorage.setItem('polaris-tema',t)}catch(e){}}
+function toggleTheme(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')}
+try{applyTheme(localStorage.getItem('polaris-tema')||'dark')}catch(e){}
+
+/* ── UI helpers ── */
+function msg(text,type){var m=document.getElementById('msg');m.textContent=text;m.className='msg '+(type||'err');}
+function clearMsg(){document.getElementById('msg').className='msg';}
+function setMode(m){clearMsg();['modeLogin','modeSignup','modeReset','modeNewPass'].forEach(function(id){document.getElementById(id).classList.add('hidden')});document.getElementById('mode'+m.charAt(0).toUpperCase()+m.slice(1)).classList.remove('hidden');}
+
+/* ── Sessão existente → redireciona ── */
+sb.auth.getSession().then(function(r){
+  if(r.data.session && !window.location.hash.includes('type=recovery')){window.location.href='painel.html';}
+});
+
+/* ── Link de recuperação de senha ── */
+sb.auth.onAuthStateChange(function(event){
+  if(event==='PASSWORD_RECOVERY'){setMode('newPass');msg('Defina sua nova senha abaixo.','ok');}
+});
+
+/* ── Login ── */
+async function doLogin(){
+  clearMsg();
+  var email=document.getElementById('loginEmail').value.trim();
+  var pass=document.getElementById('loginPass').value;
+  if(!email||!pass){msg('Preencha email e senha.');return;}
+  var btn=document.getElementById('btnLogin');btn.disabled=true;btn.textContent='Entrando...';
+  var r=await sb.auth.signInWithPassword({email:email,password:pass});
+  if(r.error){
+    btn.disabled=false;btn.textContent='Entrar';
+    msg(r.error.message.includes('Invalid')?'Email ou senha incorretos.':r.error.message);
+    return;
+  }
+  // Checa se ainda está autorizado (pode ter sido removido pelo admin)
+  var auth=await sb.rpc('is_autorizado');
+  if(auth.error||!auth.data){
+    await sb.auth.signOut();
+    btn.disabled=false;btn.textContent='Entrar';
+    msg('Seu acesso foi revogado. Fale com o administrador.');
+    return;
+  }
+  window.location.href='painel.html';
+}
+
+/* ── Primeiro acesso (signup) ── */
+async function doSignup(){
+  clearMsg();
+  var email=document.getElementById('suEmail').value.trim();
+  var p1=document.getElementById('suPass').value;
+  var p2=document.getElementById('suPass2').value;
+  if(!email||!p1){msg('Preencha email e senha.');return;}
+  if(p1.length<6){msg('A senha precisa ter no mínimo 6 caracteres.');return;}
+  if(p1!==p2){msg('As senhas não conferem.');return;}
+  var btn=document.getElementById('btnSignup');btn.disabled=true;btn.textContent='Verificando...';
+  // Pré-checagem: email está na lista de autorizados?
+  var chk=await sb.rpc('email_autorizado',{p_email:email});
+  if(chk.error||!chk.data){
+    btn.disabled=false;btn.textContent='Criar acesso';
+    msg('Este email não está autorizado. Solicite acesso ao administrador.');
+    return;
+  }
+  var r=await sb.auth.signUp({email:email,password:p1});
+  btn.disabled=false;btn.textContent='Criar acesso';
+  if(r.error){
+    msg(r.error.message.includes('already registered')?'Este email já tem acesso. Use "Esqueci minha senha" se necessário.':r.error.message);
+    return;
+  }
+  if(r.data.session){
+    // Confirmação de email desativada → entra direto
+    window.location.href='painel.html';
+  } else {
+    msg('Cadastro criado! Verifique seu email para confirmar o acesso e depois faça login.','ok');
+    setTimeout(function(){setMode('login')},4000);
+  }
+}
+
+/* ── Recuperação de senha ── */
+async function doReset(){
+  clearMsg();
+  var email=document.getElementById('rsEmail').value.trim();
+  if(!email){msg('Informe seu email.');return;}
+  var btn=document.getElementById('btnReset');btn.disabled=true;btn.textContent='Enviando...';
+  var r=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
+  btn.disabled=false;btn.textContent='Enviar link de recuperação';
+  if(r.error){msg(r.error.message);return;}
+  msg('Se o email estiver cadastrado, você receberá um link de recuperação.','ok');
+}
+
+/* ── Nova senha após recovery ── */
+async function doNewPass(){
+  clearMsg();
+  var p1=document.getElementById('npPass').value;
+  var p2=document.getElementById('npPass2').value;
+  if(p1.length<6){msg('A senha precisa ter no mínimo 6 caracteres.');return;}
+  if(p1!==p2){msg('As senhas não conferem.');return;}
+  var btn=document.getElementById('btnNewPass');btn.disabled=true;btn.textContent='Salvando...';
+  var r=await sb.auth.updateUser({password:p1});
+  btn.disabled=false;btn.textContent='Salvar nova senha';
+  if(r.error){msg(r.error.message);return;}
+  msg('Senha atualizada! Redirecionando...','ok');
+  setTimeout(function(){window.location.href='painel.html'},1500);
+}
+</script>
+</body>
+</html>

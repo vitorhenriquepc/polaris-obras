@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="theme-color" content="#011D2E">
+<title>Polaris Solar – Usuários</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root, html[data-theme="dark"]{
+  --bg:#011D2E;--surface:#062A40;--surface-alt:#0A3450;
+  --text:#EAF2F7;--text-sec:#9FB6C4;--text-muted:#5F778A;
+  --border:rgba(255,255,255,0.09);--input-bg:rgba(255,255,255,0.05);
+  --green:#3B8B3B;--green-l:#58B868;--gold:#F5A623;--red:#E57373;
+  --shadow:0 8px 32px rgba(0,0,0,0.35);
+}
+html[data-theme="light"]{
+  --bg:#F0F2ED;--surface:#FFFFFF;--surface-alt:#F7F8F6;
+  --text:#022C44;--text-sec:#4A6273;--text-muted:#9EABB5;
+  --border:#E2E8EC;--input-bg:#F7F8F6;--red:#C62828;
+  --shadow:0 8px 32px rgba(1,29,46,0.12);
+}
+body{min-height:100vh;background:var(--bg);font-family:'Manrope',sans-serif;color:var(--text);transition:background .3s;padding-bottom:60px}
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.hdr-title{font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px}
+.hdr-actions{display:flex;gap:8px}
+.icon-btn{background:var(--surface-alt);border:1px solid var(--border);border-radius:50px;height:36px;padding:0 14px;font-size:13px;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;transition:transform .15s;text-decoration:none}
+.icon-btn:active{transform:scale(.95)}
+.wrap{max-width:640px;margin:0 auto;padding:20px 16px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px;box-shadow:var(--shadow);margin-bottom:16px}
+.panel h2{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--text-sec);margin-bottom:14px}
+.form-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.form-row input[type=text],.form-row input[type=email]{flex:1;min-width:140px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;padding:11px 12px;font-family:inherit;font-size:13px;color:var(--text);outline:none}
+.form-row input:focus{border-color:var(--green)}
+.chk{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--text-sec);cursor:pointer;user-select:none}
+.chk input{width:16px;height:16px;accent-color:var(--green)}
+.btn-add{background:linear-gradient(135deg,var(--green),var(--green-l));color:#fff;border:none;border-radius:10px;padding:11px 20px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;transition:transform .15s}
+.btn-add:active{transform:scale(.97)}
+.btn-add:disabled{opacity:.5;pointer-events:none}
+.user-item{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--border)}
+.user-item:last-child{border-bottom:none}
+.user-av{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--green),var(--gold));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;flex-shrink:0}
+.user-info{flex:1;min-width:0}
+.user-name{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-email{font-size:11px;color:var(--text-muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{font-size:8px;font-weight:800;padding:3px 8px;border-radius:50px;text-transform:uppercase;letter-spacing:.4px;flex-shrink:0}
+.badge-admin{background:rgba(245,166,35,.15);color:var(--gold);border:1px solid rgba(245,166,35,.35)}
+.badge-user{background:rgba(59,139,59,.12);color:var(--green-l);border:1px solid rgba(59,139,59,.3)}
+.mini-btn{background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;width:32px;height:32px;font-size:13px;cursor:pointer;flex-shrink:0;transition:transform .15s;display:flex;align-items:center;justify-content:center}
+.mini-btn:active{transform:scale(.9)}
+.mini-btn.danger:hover{border-color:var(--red)}
+.msg{border-radius:12px;padding:12px 14px;font-size:13px;font-weight:600;margin-bottom:14px;display:none;line-height:1.5}
+.msg.err{display:block;background:rgba(220,60,60,.12);color:var(--red);border:1px solid rgba(220,60,60,.3)}
+.msg.ok{display:block;background:rgba(59,139,59,.12);color:var(--green-l);border:1px solid rgba(59,139,59,.3)}
+.center{text-align:center;padding:40px 20px;color:var(--text-muted);font-weight:600;font-size:14px}
+.big-ico{display:block;font-size:42px;margin-bottom:12px}
+.hint{font-size:11px;color:var(--text-muted);font-weight:600;line-height:1.6;margin-top:12px;padding:10px 12px;background:var(--surface-alt);border-radius:10px;border:1px solid var(--border)}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-title">👥 Gestão de Usuários</div>
+  <div class="hdr-actions">
+    <button class="icon-btn" id="themeBtn" onclick="toggleTheme()">🌙</button>
+    <a class="icon-btn" href="painel.html">← Painel</a>
+    <button class="icon-btn" onclick="doLogout()">Sair</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="msg" id="msg"></div>
+  <div id="content"><div class="center"><span class="big-ico">⏳</span>Verificando permissões...</div></div>
+</div>
+
+<script>
+var SUPABASE_URL='https://dakubhcgohiwzyqiegqf.supabase.co';
+var SUPABASE_KEY='sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx';
+var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+var myEmail='';
+
+function applyTheme(t){document.documentElement.setAttribute('data-theme',t);document.getElementById('themeBtn').textContent=t==='dark'?'🌙':'☀️';try{localStorage.setItem('polaris-tema',t)}catch(e){}}
+function toggleTheme(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')}
+try{applyTheme(localStorage.getItem('polaris-tema')||'dark')}catch(e){}
+
+function msg(text,type){var m=document.getElementById('msg');m.textContent=text;m.className='msg '+(type||'err');setTimeout(function(){m.className='msg'},4000);}
+
+async function doLogout(){await sb.auth.signOut();window.location.href='login.html';}
+
+async function init(){
+  var s=await sb.auth.getSession();
+  if(!s.data.session){window.location.href='login.html';return;}
+  myEmail=(s.data.session.user.email||'').toLowerCase();
+  var adm=await sb.rpc('is_admin');
+  if(adm.error||!adm.data){
+    document.getElementById('content').innerHTML='<div class="panel"><div class="center"><span class="big-ico">🔒</span>Você não tem permissão de administrador.<br>Fale com o responsável pelo sistema.</div></div>';
+    return;
+  }
+  renderPanel();
+  loadUsers();
+}
+
+function renderPanel(){
+  document.getElementById('content').innerHTML=
+    '<div class="panel">'
+    +'<h2>➕ Adicionar usuário</h2>'
+    +'<div class="form-row">'
+    +'<input type="text" id="addNome" placeholder="Nome">'
+    +'<input type="email" id="addEmail" placeholder="email@polarisenergiasolar.com">'
+    +'</div>'
+    +'<div class="form-row" style="align-items:center;justify-content:space-between">'
+    +'<label class="chk"><input type="checkbox" id="addAdmin"> Administrador</label>'
+    +'<button class="btn-add" id="btnAdd" onclick="addUser()">Adicionar</button>'
+    +'</div>'
+    +'<div class="hint">💡 Após adicionar, a pessoa acessa a tela de login e usa <strong>"Primeiro acesso"</strong> para criar a própria senha. Remover um usuário revoga o acesso imediatamente.</div>'
+    +'</div>'
+    +'<div class="panel"><h2>👤 Usuários autorizados</h2><div id="userList"><div class="center">Carregando...</div></div></div>';
+}
+
+async function loadUsers(){
+  var r=await sb.from('usuarios_autorizados').select('*').order('criado_em',{ascending:true});
+  var el=document.getElementById('userList');
+  if(r.error){el.innerHTML='<div class="center">Erro ao carregar: '+r.error.message+'</div>';return;}
+  if(!r.data.length){el.innerHTML='<div class="center">Nenhum usuário cadastrado</div>';return;}
+  var html='';
+  r.data.forEach(function(u){
+    var ini=(u.nome||u.email).trim().charAt(0).toUpperCase();
+    var isMe=u.email.toLowerCase()===myEmail;
+    html+='<div class="user-item">'
+      +'<div class="user-av">'+ini+'</div>'
+      +'<div class="user-info"><div class="user-name">'+(u.nome||'—')+(isMe?' (você)':'')+'</div><div class="user-email">'+u.email+'</div></div>'
+      +'<span class="badge '+(u.is_admin?'badge-admin':'badge-user')+'">'+(u.is_admin?'Admin':'Usuário')+'</span>'
+      +'<button class="mini-btn" title="'+(u.is_admin?'Tornar usuário comum':'Tornar administrador')+'" onclick="toggleAdmin(\''+u.email.replace(/'/g,"\\'")+'\','+(!u.is_admin)+')">'+(u.is_admin?'⭐':'☆')+'</button>'
+      +(isMe?'':'<button class="mini-btn danger" title="Remover acesso" onclick="removeUser(\''+u.email.replace(/'/g,"\\'")+'\')">🗑</button>')
+      +'</div>';
+  });
+  el.innerHTML=html;
+}
+
+async function addUser(){
+  var nome=document.getElementById('addNome').value.trim();
+  var email=document.getElementById('addEmail').value.trim().toLowerCase();
+  var isAdmin=document.getElementById('addAdmin').checked;
+  if(!email||email.indexOf('@')<0){msg('Informe um email válido.');return;}
+  var btn=document.getElementById('btnAdd');btn.disabled=true;
+  var r=await sb.from('usuarios_autorizados').insert({email:email,nome:nome||null,is_admin:isAdmin});
+  btn.disabled=false;
+  if(r.error){
+    msg(r.error.message.includes('duplicate')?'Este email já está cadastrado.':'Erro: '+r.error.message);
+    return;
+  }
+  document.getElementById('addNome').value='';document.getElementById('addEmail').value='';document.getElementById('addAdmin').checked=false;
+  msg('Usuário adicionado! Peça para ele usar "Primeiro acesso" no login.','ok');
+  loadUsers();
+}
+
+async function toggleAdmin(email,newVal){
+  var r=await sb.from('usuarios_autorizados').update({is_admin:newVal}).eq('email',email);
+  if(r.error){msg('Erro: '+r.error.message);return;}
+  msg(newVal?'Permissão de admin concedida.':'Permissão de admin removida.','ok');
+  loadUsers();
+}
+
+async function removeUser(email){
+  if(!confirm('Remover o acesso de '+email+'?\n\nA pessoa perderá acesso ao sistema imediatamente.'))return;
+  var r=await sb.from('usuarios_autorizados').delete().eq('email',email);
+  if(r.error){msg('Erro: '+r.error.message);return;}
+  msg('Acesso removido.','ok');
+  loadUsers();
+}
+
+init();
+</script>
+</body>
+</html>
