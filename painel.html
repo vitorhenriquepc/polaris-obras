@@ -269,6 +269,7 @@ root.innerHTML = `
 <div class="stats" id="stats"></div>
 <div class="toolbar">
 <div class="search">🔍 <input id="busca" placeholder="Buscar cliente ou contrato..."></div>
+<button class="btn-equipe" id="bAgenda" title="Copiar link da agenda do instalador">📅</button>
 <button class="btn-equipe" id="bEquipe" title="Gerenciar equipe">👥</button>
 <button class="btn-new" id="bNew">+ Nova obra</button>
 </div>
@@ -281,6 +282,7 @@ document.getElementById('bUsers').onclick = ()=> location.href='usuarios.html';
 sb.rpc('is_admin').then(r=>{ if(r.data) document.getElementById('bUsers').style.display=''; });
 document.getElementById('bNew').onclick = ()=> openForm(null);
 document.getElementById('bEquipe').onclick = ()=> openEquipe();
+document.getElementById('bAgenda').onclick = ()=> copiarLinkAgenda();
 document.getElementById('busca').addEventListener('input', e=>{ busca=e.target.value.toLowerCase(); renderList(); });
 
 await loadEtapas();
@@ -337,6 +339,7 @@ const e=ET[o.etapa_numero]||{nome:'?',icone:''};
 const metaBits=[];
 if(o.contrato) metaBits.push('#'+esc(o.contrato));
 if(o.potencia_kwp) metaBits.push(esc(String(o.potencia_kwp).replace('.',','))+' kWp');
+if(o.data_instalacao){const di=o.data_instalacao.split('-');metaBits.push('📅 instalação '+di[2]+'/'+di[1]);}
 metaBits.push('atualizado '+diasAtras(o.atualizado_em));
 if(o.observacoes) metaBits.push('📝 '+esc(o.observacoes));
 const opts=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===o.etapa_numero?'selected':''}>${(ET[n]?.icone||'')} ${n} - ${esc((ET[n]?.nome||'').replace('!',''))}</option>`).join('');
@@ -356,6 +359,7 @@ ${o.whatsapp_grupo_id
 ? `<button class="act act-grp" onclick="notificarGrupo('${o.id}')" title="Avisar no grupo do cliente">📣 Grupo</button>`
 : `<button class="act act-gh" onclick="criarGrupo('${o.id}')" title="Criar grupo do cliente">➕ Grupo</button>`}
 <button class="act act-gh" onclick="copiarLink('${o.id}')">🔗 Link</button>
+<button class="act act-gh" onclick="copiarLinkInst('${o.id}')" title="Link do checklist do instalador">🔧</button>
 <button class="act act-gh" onclick="openForm('${o.id}')">✏️</button>
 </div>
 </div>`;
@@ -376,6 +380,16 @@ await loadObras();
 async function avancar(id){
 const o=getObra(id); if(o.etapa_numero>=8) return;
 await mudarEtapa(id, o.etapa_numero+1);
+}
+function copiarLinkInst(id){
+const o=getObra(id); const url=`${location.origin}/instalador.html?id=${o.slug}&t=${o.instalador_token}`;
+navigator.clipboard.writeText(url).then(()=>toast('Link do instalador copiado ✓ Envie pra ele no WhatsApp')).catch(()=>prompt('Link do instalador:',url));
+}
+async function copiarLinkAgenda(){
+const { data } = await sb.from('config').select('valor').eq('chave','agenda_token').single();
+if(!data){ toast('Erro ao buscar token da agenda'); return; }
+const url=`${location.origin}/instalador.html?agenda=${data.valor}`;
+navigator.clipboard.writeText(url).then(()=>toast('Link da agenda copiado ✓')).catch(()=>prompt('Link da agenda:',url));
 }
 function copiarLink(id){
 const o=getObra(id); const url=`${CLIENT_BASE_URL}?id=${o.slug}`;
@@ -425,6 +439,7 @@ const o = id ? getObra(id) : {};
 const novo = !id;
 const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovForm';
 const etOpts=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===(o.etapa_numero??1)?'selected':''}>${n} - ${(ET[n]?.nome||'').replace('!','')}</option>`).join('');
+const instOpts='<option value="">— Instalador —</option>'+EQUIPE.filter(p=>p.papel==='Instalador'||p.papel==='Engenharia').map(p=>`<option value="${p.id}" ${p.id===o.instalador_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 const vendOpts='<option value="">— Vendedor —</option>'+EQUIPE.filter(p=>p.papel==='Vendedor').map(p=>`<option value="${p.id}" ${p.id===o.vendedor_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 ov.innerHTML=`<div class="modal">
 <h2>${novo?'Nova obra':'Editar obra'}</h2>
@@ -443,6 +458,10 @@ ov.innerHTML=`<div class="modal">
 <div class="grid2">
 <div class="fld"><label>Data conclusão</label><input id="f_dtc" type="date" value="${o.data_conclusao||''}"></div>
 <div class="fld"><label>Observações</label><input id="f_obs" value="${esc(o.observacoes||'')}" placeholder="opcional"></div>
+</div>
+<div class="grid2">
+<div class="fld"><label>Data instalação (agenda)</label><input id="f_dti" type="date" value="${o.data_instalacao||''}"></div>
+<div class="fld"><label>Instalador</label><select id="f_inst">${instOpts}</select></div>
 </div>
 <div class="grid2">
 <div class="fld"><label>Vendedor</label><select id="f_vend">${vendOpts}</select></div>
@@ -472,6 +491,8 @@ data_fechamento:document.getElementById('f_dtf').value||null,
 data_conclusao:document.getElementById('f_dtc').value||null,
 observacoes:document.getElementById('f_obs').value.trim()||null,
 vendedor_id:document.getElementById('f_vend').value||null,
+data_instalacao:document.getElementById('f_dti').value||null,
+instalador_id:document.getElementById('f_inst').value||null,
 whatsapp_grupo_id:document.getElementById('f_grp').value.trim()||null
 };
 document.getElementById('f_save').textContent='Salvando...';
@@ -520,7 +541,7 @@ ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
 function editEquipe(id){
 const p = id ? EQUIPE.find(x=>x.id===id) : {};
 const novo=!id;
-const pOpts=['Vendedor','Diretor','Pós-venda','Engenharia','Outro'].map(x=>`<option ${x===(p.papel||'Vendedor')?'selected':''}>${x}</option>`).join('');
+const pOpts=['Vendedor','Instalador','Diretor','Pós-venda','Engenharia','Outro'].map(x=>`<option ${x===(p.papel||'Vendedor')?'selected':''}>${x}</option>`).join('');
 const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovEqForm';
 ov.innerHTML=`<div class="modal">
 <h2>${novo?'Nova pessoa':'Editar pessoa'}</h2>
