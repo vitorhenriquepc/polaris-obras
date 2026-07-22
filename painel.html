@@ -263,7 +263,7 @@ root.innerHTML = `
 <div class="topbar">
 <img src="${LOGO}" onerror="this.style.display='none'">
 <div class="ttl">Polaris <span>Obras</span></div>
-<div class="who">${esc(session.user.email)}<br><button class="btn-out" id="bTema" title="Alternar tema">🌙</button> <button class="btn-out" id="bUsers" style="display:none">👥</button> <button class="btn-out" id="bOut">sair</button></div>
+<div class="who">${esc(session.user.email)}<br><button class="btn-out" id="bTema" title="Alternar tema">🌙</button> <button class="btn-out" id="bMet" style="display:none" title="Métricas">📊</button> <button class="btn-out" id="bUsers" style="display:none">👥</button> <button class="btn-out" id="bOut">sair</button></div>
 </div>
 <div class="wrap">
 <div class="stats" id="stats"></div>
@@ -279,7 +279,7 @@ document.getElementById('bOut').onclick = async ()=>{ await sb.auth.signOut(); }
 document.getElementById('bTema').onclick = toggleTema;
 aplicarTema(temaAtual());
 document.getElementById('bUsers').onclick = ()=> location.href='usuarios.html';
-sb.rpc('is_admin').then(r=>{ if(r.data) document.getElementById('bUsers').style.display=''; });
+sb.rpc('is_admin').then(r=>{ if(r.data){ document.getElementById('bUsers').style.display=''; const bm=document.getElementById('bMet'); bm.style.display=''; bm.onclick=()=>location.href='metricas.html'; } });
 document.getElementById('bNew').onclick = ()=> openForm(null);
 document.getElementById('bEquipe').onclick = ()=> openEquipe();
 document.getElementById('bAgenda').onclick = ()=> copiarLinkAgenda();
@@ -361,6 +361,7 @@ ${o.whatsapp_grupo_id
 : `<button class="act act-gh" onclick="criarGrupo('${o.id}')" title="Criar grupo do cliente">➕ Grupo</button>`}
 <button class="act act-gh" onclick="copiarLink('${o.id}')">🔗 Link</button>
 <button class="act act-gh" onclick="copiarLinkInst('${o.id}')" title="Link do checklist do instalador">🔧</button>
+<button class="act act-gh" onclick="abrirRelatorio('${o.id}')" title="Relatório de instalação">📄</button>
 <button class="act act-gh" onclick="openForm('${o.id}')">✏️</button>
 </div>
 </div>`;
@@ -381,6 +382,34 @@ await loadObras();
 async function avancar(id){
 const o=getObra(id); if(o.etapa_numero>=8) return;
 await mudarEtapa(id, o.etapa_numero+1);
+}
+function abrirRelatorio(id){const o=getObra(id);window.open('relatorio.html?id='+encodeURIComponent(o.slug),'_blank');}
+function importarProposta(){document.getElementById('f_pdf').click();}
+async function lerProposta(inp){
+const file=inp.files[0]; inp.value=''; if(!file)return;
+toast('📎 Lendo proposta...');
+try{
+if(!window.pdfjsLib){
+await new Promise((ok,err)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';s.onload=ok;s.onerror=err;document.head.appendChild(s);});
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+const buf=await file.arrayBuffer();
+const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+let txt='';
+for(let p=1;p<=Math.min(pdf.numPages,6);p++){const pg=await pdf.getPage(p);const tc=await pg.getTextContent();txt+=tc.items.map(i=>i.str).join(' ')+'\n';}
+const nome=(txt.match(/Nome:\s*([A-Za-zÀ-ÿ'´ ]{3,60}?)\s*(?:Pot[êe]ncia|CPF|Proposta|Sistema|$)/i)||[])[1];
+const pot=(txt.match(/([\d]{1,3}(?:[.,]\d{1,2})?)\s*kWp/i)||[])[1];
+const prop=(txt.match(/Proposta\s*N[°ºo]?\.?\s*:?\s*([\d.]{3,10})/i)||[])[1];
+const mod=txt.match(/(\d{1,3})\s*M[ÓO]DULOS?\s*[-–—]?\s*MARCA:?\s*([A-Za-z0-9À-ÿ\- ]{2,40}?\d{3}\s*W)/i);
+const inv=(txt.match(/(\d+\s*[xX]\s*INVERSOR\s*(?:DE)?\s*[\d.,]+\s*K?W[A-Za-zÀ-ÿ ]{0,25})/i)||[])[1];
+let n=0;
+if(nome){document.getElementById('f_cli').value=nome.trim();n++;}
+if(prop){document.getElementById('f_con').value=prop.replace(/\D/g,'');n++;}
+if(pot){document.getElementById('f_pot').value=pot.replace('.',',');n++;}
+if(mod){document.getElementById('f_qtm').value=mod[1];document.getElementById('f_mdm').value=mod[2].trim();n++;}
+if(inv){document.getElementById('f_inv').value=inv.trim().replace(/\s+/g,' ');n++;}
+toast(n?('📎 '+n+' campo(s) importados — confira antes de salvar!'):'Não achei os dados no PDF — preencha manualmente');
+}catch(e){toast('Erro ao ler PDF: '+e.message);}
 }
 function copiarLinkInst(id){
 const o=getObra(id); const url=`${location.origin}/instalador.html?id=${o.slug}&t=${o.instalador_token}`;
@@ -444,6 +473,8 @@ const instOpts='<option value="">— Instalador —</option>'+EQUIPE.filter(p=>p
 const vendOpts='<option value="">— Vendedor —</option>'+EQUIPE.filter(p=>p.papel==='Vendedor').map(p=>`<option value="${p.id}" ${p.id===o.vendedor_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 ov.innerHTML=`<div class="modal">
 <h2>${novo?'Nova obra':'Editar obra'}</h2>
+<button class="act act-gh" style="margin:-4px 0 12px" onclick="importarProposta()">📎 Importar proposta (PDF)</button>
+<input type="file" id="f_pdf" accept="application/pdf" style="display:none" onchange="lerProposta(this)">
 <div class="fld"><label>Cliente *</label><input id="f_cli" value="${esc(o.cliente||'')}" placeholder="Nome do cliente"></div>
 <div class="grid2">
 <div class="fld"><label>WhatsApp (DDD+número)</label><input id="f_tel" value="${esc(o.telefone||'')}" placeholder="18996906474"></div>
@@ -460,6 +491,11 @@ ov.innerHTML=`<div class="modal">
 <div class="fld"><label>Data conclusão</label><input id="f_dtc" type="date" value="${o.data_conclusao||''}"></div>
 <div class="fld"><label>Observações</label><input id="f_obs" value="${esc(o.observacoes||'')}" placeholder="opcional"></div>
 </div>
+<div class="grid2">
+<div class="fld"><label>Qtd. módulos</label><input id="f_qtm" value="${o.qtd_modulos||''}" placeholder="28"></div>
+<div class="fld"><label>Modelo do módulo</label><input id="f_mdm" value="${esc(o.modelo_modulo||'')}" placeholder="ERA RC66HD 620W"></div>
+</div>
+<div class="fld"><label>Inversor(es)</label><input id="f_inv" value="${esc(o.inversor_descricao||'')}" placeholder="2x Huawei 6kW"></div>
 <div class="grid2">
 <div class="fld"><label>Data instalação (agenda)</label><input id="f_dti" type="date" value="${o.data_instalacao||''}"></div>
 <div class="fld"><label>Instalador</label><select id="f_inst">${instOpts}</select></div>
@@ -494,6 +530,9 @@ observacoes:document.getElementById('f_obs').value.trim()||null,
 vendedor_id:document.getElementById('f_vend').value||null,
 data_instalacao:document.getElementById('f_dti').value||null,
 instalador_id:document.getElementById('f_inst').value||null,
+qtd_modulos:parseInt(document.getElementById('f_qtm').value,10)||null,
+modelo_modulo:document.getElementById('f_mdm').value.trim()||null,
+inversor_descricao:document.getElementById('f_inv').value.trim()||null,
 whatsapp_grupo_id:document.getElementById('f_grp').value.trim()||null
 };
 document.getElementById('f_save').textContent='Salvando...';

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="theme-color" content="#011D2E">
+<title>Polaris Obras — Métricas</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+--navy:#011D2E; --green:#3B8B3B; --gold:#F5A623;
+--bg:#0a1622; --card:#0f2233; --card2:#13293c;
+--border:#1d3850; --txt:#eaf2f8; --muted:#8fa6b8;
+}
+html[data-theme="light"]{
+--gold:#B8790A;
+--bg:#F0F2ED; --card:#FFFFFF; --card2:#F4F6F3;
+--border:#DCE4EA; --txt:#022C44; --muted:#5F7787;
+}
+body{font-family:'Manrope',system-ui,sans-serif;background:
+radial-gradient(1200px 600px at 80% -10%, rgba(12,60,90,.35) 0%, transparent 60%),var(--bg);
+color:var(--txt);min-height:100vh;transition:background .3s}
+.topbar{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--card);
+position:sticky;top:0;z-index:30;border-bottom:1px solid var(--border)}
+.topbar img{height:28px}
+.topbar .ttl{font-weight:800;font-size:16px}
+.topbar .ttl span{color:var(--gold)}
+.topbar .sp{margin-left:auto;display:flex;gap:8px}
+.btn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:9px;
+padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none}
+.btn:hover{color:var(--txt);border-color:var(--gold)}
+.wrap{max-width:1080px;margin:0 auto;padding:18px 16px 60px}
+h2{font-size:15px;font-weight:800;margin:26px 0 12px;display:flex;align-items:center;gap:8px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:11px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:15px}
+.kpi .v{font-size:24px;font-weight:800}
+.kpi .v small{font-size:13px;color:var(--muted);font-weight:700}
+.kpi .l{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:4px}
+.kpi.destaque .v{color:var(--gold)}
+.kpi.ok .v{color:#58B868}
+.kpi.ruim .v{color:#e07070}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;
+padding:8px 10px;border-bottom:1px solid var(--border)}
+td{padding:9px 10px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right}
+.bar{display:flex;align-items:center;gap:8px}
+.bar .b{height:9px;background:linear-gradient(90deg,var(--green),#58B868);border-radius:5px;min-width:3px}
+.alerta td:first-child{border-left:3px solid #e07070}
+.vazio{color:var(--muted);text-align:center;padding:24px;font-size:13px}
+.center{text-align:center;padding:80px 24px;color:var(--muted)}
+.center .i{font-size:44px;display:block;margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="topbar">
+<img id="logo" src="https://obras.polarisenergiasolar.com/logo.png" onerror="this.style.display='none'">
+<div class="ttl">Polaris <span>Métricas</span></div>
+<div class="sp">
+<button class="btn" id="bTema">🌙</button>
+<a class="btn" href="painel.html">← Painel</a>
+</div>
+</div>
+<div class="wrap" id="app"><div class="center">⏳ Carregando métricas...</div></div>
+
+<script>
+var sb=supabase.createClient('https://dakubhcgohiwzyqiegqf.supabase.co','sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx');
+var LOGO_D='https://obras.polarisenergiasolar.com/logo.png', LOGO_L='https://obras.polarisenergiasolar.com/logo-claro.png';
+function tema(t){document.documentElement.setAttribute('data-theme',t);document.getElementById('bTema').textContent=t==='dark'?'🌙':'☀️';document.getElementById('logo').src=t==='light'?LOGO_L:LOGO_D;try{localStorage.setItem('polaris-tema',t)}catch(e){}}
+document.getElementById('bTema').onclick=function(){tema(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')};
+try{tema(localStorage.getItem('polaris-tema')||'dark')}catch(e){tema('dark')}
+
+var ETAPAS={};
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function n(v){return v==null?'—':String(v).replace('.',',');}
+
+async function boot(){
+  var s=await sb.auth.getSession();
+  if(!s.data.session){location.href='painel.html';return;}
+  var et=await sb.from('etapas').select('numero,nome,icone');
+  (et.data||[]).forEach(function(e){ETAPAS[e.numero]=e;});
+  var r=await sb.rpc('get_metricas');
+  if(r.error||!r.data){document.getElementById('app').innerHTML='<div class="center"><span class="i">🔒</span><b>Acesso restrito ao administrador.</b></div>';return;}
+  render(r.data);
+}
+
+function render(M){
+  var k=M.kpis||{};
+  var h='';
+
+  /* KPIs */
+  h+='<h2>📌 Visão geral</h2><div class="kpis">'
+    +'<div class="kpi destaque"><div class="v">'+n(k.total)+'</div><div class="l">Obras no sistema</div></div>'
+    +'<div class="kpi"><div class="v">'+n(k.em_andamento)+'</div><div class="l">Em andamento</div></div>'
+    +'<div class="kpi ok"><div class="v">'+n(k.finalizadas)+'</div><div class="l">Finalizadas</div></div>'
+    +'<div class="kpi ok"><div class="v">'+n(k.kwp_instalado)+' <small>kWp</small></div><div class="l">Potência instalada</div></div>'
+    +'<div class="kpi"><div class="v">'+n(k.kwp_andamento)+' <small>kWp</small></div><div class="l">Potência em obra</div></div>'
+    +'<div class="kpi"><div class="v">'+n(k.modulos_instalados)+'</div><div class="l">Módulos instalados</div></div>'
+    +'<div class="kpi '+(k.tempo_medio_dias!=null&&k.tempo_medio_dias<=60?'ok':'ruim')+'"><div class="v">'+n(k.tempo_medio_dias)+' <small>dias</small></div><div class="l">Tempo médio de entrega</div></div>'
+    +'<div class="kpi '+(k.pct_no_prazo>=80?'ok':(k.pct_no_prazo>=50?'':'ruim'))+'"><div class="v">'+n(k.pct_no_prazo)+'<small>%</small></div><div class="l">Dentro dos 60 dias</div></div>'
+    +'<div class="kpi"><div class="v">'+n(k.termos_assinados)+'</div><div class="l">Termos assinados</div></div>'
+    +'</div>';
+
+  /* Atrasadas */
+  h+='<h2>🚨 Obras acima do prazo (60 dias)</h2><div class="card">';
+  var at=M.atrasadas||[];
+  if(!at.length) h+='<div class="vazio">Nenhuma obra estourando o prazo. 👏</div>';
+  else{
+    h+='<table><tr><th>Cliente</th><th>Contrato</th><th>Etapa atual</th><th class="num">Dias corridos</th></tr>';
+    at.forEach(function(o){var e=ETAPAS[o.etapa]||{};
+      h+='<tr class="alerta"><td><b>'+esc(o.cliente)+'</b></td><td>'+(o.contrato?'#'+esc(o.contrato):'—')+'</td><td>'+(e.icone||'')+' '+esc((e.nome||'').replace('!',''))+'</td><td class="num"><b>'+o.dias+'</b></td></tr>';});
+    h+='</table>';
+  }
+  h+='</div>';
+
+  /* Gargalo por etapa */
+  h+='<h2>⏱️ Tempo médio parado em cada etapa</h2><div class="card">';
+  var te=M.tempo_etapas||[];
+  if(!te.length) h+='<div class="vazio">Ainda sem histórico suficiente.</div>';
+  else{
+    var max=Math.max.apply(null,te.map(function(t){return t.dias_medio||0}))||1;
+    h+='<table><tr><th>Etapa</th><th>Média</th><th></th></tr>';
+    te.forEach(function(t){var e=ETAPAS[t.etapa_numero]||{};
+      h+='<tr><td>'+(e.icone||'')+' '+esc((e.nome||'Etapa '+t.etapa_numero).replace('!',''))+'</td>'
+        +'<td style="white-space:nowrap"><b>'+n(t.dias_medio)+'</b> dias</td>'
+        +'<td style="width:45%"><div class="bar"><div class="b" style="width:'+Math.round((t.dias_medio||0)/max*100)+'%"></div></div></td></tr>';});
+    h+='</table>';
+  }
+  h+='</div>';
+
+  /* Por mês */
+  h+='<h2>📦 Obras finalizadas por mês (últimos 12 meses)</h2><div class="card">';
+  var pm=M.por_mes||[];
+  if(!pm.length) h+='<div class="vazio">Sem finalizações no período.</div>';
+  else{
+    var maxK=Math.max.apply(null,pm.map(function(m){return m.kwp||0}))||1;
+    h+='<table><tr><th>Mês</th><th class="num">Obras</th><th class="num">kWp</th><th></th></tr>';
+    pm.forEach(function(m){
+      var mes=m.mes.split('-');
+      h+='<tr><td>'+mes[1]+'/'+mes[0]+'</td><td class="num">'+m.obras+'</td><td class="num"><b>'+n(m.kwp)+'</b></td>'
+        +'<td style="width:40%"><div class="bar"><div class="b" style="width:'+Math.round((m.kwp||0)/maxK*100)+'%"></div></div></td></tr>';});
+    h+='</table>';
+  }
+  h+='</div>';
+
+  /* Instaladores + Vendedores */
+  h+='<div class="grid2">';
+  h+='<div><h2>👷 Por instalador</h2><div class="card">';
+  var pi=M.por_instalador||[];
+  if(!pi.length) h+='<div class="vazio">Nenhuma obra com instalador definido ainda.</div>';
+  else{
+    h+='<table><tr><th>Instalador</th><th class="num">Obras</th><th class="num">Termos</th><th class="num">Média instal.</th></tr>';
+    pi.forEach(function(p){h+='<tr><td><b>'+esc(p.nome)+'</b></td><td class="num">'+p.obras+'</td><td class="num">'+p.termos+'</td><td class="num">'+(p.dias_medio_instalacao!=null?n(p.dias_medio_instalacao)+' d':'—')+'</td></tr>';});
+    h+='</table>';
+  }
+  h+='</div></div>';
+  h+='<div><h2>💼 Por vendedor</h2><div class="card">';
+  var pv=M.por_vendedor||[];
+  if(!pv.length) h+='<div class="vazio">Nenhuma obra com vendedor definido ainda.</div>';
+  else{
+    h+='<table><tr><th>Vendedor</th><th class="num">Obras</th><th class="num">kWp</th></tr>';
+    pv.forEach(function(p){h+='<tr><td><b>'+esc(p.nome)+'</b></td><td class="num">'+p.obras+'</td><td class="num"><b>'+n(p.kwp)+'</b></td></tr>';});
+    h+='</table>';
+  }
+  h+='</div></div>';
+  h+='</div>';
+
+  document.getElementById('app').innerHTML=h;
+}
+boot();
+</script>
+</body>
+</html>
