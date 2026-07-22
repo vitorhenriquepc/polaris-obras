@@ -469,7 +469,7 @@ const o = id ? getObra(id) : {};
 const novo = !id;
 const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovForm';
 const etOpts=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===(o.etapa_numero??1)?'selected':''}>${n} - ${(ET[n]?.nome||'').replace('!','')}</option>`).join('');
-const instOpts='<option value="">— Instalador —</option>'+EQUIPE.filter(p=>p.papel==='Instalador'||p.papel==='Engenharia').map(p=>`<option value="${p.id}" ${p.id===o.instalador_id?'selected':''}>${esc(p.nome)}</option>`).join('');
+const instOpts='<option value="">— Instalador —</option>'+EQUIPE.filter(p=>p.papel==='Instalador'&&p.ativo!==false).map(p=>`<option value="${p.id}" ${p.id===o.instalador_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 const vendOpts='<option value="">— Vendedor —</option>'+EQUIPE.filter(p=>p.papel==='Vendedor').map(p=>`<option value="${p.id}" ${p.id===o.vendedor_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 ov.innerHTML=`<div class="modal">
 <h2>${novo?'Nova obra':'Editar obra'}</h2>
