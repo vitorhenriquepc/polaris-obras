@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="theme-color" content="#04141F">
+<title>Sua opinião — Polaris Energia Solar</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--navy:#04141F;--ink:#0E2438;--gold:#D6A518;--green:#3B8B3B;--green-l:#58B868;
+--paper:#F4F4F1;--card:#fff;--line:#E4E4DE;--txt:#22323E;--mut:#7A8893;--red:#E36A6A}
+body{font-family:'Manrope',sans-serif;background:
+radial-gradient(800px 400px at 80% -10%, rgba(214,165,24,.13) 0%, transparent 55%),
+linear-gradient(170deg,var(--navy) 0%,#0B2C42 46%,var(--paper) 46.1%,var(--paper) 100%);
+min-height:100vh;color:var(--txt);padding:0 18px 40px}
+.wrap{max-width:560px;margin:0 auto}
+.hd{text-align:center;padding:34px 0 26px;color:#fff}
+.hd img{height:34px;margin:0 auto 22px}
+.hd .k{font-size:10px;font-weight:800;letter-spacing:4px;color:var(--gold);text-transform:uppercase}
+.hd h1{font-size:clamp(22px,5.5vw,30px);font-weight:800;margin-top:10px;line-height:1.2}
+.hd p{font-size:13px;color:rgba(255,255,255,.65);margin-top:8px;font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:28px 22px;
+box-shadow:0 24px 60px rgba(14,36,56,.14)}
+.q{font-size:15.5px;font-weight:800;color:var(--ink);text-align:center;line-height:1.45}
+.q small{display:block;font-size:12.5px;color:var(--mut);font-weight:600;margin-top:7px}
+.faces{display:flex;justify-content:center;gap:10px;margin:20px 0 4px;font-size:30px}
+.faces span{opacity:.25;transition:.3s;transform:scale(.9)}
+.faces span.on{opacity:1;transform:scale(1.25)}
+.notas{display:grid;grid-template-columns:repeat(11,1fr);gap:5px;margin-top:16px}
+.notas button{aspect-ratio:1/1;border:1.5px solid var(--line);background:#fbfbf9;border-radius:10px;
+font-family:inherit;font-size:14px;font-weight:800;color:var(--mut);cursor:pointer;transition:.18s;padding:0}
+.notas button:hover{border-color:var(--gold);color:var(--ink);transform:translateY(-2px)}
+.notas button.sel{background:var(--ink);border-color:var(--ink);color:#fff;transform:scale(1.08)}
+.notas button.sel.det{background:var(--red);border-color:var(--red)}
+.notas button.sel.neu{background:var(--gold);border-color:var(--gold)}
+.notas button.sel.pro{background:var(--green);border-color:var(--green)}
+.esc{display:flex;justify-content:space-between;font-size:10.5px;color:var(--mut);font-weight:700;margin-top:9px}
+.step2{max-height:0;overflow:hidden;transition:max-height .5s ease,opacity .4s;opacity:0}
+.step2.on{max-height:420px;opacity:1;margin-top:22px}
+.lbl{font-size:12px;font-weight:800;color:var(--ink);margin-bottom:8px;display:block}
+textarea{width:100%;background:#fbfbf9;border:1.5px solid var(--line);border-radius:14px;padding:14px;
+font-family:inherit;font-size:14px;color:var(--txt);resize:vertical;min-height:96px;outline:none}
+textarea:focus{border-color:var(--gold)}
+.send{width:100%;background:linear-gradient(135deg,var(--green),#2f7030);border:none;color:#fff;
+border-radius:14px;padding:16px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;
+margin-top:14px;box-shadow:0 10px 30px rgba(59,139,59,.3);transition:.2s}
+.send:active{transform:scale(.98)} .send:disabled{opacity:.5}
+/* obrigado */
+.ok{text-align:center;animation:up .5s ease}
+@keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.ok .em{font-size:52px}
+.ok h2{font-size:21px;font-weight:800;color:var(--ink);margin-top:12px}
+.ok p{font-size:14px;color:var(--mut);margin-top:10px;line-height:1.6}
+.cta{display:block;margin-top:22px;background:var(--green);color:#fff;text-decoration:none;
+border-radius:14px;padding:15px;font-size:14.5px;font-weight:800;box-shadow:0 10px 28px rgba(59,139,59,.28)}
+.cta.alt{background:var(--ink);box-shadow:0 10px 28px rgba(14,36,56,.25)}
+.ft{text-align:center;color:var(--mut);font-size:11.5px;margin-top:26px;font-weight:600}
+.ft b{color:var(--ink)}
+.center{text-align:center;padding:90px 20px;color:#fff}
+</style>
+</head>
+<body>
+<div class="wrap" id="root"><div class="center">⏳ Carregando...</div></div>
+
+<script>
+var sb=supabase.createClient('https://dakubhcgohiwzyqiegqf.supabase.co','sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx');
+var qs=new URLSearchParams(location.search), SLUG=qs.get('id'), TOKEN=qs.get('t');
+var LOGO='https://obras.polarisenergiasolar.com/logo.png', WHATS='5518930852573';
+var D=null, nota=null;
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+async function boot(){
+  if(!SLUG||!TOKEN){document.getElementById('root').innerHTML='<div class="center">🔗 Link incompleto.</div>';return;}
+  var r=await sb.rpc('get_nps',{p_slug:SLUG,p_token:TOKEN});
+  if(r.error||!r.data){document.getElementById('root').innerHTML='<div class="center">🔒 Pesquisa não encontrada.</div>';return;}
+  D=r.data;
+  if(D.ja_respondeu) return obrigado(D.nota_atual,true);
+  render();
+}
+
+function render(){
+  var primeiro=String(D.cliente||'').split(' ')[0];
+  var h='<div class="hd"><img src="'+LOGO+'" onerror="this.style.display=\'none\'">'
+    +'<div class="k">Pesquisa de satisfação</div>'
+    +'<h1>'+esc(primeiro)+', como foi sua<br>experiência com a Polaris?</h1>'
+    +'<p>Leva menos de 1 minuto 💚</p></div>'
+    +'<div class="card">'
+    +'<div class="q">De 0 a 10, o quanto você indicaria a Polaris a um amigo ou familiar?<small>Toque na nota que representa sua opinião</small></div>'
+    +'<div class="faces" id="faces"><span data-f="0">😕</span><span data-f="1">😐</span><span data-f="2">🙂</span><span data-f="3">😄</span><span data-f="4">🤩</span></div>'
+    +'<div class="notas" id="notas">';
+  for(var i=0;i<=10;i++) h+='<button onclick="escolher('+i+')" id="n'+i+'">'+i+'</button>';
+  h+='</div><div class="esc"><span>Não indicaria</span><span>Indicaria com certeza</span></div>'
+    +'<div class="step2" id="s2">'
+    +'<label class="lbl" id="lbl2">Quer contar um pouco mais? (opcional)</label>'
+    +'<textarea id="com" placeholder="Escreva aqui..."></textarea>'
+    +'<button class="send" id="btn" onclick="enviar()">Enviar minha avaliação</button>'
+    +'</div></div>'
+    +'<div class="ft">Sua opinião vai direto para a diretoria da <b>Polaris Energia Solar</b> ☀️</div>';
+  document.getElementById('root').innerHTML=h;
+}
+
+function escolher(n){
+  nota=n;
+  for(var i=0;i<=10;i++){var b=document.getElementById('n'+i);b.className='';}
+  var cls=n<=6?'det':(n<=8?'neu':'pro');
+  document.getElementById('n'+n).className='sel '+cls;
+  // carinhas
+  var f=n<=3?0:(n<=5?1:(n<=7?2:(n<=8?3:4)));
+  document.querySelectorAll('#faces span').forEach(function(s){s.classList.toggle('on',+s.dataset.f===f);});
+  // pergunta contextual
+  var l=document.getElementById('lbl2');
+  if(n<=6) l.textContent='O que precisamos melhorar? Queremos resolver. 🙏';
+  else if(n<=8) l.textContent='O que faltou para ser uma nota 10?';
+  else l.textContent='Que bom! O que você mais gostou? 💚';
+  document.getElementById('s2').classList.add('on');
+  setTimeout(function(){document.getElementById('s2').scrollIntoView({behavior:'smooth',block:'center'})},260);
+}
+
+async function enviar(){
+  if(nota===null) return;
+  var btn=document.getElementById('btn');btn.disabled=true;btn.textContent='Enviando...';
+  var r=await sb.rpc('salvar_nps',{p_slug:SLUG,p_token:TOKEN,p_nota:nota,p_comentario:document.getElementById('com').value});
+  if(r.error||(r.data&&r.data.erro)){btn.disabled=false;btn.textContent='Enviar minha avaliação';alert('Erro ao enviar. Tente novamente.');return;}
+  obrigado(nota,false);
+}
+
+function obrigado(n,jaEra){
+  var promo=n>=9, det=n<=6;
+  var txtInd=encodeURIComponent('Instalei energia solar com a Polaris Energia Solar e recomendo! ☀️ Contato: https://polarisenergiasolar.com');
+  var h='<div class="hd"><img src="'+LOGO+'" onerror="this.style.display=\'none\'"></div><div class="card"><div class="ok">'
+    +'<div class="em">'+(promo?'💚':(det?'🙏':'⭐'))+'</div>'
+    +'<h2>'+(jaEra?'Você já avaliou. Obrigado!':'Obrigado pela sua avaliação!')+'</h2>'
+    +'<p>'+(promo
+        ? 'Ficamos muito felizes! Sua confiança é o que move nosso trabalho todos os dias. ☀️'
+        : (det
+          ? 'Sua opinião é muito importante. Nossa equipe vai entrar em contato para entender melhor e resolver o que for preciso.'
+          : 'Obrigado! Vamos usar seu retorno para melhorar cada detalhe da nossa entrega.'))
+    +'</p>';
+  if(promo) h+='<a class="cta" target="_blank" href="https://wa.me/?text='+txtInd+'">💬 Indicar a Polaris a um amigo</a>'
+              +'<a class="cta alt" href="relatorio.html?id='+encodeURIComponent(SLUG)+'">📄 Ver o relatório da minha obra</a>';
+  else h+='<a class="cta" target="_blank" href="https://wa.me/'+WHATS+'">💬 Falar com nossa equipe</a>';
+  h+='</div></div><div class="ft">Nota registrada: <b>'+n+'/10</b></div>';
+  document.getElementById('root').innerHTML=h;
+}
+boot();
+</script>
+</body>
+</html>

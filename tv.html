@@ -9,20 +9,27 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{
+:root,html[data-tv="dark"]{
 --navy:#04141F; --panel:#0C2334; --panel2:#123049;
 --line:#1D3E58; --txt:#EAF2F8; --mut:#7E99AD;
 --gold:#F5A623; --green:#58B868; --red:#E36A6A;
+--glow:#0E3550; --colbg:rgba(12,35,52,.6); --topbg:rgba(4,20,31,.55);
+}
+html[data-tv="light"]{
+--navy:#EFF1EC; --panel:#FFFFFF; --panel2:#EDF1F4;
+--line:#D9E0E5; --txt:#12303F; --mut:#61798A;
+--gold:#B8790A; --green:#2F8F4B; --red:#D14F4F;
+--glow:#DDE9E2; --topbg:rgba(255,255,255,.75); --colbg:rgba(255,255,255,.55);
 }
 html,body{height:100%;overflow:hidden}
 body{font-family:'Manrope',sans-serif;color:var(--txt);
-background:radial-gradient(1400px 700px at 82% -12%, #0E3550 0%, transparent 60%),var(--navy);
+background:radial-gradient(1400px 700px at 82% -12%, var(--glow) 0%, transparent 60%),var(--navy);transition:background .3s,color .3s;
 display:flex;flex-direction:column;cursor:none}
 body.mouse{cursor:auto}
 
 /* ===== TOPO ===== */
 .top{display:flex;align-items:center;gap:20px;padding:16px 26px;border-bottom:1px solid var(--line);
-background:rgba(4,20,31,.55)}
+background:var(--topbg)}
 .top img{height:34px}
 .top .ttl{font-size:17px;font-weight:800;letter-spacing:.3px}
 .top .ttl span{color:var(--gold)}
@@ -40,7 +47,7 @@ width:38px;height:38px;font-size:15px;cursor:pointer;margin-left:6px}
 
 /* ===== BOARD ===== */
 .board{flex:1;display:flex;gap:10px;padding:14px 16px 16px;overflow:hidden}
-.col{flex:1 1 0;min-width:0;background:rgba(12,35,52,.6);border:1px solid var(--line);
+.col{flex:1 1 0;min-width:0;background:var(--colbg);border:1px solid var(--line);
 border-radius:14px;display:flex;flex-direction:column;overflow:hidden}
 .col.hot{border-color:rgba(227,106,106,.5)}
 .ch{display:flex;align-items:center;gap:7px;padding:11px 12px;border-bottom:1px solid var(--line);flex-shrink:0}
@@ -74,6 +81,7 @@ border-radius:11px;padding:10px 11px;animation:fade .5s ease}
   <div class="ttl">Polaris <span>Obras</span></div>
   <div class="kpis" id="kpis"></div>
   <div class="clock"><div class="h" id="ch">--:--</div><div class="d" id="cd"></div></div>
+  <button class="fs" id="bTvTema" onclick="temaTv()" title="Alternar tema">🌙</button>
   <button class="fs" onclick="tela()" title="Tela cheia">⛶</button>
 </div>
 <div class="board" id="board"><div class="center">⏳ Carregando obras...</div></div>
@@ -94,6 +102,14 @@ function relogio(){
 }
 setInterval(relogio,1000); relogio();
 
+function aplicaTv(t){
+document.documentElement.setAttribute('data-tv',t);
+var b=document.getElementById('bTvTema'); if(b) b.textContent=(t==='dark'?'🌙':'☀️');
+var lg=document.querySelector('.top img'); if(lg) lg.src='https://obras.polarisenergiasolar.com/'+(t==='light'?'logo-claro.png':'logo.png');
+try{localStorage.setItem('polaris-tv-tema',t)}catch(e){}
+}
+function temaTv(){aplicaTv(document.documentElement.getAttribute('data-tv')==='dark'?'light':'dark');}
+try{aplicaTv(localStorage.getItem('polaris-tv-tema')||'dark')}catch(e){aplicaTv('dark')}
 function tela(){ if(!document.fullscreenElement) document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();
 else document.exitFullscreen&&document.exitFullscreen(); }
 

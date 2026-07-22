@@ -59,6 +59,11 @@ border-radius:12px;padding:9px 13px;cursor:pointer;transition:.15s;min-width:74p
 .chip .n{font-size:19px;font-weight:800}
 .chip .l{font-size:10.5px;color:var(--muted);margin-top:1px;white-space:nowrap}
 .chip.total .n{color:var(--gold)}
+.dchips{display:flex;gap:6px;margin:2px 0 10px;flex-wrap:wrap}
+.dchip{background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:20px;
+padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.dchip:hover{border-color:var(--gold)}
+.dchip.on{border-color:var(--gold);color:var(--gold);background:var(--card2)}
 
 /* ---- Toolbar ---- */
 .toolbar{display:flex;gap:8px;margin:12px 0}
@@ -310,6 +315,7 @@ root.innerHTML = `
 </div>
 <div class="wrap">
 <div class="stats" id="stats"></div>
+<div class="dchips" id="dchips"></div>
 <div class="toolbar">
 <div class="search">🔍 <input id="busca" placeholder="Buscar cliente ou contrato..."></div>
 <div class="viewtabs"><button id="vCards" class="on" onclick="setView('cards')">▦ Cards</button><button id="vKanban" onclick="setView('kanban')">▤ Kanban</button><button id="vVazias" style="display:none" onclick="toggleVazias()" title="Ocultar/mostrar colunas sem obras">⊟</button></div>
@@ -346,7 +352,7 @@ async function loadObras(){
 const { data, error } = await sb.from('obras').select('*');
 if(error){ document.getElementById('list').innerHTML=`<div class="empty"><span class="i">⚠️</span>Erro ao carregar: ${esc(error.message)}</div>`; return; }
 OBRAS = data||[];
-renderStats(); renderList();
+renderStats(); renderDChips(); renderList();
 }
 
 /* ---------- stats ---------- */
@@ -358,6 +364,23 @@ h+=`<div class="chip ${filtroEtapa===n?'on':''}" onclick="setFiltro(${n})"><div 
 document.getElementById('stats').innerHTML=h;
 }
 function setFiltro(n){ filtroEtapa=(filtroEtapa===n?null:n); renderStats(); renderList(); }
+let filtroDias=null;
+const DFILTROS=[{k:null,l:'Todos os prazos'},{k:7,l:'⏱️ Até 7 dias'},{k:30,l:'📅 +30 dias'},{k:60,l:'🚨 +60 dias'}];
+function renderDChips(){
+const el=document.getElementById('dchips'); if(!el) return;
+el.innerHTML=DFILTROS.map(f=>{
+let qt='';
+if(f.k!==null){ qt=' ('+OBRAS.filter(o=>passaDias(o,f.k)).length+')'; }
+return `<button class="dchip ${filtroDias===f.k?'on':''}" onclick="setFiltroDias(${f.k===null?'null':f.k})">${f.l}${qt}</button>`;
+}).join('');
+}
+function passaDias(o,k){
+if(k===null) return true;
+if(o.etapa_numero>=8) return false;
+const d=diasObra(o); if(d===null) return false;
+return k===7 ? d<=7 : d>k;
+}
+function setFiltroDias(k){ filtroDias=(filtroDias===k?null:k); renderDChips(); renderList(); }
 
 /* ---------- lista ---------- */
 function statusBadge(s){
@@ -384,7 +407,7 @@ renderKanban();
 function diasObra(o){ if(!o.data_fechamento) return null; const d=parseDate(o.data_fechamento); if(!d) return null; return diffDays(d,new Date()); }
 function renderList(){
 if(VIEW==='kanban') return renderKanban();
-let arr=OBRAS.slice();
+let arr=OBRAS.slice().filter(o=>passaDias(o,filtroDias));
 if(filtroEtapa!==null) arr=arr.filter(o=>o.etapa_numero===filtroEtapa);
 if(busca) arr=arr.filter(o=> (o.cliente||'').toLowerCase().includes(busca) || (o.contrato||'').includes(busca));
 // ordena: não finalizadas primeiro, depois por etapa desc, depois nome
@@ -400,7 +423,7 @@ if(!arr.length){ el.innerHTML=`<div class="empty"><span class="i">📋</span>Nen
 el.innerHTML = arr.map(cardHtml).join('');
 }
 function renderKanban(){
-let arr=OBRAS.slice();
+let arr=OBRAS.slice().filter(o=>passaDias(o,filtroDias));
 if(busca) arr=arr.filter(o=> (o.cliente||'').toLowerCase().includes(busca) || (o.contrato||'').includes(busca));
 const el=document.getElementById('list');
 el.className='kb'; el.style.display='flex';

@@ -107,6 +107,32 @@ function render(M){
     +'<div class="kpi"><div class="v">'+n(k.termos_assinados)+'</div><div class="l">Termos assinados</div></div>'
     +'</div>';
 
+  /* NPS */
+  var np=M.nps||{};
+  h+='<h2>⭐ Satisfação do cliente (NPS)</h2>';
+  if(!np.respostas){ h+='<div class="card"><div class="vazio">Ainda sem respostas de pesquisa.</div></div>'; }
+  else{
+    h+='<div class="kpis">'
+      +'<div class="kpi destaque"><div class="v">'+n(np.score)+'</div><div class="l">NPS Score</div></div>'
+      +'<div class="kpi"><div class="v">'+n(np.media)+'<small>/10</small></div><div class="l">Nota média</div></div>'
+      +'<div class="kpi ok"><div class="v">'+n(np.promotores)+'</div><div class="l">Promotores (9-10)</div></div>'
+      +'<div class="kpi"><div class="v">'+n(np.neutros)+'</div><div class="l">Neutros (7-8)</div></div>'
+      +'<div class="kpi ruim"><div class="v">'+n(np.detratores)+'</div><div class="l">Detratores (0-6)</div></div>'
+      +'<div class="kpi"><div class="v">'+n(np.respostas)+'</div><div class="l">Respostas</div></div>'
+      +'</div>';
+    var ult=M.nps_ultimos||[];
+    if(ult.length){
+      h+='<div class="card" style="margin-top:12px"><table><tr><th>Cliente</th><th class="num">Nota</th><th>Comentário</th><th class="num">Quando</th></tr>';
+      ult.forEach(function(u){
+        var cor=u.nota>=9?'#58B868':(u.nota<=6?'#e07070':'');
+        h+='<tr><td><b>'+esc(u.cliente)+'</b></td><td class="num"><b style="color:'+cor+'">'+u.nota+'</b></td>'
+          +'<td style="max-width:340px">'+esc(u.comentario||'—')+'</td>'
+          +'<td class="num">'+new Date(u.criado_em).toLocaleDateString('pt-BR')+'</td></tr>';
+      });
+      h+='</table></div>';
+    }
+  }
+
   /* Atrasadas */
   h+='<h2>🚨 Obras acima do prazo (60 dias)</h2><div class="card">';
   var at=M.atrasadas||[];
