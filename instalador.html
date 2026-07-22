@@ -31,12 +31,13 @@ border-bottom:1px solid var(--border);padding:13px 16px;display:flex;align-items
 .top .theme{margin-left:auto;background:var(--card2);border:1px solid var(--border);color:var(--txt);
 border-radius:50px;width:36px;height:36px;font-size:16px;cursor:pointer}
 .wrap{max-width:560px;margin:0 auto;padding:16px}
-.hero{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}
+.hero{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--green),var(--gold))}
 .hero h1{font-size:17px;font-weight:800}
 .hero .m{font-size:12.5px;color:var(--muted);margin-top:4px}
 .prog{margin-top:12px}
 .prog .bar{height:8px;background:var(--card2);border-radius:6px;overflow:hidden}
-.prog .fill{height:100%;background:linear-gradient(90deg,var(--green),var(--green-l));width:0%;transition:.4s;border-radius:6px}
+.prog .fill{height:100%;background:linear-gradient(90deg,var(--green),var(--green-l) 70%,var(--gold));width:0%;transition:width .6s cubic-bezier(.3,.8,.3,1);border-radius:6px}
 .prog .lbl{font-size:11.5px;color:var(--muted);margin-top:6px;font-weight:700}
 .ficha{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
 .chip{background:var(--card2);border:1px solid var(--border);border-radius:20px;padding:5px 11px;font-size:11.5px;font-weight:700}
@@ -45,7 +46,7 @@ border-radius:50px;width:36px;height:36px;font-size:16px;cursor:pointer}
 .maps{display:flex;align-items:center;gap:8px;margin-top:10px;background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:10px 12px;text-decoration:none;color:var(--txt);font-size:12.5px;font-weight:700}
 .maps:active{border-color:var(--gold)}
 .maps .mi{font-size:16px}
-.item{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:11px}
+.item{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:15px;margin-bottom:11px;box-shadow:0 4px 18px rgba(0,0,0,.08);transition:border-color .3s}
 .item.done{border-color:rgba(59,139,59,.5)}
 .item .h{display:flex;align-items:flex-start;gap:10px}
 .item .ic{width:34px;height:34px;border-radius:10px;background:var(--card2);display:flex;align-items:center;
@@ -95,7 +96,7 @@ color:var(--muted);border-radius:8px;padding:5px 10px;font-size:11px;font-weight
 border-top:1px solid var(--border);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
 .footer .inner{max-width:560px;margin:0 auto}
 .btn-send{width:100%;background:linear-gradient(135deg,var(--green),#2f7030);border:none;color:#fff;
-font-weight:800;border-radius:12px;padding:15px;font-family:inherit;font-size:15px;cursor:pointer}
+font-weight:800;border-radius:13px;padding:15px;font-family:inherit;font-size:15px;cursor:pointer;box-shadow:0 8px 24px rgba(59,139,59,.35)}
 .btn-send:disabled{opacity:.45}
 .btn-send:active{transform:scale(.98)}
 .center{text-align:center;padding:70px 24px;color:var(--muted)}
@@ -113,8 +114,8 @@ padding:9px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:point
 .dia{margin-bottom:14px}
 .dia .dh{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px}
 .dia .dh.hoje{color:var(--gold)}
-.ob{display:block;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;
-margin-bottom:8px;text-decoration:none;color:var(--txt)}
+.ob{display:block;background:var(--card);border:1px solid var(--border);border-left:4px solid var(--green);border-radius:12px;padding:12px 14px;
+margin-bottom:8px;text-decoration:none;color:var(--txt);box-shadow:0 3px 14px rgba(0,0,0,.07)}
 .ob:active{border-color:var(--gold)}
 .ob b{font-size:14px}
 .ob .om{font-size:11.5px;color:var(--muted);margin-top:2px}

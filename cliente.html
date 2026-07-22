@@ -2,290 +2,270 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#011D2E">
-<title>Polaris Solar — Acompanhe sua Obra</title>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="theme-color" content="#04141F">
+<title>Acompanhamento de Obra — Polaris Energia Solar</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{
-  --navy:#011D2E; --navy2:#06314a; --green:#3B8B3B; --gold:#F5A623;
-  --bg:#081522; --card:rgba(255,255,255,.04); --line:rgba(255,255,255,.09);
-  --txt:#eef4f9; --muted:#93a8ba;
-}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Manrope',system-ui,sans-serif;color:var(--txt);min-height:100vh;
-  background:radial-gradient(900px 500px at 50% -10%,#0d2c47 0%,transparent 60%),var(--bg);
-  padding:0 16px 50px}
-#confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
-.wrap{max-width:560px;margin:0 auto}
+:root{
+  --navy:#04141F; --navy2:#0A2536; --ink:#0E2438;
+  --gold:#D6A518; --green:#3B8B3B; --green-l:#58B868;
+  --paper:#F4F4F1; --card:#FFFFFF; --line:#E4E4DE;
+  --txt:#22323E; --mut:#7A8893;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Manrope',sans-serif;background:var(--paper);color:var(--txt);-webkit-font-smoothing:antialiased}
+img{display:block}
 
-/* header */
-.head{display:flex;flex-direction:column;align-items:center;text-align:center;padding:26px 0 8px}
-.head img{height:34px;margin-bottom:18px}
-.hi{font-size:24px;font-weight:800;letter-spacing:-.3px}
-.hi span{color:var(--gold)}
-.sub{color:var(--muted);font-size:13.5px;margin-top:3px}
+/* ===== HERO ===== */
+.hero{background:
+radial-gradient(900px 420px at 85% -10%, rgba(214,165,24,.15) 0%, transparent 55%),
+radial-gradient(700px 500px at -10% 110%, rgba(59,139,59,.12) 0%, transparent 55%),
+linear-gradient(165deg,var(--navy) 0%,#0B2C42 100%);
+color:#fff;padding:40px 24px 92px;position:relative;overflow:hidden}
+.hero .in{max-width:760px;margin:0 auto;text-align:center;position:relative}
+.hero img.lg{height:40px;margin:0 auto 34px;filter:drop-shadow(0 4px 16px rgba(0,0,0,.35))}
+.hero .kicker{font-size:10.5px;font-weight:700;letter-spacing:4.5px;color:var(--gold);text-transform:uppercase}
+.hero h1{font-size:clamp(28px,6.5vw,44px);font-weight:800;letter-spacing:-.5px;margin:12px 0 6px;line-height:1.1}
+.hero .sub{font-size:13px;color:rgba(255,255,255,.6);font-weight:600}
+/* anel de progresso */
+.ringWrap{margin:34px auto 0;width:168px;height:168px;position:relative}
+.ringWrap svg{transform:rotate(-90deg)}
+.ringWrap .tk{stroke:rgba(255,255,255,.1)}
+.ringWrap .pr{stroke:url(#gradRing);stroke-linecap:round;transition:stroke-dashoffset 1.4s cubic-bezier(.3,.8,.3,1)}
+.ringTxt{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ringTxt .p{font-size:36px;font-weight:800;letter-spacing:-1px}
+.ringTxt .p small{font-size:16px;font-weight:700;color:var(--gold)}
+.ringTxt .l{font-size:9.5px;font-weight:700;letter-spacing:2.5px;color:rgba(255,255,255,.55);text-transform:uppercase;margin-top:3px}
+.heroTag{display:inline-flex;align-items:center;gap:8px;margin-top:24px;background:rgba(255,255,255,.07);
+border:1px solid rgba(255,255,255,.15);border-radius:40px;padding:9px 18px;font-size:12.5px;font-weight:700}
+.heroTag .d{color:var(--green-l)}
+.heroTag.done{background:rgba(59,139,59,.2);border-color:rgba(88,184,104,.5)}
 
-/* status hero */
-.hero{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:24px;margin:18px 0;
-  text-align:center;backdrop-filter:blur(8px);position:relative;overflow:hidden}
-.hero .ico{font-size:46px;line-height:1}
-.hero .stg{font-size:21px;font-weight:800;margin-top:10px}
-.hero .stgd{color:var(--muted);font-size:13.5px;margin-top:6px;line-height:1.5}
-.prog{margin-top:18px}
-.prog .bar{height:9px;background:rgba(255,255,255,.08);border-radius:20px;overflow:hidden}
-.prog .fill{height:100%;background:linear-gradient(90deg,var(--green),var(--gold));border-radius:20px;
-  transition:width 1s cubic-bezier(.2,.8,.2,1)}
-.prog .lbl{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:8px;font-weight:600}
+/* ===== CONTEÚDO ===== */
+.wrap{max-width:760px;margin:0 auto;padding:0 20px 40px}
+.pull{margin-top:-52px;position:relative;z-index:2}
+.statCard{background:var(--card);border:1px solid var(--line);border-radius:20px;
+display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));overflow:hidden;
+box-shadow:0 22px 60px rgba(14,36,56,.12)}
+.stat{padding:20px 18px;border-right:1px solid var(--line);text-align:center}
+.stat:last-child{border-right:none}
+.stat .k{font-size:9.5px;font-weight:800;letter-spacing:2px;color:var(--mut);text-transform:uppercase}
+.stat .v{font-size:18px;font-weight:800;color:var(--ink);margin-top:7px}
+.stat .v small{font-size:11.5px;color:var(--mut);font-weight:700}
+@media(max-width:560px){.stat{border-right:none;border-bottom:1px solid var(--line)}.stat:last-child{border-bottom:none}}
 
-/* forecast */
-.fc{display:flex;gap:12px;align-items:center;background:rgba(245,166,35,.09);border:1px solid rgba(245,166,35,.28);
-  border-radius:14px;padding:14px 16px;margin-bottom:18px}
-.fc .e{font-size:22px}
-.fc .t{font-size:12px;color:var(--muted)}
-.fc .d{font-size:16px;font-weight:800;color:var(--gold)}
-.fc small{display:block;color:var(--muted);font-size:11px;margin-top:2px;font-weight:500}
+section{padding:52px 0 0}
+.shead{margin-bottom:26px}
+.shead .n{font-size:11px;font-weight:800;letter-spacing:3.5px;color:var(--gold);text-transform:uppercase}
+.shead h2{font-size:clamp(20px,4vw,26px);font-weight:800;color:var(--ink);margin-top:7px;letter-spacing:-.3px}
 
-/* action hint */
-.hint{background:rgba(120,170,210,.08);border:1px solid rgba(120,170,210,.25);border-radius:14px;
-  padding:13px 16px;margin-bottom:18px;font-size:13px;line-height:1.55}
-.hint b{color:#9cc4e4}
+/* ===== TIMELINE ===== */
+.tl{position:relative;padding-left:4px}
+.step{display:flex;gap:18px;position:relative;padding-bottom:6px}
+.step .col{display:flex;flex-direction:column;align-items:center}
+.step .dot{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+font-size:17px;flex-shrink:0;border:2px solid var(--line);background:var(--card);z-index:1;transition:.3s}
+.step .bar{width:2px;flex:1;background:var(--line);min-height:26px}
+.step:last-child .bar{display:none}
+.step .bx{flex:1;padding:6px 0 26px}
+.step .tt{font-size:15px;font-weight:800;color:var(--mut);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.step .ds{font-size:12.5px;color:var(--mut);margin-top:5px;line-height:1.55;max-width:520px}
+.step .dtx{font-size:11px;font-weight:700;color:var(--mut);margin-top:7px;letter-spacing:.3px}
+.badgeNow{font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
+background:rgba(214,165,24,.14);color:#9a7a10;border:1px solid rgba(214,165,24,.4);border-radius:20px;padding:3px 9px}
+/* concluída */
+.step.done .dot{background:var(--green);border-color:var(--green);color:#fff;font-size:15px}
+.step.done .bar{background:var(--green)}
+.step.done .tt{color:var(--ink)}
+/* atual */
+.step.now .dot{background:#fff;border-color:var(--gold);box-shadow:0 0 0 6px rgba(214,165,24,.15);animation:pulse 2.2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 5px rgba(214,165,24,.15)}50%{box-shadow:0 0 0 10px rgba(214,165,24,.06)}}
+.step.now .tt{color:var(--ink);font-size:16px}
+.step.now .bx{background:linear-gradient(180deg,#fff, #FDFCF7);border:1px solid rgba(214,165,24,.35);
+border-radius:16px;padding:16px 18px 18px;margin-bottom:22px;box-shadow:0 14px 40px rgba(214,165,24,.1)}
 
-/* timeline */
-.tl{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:8px 18px;margin-bottom:18px}
-.step{display:flex;gap:14px;padding:13px 0;position:relative}
-.step:not(:last-child)::before{content:'';position:absolute;left:15px;top:34px;bottom:-4px;width:2px;background:var(--line)}
-.step.done:not(:last-child)::before{background:var(--green)}
-.dot{flex:0 0 32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  font-size:15px;background:rgba(255,255,255,.06);border:2px solid var(--line);z-index:1}
-.step.done .dot{background:var(--green);border-color:var(--green)}
-.step.curr .dot{background:var(--gold);border-color:var(--gold);box-shadow:0 0 0 5px rgba(245,166,35,.15);
-  animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 5px rgba(245,166,35,.15)}50%{box-shadow:0 0 0 9px rgba(245,166,35,.05)}}
-.step .info{padding-top:5px}
-.step .nm{font-size:14px;font-weight:700}
-.step.future .nm{color:var(--muted);font-weight:600}
-.step .dt{font-size:11.5px;color:var(--muted);margin-top:2px}
-.step.curr .nm{color:var(--gold)}
+/* ===== FOTOS ===== */
+.fgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.fgrid .ph{border-radius:14px;overflow:hidden;aspect-ratio:1/1;cursor:zoom-in;background:#e3e5e0;transition:.3s}
+.fgrid .ph img{width:100%;height:100%;object-fit:cover;transition:transform .5s}
+.fgrid .ph:hover img{transform:scale(1.05)}
+@media(max-width:560px){.fgrid{gap:7px}.fgrid .ph{border-radius:11px}}
+.btnRel{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:16px;
+background:var(--navy);color:#fff;border-radius:14px;padding:16px;font-size:14px;font-weight:800;
+text-decoration:none;transition:.25s;box-shadow:0 14px 36px rgba(4,20,31,.25)}
+.btnRel:hover{transform:translateY(-2px)}
+.btnRel .a{color:var(--gold)}
 
-/* fotos */
-.fotos{margin-bottom:18px}
-.fotos h3{font-size:13px;color:var(--muted);font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
-.fotos .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.fotos img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
+/* ===== AJUDA ===== */
+.help{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:26px;
+display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:52px}
+.help .ic{width:48px;height:48px;border-radius:14px;background:rgba(59,139,59,.12);
+display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0}
+.help b{font-size:14.5px;color:var(--ink)}
+.help p{font-size:12.5px;color:var(--mut);margin-top:3px;line-height:1.5}
+.help a{margin-left:auto;background:var(--green);color:#fff;text-decoration:none;border-radius:12px;
+padding:12px 20px;font-size:13px;font-weight:800;white-space:nowrap}
+@media(max-width:560px){.help a{margin-left:0;width:100%;text-align:center}}
 
-/* celebration */
-.celeb{background:linear-gradient(150deg,rgba(59,139,59,.18),rgba(245,166,35,.12));
-  border:1px solid rgba(245,166,35,.3);border-radius:20px;padding:26px 22px;text-align:center;margin-bottom:18px}
-.celeb .big{font-size:40px}
-.celeb .ttl{font-size:22px;font-weight:800;margin-top:8px}
-.celeb .msg{font-size:14px;color:var(--txt);margin-top:10px;line-height:1.55}
-.celeb .badge{display:inline-block;background:rgba(245,166,35,.18);border:1px solid var(--gold);color:var(--gold);
-  font-weight:800;font-size:13px;padding:6px 14px;border-radius:20px;margin-top:14px}
+/* ===== FOOTER ===== */
+footer{background:var(--navy);color:#fff;padding:52px 22px 36px;margin-top:64px;text-align:center}
+footer img{height:36px;margin:0 auto 22px}
+footer .c{font-size:13.5px;font-weight:600;color:rgba(255,255,255,.85);margin:4px 0}
+footer .c b{color:var(--gold)}
+footer .site{margin-top:18px;font-size:12.5px;letter-spacing:1.5px;color:rgba(255,255,255,.55)}
+footer .site b{color:#fff}
 
-/* CTA funnel */
-.cta{display:flex;align-items:center;gap:13px;width:100%;background:var(--card);border:1px solid var(--line);
-  border-radius:14px;padding:15px 16px;margin-bottom:10px;text-decoration:none;color:var(--txt);transition:.15s;cursor:pointer}
-.cta:hover{border-color:var(--gold);transform:translateY(-1px)}
-.cta .e{font-size:24px}
-.cta .tx b{display:block;font-size:14.5px;font-weight:700}
-.cta .tx span{font-size:12px;color:var(--muted)}
-.cta .arr{margin-left:auto;color:var(--muted);font-size:18px}
-.sec-ttl{font-size:13px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:22px 4px 12px}
+/* ===== LIGHTBOX ===== */
+.lb{position:fixed;inset:0;background:rgba(3,13,21,.96);z-index:100;display:none;
+align-items:center;justify-content:center;flex-direction:column}
+.lb.on{display:flex}
+.lb img{max-width:94vw;max-height:80vh;object-fit:contain;border-radius:8px;animation:zin .25s ease}
+@keyframes zin{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+.lb .cnt{color:rgba(255,255,255,.45);font-size:11px;font-weight:700;letter-spacing:2px;margin-top:14px}
+.lb button{position:fixed;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+color:#fff;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center}
+.lb .x{top:16px;right:16px;width:42px;height:42px;border-radius:50%;font-size:16px}
+.lb .nav{top:50%;transform:translateY(-50%);width:44px;height:60px;border-radius:13px;font-size:20px}
+.lb .pv{left:10px}.lb .nx{right:10px}
 
-/* footer */
-.foot{text-align:center;margin-top:26px}
-.foot .wa{display:inline-flex;align-items:center;gap:8px;background:#1f8a4c;color:#fff;text-decoration:none;
-  font-weight:700;font-size:14px;padding:13px 22px;border-radius:30px}
-.foot p{color:var(--muted);font-size:11.5px;margin-top:16px}
-
-/* states */
-.center{min-height:80vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px}
-.spin{width:38px;height:38px;border:3px solid var(--line);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.center .e{font-size:46px}
-.center .m{color:var(--muted);font-size:14px;max-width:300px;line-height:1.5}
+.rv{opacity:0;transform:translateY(16px);transition:opacity .65s ease,transform .65s ease}
+.rv.on{opacity:1;transform:none}
+.center{max-width:760px;margin:0 auto;text-align:center;padding:110px 30px;color:var(--mut)}
 </style>
 </head>
 <body>
-<canvas id="confetti"></canvas>
-<div class="wrap" id="app">
-  <div class="center"><div class="spin"></div><div class="m">Carregando sua obra...</div></div>
-</div>
+<div id="root"><div class="center">⏳ Carregando sua obra...</div></div>
 
 <script>
-/* ===== CONFIG ===== */
-const SUPABASE_URL = "https://dakubhcgohiwzyqiegqf.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRha3ViaGNnb2hpd3p5cWllZ3FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMjExMTIsImV4cCI6MjA5Nzc5NzExMn0.Vdgp6B0TBVOSz-NT5vka9jXCdIT0iNhu1dbmvhLbWQ0";
-const PRAZO_CONTRATUAL = 60;
-const WHATSAPP_POSVENDA = "5518996906474";
-const INDICA_URL  = "https://indica.polarisenergiasolar.com";
-const MONITOR_URL = ""; // ⬅️ cole o link do app de monitoramento (deixe vazio p/ ocultar)
-const REVIEW_URL  = ""; // ⬅️ cole o link de avaliação no Google (deixe vazio p/ ocultar)
+var sb=supabase.createClient('https://dakubhcgohiwzyqiegqf.supabase.co','sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx');
+var SLUG=new URLSearchParams(location.search).get('id');
+var LOGO='https://obras.polarisenergiasolar.com/logo.png';
+var WHATS='5518930852573';
+var D=null, GAL=[], gi=0;
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const app = document.getElementById('app');
-const LOGO = "https://obras.polarisenergiasolar.com/logo.png";
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function dataBR(s){if(!s)return null;var d=new Date(String(s).length<=10?s+'T12:00:00':s);return isNaN(d)?null:d.toLocaleDateString('pt-BR');}
 
-/* dica do que o cliente precisa fazer em cada etapa (opcional) */
-const ACOES = {
-  3:'Esta fase corre na <b>concessionária</b> — o prazo é dela. Estamos acompanhando de perto.',
-  5:'Garanta um local para receber os equipamentos quando chegarem.',
-  6:'Nossa equipe vai combinar com você o <b>acesso ao local</b> da instalação.',
-  7:'A concessionária fará a <b>troca do medidor</b> — pode ser necessário acesso ao seu padrão.'
-};
-
-/* util */
-const ET = {};
-function getParam(n){return new URLSearchParams(location.search).get(n)||'';}
-function parseDate(s){if(!s)return null;const d=new Date(s);return isNaN(d)?null:d;}
-function fmt(d){return d?String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear():'';}
-function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
-function diffDays(a,b){return Math.round((b-a)/86400000);}
-function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-
-async function carregar(){
-  const id = getParam('id');
-  if(!id){ return erro('🔗','Link incompleto','Use o link completo que a Polaris te enviou, com o seu identificador.'); }
-  try{
-    const [etRes, obRes] = await Promise.all([
-      sb.from('etapas').select('*').order('numero'),
-      sb.rpc('get_obra_publica',{ p_slug:id })
-    ]);
-    if(etRes.error) throw etRes.error;
-    if(obRes.error) throw obRes.error;
-    (etRes.data||[]).forEach(e=>ET[e.numero]=e);
-    if(!obRes.data){ return erro('😕','Obra não encontrada','Confira o link com a nossa equipe — pode ter havido um erro de digitação.'); }
-    render(obRes.data);
-  }catch(e){
-    erro('⚠️','Não foi possível carregar','Tente novamente em instantes. Se continuar, fale com a gente no WhatsApp.');
-  }
+async function boot(){
+  if(!SLUG){document.getElementById('root').innerHTML='<div class="center">🔗 Link incompleto. Confira o endereço recebido.</div>';return;}
+  var r=await sb.rpc('get_acompanhamento',{p_slug:SLUG});
+  if(r.error||!r.data){document.getElementById('root').innerHTML='<div class="center">🔒 Obra não encontrada. Confira o link com nossa equipe.</div>';return;}
+  D=r.data; render();
 }
 
-function erro(e,t,m){
-  app.innerHTML=`<div class="center"><div class="e">${e}</div><div style="font-size:18px;font-weight:800">${t}</div>
-    <div class="m">${m}</div>
-    <a class="wa" style="margin-top:8px" href="https://wa.me/${WHATSAPP_POSVENDA}">💬 Falar com a Polaris</a></div>`;
+function render(){
+  var o=D.obra, ET=D.etapas||[], HIST=D.historico||[], FD=D.fotos_destaque||[];
+  var num=o.etapa_numero||0;
+  var pct=Math.round(num/8*100);
+  var fim=num>=8;
+  // datas por etapa (primeira entrada de cada)
+  var quando={};
+  HIST.forEach(function(h){ if(!quando[h.etapa_numero]) quando[h.etapa_numero]=h.entrou_em; });
+
+  var h='';
+  /* HERO */
+  h+='<div class="hero"><div class="in">'
+    +'<img class="lg" src="'+LOGO+'" onerror="this.style.display=\'none\'">'
+    +'<div class="kicker">Acompanhamento de obra</div>'
+    +'<h1>'+esc(o.cliente)+'</h1>'
+    +'<div class="sub">'+(o.contrato?'Contrato Nº '+esc(o.contrato)+' · ':'')+(o.potencia_kwp?String(o.potencia_kwp).replace('.',',')+' kWp':'')+'</div>'
+    +'<div class="ringWrap">'
+    +'<svg width="168" height="168" viewBox="0 0 168 168">'
+    +'<defs><linearGradient id="gradRing" x1="0" y1="0" x2="1" y2="1">'
+    +'<stop offset="0%" stop-color="#58B868"/><stop offset="100%" stop-color="#D6A518"/></linearGradient></defs>'
+    +'<circle class="tk" cx="84" cy="84" r="74" fill="none" stroke-width="10"/>'
+    +'<circle class="pr" id="ring" cx="84" cy="84" r="74" fill="none" stroke-width="10" stroke-dasharray="465" stroke-dashoffset="465"/>'
+    +'</svg>'
+    +'<div class="ringTxt"><div class="p">'+pct+'<small>%</small></div><div class="l">'+(fim?'Concluída':'Em progresso')+'</div></div>'
+    +'</div>';
+  var etAtual=ET.find(function(e){return e.numero===num})||{};
+  h+='<div class="heroTag '+(fim?'done':'')+'"><span class="d">●</span> '
+    +(fim?'Sistema ativo e gerando energia ☀️':(etAtual.icone||'')+' Etapa atual: '+esc((etAtual.nome||'').replace('!','')))
+    +'</div>'
+    +'</div></div>';
+
+  /* STATS */
+  h+='<div class="wrap"><div class="pull"><div class="statCard">'
+    +'<div class="stat"><div class="k">Potência</div><div class="v">'+(o.potencia_kwp?String(o.potencia_kwp).replace('.',',')+' <small>kWp</small>':'—')+'</div></div>'
+    +'<div class="stat"><div class="k">Módulos</div><div class="v">'+(o.qtd_modulos?o.qtd_modulos+' <small>unid.</small>':'—')+'</div></div>'
+    +'<div class="stat"><div class="k">Início</div><div class="v">'+(dataBR(o.data_fechamento)||'—')+'</div></div>'
+    +'<div class="stat"><div class="k">'+(fim?'Ativação':'Previsão')+'</div><div class="v">'+(fim?(dataBR(o.data_conclusao)||'—'):'até 60 dias')+'</div></div>'
+    +'</div></div>';
+
+  /* TIMELINE */
+  h+='<section class="rv"><div class="shead"><div class="n">Linha do tempo</div><h2>A jornada da sua energia</h2></div><div class="tl">';
+  ET.forEach(function(e){
+    var st = e.numero<num?'done':(e.numero===num?(fim?'done':'now'):'');
+    if(fim&&e.numero===8) st='done';
+    var dt=quando[e.numero];
+    h+='<div class="step '+st+'">'
+      +'<div class="col"><div class="dot">'+(st==='done'?'✓':(e.icone||'○'))+'</div><div class="bar"></div></div>'
+      +'<div class="bx">'
+      +'<div class="tt">'+esc((e.nome||'').replace('!',''))+(st==='now'?' <span class="badgeNow">Etapa atual</span>':'')+'</div>'
+      +(st==='now'&&e.descricao?'<div class="ds">'+esc(e.descricao)+'</div>':'')
+      +(st==='now'&&e.prazo_texto?'<div class="dtx">⏱️ '+esc(e.prazo_texto)+'</div>':'')
+      +(dt&&st!=='now'?'<div class="dtx">'+(st==='done'?'✓ ':'')+dataBR(dt)+'</div>':'')
+      +'</div></div>';
+  });
+  h+='</div></section>';
+
+  /* FOTOS */
+  if(FD.length){
+    GAL=FD.slice();
+    h+='<section class="rv"><div class="shead"><div class="n">Registro</div><h2>Sua instalação em imagens</h2></div>'
+      +'<div class="fgrid">'+FD.map(function(u,i){return '<div class="ph" onclick="abrirLb('+i+')"><img src="'+esc(u)+'" loading="lazy"></div>'}).join('')+'</div>'
+      +(o.tem_fotos?'<a class="btnRel" href="relatorio.html?id='+encodeURIComponent(SLUG)+'"><span class="a">📄</span> Ver relatório completo da instalação <span class="a">→</span></a>':'')
+      +'</section>';
+  }
+
+  /* AJUDA */
+  h+='<div class="help rv"><div class="ic">💬</div><div style="flex:1;min-width:200px"><b>Alguma dúvida sobre sua obra?</b>'
+    +'<p>Nossa equipe de pós-venda acompanha cada etapa e está à disposição.</p></div>'
+    +'<a href="https://wa.me/'+WHATS+'" target="_blank">Falar no WhatsApp</a></div>';
+
+  h+='</div>';
+
+  /* FOOTER */
+  h+='<footer><img src="'+LOGO+'" onerror="this.style.display=\'none\'">'
+    +'<div class="c">📱 <b>(18) 93085-2573</b></div>'
+    +'<div class="c">contato@polarisenergiasolar.com</div>'
+    +'<div class="site">www.<b>polarisenergiasolar</b>.com</div></footer>';
+
+  /* LIGHTBOX */
+  h+='<div class="lb" id="lb" onclick="if(event.target===this)fecharLb()">'
+    +'<button class="x" onclick="fecharLb()">✕</button>'
+    +'<button class="nav pv" onclick="navLb(-1)">‹</button>'
+    +'<img id="lbImg" src=""><div class="cnt" id="lbCnt"></div>'
+    +'<button class="nav nx" onclick="navLb(1)">›</button></div>';
+
+  document.getElementById('root').innerHTML=h;
+  document.title='Sua obra — '+o.cliente+' — Polaris Energia Solar';
+
+  // animações
+  requestAnimationFrame(function(){setTimeout(function(){
+    var ring=document.getElementById('ring');
+    if(ring) ring.style.strokeDashoffset=String(465-465*pct/100);
+  },150)});
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('on');io.unobserve(e.target);}})},{threshold:.08});
+  document.querySelectorAll('.rv').forEach(function(el){io.observe(el)});
 }
 
-function render(o){
-  const et = o.etapa || ET[o.etapa_numero] || {};
-  const n = o.etapa_numero;
-  const pct = Math.round((Math.max(n,0)/8)*100);
-  const dF = parseDate(o.data_fechamento);
-  const dC = parseDate(o.data_conclusao);
-  const primeiroNome = (o.cliente||'').split(' ')[0];
+function abrirLb(i){gi=i;updLb();document.getElementById('lb').classList.add('on');document.body.style.overflow='hidden';}
+function fecharLb(){document.getElementById('lb').classList.remove('on');document.body.style.overflow='';}
+function navLb(d){gi=(gi+d+GAL.length)%GAL.length;updLb();}
+function updLb(){document.getElementById('lbImg').src=GAL[gi];
+document.getElementById('lbCnt').textContent=(gi+1)+' / '+GAL.length;}
+document.addEventListener('keydown',function(e){var lb=document.getElementById('lb');
+if(!lb||!lb.classList.contains('on'))return;
+if(e.key==='Escape')fecharLb(); if(e.key==='ArrowLeft')navLb(-1); if(e.key==='ArrowRight')navLb(1);});
+var tx=null;
+document.addEventListener('touchstart',function(e){var lb=document.getElementById('lb');if(lb&&lb.classList.contains('on'))tx=e.touches[0].clientX;},{passive:true});
+document.addEventListener('touchend',function(e){if(tx===null)return;var dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>50)navLb(dx>0?-1:1);tx=null;},{passive:true});
 
-  let html = `<div class="head"><img src="${LOGO}" onerror="this.style.display='none'">
-    <div class="hi">Olá, <span>${esc(primeiroNome)}</span>!</div>
-    <div class="sub">Acompanhe a sua obra Polaris em tempo real</div></div>`;
-
-  // hero
-  html += `<div class="hero">
-      <div class="ico">${et.icone||'☀️'}</div>
-      <div class="stg">${esc((et.nome||'').replace('!',''))}</div>
-      <div class="stgd">${esc(et.descricao||'')}</div>
-      <div class="prog">
-        <div class="bar"><div class="fill" style="width:0%" id="fill"></div></div>
-        <div class="lbl"><span>Etapa ${n} de 8</span><span>${pct}%</span></div>
-      </div>
-    </div>`;
-
-  // forecast (só antes de ativar)
-  if(n>=1 && n<8 && dF){
-    const prev = addDays(dF, PRAZO_CONTRATUAL);
-    html += `<div class="fc"><div class="e">📅</div><div>
-        <div class="t">Previsão de ativação</div>
-        <div class="d">até ${fmt(prev)}</div>
-        <small>dentro do prazo contratual de ${PRAZO_CONTRATUAL} dias</small>
-      </div></div>`;
-  }
-
-  // celebration (ativo)
-  if(n===8){
-    let badge='', msg='Seu sistema já está gerando energia limpa e reduzindo sua conta. 🌱';
-    if(dF&&dC){
-      const dias=diffDays(dF,dC), antes=PRAZO_CONTRATUAL-dias;
-      if(antes>0){ badge=`🚀 Entregue ${antes} dias antes do prazo`; msg=`Concluímos em <b>${dias} dias</b> — bem antes dos ${PRAZO_CONTRATUAL} dias do contrato!`; }
-      else if(antes===0){ badge=`✅ Entregue no prazo`; msg=`Concluímos em exatamente <b>${dias} dias</b>.`; }
-    }
-    html += `<div class="celeb"><div class="big">🎉</div>
-        <div class="ttl">Sistema Ativo!</div>
-        <div class="msg">${msg}</div>
-        ${badge?`<div class="badge">${badge}</div>`:''}
-      </div>`;
-  } else {
-    // dica da etapa atual
-    if(ACOES[n]) html += `<div class="hint"><b>👉 O que esperar agora:</b> ${ACOES[n]}</div>`;
-  }
-
-  // timeline
-  html += `<div class="tl">`;
-  const hist = {}; (o.historico||[]).forEach(h=>{ hist[h.etapa_numero]=h.entrou_em; });
-  for(let i=1;i<=8;i++){
-    const e=ET[i]||{}; const cls = i<n?'done': i===n?'curr':'future';
-    const dot = i<n?'✓':(e.icone||'');
-    const dt = hist[i]?('em '+fmt(parseDate(hist[i]))):'';
-    html += `<div class="step ${cls}"><div class="dot">${dot}</div>
-        <div class="info"><div class="nm">${esc((e.nome||'').replace('!',''))}</div>
-        ${dt?`<div class="dt">${dt}</div>`:''}</div></div>`;
-  }
-  html += `</div>`;
-
-  // fotos
-  if(o.fotos && o.fotos.length){
-    html += `<div class="fotos"><h3>📸 Fotos da sua instalação</h3><div class="grid">`;
-    o.fotos.forEach(f=>{ html += `<img src="${esc(f.url)}" alt="${esc(f.legenda||'')}" loading="lazy">`; });
-    html += `</div></div>`;
-  }
-
-  // funil pós-ativação
-  if(n===8){
-    html += `<div class="sec-ttl">Aproveite ao máximo sua energia solar</div>`;
-    if(MONITOR_URL) html += cta('📲','Monitore sua geração','Veja quanto sua usina produz',MONITOR_URL);
-    html += cta('🎁','Indique e Ganhe R$200','Indique amigos e receba por cada instalação',INDICA_URL);
-    html += cta('🛠️','Plano de manutenção','Mantenha sua usina sempre no máximo',`https://wa.me/${WHATSAPP_POSVENDA}?text=${encodeURIComponent('Olá! Quero saber mais sobre os planos de manutenção (O&M) da Polaris.')}`);
-    if(REVIEW_URL) html += cta('⭐','Avalie a Polaris','Conte como foi sua experiência',REVIEW_URL);
-  }
-
-  // footer
-  html += `<div class="foot"><a class="wa" href="https://wa.me/${WHATSAPP_POSVENDA}?text=${encodeURIComponent('Olá! Tenho uma dúvida sobre a minha obra.')}">💬 Falar com a Polaris</a>
-      <p>Polaris Energia Solar • Atualizado em tempo real</p></div>`;
-
-  app.innerHTML = `<div class="wrap">${html}</div>`;
-  setTimeout(()=>{ const f=document.getElementById('fill'); if(f) f.style.width=pct+'%'; }, 100);
-  if(n===8) lancarConfete();
-}
-
-function cta(e,t,s,href){
-  return `<a class="cta" href="${href}" target="_blank" rel="noopener"><div class="e">${e}</div>
-    <div class="tx"><b>${t}</b><span>${s}</span></div><div class="arr">›</div></a>`;
-}
-
-/* confete simples */
-function lancarConfete(){
-  const cv=document.getElementById('confetti'), ctx=cv.getContext('2d');
-  cv.width=innerWidth; cv.height=innerHeight;
-  const cols=['#F5A623','#3B8B3B','#fff','#9cc4e4'];
-  let parts=Array.from({length:120},()=>({x:Math.random()*cv.width,y:Math.random()*-cv.height,
-    r:4+Math.random()*5,c:cols[Math.floor(Math.random()*cols.length)],
-    vy:2+Math.random()*3,vx:-1+Math.random()*2,a:Math.random()*Math.PI}));
-  let t=0;
-  (function anim(){
-    ctx.clearRect(0,0,cv.width,cv.height);
-    parts.forEach(p=>{p.y+=p.vy;p.x+=p.vx;p.a+=.1;
-      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.fillStyle=p.c;
-      ctx.fillRect(-p.r/2,-p.r/2,p.r,p.r);ctx.restore();});
-    t++; if(t<260) requestAnimationFrame(anim); else ctx.clearRect(0,0,cv.width,cv.height);
-  })();
-}
-
-/* atualiza ao voltar pra aba e a cada 60s (sem precisar recarregar) */
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden) carregar(); });
-setInterval(()=>{ if(!document.hidden) carregar(); }, 60000);
-
-carregar();
+boot();
 </script>
 </body>
 </html>
