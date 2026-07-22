@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#04141F">
+<title>Polaris Obras — Modo TV</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+--navy:#04141F; --panel:#0C2334; --panel2:#123049;
+--line:#1D3E58; --txt:#EAF2F8; --mut:#7E99AD;
+--gold:#F5A623; --green:#58B868; --red:#E36A6A;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Manrope',sans-serif;color:var(--txt);
+background:radial-gradient(1400px 700px at 82% -12%, #0E3550 0%, transparent 60%),var(--navy);
+display:flex;flex-direction:column;cursor:none}
+body.mouse{cursor:auto}
+
+/* ===== TOPO ===== */
+.top{display:flex;align-items:center;gap:20px;padding:16px 26px;border-bottom:1px solid var(--line);
+background:rgba(4,20,31,.55)}
+.top img{height:34px}
+.top .ttl{font-size:17px;font-weight:800;letter-spacing:.3px}
+.top .ttl span{color:var(--gold)}
+.kpis{display:flex;gap:10px;margin-left:auto;align-items:center}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 16px;text-align:center;min-width:96px}
+.kpi .v{font-size:22px;font-weight:800;line-height:1}
+.kpi .l{font-size:9px;font-weight:800;letter-spacing:1.6px;color:var(--mut);text-transform:uppercase;margin-top:5px}
+.kpi.warn .v{color:var(--gold)} .kpi.bad .v{color:var(--red)} .kpi.ok .v{color:var(--green)}
+.clock{text-align:right;padding-left:8px;border-left:1px solid var(--line);margin-left:6px}
+.clock .h{font-size:26px;font-weight:800;letter-spacing:-.5px;line-height:1}
+.clock .d{font-size:10.5px;color:var(--mut);font-weight:700;text-transform:capitalize;margin-top:4px}
+.fs{background:var(--panel);border:1px solid var(--line);color:var(--mut);border-radius:10px;
+width:38px;height:38px;font-size:15px;cursor:pointer;margin-left:6px}
+.fs:hover{color:var(--txt);border-color:var(--gold)}
+
+/* ===== BOARD ===== */
+.board{flex:1;display:flex;gap:10px;padding:14px 16px 16px;overflow:hidden}
+.col{flex:1 1 0;min-width:0;background:rgba(12,35,52,.6);border:1px solid var(--line);
+border-radius:14px;display:flex;flex-direction:column;overflow:hidden}
+.col.hot{border-color:rgba(227,106,106,.5)}
+.ch{display:flex;align-items:center;gap:7px;padding:11px 12px;border-bottom:1px solid var(--line);flex-shrink:0}
+.ch .ic{font-size:15px}
+.ch .nm{font-size:11.5px;font-weight:800;line-height:1.2;flex:1;letter-spacing:.2px}
+.ch .ct{font-size:12px;font-weight:800;background:var(--panel2);border-radius:20px;padding:2px 9px;color:var(--txt)}
+.cb{flex:1;overflow-y:auto;padding:9px;display:flex;flex-direction:column;gap:8px;scrollbar-width:none}
+.cb::-webkit-scrollbar{display:none}
+.card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--gold);
+border-radius:11px;padding:10px 11px;animation:fade .5s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.card.warn{border-left-color:var(--gold)}
+.card.late{border-left-color:var(--red);background:linear-gradient(90deg,rgba(227,106,106,.12),var(--panel))}
+.card .n{font-size:14px;font-weight:800;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .m{display:flex;flex-wrap:wrap;gap:3px 9px;font-size:10.5px;color:var(--mut);margin-top:5px;font-weight:700}
+.card .dias{font-weight:800}
+.card .dias.warn{color:var(--gold)} .card .dias.late{color:var(--red)}
+.empty{color:var(--mut);text-align:center;font-size:11px;padding:14px 4px;opacity:.4}
+.center{margin:auto;text-align:center;color:var(--mut);padding:40px}
+.center a{color:var(--gold);font-weight:800}
+/* rodapé sutil */
+.foot{padding:6px 26px 10px;font-size:10px;color:var(--mut);display:flex;gap:14px;align-items:center;flex-shrink:0}
+.foot .dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:bl 2s infinite}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.25}}
+@media(max-width:1200px){.card .n{font-size:13px}.ch .nm{font-size:10.5px}}
+</style>
+</head>
+<body>
+<div class="top">
+  <img src="https://obras.polarisenergiasolar.com/logo.png" onerror="this.style.display='none'">
+  <div class="ttl">Polaris <span>Obras</span></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="clock"><div class="h" id="ch">--:--</div><div class="d" id="cd"></div></div>
+  <button class="fs" onclick="tela()" title="Tela cheia">⛶</button>
+</div>
+<div class="board" id="board"><div class="center">⏳ Carregando obras...</div></div>
+<div class="foot"><span class="dot"></span><span id="fstatus">conectando…</span><span style="margin-left:auto">obras.polarisenergiasolar.com</span></div>
+
+<script>
+var sb=supabase.createClient('https://dakubhcgohiwzyqiegqf.supabase.co','sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx');
+var ET={}, OBRAS=[];
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function dias(o){ if(!o.data_fechamento) return null; var d=new Date(o.data_fechamento+'T12:00:00'); if(isNaN(d)) return null;
+return Math.round((new Date()-d)/86400000); }
+
+function relogio(){
+  var d=new Date();
+  document.getElementById('ch').textContent=d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('cd').textContent=d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+}
+setInterval(relogio,1000); relogio();
+
+function tela(){ if(!document.fullscreenElement) document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();
+else document.exitFullscreen&&document.exitFullscreen(); }
+
+// cursor some quando parado
+var tmo; document.addEventListener('mousemove',function(){document.body.classList.add('mouse');clearTimeout(tmo);
+tmo=setTimeout(function(){document.body.classList.remove('mouse')},2500);});
+
+async function boot(){
+  var s=await sb.auth.getSession();
+  if(!s.data.session){
+    document.getElementById('board').innerHTML='<div class="center">🔒 Faça login uma vez neste computador para exibir o painel.<br><br><a href="painel.html">Ir para o painel →</a></div>';
+    document.getElementById('fstatus').textContent='sem sessão';
+    return;
+  }
+  var e=await sb.from('etapas').select('*').order('numero');
+  (e.data||[]).forEach(function(x){ET[x.numero]=x;});
+  await carregar();
+  sb.channel('tv-obras').on('postgres_changes',{event:'*',schema:'public',table:'obras'},function(){carregar()}).subscribe();
+  setInterval(carregar,120000); // reforço a cada 2 min
+}
+
+async function carregar(){
+  var r=await sb.from('obras').select('*');
+  if(r.error){document.getElementById('fstatus').textContent='erro ao atualizar';return;}
+  OBRAS=r.data||[];
+  render();
+  document.getElementById('fstatus').textContent='atualizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+
+function render(){
+  var andamento=OBRAS.filter(function(o){return o.etapa_numero<8});
+  var d30=andamento.filter(function(o){var d=dias(o);return d!=null&&d>30&&d<=60}).length;
+  var d60=andamento.filter(function(o){var d=dias(o);return d!=null&&d>60}).length;
+  var kwp=andamento.reduce(function(a,o){return a+(parseFloat(o.potencia_kwp)||0)},0);
+  var m=new Date(); var ini=new Date(m.getFullYear(),m.getMonth(),1).toISOString().slice(0,10);
+  var mes=OBRAS.filter(function(o){return o.data_conclusao&&o.data_conclusao>=ini}).length;
+
+  document.getElementById('kpis').innerHTML=
+     '<div class="kpi"><div class="v">'+andamento.length+'</div><div class="l">Em obra</div></div>'
+    +'<div class="kpi warn"><div class="v">'+d30+'</div><div class="l">+30 dias</div></div>'
+    +'<div class="kpi bad"><div class="v">'+d60+'</div><div class="l">+60 dias</div></div>'
+    +'<div class="kpi"><div class="v">'+kwp.toFixed(1).replace('.',',')+'</div><div class="l">kWp em obra</div></div>'
+    +'<div class="kpi ok"><div class="v">'+mes+'</div><div class="l">Ativadas no mês</div></div>';
+
+  var h='';
+  for(var n=0;n<=7;n++){
+    var e=ET[n]||{nome:'Etapa '+n,icone:''};
+    var obs=andamento.filter(function(o){return o.etapa_numero===n})
+      .sort(function(a,b){var da=dias(a),db=dias(b);return (db==null?-1:db)-(da==null?-1:da);});
+    if(!obs.length) continue;   // usa todo o espaço: só etapas com obras
+    var temLate=obs.some(function(o){var d=dias(o);return d!=null&&d>60});
+    h+='<div class="col '+(temLate?'hot':'')+'">'
+      +'<div class="ch"><span class="ic">'+(e.icone||'')+'</span><span class="nm">'+esc((e.nome||'').replace('!',''))+'</span><span class="ct">'+obs.length+'</span></div>'
+      +'<div class="cb">';
+    obs.forEach(function(o){
+      var d=dias(o), late=(d!=null&&d>60), warn=(d!=null&&d>30&&d<=60);
+      h+='<div class="card '+(late?'late':(warn?'warn':''))+'">'
+        +'<div class="n">'+esc(o.cliente)+'</div><div class="m">'
+        +(o.contrato?'<span>#'+esc(o.contrato)+'</span>':'')
+        +(o.potencia_kwp?'<span>'+esc(String(o.potencia_kwp).replace('.',','))+' kWp</span>':'')
+        +(d!=null?'<span class="dias '+(late?'late':(warn?'warn':''))+'">'+d+'d</span>':'')
+        +(o.data_instalacao?'<span>📅 '+o.data_instalacao.split('-').reverse().slice(0,2).join('/')+'</span>':'')
+        +'</div></div>';
+    });
+    h+='</div></div>';
+  }
+  if(!h) h='<div class="center">🎉 Nenhuma obra em andamento no momento.</div>';
+  document.getElementById('board').innerHTML=h;
+}
+boot();
+</script>
+</body>
+</html>

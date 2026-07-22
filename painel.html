@@ -306,7 +306,7 @@ root.innerHTML = `
 <div class="topbar">
 <img src="${LOGO}" onerror="this.style.display='none'">
 <div class="ttl">Polaris <span>Obras</span></div>
-<div class="who">${esc(session.user.email)}<br><button class="btn-out" id="bTema" title="Alternar tema">🌙</button> <button class="btn-out" id="bMet" style="display:none" title="Métricas">📊</button> <button class="btn-out" id="bUsers" style="display:none">👥</button> <button class="btn-out" id="bOut">sair</button></div>
+<div class="who">${esc(session.user.email)}<br><button class="btn-out" id="bTema" title="Alternar tema">🌙</button> <button class="btn-out" onclick="window.open('tv.html','_blank')" title="Modo TV (painel de parede)">📺</button> <button class="btn-out" id="bMet" style="display:none" title="Métricas">📊</button> <button class="btn-out" id="bUsers" style="display:none">👥</button> <button class="btn-out" id="bOut">sair</button></div>
 </div>
 <div class="wrap">
 <div class="stats" id="stats"></div>
