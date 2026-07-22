@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
@@ -9,19 +9,27 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-:root{
---navy:#011D2E; --green:#3B8B3B; --green-l:#58B868; --gold:#F5A623;
+:root,html[data-theme="dark"]{
+--green:#3B8B3B; --green-l:#58B868; --gold:#F5A623;
 --bg:#0a1622; --card:#0f2233; --card2:#13293c;
 --border:#1d3850; --txt:#eaf2f8; --muted:#8fa6b8;
+--bg-grad:radial-gradient(1000px 500px at 80% -10%, #0c2740 0%, transparent 60%);
 }
-body{font-family:'Manrope',system-ui,sans-serif;background:
-radial-gradient(1000px 500px at 80% -10%, #0c2740 0%, transparent 60%),var(--bg);
-color:var(--txt);min-height:100vh;padding-bottom:110px}
-.top{position:sticky;top:0;z-index:20;background:rgba(1,29,46,.9);backdrop-filter:blur(8px);
+html[data-theme="light"]{
+--green:#2f7a2f; --green-l:#3B8B3B; --gold:#B8790A;
+--bg:#EEF1EC; --card:#FFFFFF; --card2:#F4F6F2;
+--border:#D5DDE3; --txt:#08243A; --muted:#5B7285;
+--bg-grad:radial-gradient(1000px 500px at 80% -10%, #dbe7df 0%, transparent 60%);
+}
+body{font-family:'Manrope',system-ui,sans-serif;background:var(--bg-grad),var(--bg);
+color:var(--txt);min-height:100vh;padding-bottom:110px;transition:background .3s,color .3s}
+.top{position:sticky;top:0;z-index:20;background:var(--card);backdrop-filter:blur(8px);
 border-bottom:1px solid var(--border);padding:13px 16px;display:flex;align-items:center;gap:10px}
 .top img{height:26px}
 .top .t{font-weight:800;font-size:15px}
 .top .t span{color:var(--gold)}
+.top .theme{margin-left:auto;background:var(--card2);border:1px solid var(--border);color:var(--txt);
+border-radius:50px;width:36px;height:36px;font-size:16px;cursor:pointer}
 .wrap{max-width:560px;margin:0 auto;padding:16px}
 .hero{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}
 .hero h1{font-size:17px;font-weight:800}
@@ -48,13 +56,35 @@ border-radius:20px;margin-left:auto;flex-shrink:0}
 .thumb .x{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.65);color:#ff9a9a;border:none;
 border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer;line-height:1}
 .addbtn{width:72px;height:72px;border-radius:10px;border:1.5px dashed var(--border);background:none;
-color:var(--muted);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px}
-.addbtn small{font-size:8.5px;font-weight:700}
+color:var(--muted);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1px}
+.addbtn small{font-size:8px;font-weight:700}
 .addbtn:active{border-color:var(--gold);color:var(--gold)}
 .thumb.up{display:flex;align-items:center;justify-content:center;background:var(--card2)}
 .spin{width:20px;height:20px;border:2.5px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:sp .7s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
-.footer{position:fixed;bottom:0;left:0;right:0;background:rgba(1,29,46,.95);backdrop-filter:blur(8px);
+.termo{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:4px}
+.termo h2{font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px}
+.termo .txt{font-size:11.5px;color:var(--muted);line-height:1.6;margin:10px 0}
+.termo.assinado{border-color:var(--green)}
+.aok{text-align:center;padding:8px}
+.aok .ck{font-size:34px}
+.aok b{display:block;font-size:14px;margin-top:6px}
+.aok span{font-size:12px;color:var(--muted)}
+.fld{margin-bottom:10px}
+.fld label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+.fld input{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--txt);
+border-radius:10px;padding:12px;font-family:inherit;font-size:14px;outline:none}
+.fld input:focus{border-color:var(--green)}
+.sigwrap{border:1.5px dashed var(--border);border-radius:12px;background:var(--card2);position:relative;overflow:hidden}
+.sigwrap canvas{display:block;width:100%;height:180px;touch-action:none}
+.sigwrap .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;pointer-events:none}
+.sigclear{position:absolute;top:8px;right:8px;background:var(--card);border:1px solid var(--border);
+color:var(--muted);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;z-index:2}
+.btn2{width:100%;border:none;border-radius:12px;padding:14px;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer;margin-top:8px}
+.btn-main{background:linear-gradient(135deg,var(--green),#2f7030);color:#fff}
+.btn-main:active{transform:scale(.98)}
+.btn-main:disabled{opacity:.45}
+.footer{position:fixed;bottom:0;left:0;right:0;background:var(--card);backdrop-filter:blur(8px);
 border-top:1px solid var(--border);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
 .footer .inner{max-width:560px;margin:0 auto}
 .btn-send{width:100%;background:linear-gradient(135deg,var(--green),#2f7030);border:none;color:#fff;
@@ -65,10 +95,9 @@ font-weight:800;border-radius:12px;padding:15px;font-family:inherit;font-size:15
 .center .i{font-size:44px;display:block;margin-bottom:14px}
 .center b{color:var(--txt)}
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(120px);
-background:#06314a;border:1px solid var(--gold);color:var(--txt);padding:12px 18px;border-radius:12px;
-font-size:13px;font-weight:700;z-index:99;transition:.3s;max-width:88vw;text-align:center}
+background:var(--card);border:1px solid var(--gold);color:var(--txt);padding:12px 18px;border-radius:12px;
+font-size:13px;font-weight:700;z-index:99;transition:.3s;max-width:88vw;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.3)}
 .toast.on{transform:translateX(-50%) translateY(0)}
-/* ---- Agenda ---- */
 .agnav{display:flex;align-items:center;gap:8px;margin-bottom:14px}
 .agnav button{background:var(--card);border:1px solid var(--border);color:var(--txt);border-radius:10px;
 padding:9px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
@@ -94,8 +123,9 @@ padding:1px 3px;margin-top:2px;font-weight:700;overflow:hidden;white-space:nowra
 </head>
 <body>
 <div class="top">
-<img src="https://obras.polarisenergiasolar.com/logo.png" onerror="this.style.display='none'">
+<img id="logo" src="https://obras.polarisenergiasolar.com/logo.png" onerror="this.style.display='none'">
 <div class="t">Polaris <span id="topTit">Instalador</span></div>
+<button class="theme" id="btnTheme" onclick="toggleTheme()">🌙</button>
 </div>
 <div class="wrap" id="app"><div class="center"><span class="i">⏳</span>Carregando...</div></div>
 <div id="foot"></div>
@@ -105,15 +135,25 @@ var SUPABASE_URL='https://dakubhcgohiwzyqiegqf.supabase.co';
 var SUPABASE_KEY='sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx';
 var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 var FN_URL=SUPABASE_URL+'/functions/v1/foto-obra';
+var LOGO_DARK='https://obras.polarisenergiasolar.com/logo.png';
+var LOGO_LIGHT='https://obras.polarisenergiasolar.com/logo-claro.png';
+
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  document.getElementById('btnTheme').textContent=t==='dark'?'🌙':'☀️';
+  document.getElementById('logo').src=(t==='light'?LOGO_LIGHT:LOGO_DARK);
+  try{localStorage.setItem('polaris-tema-inst',t)}catch(e){}
+}
+function toggleTheme(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');}
+try{applyTheme(localStorage.getItem('polaris-tema-inst')||'dark')}catch(e){}
 
 var qs=new URLSearchParams(location.search);
 var SLUG=qs.get('id'), TOKEN=qs.get('t'), AGENDA=qs.get('agenda');
 var OBRA=null, ITENS=[], FOTOS=[];
 
-function toast(m){var t=document.getElementById('tst');if(!t){t=document.createElement('div');t.id='tst';t.className='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('on')},3000);}
+function toast(m){var t=document.getElementById('tst');if(!t){t=document.createElement('div');t.id='tst';t.className='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('on')},3200);}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-/* ================= CHECKLIST ================= */
 async function bootObra(){
   var r=await sb.rpc('get_obra_instalador',{p_slug:SLUG,p_token:TOKEN});
   if(r.error||!r.data){document.getElementById('app').innerHTML='<div class="center"><span class="i">🔒</span><b>Link inválido.</b><br>Confirme com o escritório o link correto desta obra.</div>';return;}
@@ -139,18 +179,20 @@ function renderChecklist(){
       +'<span class="tag '+(it.obrigatorio?'ob':'op')+'">'+(it.obrigatorio?'Obrigatória':'Opcional')+'</span></div>'
       +'<div class="thumbs" id="th'+it.id+'">';
     fts.forEach(function(f){h+='<div class="thumb"><img src="'+esc(f.url)+'" loading="lazy"><button class="x" onclick="delFoto('+f.id+','+it.id+')">✕</button></div>';});
-    h+='<button class="addbtn" onclick="pick('+it.id+')">＋<small>foto</small></button>'
-      +'<input type="file" accept="image/*" capture="environment" multiple id="inp'+it.id+'" style="display:none" onchange="upload('+it.id+',this)">'
+    h+='<button class="addbtn" onclick="pick('+it.id+',true)">📷<small>Câmera</small></button>'
+      +'<button class="addbtn" onclick="pick('+it.id+',false)">🖼️<small>Galeria</small></button>'
+      +'<input type="file" accept="image/*" capture="environment" multiple id="cam'+it.id+'" style="display:none" onchange="upload('+it.id+',this)">'
+      +'<input type="file" accept="image/*" multiple id="gal'+it.id+'" style="display:none" onchange="upload('+it.id+',this)">'
       +'</div></div>';
   });
-  document.getElementById('app').innerHTML=h;
-  var pronto=feitos>=obrig.length && obrig.length>0;
+  document.getElementById('app').innerHTML=h+termoHtml();
+  wireTermo();
   document.getElementById('foot').innerHTML='<div class="footer"><div class="inner">'
     +'<button class="btn-send" id="btnSend" '+(FOTOS.length?'':'disabled')+' onclick="enviar()">'
-    +(OBRA.tem_grupo?'📤 Enviar relatório no grupo do cliente':'📤 Enviar relatório (grupo ainda não criado)')
-    +(pronto?'':' • faltam itens')+'</button></div></div>';
+    +(OBRA.tem_grupo?'📤 Enviar fotos no grupo do cliente':'📤 Enviar fotos (grupo ainda não criado)')
+    +'</button></div></div>';
 }
-function pick(id){document.getElementById('inp'+id).click();}
+function pick(id,camera){document.getElementById((camera?'cam':'gal')+id).click();}
 
 function comprimir(file){
   return new Promise(function(res,rej){
@@ -161,8 +203,7 @@ function comprimir(file){
       var cv=document.createElement('canvas');cv.width=w;cv.height=h;
       cv.getContext('2d').drawImage(img,0,0,w,h);
       URL.revokeObjectURL(url);
-      var data=cv.toDataURL('image/jpeg',0.82);
-      res(data.split(',')[1]);
+      res(cv.toDataURL('image/jpeg',0.82).split(',')[1]);
     };
     img.onerror=rej; img.src=url;
   });
@@ -170,9 +211,11 @@ function comprimir(file){
 async function upload(itemId,inp){
   var files=Array.prototype.slice.call(inp.files); inp.value='';
   var th=document.getElementById('th'+itemId);
+  var addBtns=th.querySelectorAll('.addbtn');
   for(var i=0;i<files.length;i++){
+    if(!files[i].type.startsWith('image/')){toast('Só imagens são aceitas aqui.');continue;}
     var ph=document.createElement('div');ph.className='thumb up';ph.innerHTML='<div class="spin"></div>';
-    th.insertBefore(ph,th.querySelector('.addbtn'));
+    th.insertBefore(ph,addBtns[0]);
     try{
       var b64=await comprimir(files[i]);
       var r=await fetch(FN_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
@@ -197,20 +240,73 @@ async function enviar(){
   if(!OBRA.tem_grupo){toast('O grupo do cliente ainda não foi criado. Avise o escritório!');return;}
   var obrig=ITENS.filter(function(i){return i.obrigatorio});
   var faltam=obrig.filter(function(i){return !fotosDoItem(i.id).length});
-  var msg='Enviar o relatório com '+FOTOS.length+' foto(s) no grupo do cliente?';
+  var msg='Enviar '+FOTOS.length+' foto(s) no grupo do cliente?';
   if(faltam.length) msg+='\n\n⚠️ Itens obrigatórios sem foto:\n• '+faltam.map(function(i){return i.titulo}).join('\n• ');
   if(!confirm(msg))return;
   var btn=document.getElementById('btnSend');btn.disabled=true;btn.textContent='Enviando fotos no grupo...';
   var r=await fetch(FN_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
     body:JSON.stringify({acao:'enviar',slug:SLUG,token:TOKEN})});
   var j=await r.json();
-  if(!r.ok||j.error){toast('Erro: '+(j.error||r.status));btn.disabled=false;btn.textContent='📤 Enviar relatório no grupo do cliente';return;}
-  document.getElementById('app').innerHTML='<div class="center"><span class="i">🎉</span><b>Relatório enviado!</b><br><br>'
-    +j.enviadas+' foto(s) enviadas no grupo do cliente.'+(j.falhas?'<br>⚠️ '+j.falhas+' falharam — tente reenviar.':'')+'</div>';
-  document.getElementById('foot').innerHTML='';
+  if(!r.ok||j.error){toast('Erro: '+(j.error||r.status));btn.disabled=false;btn.textContent='📤 Enviar fotos no grupo do cliente';return;}
+  toast('✅ '+j.enviadas+' foto(s) enviadas no grupo!');
+  btn.textContent='✅ Fotos enviadas ('+j.enviadas+')';
+  setTimeout(function(){btn.disabled=false;btn.textContent='📤 Reenviar fotos no grupo';},1500);
 }
 
-/* ================= AGENDA ================= */
+/* ===== TERMO DE ACEITE ===== */
+function termoHtml(){
+  if(OBRA.aceite_em){
+    var d=new Date(OBRA.aceite_em).toLocaleDateString('pt-BR')+' '+new Date(OBRA.aceite_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    return '<div class="termo assinado"><div class="aok"><div class="ck">✅</div>'
+      +'<b>Termo de conclusão assinado</b>'
+      +'<span>Por '+esc(OBRA.aceite_nome||'')+' em '+d+'</span></div></div>';
+  }
+  return '<div class="termo" id="termo"><h2>✍️ Termo de conclusão de obra</h2>'
+    +'<div class="txt">O cliente declara que <b>recebeu e aceitou</b> o projeto de energia fotovoltaica concluído, '
+    +'conforme os termos do contrato firmado com a Polaris Energia Solar, em conformidade com os requisitos técnicos '
+    +'e normativos aplicáveis, e está satisfeito com o trabalho realizado.</div>'
+    +'<div class="fld"><label>Nome de quem assina</label><input id="a_nome" placeholder="Nome completo do cliente"></div>'
+    +'<div class="fld"><label>CPF/CNPJ (opcional)</label><input id="a_doc" placeholder="000.000.000-00"></div>'
+    +'<div class="fld"><label>Assinatura</label>'
+    +'<div class="sigwrap"><button class="sigclear" onclick="clearSig()">limpar</button>'
+    +'<div class="ph" id="sigph">assine com o dedo aqui</div><canvas id="sig"></canvas></div></div>'
+    +'<button class="btn2 btn-main" id="btnAceite" onclick="salvarAceite()">Registrar aceite do cliente</button></div>';
+}
+var sigCtx=null, sigDrawing=false, sigHasInk=false;
+function wireTermo(){
+  var cv=document.getElementById('sig'); if(!cv) return;
+  var rect=cv.getBoundingClientRect();
+  cv.width=rect.width*2; cv.height=180*2;
+  sigCtx=cv.getContext('2d'); sigCtx.scale(2,2);
+  sigCtx.lineWidth=2.2; sigCtx.lineCap='round'; sigCtx.lineJoin='round';
+  sigCtx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--txt').trim()||'#000';
+  sigHasInk=false;
+  function pos(e){var r=cv.getBoundingClientRect();var t=e.touches?e.touches[0]:e;return {x:t.clientX-r.left,y:t.clientY-r.top};}
+  function start(e){e.preventDefault();sigDrawing=true;var p=pos(e);sigCtx.beginPath();sigCtx.moveTo(p.x,p.y);document.getElementById('sigph').style.display='none';}
+  function move(e){if(!sigDrawing)return;e.preventDefault();var p=pos(e);sigCtx.lineTo(p.x,p.y);sigCtx.stroke();sigHasInk=true;}
+  function end(){sigDrawing=false;}
+  cv.addEventListener('mousedown',start);cv.addEventListener('mousemove',move);window.addEventListener('mouseup',end);
+  cv.addEventListener('touchstart',start,{passive:false});cv.addEventListener('touchmove',move,{passive:false});cv.addEventListener('touchend',end);
+}
+function clearSig(){if(sigCtx){var cv=document.getElementById('sig');sigCtx.clearRect(0,0,cv.width,cv.height);sigHasInk=false;document.getElementById('sigph').style.display='';}}
+async function salvarAceite(){
+  var nome=document.getElementById('a_nome').value.trim();
+  var doc=document.getElementById('a_doc').value.trim();
+  if(!nome){toast('Preencha o nome de quem assina.');return;}
+  if(!sigHasInk){toast('Peça para o cliente assinar no quadro.');return;}
+  var cv=document.getElementById('sig');
+  var b64=cv.toDataURL('image/png').split(',')[1];
+  var btn=document.getElementById('btnAceite');btn.disabled=true;btn.textContent='Registrando...';
+  var r=await fetch(FN_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
+    body:JSON.stringify({acao:'aceite',slug:SLUG,token:TOKEN,assinatura_base64:b64,nome:nome,documento:doc})});
+  var j=await r.json();
+  if(!r.ok||j.error){toast('Erro: '+(j.error||r.status));btn.disabled=false;btn.textContent='Registrar aceite do cliente';return;}
+  OBRA.aceite_em=new Date().toISOString(); OBRA.aceite_nome=nome;
+  toast('✅ Aceite registrado!');
+  renderChecklist();
+}
+
+/* ===== AGENDA ===== */
 var AG=[], vMode='semana', vRef=new Date();
 async function bootAgenda(){
   document.getElementById('topTit').textContent='Agenda';
@@ -230,7 +326,7 @@ function renderAgenda(){
     +'<button class="'+(vMode==='semana'?'on':'')+'" onclick="setMode(\'semana\')">Semana</button>'
     +'<button class="'+(vMode==='mes'?'on':'')+'" onclick="setMode(\'mes\')">Mês</button></div>';
   if(vMode==='semana'){
-    var ini=d0(vRef); ini.setDate(ini.getDate()-((ini.getDay()+6)%7)); // segunda
+    var ini=d0(vRef); ini.setDate(ini.getDate()-((ini.getDay()+6)%7));
     var tit=ini.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
     var fim=new Date(ini); fim.setDate(fim.getDate()+6);
     tit+=' — '+fim.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
@@ -254,7 +350,7 @@ function renderAgenda(){
     document.getElementById('agTit').textContent=tit;
   } else {
     var y=vRef.getFullYear(), m=vRef.getMonth();
-    var prim=new Date(y,m,1), ult=new Date(y,m+1,0);
+    var prim=new Date(y,m,1);
     var inicio=new Date(prim); inicio.setDate(inicio.getDate()-((prim.getDay()+6)%7));
     var corpo='<div class="mes">';
     ['seg','ter','qua','qui','sex','sáb','dom'].forEach(function(w){corpo+='<div class="wd">'+w+'</div>';});
@@ -273,14 +369,9 @@ function renderAgenda(){
     document.getElementById('agTit').textContent=vRef.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
   }
 }
-function nav(dir){
-  if(vMode==='semana'){vRef.setDate(vRef.getDate()+7*dir);}
-  else{vRef.setMonth(vRef.getMonth()+dir);}
-  renderAgenda();
-}
+function nav(dir){if(vMode==='semana'){vRef.setDate(vRef.getDate()+7*dir);}else{vRef.setMonth(vRef.getMonth()+dir);}renderAgenda();}
 function setMode(m){vMode=m;renderAgenda();}
 
-/* ================= BOOT ================= */
 if(AGENDA) bootAgenda();
 else if(SLUG&&TOKEN) bootObra();
 else document.getElementById('app').innerHTML='<div class="center"><span class="i">🔗</span><b>Link incompleto.</b><br>Peça ao escritório o link da obra ou da agenda.</div>';

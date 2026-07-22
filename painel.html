@@ -340,6 +340,7 @@ const metaBits=[];
 if(o.contrato) metaBits.push('#'+esc(o.contrato));
 if(o.potencia_kwp) metaBits.push(esc(String(o.potencia_kwp).replace('.',','))+' kWp');
 if(o.data_instalacao){const di=o.data_instalacao.split('-');metaBits.push('📅 instalação '+di[2]+'/'+di[1]);}
+if(o.aceite_em){metaBits.push('✍️ termo assinado');}
 metaBits.push('atualizado '+diasAtras(o.atualizado_em));
 if(o.observacoes) metaBits.push('📝 '+esc(o.observacoes));
 const opts=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===o.etapa_numero?'selected':''}>${(ET[n]?.icone||'')} ${n} - ${esc((ET[n]?.nome||'').replace('!',''))}</option>`).join('');
