@@ -31,10 +31,10 @@ body{font-family:'Manrope',system-ui,sans-serif;background:
 radial-gradient(1200px 600px at 80% -10%, #0c2740 0%, transparent 60%),
 var(--bg); color:var(--txt); min-height:100vh; padding-bottom:90px}
 a{color:inherit}
-.wrap{max-width:1240px;margin:0 auto;padding:16px;transition:max-width .25s}
+.wrap{max-width:1600px;margin:0 auto;padding:16px;transition:max-width .25s}
 body.kbmode .wrap{max-width:none;padding:16px 14px}
-@media(min-width:1180px){
-  body:not(.kbmode) .list{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;align-items:start}
+@media(min-width:1060px){
+  body:not(.kbmode) .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(460px,1fr));gap:12px;align-items:start}
 }
 
 /* ---- Topbar ---- */
@@ -87,7 +87,7 @@ padding:4px 9px;border-radius:20px;white-space:nowrap}
 .b-and{background:rgba(120,170,210,.13);color:#9cc4e4;border:1px solid rgba(120,170,210,.3)}
 .b-out{background:rgba(143,166,184,.12);color:var(--muted);border:1px solid var(--border)}
 
-.ctrls{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px;align-items:center}
+.ctrls{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;align-items:center}
 .ctrls select{background:var(--card2);border:1px solid var(--border);color:var(--txt);
 border-radius:9px;padding:8px 9px;font-family:inherit;font-size:12.5px;cursor:pointer;outline:none}
 .act{border:none;border-radius:9px;padding:8px 11px;font-family:inherit;font-size:12.5px;
