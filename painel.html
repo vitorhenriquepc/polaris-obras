@@ -492,6 +492,14 @@ ov.innerHTML=`<div class="modal">
 <div class="fld"><label>Observações</label><input id="f_obs" value="${esc(o.observacoes||'')}" placeholder="opcional"></div>
 </div>
 <div class="grid2">
+<div class="fld"><label>Tipo de telhado</label><select id="f_tel2">${['','Cerâmico','Metálico','Fibrocimento','Laje','Solo','Outro'].map(t=>`<option value="${t}" ${t===(o.tipo_telhado||'')?'selected':''}>${t||'— Telhado —'}</option>`).join('')}</select></div>
+<div class="fld"><label>Incluso no serviço</label><div style="display:flex;gap:14px;padding:11px 2px">
+<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--txt);cursor:pointer"><input type="checkbox" id="f_est" ${o.tem_estrutura?'checked':''} style="width:16px;height:16px"> Estrutura</label>
+<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--txt);cursor:pointer"><input type="checkbox" id="f_cab" ${o.tem_cabo?'checked':''} style="width:16px;height:16px"> Cabo</label>
+</div></div>
+</div>
+<div class="fld"><label>Endereço da obra</label><input id="f_end" value="${esc(o.endereco||'')}" placeholder="Rua, número, bairro, cidade - SP"></div>
+<div class="grid2">
 <div class="fld"><label>Qtd. módulos</label><input id="f_qtm" value="${o.qtd_modulos||''}" placeholder="28"></div>
 <div class="fld"><label>Modelo do módulo</label><input id="f_mdm" value="${esc(o.modelo_modulo||'')}" placeholder="ERA RC66HD 620W"></div>
 </div>
@@ -533,6 +541,10 @@ instalador_id:document.getElementById('f_inst').value||null,
 qtd_modulos:parseInt(document.getElementById('f_qtm').value,10)||null,
 modelo_modulo:document.getElementById('f_mdm').value.trim()||null,
 inversor_descricao:document.getElementById('f_inv').value.trim()||null,
+tipo_telhado:document.getElementById('f_tel2').value||null,
+endereco:document.getElementById('f_end').value.trim()||null,
+tem_estrutura:document.getElementById('f_est').checked,
+tem_cabo:document.getElementById('f_cab').checked,
 whatsapp_grupo_id:document.getElementById('f_grp').value.trim()||null
 };
 document.getElementById('f_save').textContent='Salvando...';

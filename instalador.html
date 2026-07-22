@@ -38,6 +38,13 @@ border-radius:50px;width:36px;height:36px;font-size:16px;cursor:pointer}
 .prog .bar{height:8px;background:var(--card2);border-radius:6px;overflow:hidden}
 .prog .fill{height:100%;background:linear-gradient(90deg,var(--green),var(--green-l));width:0%;transition:.4s;border-radius:6px}
 .prog .lbl{font-size:11.5px;color:var(--muted);margin-top:6px;font-weight:700}
+.ficha{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.chip{background:var(--card2);border:1px solid var(--border);border-radius:20px;padding:5px 11px;font-size:11.5px;font-weight:700}
+.chip.ok{border-color:rgba(59,139,59,.5);color:var(--green-l)}
+.chip.no{border-color:rgba(224,112,112,.5);color:#e07070}
+.maps{display:flex;align-items:center;gap:8px;margin-top:10px;background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:10px 12px;text-decoration:none;color:var(--txt);font-size:12.5px;font-weight:700}
+.maps:active{border-color:var(--gold)}
+.maps .mi{font-size:16px}
 .item{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:11px}
 .item.done{border-color:rgba(59,139,59,.5)}
 .item .h{display:flex;align-items:flex-start;gap:10px}
@@ -160,6 +167,19 @@ async function bootObra(){
   OBRA=r.data.obra; ITENS=r.data.itens; FOTOS=r.data.fotos;
   renderChecklist();
 }
+function fichaHtml(o){
+  var chips=[];
+  if(o.tipo_telhado) chips.push('<span class="chip">🏠 '+esc(o.tipo_telhado)+'</span>');
+  if(o.qtd_modulos) chips.push('<span class="chip">🔋 '+o.qtd_modulos+' módulos'+(o.modelo_modulo?' • '+esc(o.modelo_modulo):'')+'</span>');
+  if(o.inversor_descricao) chips.push('<span class="chip">⚡ '+esc(o.inversor_descricao)+'</span>');
+  if(o.tem_estrutura===true) chips.push('<span class="chip ok">✅ Com estrutura</span>');
+  if(o.tem_estrutura===false) chips.push('<span class="chip no">❌ Sem estrutura</span>');
+  if(o.tem_cabo===true) chips.push('<span class="chip ok">✅ Com cabo</span>');
+  if(o.tem_cabo===false) chips.push('<span class="chip no">❌ Sem cabo</span>');
+  var h=chips.length?'<div class="ficha">'+chips.join('')+'</div>':'';
+  if(o.endereco) h+='<a class="maps" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(o.endereco)+'" target="_blank"><span class="mi">📍</span><span>'+esc(o.endereco)+'</span></a>';
+  return h;
+}
 function fotosDoItem(id){return FOTOS.filter(function(f){return f.item_id===id});}
 function renderChecklist(){
   var obrig=ITENS.filter(function(i){return i.obrigatorio});
@@ -170,7 +190,9 @@ function renderChecklist(){
     +(OBRA.potencia_kwp?String(OBRA.potencia_kwp).replace('.',',')+' kWp • ':'')
     +'Checklist de instalação</div>'
     +'<div class="prog"><div class="bar"><div class="fill" style="width:'+pct+'%"></div></div>'
-    +'<div class="lbl">'+feitos+' de '+obrig.length+' itens obrigatórios com foto ('+pct+'%)</div></div></div>';
+    +'<div class="lbl">'+feitos+' de '+obrig.length+' itens obrigatórios com foto ('+pct+'%)</div></div>'
+    +fichaHtml(OBRA)
+    +'</div>';
   ITENS.forEach(function(it){
     var fts=fotosDoItem(it.id);
     h+='<div class="item '+(fts.length?'done':'')+'" id="item'+it.id+'">'
@@ -342,7 +364,8 @@ function renderAgenda(){
         corpo+='<a class="ob" href="'+linkObra(o)+'"><b>'+esc(o.cliente)+'</b>'
           +'<div class="om">'+(o.contrato?'#'+esc(o.contrato)+' • ':'')
           +(o.potencia_kwp?String(o.potencia_kwp).replace('.',',')+' kWp • ':'')
-          +(o.instalador?'👷 '+esc(o.instalador):'sem instalador definido')+'</div></a>';
+          +(o.instalador?'👷 '+esc(o.instalador):'sem instalador definido')+'</div>'
+          +fichaHtml(o)+'</a>';
       });
       corpo+='</div>';
     }
