@@ -104,6 +104,41 @@ font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
 .eqact button{background:none;border:none;cursor:pointer;font-size:16px;padding:4px}
 .eqempty{color:var(--muted);text-align:center;padding:20px}
 
+/* ---- Kanban ---- */
+.viewtabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:3px}
+.viewtabs button{background:none;border:none;color:var(--muted);border-radius:8px;padding:8px 13px;
+font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+.viewtabs button.on{background:var(--card2);color:var(--gold)}
+.kb{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 20px;scroll-snap-type:x proximity}
+.kb::-webkit-scrollbar{height:8px}
+.kb::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px}
+.kcol{flex:0 0 268px;scroll-snap-align:start;background:var(--card2);border:1px solid var(--border);
+border-radius:14px;padding:10px;min-height:150px;transition:.2s}
+.kcol.over{border-color:var(--gold);background:var(--card);box-shadow:0 0 0 3px rgba(245,166,35,.12)}
+.kcol .kh{display:flex;align-items:center;gap:7px;padding:4px 4px 10px;position:sticky;top:0}
+.kcol .kh .nm{font-size:12px;font-weight:800;letter-spacing:.2px;flex:1;line-height:1.25}
+.kcol .kh .ct{font-size:11px;font-weight:800;color:var(--muted);background:var(--card);
+border:1px solid var(--border);border-radius:20px;padding:2px 8px}
+.kcol.fim .kh .nm{color:#7ed07e}
+.kcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 12px;
+margin-bottom:8px;cursor:grab;transition:.18s;border-left:3px solid var(--gold)}
+.kcard:active{cursor:grabbing}
+.kcard.drag{opacity:.4;transform:scale(.97)}
+.kcard:hover{border-color:#2a4d6e;transform:translateY(-1px)}
+.kcard.late{border-left-color:#e07070}
+.kcard.fim{border-left-color:#58B868}
+.kcard .kn{font-weight:800;font-size:13.5px;line-height:1.3}
+.kcard .km{font-size:11px;color:var(--muted);margin-top:4px;display:flex;flex-wrap:wrap;gap:3px 8px}
+.kcard .kdias{font-weight:800}
+.kcard .kdias.warn{color:var(--gold)}
+.kcard .kdias.late{color:#e07070}
+.kacts{display:flex;gap:5px;margin-top:9px;flex-wrap:wrap}
+.kacts button{background:var(--card2);border:1px solid var(--border);color:var(--muted);border-radius:7px;
+padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+.kacts button:hover{color:var(--txt);border-color:var(--gold)}
+.kempty{text-align:center;color:var(--muted);font-size:11.5px;padding:16px 6px;opacity:.5}
+@media(max-width:600px){.kcol{flex:0 0 84vw}}
+
 /* ---- Empty / loading ---- */
 .empty{text-align:center;color:var(--muted);padding:60px 20px}
 .empty .i{font-size:40px;display:block;margin-bottom:12px}
@@ -269,6 +304,7 @@ root.innerHTML = `
 <div class="stats" id="stats"></div>
 <div class="toolbar">
 <div class="search">🔍 <input id="busca" placeholder="Buscar cliente ou contrato..."></div>
+<div class="viewtabs"><button id="vCards" class="on" onclick="setView('cards')">▦ Cards</button><button id="vKanban" onclick="setView('kanban')">▤ Kanban</button></div>
 <button class="btn-equipe" id="bAgenda" title="Copiar link da agenda do instalador">📅</button>
 <button class="btn-equipe" id="bEquipe" title="Gerenciar equipe">👥</button>
 <button class="btn-new" id="bNew">+ Nova obra</button>
@@ -285,6 +321,7 @@ document.getElementById('bEquipe').onclick = ()=> openEquipe();
 document.getElementById('bAgenda').onclick = ()=> copiarLinkAgenda();
 document.getElementById('busca').addEventListener('input', e=>{ busca=e.target.value.toLowerCase(); renderList(); });
 
+setView(VIEW);
 await loadEtapas();
 await loadEquipe();
 await loadObras();
@@ -319,7 +356,17 @@ function statusBadge(s){
 const cls = s==='Finalizado'?'b-fim': s==='Em andamento'?'b-and':'b-out';
 return `<span class="badge b-st ${cls}">${esc(s)}</span>`;
 }
+let VIEW='cards';
+try{VIEW=localStorage.getItem('polaris-view')||'cards'}catch(_){}
+function setView(v){
+VIEW=v; try{localStorage.setItem('polaris-view',v)}catch(_){}
+const a=document.getElementById('vCards'),b=document.getElementById('vKanban');
+if(a&&b){a.classList.toggle('on',v==='cards');b.classList.toggle('on',v==='kanban');}
+renderList();
+}
+function diasObra(o){ if(!o.data_fechamento) return null; const d=parseDate(o.data_fechamento); if(!d) return null; return diffDays(d,new Date()); }
 function renderList(){
+if(VIEW==='kanban') return renderKanban();
 let arr=OBRAS.slice();
 if(filtroEtapa!==null) arr=arr.filter(o=>o.etapa_numero===filtroEtapa);
 if(busca) arr=arr.filter(o=> (o.cliente||'').toLowerCase().includes(busca) || (o.contrato||'').includes(busca));
@@ -331,8 +378,58 @@ if(b.etapa_numero!==a.etapa_numero) return b.etapa_numero-a.etapa_numero;
 return (a.cliente||'').localeCompare(b.cliente||'');
 });
 const el=document.getElementById('list');
+el.className='list'; el.style.display='';
 if(!arr.length){ el.innerHTML=`<div class="empty"><span class="i">📋</span>Nenhuma obra encontrada.</div>`; return; }
 el.innerHTML = arr.map(cardHtml).join('');
+}
+function renderKanban(){
+let arr=OBRAS.slice();
+if(busca) arr=arr.filter(o=> (o.cliente||'').toLowerCase().includes(busca) || (o.contrato||'').includes(busca));
+const el=document.getElementById('list');
+el.className='kb'; el.style.display='flex';
+let h='';
+for(let n=0;n<=8;n++){
+if(filtroEtapa!==null && filtroEtapa!==n) continue;
+const e=ET[n]||{nome:'Etapa '+n,icone:''};
+const obs=arr.filter(o=>o.etapa_numero===n).sort((a,b)=>{const da=diasObra(a),db=diasObra(b);return (db==null?-1:db)-(da==null?-1:da);});
+h+='<div class="kcol '+(n===8?'fim':'')+'" data-etapa="'+n+'" ondragover="kOver(event,this)" ondragleave="kLeave(this)" ondrop="kDrop(event,this)">'
+ +'<div class="kh"><span>'+(e.icone||'')+'</span><span class="nm">'+esc((e.nome||'').replace('!',''))+'</span><span class="ct">'+obs.length+'</span></div>';
+if(!obs.length) h+='<div class="kempty">—</div>';
+obs.forEach(function(o){
+const d=diasObra(o);
+const late=(d!=null&&d>60&&n<8), warn=(d!=null&&d>30&&d<=60&&n<8);
+h+='<div class="kcard '+(n===8?'fim':(late?'late':''))+'" draggable="true" data-id="'+o.id+'" ondragstart="kStart(event,this)" ondragend="kEnd(this)">'
+ +'<div class="kn">'+esc(o.cliente)+'</div>'
+ +'<div class="km">'+(o.contrato?'<span>#'+esc(o.contrato)+'</span>':'')
+ +(o.potencia_kwp?'<span>'+esc(String(o.potencia_kwp).replace('.',','))+' kWp</span>':'')
+ +(d!=null&&n<8?'<span class="kdias '+(late?'late':(warn?'warn':''))+'">'+d+'d</span>':'')
+ +(o.data_instalacao?'<span>📅 '+o.data_instalacao.split('-').reverse().slice(0,2).join('/')+'</span>':'')
+ +(o.aceite_em?'<span>✍️</span>':'')+'</div>'
+ +'<div class="kacts">'
+ +'<button onclick="event.stopPropagation();enviarWA(\''+o.id+'\')" title="Mensagem ao cliente">💬</button>'
+ +(o.whatsapp_grupo_id?'<button onclick="event.stopPropagation();notificarGrupo(\''+o.id+'\')" title="Avisar no grupo">📣</button>':'<button onclick="event.stopPropagation();criarGrupo(\''+o.id+'\')" title="Criar grupo">➕</button>')
+ +'<button onclick="event.stopPropagation();abrirRelatorio(\''+o.id+'\')" title="Relatório">📄</button>'
+ +'<button onclick="event.stopPropagation();copiarLinkInst(\''+o.id+'\')" title="Link do instalador">🔧</button>'
+ +'<button onclick="event.stopPropagation();openForm(\''+o.id+'\')" title="Editar">✏️</button>'
+ +'</div></div>';
+});
+h+='</div>';
+}
+el.innerHTML=h;
+}
+let kDragId=null;
+function kStart(ev,el){kDragId=el.dataset.id;el.classList.add('drag');ev.dataTransfer.effectAllowed='move';try{ev.dataTransfer.setData('text/plain',kDragId)}catch(_){}}
+function kEnd(el){el.classList.remove('drag');document.querySelectorAll('.kcol.over').forEach(c=>c.classList.remove('over'));}
+function kOver(ev,col){ev.preventDefault();col.classList.add('over');}
+function kLeave(col){col.classList.remove('over');}
+async function kDrop(ev,col){
+ev.preventDefault(); col.classList.remove('over');
+const id=kDragId||ev.dataTransfer.getData('text/plain'); kDragId=null;
+if(!id) return;
+const n=parseInt(col.dataset.etapa,10);
+const o=getObra(id);
+if(!o||o.etapa_numero===n) return;
+await mudarEtapa(id,n);
 }
 function cardHtml(o){
 const e=ET[o.etapa_numero]||{nome:'?',icone:''};
@@ -372,11 +469,24 @@ function getObra(id){ return OBRAS.find(o=>o.id===id); }
 
 async function mudarEtapa(id,n){
 n=parseInt(n,10);
+const o=getObra(id);
+const mudou = n!==o.etapa_numero;
 const patch={etapa_numero:n};
-if(n===8){ const o=getObra(id); if(!o.data_conclusao) patch.data_conclusao=new Date().toISOString().slice(0,10); patch.status='Finalizado'; }
+if(n===8){ if(!o.data_conclusao) patch.data_conclusao=new Date().toISOString().slice(0,10); }
 const { error } = await sb.from('obras').update(patch).eq('id',id);
 if(error){ toast('Erro ao salvar'); return; }
+// 📣 Notificação automática no grupo do cliente
+if(mudou && o.whatsapp_grupo_id){
+toast('Etapa atualizada ✓ Avisando o grupo... 📣');
+const oNovo=Object.assign({},o,patch);
+sb.functions.invoke('notificar-grupo',{body:{grupo_id:o.whatsapp_grupo_id,message:buildWA(oNovo)}})
+.then(r=>{
+if(r.error||(r.data&&r.data.error)) toast('⚠️ Etapa salva, mas o aviso no grupo falhou — use o 📣 pra reenviar');
+else toast('✓ Cliente avisado no grupo automaticamente 📣');
+});
+} else {
 toast('Etapa atualizada ✓');
+}
 await loadObras();
 }
 async function avancar(id){
