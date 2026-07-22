@@ -395,19 +395,51 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
 }
 const buf=await file.arrayBuffer();
 const pdf=await pdfjsLib.getDocument({data:buf}).promise;
-let txt='';
-for(let p=1;p<=Math.min(pdf.numPages,6);p++){const pg=await pdf.getPage(p);const tc=await pg.getTextContent();txt+=tc.items.map(i=>i.str).join(' ')+'\n';}
-const nome=(txt.match(/Nome:\s*([A-Za-zÀ-ÿ'´ ]{3,60}?)\s*(?:Pot[êe]ncia|CPF|Proposta|Sistema|$)/i)||[])[1];
-const pot=(txt.match(/([\d]{1,3}(?:[.,]\d{1,2})?)\s*kWp/i)||[])[1];
-const prop=(txt.match(/Proposta\s*N[°ºo]?\.?\s*:?\s*([\d.]{3,10})/i)||[])[1];
-const mod=txt.match(/(\d{1,3})\s*M[ÓO]DULOS?\s*[-–—]?\s*MARCA:?\s*([A-Za-z0-9À-ÿ\- ]{2,40}?\d{3}\s*W)/i);
-const inv=(txt.match(/(\d+\s*[xX]\s*INVERSOR\s*(?:DE)?\s*[\d.,]+\s*K?W[A-Za-zÀ-ÿ ]{0,25})/i)||[])[1];
-let n=0;
-if(nome){document.getElementById('f_cli').value=nome.trim();n++;}
-if(prop){document.getElementById('f_con').value=prop.replace(/\D/g,'');n++;}
-if(pot){document.getElementById('f_pot').value=pot.replace('.',',');n++;}
-if(mod){document.getElementById('f_qtm').value=mod[1];document.getElementById('f_mdm').value=mod[2].trim();n++;}
-if(inv){document.getElementById('f_inv').value=inv.trim().replace(/\s+/g,' ');n++;}
+// --- monta linhas visuais (agrupa por Y, ordena por X, remove textos duplicados) ---
+const L=[];
+for(let p=1;p<=Math.min(pdf.numPages,6);p++){
+const pg=await pdf.getPage(p); const tc=await pg.getTextContent();
+const g={};
+tc.items.forEach(function(it){ if(!it.str||!it.str.trim())return;
+const y=Math.round(it.transform[5]); (g[y]=g[y]||[]).push({x:it.transform[4],s:it.str.trim()}); });
+Object.keys(g).map(Number).sort((a,b)=>b-a).forEach(function(y){
+const arr=g[y].sort((a,b)=>a.x-b.x); const out=[];
+arr.forEach(function(o){ if(out.length&&out[out.length-1]===o.s)return; out.push(o.s); });
+let ln=out.join(' ').replace(/\s+/g,' ').trim();
+const dup=ln.match(/^(.+?)\s+\1$/); if(dup) ln=dup[1];
+if(ln) L.push(ln);
+});
+}
+if(!L.length){ toast('Este PDF não tem texto (parece digitalizado). Use a proposta comercial em PDF.'); return; }
+const flat=L.join(' ');
+let n=0, m;
+// Cliente = primeira linha da capa
+if(!/^[\d.,]+$/.test(L[0]) && L[0].length<60){ document.getElementById('f_cli').value=L[0]; n++; }
+// Potência
+m=flat.match(/(\d{1,4}(?:[.,]\d{1,2})?)\s*kWp/i);
+if(m){ document.getElementById('f_pot').value=m[1].replace('.',','); n++; }
+// Nº da proposta (número antes da data de validade)
+m=flat.match(/(\d{1,2}\.\d{3}|\d{4,6})\s+\d{2}\/\d{2}\/\d{4}/);
+if(m){ document.getElementById('f_con').value=m[1].replace(/\D/g,''); n++; }
+// Módulos: quantidade + modelo
+m=flat.match(/(\d{1,4})\s*M[ÓO]DULOS?\s*[-–]?\s*MARCA:?\s*([\s\S]{2,45}?\d{2,4}\s*W)\b/i);
+if(m){ document.getElementById('f_qtm').value=m[1]; document.getElementById('f_mdm').value=m[2].replace(/\s+/g,' ').trim(); n++; }
+else { m=flat.match(/(\d{1,4})\s*M[ÓO]DULOS?/i); if(m){ document.getElementById('f_qtm').value=m[1]; n++; } }
+// Inversor
+m=flat.match(/(\d{1,2})\s*x\s*INVERSOR(?:ES)?\s*(?:DE)?\s*([\d.,]+)\s*KW\s*([A-Za-zÀ-ÿ]{3,15})?/i);
+if(m){ document.getElementById('f_inv').value=m[1]+'x '+(m[3]?m[3].toUpperCase()+' ':'')+m[2].replace(',','.')+'kW'; n++; }
+// Estrutura de fixação -> tipo de telhado
+m=flat.match(/([A-Za-zÀ-ÿ]{4,15})\s+\d{1,5}\s*m²/);
+if(m){
+const raw=m[1].toLowerCase();
+let tel='';
+if(/colonial|cer[âa]mic/.test(raw)) tel='Cerâmico';
+else if(/met[áa]lic/.test(raw)) tel='Metálico';
+else if(/fibro/.test(raw)) tel='Fibrocimento';
+else if(/laje/.test(raw)) tel='Laje';
+else if(/solo/.test(raw)) tel='Solo';
+if(tel){ document.getElementById('f_tel2').value=tel; n++; }
+}
 toast(n?('📎 '+n+' campo(s) importados — confira antes de salvar!'):'Não achei os dados no PDF — preencha manualmente');
 }catch(e){toast('Erro ao ler PDF: '+e.message);}
 }
