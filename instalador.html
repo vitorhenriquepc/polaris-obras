@@ -209,9 +209,10 @@ function renderChecklist(){
   });
   document.getElementById('app').innerHTML=h+termoHtml();
   wireTermo();
+  var pronto=(feitos>=obrig.length&&obrig.length>0);
   document.getElementById('foot').innerHTML='<div class="footer"><div class="inner">'
     +'<button class="btn-send" id="btnSend" '+(FOTOS.length?'':'disabled')+' onclick="enviar()">'
-    +(OBRA.tem_grupo?'📤 Enviar fotos no grupo do cliente':'📤 Enviar fotos (grupo ainda não criado)')
+    +(OBRA.tem_grupo?(pronto?'✅ Concluir e enviar relatório no grupo':'📤 Enviar relatório no grupo'):'📤 Enviar relatório (grupo ainda não criado)')
     +'</button></div></div>';
 }
 function pick(id,camera){document.getElementById((camera?'cam':'gal')+id).click();}
@@ -220,12 +221,12 @@ function comprimir(file){
   return new Promise(function(res,rej){
     var img=new Image(), url=URL.createObjectURL(file);
     img.onload=function(){
-      var MAX=1600, w=img.width, h=img.height;
+      var MAX=2000, w=img.width, h=img.height;
       if(w>MAX||h>MAX){var k=MAX/Math.max(w,h);w=Math.round(w*k);h=Math.round(h*k);}
       var cv=document.createElement('canvas');cv.width=w;cv.height=h;
       cv.getContext('2d').drawImage(img,0,0,w,h);
       URL.revokeObjectURL(url);
-      res(cv.toDataURL('image/jpeg',0.82).split(',')[1]);
+      res(cv.toDataURL('image/jpeg',0.87).split(',')[1]);
     };
     img.onerror=rej; img.src=url;
   });
@@ -246,6 +247,7 @@ async function upload(itemId,inp){
       if(!r.ok||j.error){toast('Erro: '+(j.error||r.status));ph.remove();continue;}
       FOTOS.push(j.foto);
       renderChecklist();
+      verificarConclusao();
     }catch(e){toast('Falha na foto: '+e.message);ph.remove();}
   }
 }
@@ -258,21 +260,36 @@ async function delFoto(fotoId,itemId){
   FOTOS=FOTOS.filter(function(f){return f.id!==fotoId});
   renderChecklist();
 }
-async function enviar(){
-  if(!OBRA.tem_grupo){toast('O grupo do cliente ainda não foi criado. Avise o escritório!');return;}
+function verificarConclusao(){
+  if(!OBRA.tem_grupo)return;
   var obrig=ITENS.filter(function(i){return i.obrigatorio});
-  var faltam=obrig.filter(function(i){return !fotosDoItem(i.id).length});
-  var msg='Enviar '+FOTOS.length+' foto(s) no grupo do cliente?';
-  if(faltam.length) msg+='\n\n⚠️ Itens obrigatórios sem foto:\n• '+faltam.map(function(i){return i.titulo}).join('\n• ');
-  if(!confirm(msg))return;
-  var btn=document.getElementById('btnSend');btn.disabled=true;btn.textContent='Enviando fotos no grupo...';
+  var pronto=obrig.length&&obrig.every(function(i){return fotosDoItem(i.id).length>0});
+  if(!pronto)return;
+  var flag='polaris-rel-'+SLUG;
+  try{if(localStorage.getItem(flag))return;}catch(e){}
+  if(confirm('🎉 Checklist completo!\n\nEnviar agora o relatório no grupo do cliente?\n(fotos dos módulos e do inversor + link do relatório completo)')){
+    try{localStorage.setItem(flag,'1')}catch(e){}
+    enviar(true);
+  }
+}
+async function enviar(auto){
+  if(!OBRA.tem_grupo){toast('O grupo do cliente ainda não foi criado. Avise o escritório!');return;}
+  if(!auto){
+    var obrig=ITENS.filter(function(i){return i.obrigatorio});
+    var faltam=obrig.filter(function(i){return !fotosDoItem(i.id).length});
+    var msg='Enviar o relatório no grupo do cliente?\n\nO grupo recebe as fotos dos módulos e do inversor + o link do relatório completo com todas as '+FOTOS.length+' fotos.';
+    if(faltam.length) msg+='\n\n⚠️ Itens obrigatórios sem foto:\n• '+faltam.map(function(i){return i.titulo}).join('\n• ');
+    if(!confirm(msg))return;
+  }
+  var btn=document.getElementById('btnSend');btn.disabled=true;btn.textContent='📤 Enviando relatório no grupo...';
   var r=await fetch(FN_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
     body:JSON.stringify({acao:'enviar',slug:SLUG,token:TOKEN})});
   var j=await r.json();
-  if(!r.ok||j.error){toast('Erro: '+(j.error||r.status));btn.disabled=false;btn.textContent='📤 Enviar fotos no grupo do cliente';return;}
-  toast('✅ '+j.enviadas+' foto(s) enviadas no grupo!');
-  btn.textContent='✅ Fotos enviadas ('+j.enviadas+')';
-  setTimeout(function(){btn.disabled=false;btn.textContent='📤 Reenviar fotos no grupo';},1500);
+  if(!r.ok||j.error){toast('Erro: '+(j.error||r.status));btn.disabled=false;btn.textContent='📤 Enviar relatório no grupo';try{localStorage.removeItem('polaris-rel-'+SLUG)}catch(e){}return;}
+  toast('✅ Relatório enviado no grupo!');
+  try{localStorage.setItem('polaris-rel-'+SLUG,'1')}catch(e){}
+  btn.textContent='✅ Relatório enviado no grupo';
+  setTimeout(function(){btn.disabled=false;btn.textContent='📤 Reenviar relatório';},2000);
 }
 
 /* ===== TERMO DE ACEITE ===== */
