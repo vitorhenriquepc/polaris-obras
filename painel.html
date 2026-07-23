@@ -64,6 +64,24 @@ border-radius:12px;padding:9px 13px;cursor:pointer;transition:.15s;min-width:74p
 padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}
 .dchip:hover{border-color:var(--gold)}
 .dchip.on{border-color:var(--gold);color:var(--gold);background:var(--card2)}
+.brlist{display:flex;flex-direction:column;gap:9px;max-height:56vh;overflow-y:auto}
+.brrow{display:flex;align-items:center;gap:12px;background:var(--card2);border:1px solid var(--border);
+border-radius:12px;padding:12px 13px;border-left:3px solid var(--gold)}
+.brrow.ok{border-left-color:#58B868;opacity:.6}
+.brrow .em{font-size:24px;flex-shrink:0}
+.brrow .info{flex:1;min-width:0}
+.brrow .cl{font-weight:800;font-size:14px}
+.brrow .dt{font-size:11.5px;color:var(--muted);margin-top:3px;display:flex;flex-wrap:wrap;gap:3px 9px}
+.brcode{font-family:monospace;font-size:15px;font-weight:800;letter-spacing:2px;color:var(--gold);
+background:var(--card);border:1px dashed var(--gold);border-radius:9px;padding:6px 11px;cursor:pointer;flex-shrink:0}
+.brcode:hover{background:var(--card2)}
+.brrow.ok .brcode{color:#58B868;border-color:#58B868;border-style:solid}
+.brok{background:#1f8a4c;border:none;color:#fff;border-radius:9px;padding:8px 12px;font-family:inherit;
+font-size:11.5px;font-weight:800;cursor:pointer;flex-shrink:0}
+.brdone{font-size:11.5px;font-weight:800;color:#58B868;flex-shrink:0}
+.brbusca{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--txt);border-radius:11px;
+padding:12px 13px;font-family:inherit;font-size:14px;outline:none;margin-bottom:12px}
+.brbusca:focus{border-color:var(--gold)}
 
 /* ---- Toolbar ---- */
 .toolbar{display:flex;gap:8px;margin:12px 0}
@@ -319,6 +337,7 @@ root.innerHTML = `
 <div class="toolbar">
 <div class="search">🔍 <input id="busca" placeholder="Buscar cliente ou contrato..."></div>
 <div class="viewtabs"><button id="vCards" class="on" onclick="setView('cards')">▦ Cards</button><button id="vKanban" onclick="setView('kanban')">▤ Kanban</button><button id="vVazias" style="display:none" onclick="toggleVazias()" title="Ocultar/mostrar colunas sem obras">⊟</button></div>
+<button class="btn-equipe" id="bBrindes" title="Brindes dos clientes" onclick="openBrindes()">🎁</button>
 <button class="btn-equipe" id="bAgenda" title="Copiar link da agenda do instalador">📅</button>
 <button class="btn-equipe" id="bEquipe" title="Gerenciar equipe">👥</button>
 <button class="btn-new" id="bNew">+ Nova obra</button>
@@ -593,6 +612,49 @@ if(tel){ document.getElementById('f_tel2').value=tel; n++; }
 }
 toast(n?('📎 '+n+' campo(s) importados — confira antes de salvar!'):'Não achei os dados no PDF — preencha manualmente');
 }catch(e){toast('Erro ao ler PDF: '+e.message);}
+}
+let BRINDES=[];
+async function openBrindes(){
+const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovBr';
+ov.innerHTML='<div class="modal"><h2>🎁 Brindes dos clientes</h2>'
++'<p style="color:var(--muted);font-size:12.5px;margin:-8px 0 14px">Confirme a avaliação no Google antes de entregar. Toque no código para copiar.</p>'
++'<input class="brbusca" id="brq" placeholder="Buscar por cliente ou código..." oninput="renderBrindes()">'
++'<div class="brlist" id="brlist"><div class="eqempty">Carregando...</div></div>'
++'<button class="cancel" style="width:100%;margin-top:12px" onclick="document.getElementById(\'ovBr\').remove()">Fechar</button></div>';
+document.body.appendChild(ov);
+ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+const r=await sb.rpc('get_brindes');
+BRINDES=(r&&r.data)||[];
+renderBrindes();
+}
+function renderBrindes(){
+const el=document.getElementById('brlist'); if(!el) return;
+const q=(document.getElementById('brq')?.value||'').toLowerCase().trim();
+let arr=BRINDES;
+if(q) arr=arr.filter(b=>(b.cliente||'').toLowerCase().includes(q)||(b.voucher||'').toLowerCase().includes(q));
+if(!arr.length){ el.innerHTML='<div class="eqempty">Nenhum brinde '+(q?'encontrado':'solicitado ainda')+'.</div>'; return; }
+el.innerHTML=arr.map(b=>{
+const nome=b.brinde==='copo'?'Copo térmico personalizado':'Fone Bluetooth';
+const emoji=b.brinde==='copo'?'🥤':'🎧';
+const d=new Date(b.brinde_em).toLocaleDateString('pt-BR');
+return '<div class="brrow '+(b.entregue_em?'ok':'')+'">'
++'<div class="em">'+emoji+'</div>'
++'<div class="info"><div class="cl">'+esc(b.cliente)+'</div>'
++'<div class="dt"><span>'+nome+'</span>'+(b.contrato?'<span>#'+esc(b.contrato)+'</span>':'')
++'<span>⭐ '+b.nota+'/10</span><span>'+d+'</span></div></div>'
++'<div class="brcode" onclick="copiarCod(\''+b.voucher+'\')" title="Copiar código">'+esc(b.voucher)+'</div>'
++(b.entregue_em?'<div class="brdone">✓ entregue</div>':'<button class="brok" onclick="entregarBrinde(\''+b.voucher+'\')">Entregar</button>')
++'</div>';
+}).join('');
+}
+function copiarCod(v){ navigator.clipboard.writeText(v).then(()=>toast('Código copiado ✓')).catch(()=>prompt('Código:',v)); }
+async function entregarBrinde(v){
+if(!confirm('Confirmar a entrega do brinde '+v+'?\n\nLembre de checar a avaliação no Google antes.'))return;
+const r=await sb.rpc('marcar_brinde_entregue',{p_voucher:v});
+if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
+toast('Brinde entregue ✓');
+const b=BRINDES.find(x=>x.voucher===v); if(b) b.entregue_em=new Date().toISOString();
+renderBrindes();
 }
 function copiarLinkInst(id){
 const o=getObra(id); const url=`${location.origin}/instalador.html?id=${o.slug}&t=${o.instalador_token}`;
