@@ -133,6 +133,24 @@ function render(M){
     }
   }
 
+  /* Brindes */
+  var br=M.brindes||[];
+  if(br.length){
+    h+='<h2>🎁 Brindes dos promotores</h2><div class="card">'
+      +'<table><tr><th>Cliente</th><th>Brinde</th><th>Voucher</th><th class="num">Escolhido</th><th class="num">Status</th></tr>';
+    br.forEach(function(b){
+      var nome=b.brinde==='copo'?'🥤 Copo térmico':'🎧 Fone Bluetooth';
+      var st=b.entregue_em
+        ? '<span style="color:#58B868;font-weight:800">✓ entregue</span>'
+        : '<button onclick="entregar(\''+b.voucher+'\')" style="background:var(--card2);border:1px solid var(--border);color:var(--gold);border-radius:8px;padding:5px 10px;font-family:inherit;font-size:11px;font-weight:800;cursor:pointer">marcar entregue</button>';
+      h+='<tr><td><b>'+esc(b.cliente)+'</b></td><td>'+nome+'</td>'
+        +'<td><code style="font-size:12px;letter-spacing:1px">'+esc(b.voucher)+'</code></td>'
+        +'<td class="num">'+new Date(b.brinde_em).toLocaleDateString('pt-BR')+'</td>'
+        +'<td class="num">'+st+'</td></tr>';
+    });
+    h+='</table></div>';
+  }
+
   /* Atrasadas */
   h+='<h2>🚨 Obras acima do prazo (60 dias)</h2><div class="card">';
   var at=M.atrasadas||[];
@@ -198,6 +216,12 @@ function render(M){
   h+='</div>';
 
   document.getElementById('app').innerHTML=h;
+}
+async function entregar(v){
+if(!confirm('Confirmar a entrega do brinde '+v+'?'))return;
+var r=await sb.rpc('marcar_brinde_entregue',{p_voucher:v});
+if(r.error||(r.data&&r.data.erro)){alert('Erro: '+((r.data&&r.data.erro)||r.error.message));return;}
+boot();
 }
 boot();
 </script>
