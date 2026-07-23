@@ -613,6 +613,35 @@ if(tel){ document.getElementById('f_tel2').value=tel; n++; }
 toast(n?('📎 '+n+' campo(s) importados — confira antes de salvar!'):'Não achei os dados no PDF — preencha manualmente');
 }catch(e){toast('Erro ao ler PDF: '+e.message);}
 }
+function dataBRs(iso){ if(!iso) return ''; const p=String(iso).split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+async function avisarAgendamento(o, antes, depois){
+const primeiro=(o.cliente||'').split(' ')[0];
+const reag = !!antes;
+let msg;
+if(reag){
+const motivo = prompt(
+'📅 Reagendamento detectado ('+dataBRs(antes)+' → '+dataBRs(depois)+')\n\n'
++'Escreva o motivo que será enviado ao cliente (opcional).\nDeixe vazio para uma mensagem padrão, ou cancele para não avisar agora.',
+'');
+if(motivo===null) return;
+msg='📅 *'+primeiro+', precisamos remanejar a data da sua instalação*\n\n'
++'A nova data ficou para *'+dataBRs(depois)+'*.\n'
++(motivo.trim()?'\nMotivo: '+motivo.trim()+'\n':'')
++'\nPedimos desculpas pelo transtorno e agradecemos a compreensão. Nossa equipe já está organizada para essa nova data. 🙏\n\n'
++'Qualquer coisa, é só falar por aqui.\n\n*Equipe Polaris Energia Solar* ☀️';
+} else {
+if(!confirm('Avisar o cliente no grupo que a instalação foi agendada para '+dataBRs(depois)+'?')) return;
+msg='📅 *'+primeiro+', sua instalação está agendada!*\n\n'
++'Data: *'+dataBRs(depois)+'*\n'
++(o.endereco?'📍 Local: '+o.endereco+'\n':'')
++'\nUm dia antes enviamos um lembrete com tudo que precisa ficar liberado no local. 😉\n\n'
++'Se essa data não for boa para você, é só nos avisar por aqui.\n\n*Equipe Polaris Energia Solar* ☀️';
+}
+toast('Avisando o cliente... 📅');
+const r=await sb.functions.invoke('notificar-grupo',{body:{grupo_id:o.whatsapp_grupo_id,message:msg}});
+if(r.error||(r.data&&r.data.error)) toast('⚠️ Não consegui avisar no grupo — use o 📣 para reenviar');
+else toast('✓ Cliente avisado no grupo 📅');
+}
 let BRINDES=[];
 async function openBrindes(){
 const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovBr';
@@ -765,6 +794,7 @@ ov.innerHTML=`<div class="modal">
 document.body.appendChild(ov);
 ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
 if(focoFone) setTimeout(()=>document.getElementById('f_tel').focus(),50);
+window._dtiAntes = o.data_instalacao || null;
 document.getElementById('f_save').onclick = ()=> salvarForm(id);
 }
 async function salvarForm(id){
@@ -802,6 +832,12 @@ rec.slug = await slugUnico(slugify(cli));
 if(error){ toast('Erro: '+error.message); document.getElementById('f_save').textContent='Salvar'; return; }
 document.getElementById('ovForm').remove();
 toast(id?'Obra salva ✓':'Obra criada ✓');
+const dtiDepois = rec.data_instalacao || null;
+const dtiAntes = window._dtiAntes || null;
+if(id && dtiDepois && dtiDepois!==dtiAntes){
+const oAtual=getObra(id);
+if(oAtual && oAtual.whatsapp_grupo_id) avisarAgendamento(oAtual, dtiAntes, dtiDepois);
+}
 await loadObras();
 }
 async function slugUnico(base){
