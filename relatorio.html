@@ -87,6 +87,28 @@ opacity:0;transition:.3s;text-shadow:0 1px 8px rgba(0,0,0,.7)}
 }
 .pend{border:1px dashed var(--line);border-radius:16px;padding:34px;text-align:center;
 color:var(--mut);font-size:13.5px;background:#fbfbf9}
+/* Apontamentos */
+.apSec{background:#FFFCF4;border:1px solid rgba(214,165,24,.4);border-radius:20px;padding:28px 24px;margin-top:8px}
+.apSec .ah{display:flex;align-items:center;gap:12px}
+.apSec .ah .ic{width:42px;height:42px;border-radius:12px;background:rgba(214,165,24,.16);
+display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.apSec .ah h3{font-size:17px;font-weight:800;color:var(--ink)}
+.apSec .nota{font-size:12.5px;color:#7a6a3d;line-height:1.6;margin-top:12px;font-weight:600}
+.apCard{background:#fff;border:1px solid var(--line);border-left:4px solid var(--gold);
+border-radius:14px;padding:18px;margin-top:16px}
+.apCard .tx{font-size:14px;font-weight:600;line-height:1.65;color:#3d4a55}
+.apCard .dt{font-size:11px;font-weight:700;color:var(--mut);margin-top:9px;letter-spacing:.4px}
+.apCard .grid{margin-top:14px;grid-template-columns:repeat(3,1fr)}
+.apCard .grid .ph:first-child{grid-column:auto;grid-row:auto;aspect-ratio:4/3}
+/* vídeo */
+.ph.vid{cursor:pointer;background:#000}
+.ph.vid video{width:100%;height:100%;object-fit:cover}
+.ph .vbadge{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.7);color:#fff;font-size:9.5px;
+font-weight:800;padding:3px 8px;border-radius:20px;letter-spacing:.8px;z-index:2}
+.ph .vplay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+font-size:38px;color:rgba(255,255,255,.9);text-shadow:0 3px 14px rgba(0,0,0,.6);pointer-events:none}
+@media print{.ph.vid video{display:none}.ph.vid::before{content:'Vídeo disponível na versão online';
+display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;color:#888;padding:10px;text-align:center}}
 
 /* ============ TERMO ============ */
 .certWrap{background:linear-gradient(180deg,#fff 0%,#FBFAF6 100%);border:1px solid var(--line);
@@ -187,7 +209,8 @@ async function boot(){
 function render(){
   var o=D.obra, fotos=D.fotos||[], itens=D.itens||[];
   // capa: prioriza foto dos módulos instalados (3), depois geral (9), depois a primeira
-  var capa=(fotos.find(function(f){return f.item_id===3})||fotos.find(function(f){return f.item_id===9})||fotos[0]||{}).url||'';
+  var imgs=fotos.filter(function(f){return f.tipo!=='video'});
+  var capa=(imgs.find(function(f){return f.item_id===3})||imgs.find(function(f){return f.item_id===9})||imgs[0]||{}).url||'';
   var h='';
 
   /* HERO */
@@ -222,24 +245,42 @@ function render(){
   h+='<section class="rv"><div class="shead"><div class="n">02 — Registro fotográfico</div><h2>Cada etapa, documentada</h2><div class="hl"></div></div>';
   GAL=[]; var teve=false, sec=0;
   itens.forEach(function(it){
-    var fts=fotos.filter(function(f){return f.item_id===it.id});
+    var fts=fotos.filter(function(f){return f.item_id===it.id && !f.apontamento_id});
     if(!fts.length) return;
     teve=true; sec++;
     h+='<div class="iSec rv"><div class="iHead"><div class="ix">'+String(sec).padStart(2,'0')+'</div><h3>'+esc(it.titulo)+'</h3></div>'
       +(it.descricao?'<div class="iDesc">'+esc(it.descricao)+'</div>':'')
       +'<div class="grid">';
     fts.forEach(function(f){
-      var idx=GAL.length;
-      GAL.push({url:f.url,cap:it.titulo});
-      h+='<div class="ph" onclick="abrirLb('+idx+')"><img src="'+esc(f.url)+'" loading="lazy" alt="'+esc(it.titulo)+'"></div>';
+      h+=midiaHtml(f,it.titulo);
     });
     h+='</div></div>';
   });
   if(!teve) h+='<div class="pend">📷 As fotos da instalação serão anexadas pela nossa equipe de campo.</div>';
   h+='</section>';
 
+  /* APONTAMENTOS */
+  var AP=D.apontamentos||[];
+  if(AP.length){
+    h+='<section class="rv"><div class="shead"><div class="n">03 — Observações técnicas</div><h2>Condições identificadas no local</h2><div class="hl"></div></div>'
+      +'<div class="apSec"><div class="ah"><div class="ic">⚠️</div><h3>Apontamentos da equipe técnica</h3></div>'
+      +'<div class="nota">Durante a execução, nossa equipe identificou e registrou as condições abaixo, <b>já existentes no local</b> antes ou durante a instalação. Este registro é feito para transparência e para que você possa avaliar eventuais manutenções no imóvel.</div>';
+    AP.forEach(function(a){
+      var mids=fotos.filter(function(f){return f.apontamento_id===a.id});
+      h+='<div class="apCard"><div class="tx">'+esc(a.descricao)+'</div>'
+        +'<div class="dt">Registrado em '+new Date(a.criado_em).toLocaleDateString('pt-BR')+'</div>';
+      if(mids.length){
+        h+='<div class="grid">';
+        mids.forEach(function(f){ h+=midiaHtml(f,'Apontamento técnico'); });
+        h+='</div>';
+      }
+      h+='</div>';
+    });
+    h+='</div></section>';
+  }
+
   /* TERMO */
-  h+='<section class="rv"><div class="shead"><div class="n">03 — Formalização</div><h2>Termo de conclusão</h2><div class="hl"></div></div>'
+  h+='<section class="rv"><div class="shead"><div class="n">0'+(AP.length?4:3)+' — Formalização</div><h2>Termo de conclusão</h2><div class="hl"></div></div>'
     +'<div class="certWrap">';
   if(o.aceite_em){
     h+='<div class="selo"><span class="dot">●</span> Obra concluída e aceita</div>'
@@ -290,6 +331,15 @@ function render(){
   document.querySelectorAll('.rv').forEach(function(el){io.observe(el)});
 }
 
+function midiaHtml(f,cap){
+  if(f.tipo==='video'){
+    return '<div class="ph vid" onclick="window.open(\''+esc(f.url)+'\',\'_blank\')">'
+      +'<span class="vbadge">VÍDEO</span><video src="'+esc(f.url)+'" preload="metadata" muted playsinline></video>'
+      +'<div class="vplay">▶</div></div>';
+  }
+  var idx=GAL.length; GAL.push({url:f.url,cap:cap||''});
+  return '<div class="ph" onclick="abrirLb('+idx+')"><img src="'+esc(f.url)+'" loading="lazy" alt="'+esc(cap||'')+'"></div>';
+}
 /* Lightbox */
 function abrirLb(i){gi=i;updLb();document.getElementById('lb').classList.add('on');document.body.style.overflow='hidden';}
 function fecharLb(){document.getElementById('lb').classList.remove('on');document.body.style.overflow='';}

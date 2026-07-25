@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
@@ -9,16 +9,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{
---navy:#011D2E; --green:#3B8B3B; --gold:#F5A623;
---bg:#0a1622; --card:#0f2233; --card2:#13293c;
---border:#1d3850; --txt:#eaf2f8; --muted:#8fa6b8;
-}
-html[data-theme="light"]{
---gold:#B8790A;
---bg:#F0F2ED; --card:#FFFFFF; --card2:#F4F6F3;
---border:#DCE4EA; --txt:#022C44; --muted:#5F7787;
-}
+:root{--navy:#011D2E;--green:#3B8B3B;--gold:#F5A623;
+--bg:#0a1622;--card:#0f2233;--card2:#13293c;--border:#1d3850;--txt:#eaf2f8;--muted:#8fa6b8}
+html[data-theme="light"]{--gold:#B8790A;--bg:#F0F2ED;--card:#FFF;--card2:#F4F6F3;
+--border:#DCE4EA;--txt:#022C44;--muted:#5F7787}
 body{font-family:'Manrope',system-ui,sans-serif;background:
 radial-gradient(1200px 600px at 80% -10%, rgba(12,60,90,.35) 0%, transparent 60%),var(--bg);
 color:var(--txt);min-height:100vh;transition:background .3s}
@@ -31,16 +25,29 @@ position:sticky;top:0;z-index:30;border-bottom:1px solid var(--border)}
 .btn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:9px;
 padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none}
 .btn:hover{color:var(--txt);border-color:var(--gold)}
-.wrap{max-width:1080px;margin:0 auto;padding:18px 16px 60px}
-h2{font-size:15px;font-weight:800;margin:26px 0 12px;display:flex;align-items:center;gap:8px}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:11px}
+.wrap{max-width:1240px;margin:0 auto;padding:18px 16px 60px}
+h2{font-size:15px;font-weight:800;margin:28px 0 12px;display:flex;align-items:center;gap:8px}
+h2 small{font-weight:600;color:var(--muted);font-size:11.5px}
+/* filtros */
+.pfilt{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:var(--card);
+border:1px solid var(--border);border-radius:14px;padding:10px;margin-bottom:6px}
+.pfilt button{background:var(--card2);border:1px solid var(--border);color:var(--muted);border-radius:20px;
+padding:8px 15px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.pfilt button:hover{border-color:var(--gold)}
+.pfilt button.on{border-color:var(--gold);color:var(--gold);background:var(--card)}
+.pfilt .lbl{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-right:4px}
+.pinfo{font-size:11.5px;color:var(--muted);margin:0 0 14px 4px;font-weight:600}
+/* kpis */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:11px}
 .kpi{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:15px}
-.kpi .v{font-size:24px;font-weight:800}
+.kpi .v{font-size:25px;font-weight:800;line-height:1.1}
 .kpi .v small{font-size:13px;color:var(--muted);font-weight:700}
-.kpi .l{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:4px}
+.kpi .l{font-size:10.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:5px}
 .kpi.destaque .v{color:var(--gold)}
 .kpi.ok .v{color:#58B868}
 .kpi.ruim .v{color:#e07070}
+.delta{font-size:11px;font-weight:800;margin-top:6px;display:inline-flex;align-items:center;gap:3px}
+.delta.up{color:#58B868}.delta.dn{color:#e07070}.delta.eq{color:var(--muted)}
 .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;
@@ -62,12 +69,9 @@ td.num,th.num{text-align:right}
 <div class="topbar">
 <img id="logo" src="https://obras.polarisenergiasolar.com/logo.png" onerror="this.style.display='none'">
 <div class="ttl">Polaris <span>Métricas</span></div>
-<div class="sp">
-<button class="btn" id="bTema">🌙</button>
-<a class="btn" href="painel.html">← Painel</a>
+<div class="sp"><button class="btn" id="bTema">🌙</button><a class="btn" href="painel.html">← Painel</a></div>
 </div>
-</div>
-<div class="wrap" id="app"><div class="center">⏳ Carregando métricas...</div></div>
+<div class="wrap"><div id="filtros"></div><div id="app"><div class="center">⏳ Carregando métricas...</div></div></div>
 
 <script>
 var sb=supabase.createClient('https://dakubhcgohiwzyqiegqf.supabase.co','sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx');
@@ -76,41 +80,85 @@ function tema(t){document.documentElement.setAttribute('data-theme',t);document.
 document.getElementById('bTema').onclick=function(){tema(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')};
 try{tema(localStorage.getItem('polaris-tema')||'dark')}catch(e){tema('dark')}
 
-var ETAPAS={};
+var ETAPAS={}, PER='mes';
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function n(v){return v==null?'—':String(v).replace('.',',');}
+function iso(d){return d.toISOString().slice(0,10);}
+
+function intervalo(p){
+  var h=new Date(), ini, fim=new Date(h);
+  if(p==='semana'){ ini=new Date(h); ini.setDate(ini.getDate()-((ini.getDay()+6)%7)); }
+  else if(p==='7d'){ ini=new Date(h); ini.setDate(ini.getDate()-6); }
+  else if(p==='mes'){ ini=new Date(h.getFullYear(),h.getMonth(),1); }
+  else if(p==='30d'){ ini=new Date(h); ini.setDate(ini.getDate()-29); }
+  else if(p==='tri'){ ini=new Date(h); ini.setMonth(ini.getMonth()-2); ini.setDate(1); }
+  else if(p==='ano'){ ini=new Date(h.getFullYear(),0,1); }
+  else { return {ini:null,fim:null}; }
+  return {ini:iso(ini), fim:iso(fim)};
+}
+var PERIODOS=[['semana','Esta semana'],['7d','Últimos 7 dias'],['mes','Este mês'],['30d','Últimos 30 dias'],['tri','Trimestre'],['ano','Este ano'],['tudo','Tudo']];
+
+function renderFiltros(){
+  document.getElementById('filtros').innerHTML='<div class="pfilt"><span class="lbl">Período</span>'
+    +PERIODOS.map(function(p){return '<button class="'+(PER===p[0]?'on':'')+'" onclick="setPer(\''+p[0]+'\')">'+p[1]+'</button>'}).join('')
+    +'</div>';
+}
+function setPer(p){ PER=p; try{localStorage.setItem('polaris-met-per',p)}catch(e){} renderFiltros(); boot(); }
+try{PER=localStorage.getItem('polaris-met-per')||'mes'}catch(e){}
+
+function delta(atual,ant,inverso){
+  if(ant==null||ant===0||atual==null) return '';
+  var d=Math.round((atual-ant)/Math.abs(ant)*100);
+  if(d===0) return '<div class="delta eq">— igual ao período anterior</div>';
+  var bom = inverso ? d<0 : d>0;
+  return '<div class="delta '+(bom?'up':'dn')+'">'+(d>0?'▲':'▼')+' '+Math.abs(d)+'% vs anterior</div>';
+}
 
 async function boot(){
   var s=await sb.auth.getSession();
   if(!s.data.session){location.href='painel.html';return;}
+  renderFiltros();
   var et=await sb.from('etapas').select('numero,nome,icone');
   (et.data||[]).forEach(function(e){ETAPAS[e.numero]=e;});
-  var r=await sb.rpc('get_metricas');
+  var iv=intervalo(PER);
+  var r=await sb.rpc('get_metricas',{p_ini:iv.ini,p_fim:iv.fim});
   if(r.error||!r.data){document.getElementById('app').innerHTML='<div class="center"><span class="i">🔒</span><b>Acesso restrito ao administrador.</b></div>';return;}
   render(r.data);
 }
 
 function render(M){
-  var k=M.kpis||{};
+  var C=M.carteira||{}, A=M.periodo_atual||{}, P=M.periodo_anterior||{};
+  var lbl=(PERIODOS.find(function(p){return p[0]===PER})||['',''])[1];
   var h='';
 
-  /* KPIs */
-  h+='<h2>📌 Visão geral</h2><div class="kpis">'
-    +'<div class="kpi destaque"><div class="v">'+n(k.total)+'</div><div class="l">Obras no sistema</div></div>'
-    +'<div class="kpi"><div class="v">'+n(k.em_andamento)+'</div><div class="l">Em andamento</div></div>'
-    +'<div class="kpi ok"><div class="v">'+n(k.finalizadas)+'</div><div class="l">Finalizadas</div></div>'
-    +'<div class="kpi ok"><div class="v">'+n(k.kwp_instalado)+' <small>kWp</small></div><div class="l">Potência instalada</div></div>'
-    +'<div class="kpi"><div class="v">'+n(k.kwp_andamento)+' <small>kWp</small></div><div class="l">Potência em obra</div></div>'
-    +'<div class="kpi"><div class="v">'+n(k.modulos_instalados)+'</div><div class="l">Módulos instalados</div></div>'
-    +'<div class="kpi '+(k.tempo_medio_dias!=null&&k.tempo_medio_dias<=60?'ok':'ruim')+'"><div class="v">'+n(k.tempo_medio_dias)+' <small>dias</small></div><div class="l">Tempo médio de entrega</div></div>'
-    +'<div class="kpi '+(k.pct_no_prazo>=80?'ok':(k.pct_no_prazo>=50?'':'ruim'))+'"><div class="v">'+n(k.pct_no_prazo)+'<small>%</small></div><div class="l">Dentro dos 60 dias</div></div>'
-    +'<div class="kpi"><div class="v">'+n(k.termos_assinados)+'</div><div class="l">Termos assinados</div></div>'
+  h+='<div class="pinfo">Mostrando: <b>'+lbl+'</b>'+(M.periodo&&PER!=='tudo'?' ('+M.periodo.ini.split('-').reverse().join('/')+' até '+M.periodo.fim.split('-').reverse().join('/')+')':'')+'</div>';
+
+  /* PERÍODO */
+  h+='<h2>🎯 Desempenho do período</h2><div class="kpis">'
+    +'<div class="kpi ok"><div class="v">'+n(A.entregues)+'</div><div class="l">Obras entregues</div>'+delta(A.entregues,P.entregues)+'</div>'
+    +'<div class="kpi ok"><div class="v">'+n(A.kwp)+' <small>kWp</small></div><div class="l">Potência entregue</div>'+delta(A.kwp,P.kwp)+'</div>'
+    +'<div class="kpi"><div class="v">'+n(A.modulos)+'</div><div class="l">Módulos instalados</div></div>'
+    +'<div class="kpi destaque"><div class="v">'+n(A.novas)+'</div><div class="l">Contratos novos</div>'+delta(A.novas,P.novas)+'</div>'
+    +'<div class="kpi"><div class="v">'+n(A.kwp_novas)+' <small>kWp</small></div><div class="l">kWp vendidos</div></div>'
+    +'<div class="kpi '+(A.tempo_medio!=null&&A.tempo_medio<=60?'ok':(A.tempo_medio!=null?'ruim':''))+'"><div class="v">'+n(A.tempo_medio)+' <small>dias</small></div><div class="l">Tempo médio de entrega</div>'+delta(A.tempo_medio,P.tempo_medio,true)+'</div>'
+    +'<div class="kpi '+(A.pct_prazo>=80?'ok':(A.pct_prazo>=50?'':'ruim'))+'"><div class="v">'+n(A.pct_prazo)+'<small>%</small></div><div class="l">Dentro dos 60 dias</div></div>'
+    +'<div class="kpi"><div class="v">'+n(A.instalacoes)+'</div><div class="l">Instalações realizadas</div></div>'
+    +'</div>';
+
+  /* CARTEIRA */
+  h+='<h2>📊 Carteira atual <small>(situação de hoje)</small></h2><div class="kpis">'
+    +'<div class="kpi destaque"><div class="v">'+n(C.em_andamento)+'</div><div class="l">Obras em andamento</div></div>'
+    +'<div class="kpi"><div class="v">'+n(C.kwp_andamento)+' <small>kWp</small></div><div class="l">Potência na esteira</div></div>'
+    +'<div class="kpi"><div class="v">'+n(C.agendadas_7d)+'</div><div class="l">Instalações nos próx. 7 dias</div></div>'
+    +'<div class="kpi ok"><div class="v">'+n(C.finalizadas_total)+'</div><div class="l">Obras entregues (total)</div></div>'
+    +'<div class="kpi ok"><div class="v">'+n(C.kwp_total)+' <small>kWp</small></div><div class="l">Potência total instalada</div></div>'
+    +'<div class="kpi"><div class="v">'+n(C.modulos_total)+'</div><div class="l">Módulos em operação</div></div>'
     +'</div>';
 
   /* NPS */
   var np=M.nps||{};
-  h+='<h2>⭐ Satisfação do cliente (NPS)</h2>';
-  if(!np.respostas){ h+='<div class="card"><div class="vazio">Ainda sem respostas de pesquisa.</div></div>'; }
+  h+='<h2>⭐ Satisfação do cliente (NPS) <small>no período</small></h2>';
+  if(!np.respostas){ h+='<div class="card"><div class="vazio">Sem respostas de pesquisa neste período.</div></div>'; }
   else{
     h+='<div class="kpis">'
       +'<div class="kpi destaque"><div class="v">'+n(np.score)+'</div><div class="l">NPS Score</div></div>'
@@ -118,31 +166,29 @@ function render(M){
       +'<div class="kpi ok"><div class="v">'+n(np.promotores)+'</div><div class="l">Promotores (9-10)</div></div>'
       +'<div class="kpi"><div class="v">'+n(np.neutros)+'</div><div class="l">Neutros (7-8)</div></div>'
       +'<div class="kpi ruim"><div class="v">'+n(np.detratores)+'</div><div class="l">Detratores (0-6)</div></div>'
-      +'<div class="kpi"><div class="v">'+n(np.respostas)+'</div><div class="l">Respostas</div></div>'
-      +'</div>';
-    var ult=M.nps_ultimos||[];
-    if(ult.length){
-      h+='<div class="card" style="margin-top:12px"><table><tr><th>Cliente</th><th class="num">Nota</th><th>Comentário</th><th class="num">Quando</th></tr>';
-      ult.forEach(function(u){
-        var cor=u.nota>=9?'#58B868':(u.nota<=6?'#e07070':'');
-        h+='<tr><td><b>'+esc(u.cliente)+'</b></td><td class="num"><b style="color:'+cor+'">'+u.nota+'</b></td>'
-          +'<td style="max-width:340px">'+esc(u.comentario||'—')+'</td>'
-          +'<td class="num">'+new Date(u.criado_em).toLocaleDateString('pt-BR')+'</td></tr>';
-      });
-      h+='</table></div>';
-    }
+      +'<div class="kpi"><div class="v">'+n(np.respostas)+'</div><div class="l">Respostas</div></div></div>';
+  }
+  var ult=M.nps_ultimos||[];
+  if(ult.length){
+    h+='<div class="card" style="margin-top:12px"><table><tr><th>Cliente</th><th class="num">Nota</th><th>Comentário</th><th class="num">Quando</th></tr>';
+    ult.forEach(function(u){
+      var cor=u.nota>=9?'#58B868':(u.nota<=6?'#e07070':'');
+      h+='<tr><td><b>'+esc(u.cliente)+'</b></td><td class="num"><b style="color:'+cor+'">'+u.nota+'</b></td>'
+        +'<td style="max-width:340px">'+esc(u.comentario||'—')+'</td>'
+        +'<td class="num">'+new Date(u.criado_em).toLocaleDateString('pt-BR')+'</td></tr>';
+    });
+    h+='</table></div>';
   }
 
-  /* Brindes */
+  /* BRINDES */
   var br=M.brindes||[];
   if(br.length){
-    h+='<h2>🎁 Brindes dos promotores</h2><div class="card">'
-      +'<table><tr><th>Cliente</th><th>Brinde</th><th>Voucher</th><th class="num">Escolhido</th><th class="num">Status</th></tr>';
+    h+='<h2>🎁 Brindes dos promotores</h2><div class="card"><table>'
+      +'<tr><th>Cliente</th><th>Brinde</th><th>Voucher</th><th class="num">Escolhido</th><th class="num">Status</th></tr>';
     br.forEach(function(b){
       var nome=b.brinde==='copo'?'🥤 Copo térmico':'🎧 Fone Bluetooth';
-      var st=b.entregue_em
-        ? '<span style="color:#58B868;font-weight:800">✓ entregue</span>'
-        : '<button onclick="entregar(\''+b.voucher+'\')" style="background:var(--card2);border:1px solid var(--border);color:var(--gold);border-radius:8px;padding:5px 10px;font-family:inherit;font-size:11px;font-weight:800;cursor:pointer">marcar entregue</button>';
+      var st=b.entregue_em?'<span style="color:#58B868;font-weight:800">✓ entregue</span>'
+        :'<button onclick="entregar(\''+b.voucher+'\')" style="background:var(--card2);border:1px solid var(--border);color:var(--gold);border-radius:8px;padding:5px 10px;font-family:inherit;font-size:11px;font-weight:800;cursor:pointer">marcar entregue</button>';
       h+='<tr><td><b>'+esc(b.cliente)+'</b></td><td>'+nome+'</td>'
         +'<td><code style="font-size:12px;letter-spacing:1px">'+esc(b.voucher)+'</code></td>'
         +'<td class="num">'+new Date(b.brinde_em).toLocaleDateString('pt-BR')+'</td>'
@@ -151,20 +197,49 @@ function render(M){
     h+='</table></div>';
   }
 
-  /* Atrasadas */
+  /* ATRASADAS */
   h+='<h2>🚨 Obras acima do prazo (60 dias)</h2><div class="card">';
   var at=M.atrasadas||[];
   if(!at.length) h+='<div class="vazio">Nenhuma obra estourando o prazo. 👏</div>';
   else{
-    h+='<table><tr><th>Cliente</th><th>Contrato</th><th>Etapa atual</th><th class="num">Dias corridos</th></tr>';
+    h+='<table><tr><th>Cliente</th><th>Contrato</th><th>Etapa atual</th><th class="num">Dias</th></tr>';
     at.forEach(function(o){var e=ETAPAS[o.etapa]||{};
-      h+='<tr class="alerta"><td><b>'+esc(o.cliente)+'</b></td><td>'+(o.contrato?'#'+esc(o.contrato):'—')+'</td><td>'+(e.icone||'')+' '+esc((e.nome||'').replace('!',''))+'</td><td class="num"><b>'+o.dias+'</b></td></tr>';});
+      h+='<tr class="alerta"><td><b>'+esc(o.cliente)+'</b></td><td>'+(o.contrato?'#'+esc(o.contrato):'—')+'</td>'
+        +'<td>'+(e.icone||'')+' '+esc((e.nome||'').replace('!',''))+'</td><td class="num"><b>'+o.dias+'</b></td></tr>';});
     h+='</table>';
   }
   h+='</div>';
 
-  /* Gargalo por etapa */
-  h+='<h2>⏱️ Tempo médio parado em cada etapa</h2><div class="card">';
+  /* SEMANA E MÊS */
+  h+='<div class="grid2">';
+  h+='<div><h2>📆 Entregas por semana <small>(12 sem.)</small></h2><div class="card">';
+  var ps=M.por_semana||[];
+  if(!ps.length) h+='<div class="vazio">Sem entregas no período.</div>';
+  else{
+    var maxS=Math.max.apply(null,ps.map(function(x){return x.kwp||0}))||1;
+    h+='<table><tr><th>Semana de</th><th class="num">Obras</th><th class="num">kWp</th><th></th></tr>';
+    ps.forEach(function(m){
+      h+='<tr><td>'+m.semana.split('-').reverse().slice(0,2).join('/')+'</td><td class="num">'+m.obras+'</td>'
+        +'<td class="num"><b>'+n(m.kwp)+'</b></td>'
+        +'<td style="width:35%"><div class="bar"><div class="b" style="width:'+Math.round((m.kwp||0)/maxS*100)+'%"></div></div></td></tr>';});
+    h+='</table>';
+  }
+  h+='</div></div>';
+  h+='<div><h2>📦 Entregas por mês <small>(12 meses)</small></h2><div class="card">';
+  var pm=M.por_mes||[];
+  if(!pm.length) h+='<div class="vazio">Sem finalizações.</div>';
+  else{
+    var maxK=Math.max.apply(null,pm.map(function(m){return m.kwp||0}))||1;
+    h+='<table><tr><th>Mês</th><th class="num">Obras</th><th class="num">kWp</th><th></th></tr>';
+    pm.forEach(function(m){var mes=m.mes.split('-');
+      h+='<tr><td>'+mes[1]+'/'+mes[0]+'</td><td class="num">'+m.obras+'</td><td class="num"><b>'+n(m.kwp)+'</b></td>'
+        +'<td style="width:35%"><div class="bar"><div class="b" style="width:'+Math.round((m.kwp||0)/maxK*100)+'%"></div></div></td></tr>';});
+    h+='</table>';
+  }
+  h+='</div></div></div>';
+
+  /* GARGALO */
+  h+='<h2>⏱️ Tempo médio parado em cada etapa <small>(histórico completo)</small></h2><div class="card">';
   var te=M.tempo_etapas||[];
   if(!te.length) h+='<div class="vazio">Ainda sem histórico suficiente.</div>';
   else{
@@ -178,50 +253,35 @@ function render(M){
   }
   h+='</div>';
 
-  /* Por mês */
-  h+='<h2>📦 Obras finalizadas por mês (últimos 12 meses)</h2><div class="card">';
-  var pm=M.por_mes||[];
-  if(!pm.length) h+='<div class="vazio">Sem finalizações no período.</div>';
-  else{
-    var maxK=Math.max.apply(null,pm.map(function(m){return m.kwp||0}))||1;
-    h+='<table><tr><th>Mês</th><th class="num">Obras</th><th class="num">kWp</th><th></th></tr>';
-    pm.forEach(function(m){
-      var mes=m.mes.split('-');
-      h+='<tr><td>'+mes[1]+'/'+mes[0]+'</td><td class="num">'+m.obras+'</td><td class="num"><b>'+n(m.kwp)+'</b></td>'
-        +'<td style="width:40%"><div class="bar"><div class="b" style="width:'+Math.round((m.kwp||0)/maxK*100)+'%"></div></div></td></tr>';});
-    h+='</table>';
-  }
-  h+='</div>';
-
-  /* Instaladores + Vendedores */
+  /* EQUIPE */
   h+='<div class="grid2">';
-  h+='<div><h2>👷 Por instalador</h2><div class="card">';
+  h+='<div><h2>👷 Por instalador <small>no período</small></h2><div class="card">';
   var pi=M.por_instalador||[];
-  if(!pi.length) h+='<div class="vazio">Nenhuma obra com instalador definido ainda.</div>';
+  if(!pi.length) h+='<div class="vazio">Nenhuma instalação no período.</div>';
   else{
-    h+='<table><tr><th>Instalador</th><th class="num">Obras</th><th class="num">Termos</th><th class="num">Média instal.</th></tr>';
-    pi.forEach(function(p){h+='<tr><td><b>'+esc(p.nome)+'</b></td><td class="num">'+p.obras+'</td><td class="num">'+p.termos+'</td><td class="num">'+(p.dias_medio_instalacao!=null?n(p.dias_medio_instalacao)+' d':'—')+'</td></tr>';});
+    h+='<table><tr><th>Instalador</th><th class="num">Obras</th><th class="num">kWp</th><th class="num">Termos</th></tr>';
+    pi.forEach(function(p){h+='<tr><td><b>'+esc(p.nome)+'</b></td><td class="num">'+p.obras+'</td><td class="num">'+n(p.kwp)+'</td><td class="num">'+p.termos+'</td></tr>';});
     h+='</table>';
   }
   h+='</div></div>';
-  h+='<div><h2>💼 Por vendedor</h2><div class="card">';
+  h+='<div><h2>💼 Por vendedor <small>no período</small></h2><div class="card">';
   var pv=M.por_vendedor||[];
-  if(!pv.length) h+='<div class="vazio">Nenhuma obra com vendedor definido ainda.</div>';
+  if(!pv.length) h+='<div class="vazio">Nenhum contrato no período.</div>';
   else{
     h+='<table><tr><th>Vendedor</th><th class="num">Obras</th><th class="num">kWp</th></tr>';
     pv.forEach(function(p){h+='<tr><td><b>'+esc(p.nome)+'</b></td><td class="num">'+p.obras+'</td><td class="num"><b>'+n(p.kwp)+'</b></td></tr>';});
     h+='</table>';
   }
-  h+='</div></div>';
-  h+='</div>';
+  h+='</div></div></div>';
 
   document.getElementById('app').innerHTML=h;
 }
+
 async function entregar(v){
-if(!confirm('Confirmar a entrega do brinde '+v+'?'))return;
-var r=await sb.rpc('marcar_brinde_entregue',{p_voucher:v});
-if(r.error||(r.data&&r.data.erro)){alert('Erro: '+((r.data&&r.data.erro)||r.error.message));return;}
-boot();
+  if(!confirm('Confirmar a entrega do brinde '+v+'?'))return;
+  var r=await sb.rpc('marcar_brinde_entregue',{p_voucher:v});
+  if(r.error||(r.data&&r.data.erro)){alert('Erro: '+((r.data&&r.data.erro)||r.error.message));return;}
+  boot();
 }
 boot();
 </script>

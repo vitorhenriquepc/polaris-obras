@@ -103,6 +103,31 @@ font-weight:800;border-radius:13px;padding:15px;font-family:inherit;font-size:15
 border-radius:12px;padding:13px;font-size:13px;font-weight:800;text-align:center;line-height:1.4}
 .btn-reenv{width:100%;background:none;border:none;color:var(--muted);font-family:inherit;font-size:11.5px;
 font-weight:700;cursor:pointer;padding:9px 0 2px;text-decoration:underline}
+/* Apontamentos */
+.apbox{background:var(--card);border:1px solid rgba(245,166,35,.45);border-radius:16px;padding:15px;margin-bottom:11px}
+.apbox h2{font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px}
+.apbox .sb{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.55}
+.apitem{background:var(--card2);border:1px solid var(--border);border-left:3px solid var(--gold);
+border-radius:12px;padding:12px;margin-top:10px}
+.apitem .tx{font-size:13px;font-weight:600;line-height:1.5}
+.apitem .mt{font-size:10.5px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:8px}
+.apitem .del{margin-left:auto;background:none;border:none;color:#e07070;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+.apadd{width:100%;background:var(--card2);border:1.5px dashed var(--gold);color:var(--gold);border-radius:12px;
+padding:12px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;margin-top:11px}
+.apta{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--txt);border-radius:11px;
+padding:12px;font-family:inherit;font-size:13.5px;resize:vertical;min-height:78px;outline:none;margin-top:11px}
+.apta:focus{border-color:var(--gold)}
+.aprow{display:flex;gap:8px;margin-top:8px}
+.aprow button{flex:1;border:none;border-radius:11px;padding:11px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer}
+.apsave{background:var(--gold);color:#3a2a00}
+.apcancel{background:var(--card2);border:1px solid var(--border)!important;color:var(--muted)}
+/* vídeo */
+.thumb.vid{background:#000}
+.thumb.vid video{width:100%;height:100%;object-fit:cover}
+.thumb .vtag{position:absolute;left:3px;bottom:3px;background:rgba(0,0,0,.7);color:#fff;font-size:8.5px;
+font-weight:800;padding:2px 5px;border-radius:5px;letter-spacing:.5px}
+.upbar{position:absolute;left:4px;right:4px;bottom:4px;height:4px;background:rgba(255,255,255,.25);border-radius:3px;overflow:hidden}
+.upbar i{display:block;height:100%;background:var(--gold);width:0%;transition:width .25s}
 .center{text-align:center;padding:70px 24px;color:var(--muted)}
 .center .i{font-size:44px;display:block;margin-bottom:14px}
 .center b{color:var(--txt)}
@@ -161,7 +186,7 @@ try{applyTheme(localStorage.getItem('polaris-tema-inst')||'dark')}catch(e){}
 
 var qs=new URLSearchParams(location.search);
 var SLUG=qs.get('id'), TOKEN=qs.get('t'), AGENDA=qs.get('agenda');
-var OBRA=null, ITENS=[], FOTOS=[];
+var OBRA=null, ITENS=[], FOTOS=[], APONT=[];
 
 function toast(m){var t=document.getElementById('tst');if(!t){t=document.createElement('div');t.id='tst';t.className='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('on')},3200);}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -169,7 +194,7 @@ function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 async function bootObra(){
   var r=await sb.rpc('get_obra_instalador',{p_slug:SLUG,p_token:TOKEN});
   if(r.error||!r.data){document.getElementById('app').innerHTML='<div class="center"><span class="i">🔒</span><b>Link inválido.</b><br>Confirme com o escritório o link correto desta obra.</div>';return;}
-  OBRA=r.data.obra; ITENS=r.data.itens; FOTOS=r.data.fotos;
+  OBRA=r.data.obra; ITENS=r.data.itens; FOTOS=r.data.fotos; APONT=r.data.apontamentos||[];
   renderChecklist();
 }
 function fichaHtml(o){
@@ -185,7 +210,7 @@ function fichaHtml(o){
   if(o.endereco) h+='<a class="maps" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(o.endereco)+'" target="_blank"><span class="mi">📍</span><span>'+esc(o.endereco)+'</span></a>';
   return h;
 }
-function fotosDoItem(id){return FOTOS.filter(function(f){return f.item_id===id});}
+function fotosDoItem(id){return FOTOS.filter(function(f){return f.item_id===id && !f.apontamento_id});}
 function renderChecklist(){
   var obrig=ITENS.filter(function(i){return i.obrigatorio});
   var feitos=obrig.filter(function(i){return fotosDoItem(i.id).length>0}).length;
@@ -205,14 +230,16 @@ function renderChecklist(){
       +'<div><div class="tt">'+esc(it.titulo)+'</div><div class="dd">'+esc(it.descricao||'')+'</div></div>'
       +'<span class="tag '+(it.obrigatorio?'ob':'op')+'">'+(it.obrigatorio?'Obrigatória':'Opcional')+'</span></div>'
       +'<div class="thumbs" id="th'+it.id+'">';
-    fts.forEach(function(f){h+='<div class="thumb"><img src="'+esc(f.url)+'" loading="lazy"><button class="x" onclick="delFoto('+f.id+','+it.id+')">✕</button></div>';});
+    fts.forEach(function(f){h+=thumbHtml(f);});
     h+='<button class="addbtn" onclick="pick('+it.id+',true)">📷<small>Câmera</small></button>'
       +'<button class="addbtn" onclick="pick('+it.id+',false)">🖼️<small>Galeria</small></button>'
+      +'<button class="addbtn" onclick="pickVideo('+it.id+')">🎥<small>Vídeo</small></button>'
       +'<input type="file" accept="image/*" capture="environment" multiple id="cam'+it.id+'" style="display:none" onchange="upload('+it.id+',this)">'
       +'<input type="file" accept="image/*" multiple id="gal'+it.id+'" style="display:none" onchange="upload('+it.id+',this)">'
+      +'<input type="file" accept="video/*" id="vid'+it.id+'" style="display:none" onchange="uploadVideo('+it.id+',this)">'
       +'</div></div>';
   });
-  document.getElementById('app').innerHTML=h+termoHtml();
+  document.getElementById('app').innerHTML=h+apontHtml()+termoHtml();
   wireTermo();
   var pronto=(feitos>=obrig.length&&obrig.length>0);
   var foot;
@@ -266,8 +293,8 @@ async function upload(itemId,inp){
     }catch(e){toast('Falha na foto: '+e.message);ph.remove();}
   }
 }
-async function delFoto(fotoId,itemId){
-  if(!confirm('Excluir esta foto?'))return;
+async function delFoto(fotoId){
+  if(!confirm('Excluir este arquivo?'))return;
   var r=await fetch(FN_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
     body:JSON.stringify({acao:'excluir',slug:SLUG,token:TOKEN,foto_id:fotoId})});
   var j=await r.json();
