@@ -87,6 +87,13 @@ transition:.22s;animation:up .45s ease backwards}
 .opt svg{margin:0 auto;display:block}
 .opt .nm{font-size:13.5px;font-weight:800;color:var(--ink);margin-top:10px}
 .opt .ds{font-size:11px;color:var(--mut);margin-top:3px;font-weight:600}
+.opt.lock{opacity:.32;cursor:not-allowed;filter:grayscale(.7)}
+.opt.lock:hover{border-color:var(--line);transform:none;box-shadow:none}
+.opt.escolhido{border-color:var(--green);background:#F4FBF4;opacity:1;filter:none}
+.opt .tagesc{display:inline-block;margin-top:8px;font-size:9.5px;font-weight:800;letter-spacing:1px;
+text-transform:uppercase;background:var(--green);color:#fff;border-radius:20px;padding:3px 10px}
+.avisoDef{font-size:11.5px;color:var(--mut);font-weight:700;margin-top:14px;line-height:1.5}
+.avisoDef b{color:var(--gold)}
 .vouch{background:linear-gradient(160deg,var(--ink),#123049);color:#fff;border-radius:18px;padding:22px;margin-top:20px;animation:up .5s ease}
 .vouch .vl{font-size:10px;font-weight:800;letter-spacing:2.5px;color:var(--gold);text-transform:uppercase}
 .vouch .vc{font-size:27px;font-weight:800;letter-spacing:3px;margin:9px 0;font-family:monospace}
@@ -177,11 +184,12 @@ function obrigado(n,jaEra){
           ? 'Sua opinião é muito importante. Nossa equipe vai entrar em contato para entender melhor e resolver o que for preciso.'
           : 'Obrigado! Vamos usar seu retorno para melhorar cada detalhe da nossa entrega.'))
     +'</p>';
-  if(promo) h+='<div class="gift" id="gift">'+giftSvg()+'<div class="giftGlow"></div>'
-              +'<div class="giftTt" id="gtt">Você desbloqueou um brinde! 🎁</div>'
-              +'<div class="giftSub" id="gsub">Clientes que avaliam a Polaris com nota 9 ou 10 ganham um mimo nosso.</div>'
-              +'<div class="giftTap" id="gtap">toque na caixa para abrir</div>'
-              +'<div id="gopts"></div></div>'
+  var temV = promo && D && D.voucher;
+  if(promo) h+='<div class="gift" id="gift">'+giftSvg(temV)+'<div class="giftGlow"></div>'
+              +'<div class="giftTt" id="gtt">'+(temV?'Seu brinde já está reservado 🎁':'Você desbloqueou um brinde! 🎁')+'</div>'
+              +'<div class="giftSub" id="gsub">'+(temV?'Apresente o código abaixo para a nossa equipe.':'Clientes que avaliam a Polaris com nota 9 ou 10 ganham um mimo nosso.')+'</div>'
+              +(temV?'':'<div class="giftTap" id="gtap">toque na caixa para abrir</div>')
+              +'<div id="gopts">'+(temV?opcoesHtml(D.brinde)+voucherHtml(D.brinde,D.voucher,D.entregue_em):'')+'</div></div>'
               +'<div class="gbox"><div class="gt">Ajuda a gente com 30 segundos?</div>'
               +'<div class="gs">Sua avaliação no Google ajuda outras famílias a encontrarem energia solar de confiança — e é o que libera a retirada do seu brinde. ⭐</div>'
               +'<a class="cta gcta" target="_blank" href="'+GOOGLE_REVIEW+'">⭐ Avaliar a Polaris no Google</a></div>'
@@ -193,8 +201,8 @@ function obrigado(n,jaEra){
 }
 
 /* ===== BRINDE ===== */
-function giftSvg(){
-return '<svg class="giftBox" id="gboxSvg" onclick="abrirGift()" viewBox="0 0 150 150" width="150" height="150">'
+function giftSvg(aberta){
+return '<svg class="giftBox'+(aberta?' open':'')+'" id="gboxSvg" onclick="abrirGift()" viewBox="0 0 150 150" width="150" height="150">'
 +'<defs><linearGradient id="gb" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#123049"/><stop offset="100%" stop-color="#0A2436"/></linearGradient>'
 +'<linearGradient id="gl" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#E8B00A"/><stop offset="100%" stop-color="#C99206"/></linearGradient></defs>'
 +'<rect x="28" y="62" width="94" height="72" rx="8" fill="url(#gb)"/>'
@@ -237,29 +245,69 @@ p.style.transform='rotate('+(Math.random()*360)+'deg)';
 box.appendChild(p);}
 setTimeout(function(){box.remove()},5200);
 }
-var gAberto=false;
-function abrirGift(){
-if(gAberto) return; gAberto=true;
-document.getElementById('gboxSvg').classList.add('open');
-confete();
-document.getElementById('gtt').textContent='Escolha o seu brinde';
-document.getElementById('gsub').textContent='Selecione abaixo — combinamos a entrega junto com a nossa equipe.';
-document.getElementById('gtap').style.display='none';
-document.getElementById('gopts').innerHTML='<div class="opts">'
-+'<div class="opt" onclick="escolherBrinde(\'copo\',this)">'+copoSvg()+'<div class="nm">Copo térmico</div><div class="ds">Personalizado Polaris</div></div>'
-+'<div class="opt" onclick="escolherBrinde(\'fone\',this)">'+foneSvg()+'<div class="nm">Fone Bluetooth</div><div class="ds">Sem fio, com estojo</div></div>'
-+'</div>';
+var gAberto=false, ESCOLHENDO=false;
+var BRINDES={copo:{nome:'Copo térmico personalizado',svg:copoSvg},fone:{nome:'Fone Bluetooth',svg:foneSvg}};
+
+function opcoesHtml(escolhido){
+  var h='<div class="opts">';
+  ['copo','fone'].forEach(function(k){
+    var b=BRINDES[k];
+    var cls = escolhido ? (escolhido===k ? 'opt escolhido' : 'opt lock') : 'opt';
+    var onclick = escolhido ? '' : ' onclick="escolherBrinde(\''+k+'\',this)"';
+    h+='<div class="'+cls+'"'+onclick+'>'+b.svg()
+      +'<div class="nm">'+(k==='copo'?'Copo térmico':'Fone Bluetooth')+'</div>'
+      +'<div class="ds">'+(k==='copo'?'Personalizado Polaris':'Sem fio, com estojo')+'</div>'
+      +(escolhido===k?'<div class="tagesc">✓ escolhido</div>':'')
+      +'</div>';
+  });
+  h+='</div>';
+  if(!escolhido) h+='<div class="avisoDef">⚠️ <b>A escolha é definitiva</b> — depois de confirmar não é possível trocar o brinde.</div>';
+  return h;
 }
+
+function voucherHtml(brinde,voucher,entregue){
+  var nome=(BRINDES[brinde]||{}).nome||'Brinde Polaris';
+  return '<div class="vouch"><div class="vl">'+(entregue?'Brinde já retirado':'Seu código de retirada')+'</div>'
+    +'<div class="vc">'+voucher+'</div>'
+    +'<div class="vd">Brinde escolhido: <b>'+nome+'</b><br>'
+    +(entregue
+      ? 'Este brinde consta como entregue em '+new Date(entregue).toLocaleDateString('pt-BR')+'. 💚'
+      : 'Apresente este código para a nossa equipe. Guarde a tela ou tire um print. 📸')
+    +'</div></div>';
+}
+
+function abrirGift(){
+  if(gAberto) return; gAberto=true;
+  var box=document.getElementById('gboxSvg'); if(box) box.classList.add('open');
+  if(D && D.voucher) return;   // já escolhido: nada a fazer
+  confete();
+  document.getElementById('gtt').textContent='Escolha o seu brinde';
+  document.getElementById('gsub').textContent='Selecione abaixo — combinamos a entrega junto com a nossa equipe.';
+  var tap=document.getElementById('gtap'); if(tap) tap.style.display='none';
+  document.getElementById('gopts').innerHTML=opcoesHtml(null);
+}
+
 async function escolherBrinde(tipo,el){
-document.querySelectorAll('.opt').forEach(function(o){o.classList.remove('sel')});
-el.classList.add('sel');
-var r=await sb.rpc('salvar_brinde',{p_slug:SLUG,p_token:TOKEN,p_brinde:tipo});
-if(r.error||(r.data&&r.data.erro)){alert('Nao foi possivel registrar. Tente novamente.');return;}
-var nome=(tipo==='copo')?'Copo termico personalizado':'Fone Bluetooth';
-document.getElementById('gopts').innerHTML='<div class="vouch"><div class="vl">Seu codigo de retirada</div>'
-+'<div class="vc">'+r.data.voucher+'</div>'
-+'<div class="vd">Brinde escolhido: <b>'+nome+'</b><br>Apresente este codigo para a nossa equipe. Guarde a tela ou tire um print.</div></div>';
-confete();
+  if(ESCOLHENDO || (D && D.voucher)) return;
+  var nome=(BRINDES[tipo]||{}).nome||'';
+  if(!confirm('Confirmar o brinde: '+nome+'?\n\n⚠️ A escolha é definitiva e não poderá ser alterada depois.')) return;
+  ESCOLHENDO=true;
+  document.querySelectorAll('.opt').forEach(function(o){o.classList.add('lock')});
+  el.classList.remove('lock'); el.classList.add('escolhido');
+  var r=await sb.rpc('salvar_brinde',{p_slug:SLUG,p_token:TOKEN,p_brinde:tipo});
+  if(r.error||(r.data&&r.data.erro)){
+    ESCOLHENDO=false;
+    document.getElementById('gopts').innerHTML=opcoesHtml(null);
+    alert('Não foi possível registrar. Tente novamente.');
+    return;
+  }
+  // Fonte da verdade é sempre o servidor
+  D.brinde=r.data.brinde; D.voucher=r.data.voucher;
+  document.getElementById('gopts').innerHTML=opcoesHtml(D.brinde)+voucherHtml(D.brinde,D.voucher,null);
+  document.getElementById('gtt').textContent='Brinde reservado! 🎁';
+  document.getElementById('gsub').textContent='Apresente o código abaixo para a nossa equipe.';
+  if(!r.data.ja) confete();
+  ESCOLHENDO=false;
 }
 boot();
 </script>
