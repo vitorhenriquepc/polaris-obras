@@ -469,6 +469,7 @@ h+='<div class="kcard '+(n===8?'fim':(late?'late':''))+'" draggable="true" data-
  +'<button onclick="event.stopPropagation();enviarWA(\''+o.id+'\')" title="Mensagem ao cliente">💬</button>'
  +(o.whatsapp_grupo_id?'<button onclick="event.stopPropagation();notificarGrupo(\''+o.id+'\')" title="Avisar no grupo">📣</button>':'<button onclick="event.stopPropagation();criarGrupo(\''+o.id+'\')" title="Criar grupo">➕</button>')
  +'<button onclick="event.stopPropagation();abrirRelatorio(\''+o.id+'\')" title="Relatório">📄</button>'
++((o.etapa_numero>=8&&!o.nps_enviado_em)?'<button onclick="event.stopPropagation();pedirAvaliacao(\''+o.id+'\')" title="Pesquisa de satisfação">⭐</button>':'')
  +'<button onclick="event.stopPropagation();copiarLinkInst(\''+o.id+'\')" title="Link do instalador">🔧</button>'
  +'<button onclick="event.stopPropagation();openForm(\''+o.id+'\')" title="Editar">✏️</button>'
  +'</div></div>';
@@ -519,6 +520,7 @@ ${o.whatsapp_grupo_id
 <button class="act act-gh" onclick="copiarLink('${o.id}')">🔗 Link</button>
 <button class="act act-gh" onclick="copiarLinkInst('${o.id}')" title="Link do checklist do instalador">🔧</button>
 <button class="act act-gh" onclick="abrirRelatorio('${o.id}')" title="Relatório de instalação">📄</button>
+${o.etapa_numero>=8 && !o.nps_enviado_em ? `<button class="act act-gh" onclick="pedirAvaliacao('${o.id}')" title="Enviar pesquisa de satisfação">⭐</button>` : ''}
 <button class="act act-gh" onclick="openForm('${o.id}')">✏️</button>
 </div>
 </div>`;
@@ -612,6 +614,23 @@ if(tel){ document.getElementById('f_tel2').value=tel; n++; }
 }
 toast(n?('📎 '+n+' campo(s) importados — confira antes de salvar!'):'Não achei os dados no PDF — preencha manualmente');
 }catch(e){toast('Erro ao ler PDF: '+e.message);}
+}
+async function pedirAvaliacao(id){
+const o=getObra(id);
+if(!o.whatsapp_grupo_id){ toast('Esta obra não tem grupo de WhatsApp'); return; }
+if(!o.nps_token){ toast('Token da pesquisa ausente — recarregue a página'); return; }
+if(!confirm('Enviar a pesquisa de satisfação para '+o.cliente+' no grupo?\n\nQuem responder 9 ou 10 vê o convite de avaliação no Google e ganha o brinde. 🎁'))return;
+const primeiro=(o.cliente||'').split(' ')[0];
+const link=`${location.origin}/nps.html?id=${encodeURIComponent(o.slug)}&t=${o.nps_token}`;
+const msg='⭐ *'+primeiro+', como foi sua experiência com a Polaris?*\n\n'
++'Seu sistema já está gerando energia e queremos muito saber sua opinião. É bem rápido: *uma nota de 0 a 10* em uma única tela. 🙏\n\n'
++'👉 '+link+'\n\nSua resposta nos ajuda a melhorar cada instalação.\n\n*Equipe Polaris Energia Solar* ☀️';
+toast('Enviando pesquisa... ⭐');
+const r=await sb.functions.invoke('notificar-grupo',{body:{grupo_id:o.whatsapp_grupo_id,message:msg}});
+if(r.error||(r.data&&r.data.error)){ toast('Erro: '+((r.data&&r.data.error)||r.error.message)); return; }
+await sb.rpc('marcar_nps_enviado',{p_obra:id});
+toast('✓ Pesquisa enviada no grupo ⭐');
+await loadObras();
 }
 function dataBRs(iso){ if(!iso) return ''; const p=String(iso).split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 async function avisarAgendamento(o, antes, depois){

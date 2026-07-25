@@ -99,6 +99,10 @@ border-top:1px solid var(--border);padding:12px 16px calc(12px + env(safe-area-i
 font-weight:800;border-radius:13px;padding:15px;font-family:inherit;font-size:15px;cursor:pointer;box-shadow:0 8px 24px rgba(59,139,59,.35)}
 .btn-send:disabled{opacity:.45}
 .btn-send:active{transform:scale(.98)}
+.jaenv{background:rgba(59,139,59,.14);border:1px solid rgba(88,184,104,.45);color:var(--green-l);
+border-radius:12px;padding:13px;font-size:13px;font-weight:800;text-align:center;line-height:1.4}
+.btn-reenv{width:100%;background:none;border:none;color:var(--muted);font-family:inherit;font-size:11.5px;
+font-weight:700;cursor:pointer;padding:9px 0 2px;text-decoration:underline}
 .center{text-align:center;padding:70px 24px;color:var(--muted)}
 .center .i{font-size:44px;display:block;margin-bottom:14px}
 .center b{color:var(--txt)}
@@ -211,10 +215,20 @@ function renderChecklist(){
   document.getElementById('app').innerHTML=h+termoHtml();
   wireTermo();
   var pronto=(feitos>=obrig.length&&obrig.length>0);
-  document.getElementById('foot').innerHTML='<div class="footer"><div class="inner">'
-    +'<button class="btn-send" id="btnSend" '+(FOTOS.length?'':'disabled')+' onclick="enviar()">'
-    +(OBRA.tem_grupo?(pronto?'✅ Concluir e enviar relatório no grupo':'📤 Enviar relatório no grupo'):'📤 Enviar relatório (grupo ainda não criado)')
-    +'</button></div></div>';
+  var foot;
+  if(OBRA.relatorio_enviado_em){
+    var dt=new Date(OBRA.relatorio_enviado_em);
+    foot='<div class="footer"><div class="inner">'
+      +'<div class="jaenv">✅ Relatório enviado no grupo em '+dt.toLocaleDateString('pt-BR')+' às '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</div>'
+      +'<button class="btn-reenv" onclick="reenviar()">enviar novamente</button>'
+      +'</div></div>';
+  } else {
+    foot='<div class="footer"><div class="inner">'
+      +'<button class="btn-send" id="btnSend" '+(FOTOS.length?'':'disabled')+' onclick="enviar()">'
+      +(OBRA.tem_grupo?(pronto?'✅ Concluir e enviar relatório no grupo':'📤 Enviar relatório no grupo'):'📤 Enviar relatório (grupo ainda não criado)')
+      +'</button></div></div>';
+  }
+  document.getElementById('foot').innerHTML=foot;
 }
 function pick(id,camera){document.getElementById((camera?'cam':'gal')+id).click();}
 
@@ -261,36 +275,56 @@ async function delFoto(fotoId,itemId){
   FOTOS=FOTOS.filter(function(f){return f.id!==fotoId});
   renderChecklist();
 }
+var jaPerguntou=false;
 function verificarConclusao(){
-  if(!OBRA.tem_grupo)return;
+  if(!OBRA.tem_grupo||OBRA.relatorio_enviado_em||ENVIANDO||jaPerguntou)return;
   var obrig=ITENS.filter(function(i){return i.obrigatorio});
   var pronto=obrig.length&&obrig.every(function(i){return fotosDoItem(i.id).length>0});
   if(!pronto)return;
-  var flag='polaris-rel-'+SLUG;
-  try{if(localStorage.getItem(flag))return;}catch(e){}
-  if(confirm('🎉 Checklist completo!\n\nEnviar agora o relatório no grupo do cliente?\n(fotos dos módulos e do inversor + link do relatório completo)')){
-    try{localStorage.setItem(flag,'1')}catch(e){}
+  jaPerguntou=true;
+  if(confirm('🎉 Checklist completo!\n\nEnviar agora o relatório no grupo do cliente?\n(fotos dos módulos e do inversor + link do relatório completo)\n\n⚠️ O envio é único — confira se todas as fotos já foram anexadas.')){
     enviar(true);
+  } else {
+    toast('Ok! Quando terminar, use o botão verde no rodapé.');
   }
 }
-async function enviar(auto){
+var ENVIANDO=false;
+async function reenviar(){
+  if(!confirm('⚠️ O relatório desta obra JÁ FOI enviado no grupo.\n\nEnviar novamente? O cliente vai receber as mensagens outra vez.'))return;
+  enviar(false,true);
+}
+async function enviar(auto,force){
+  if(ENVIANDO) return;
   if(!OBRA.tem_grupo){toast('O grupo do cliente ainda não foi criado. Avise o escritório!');return;}
-  if(!auto){
+  if(OBRA.relatorio_enviado_em && !force){toast('Este relatório já foi enviado no grupo ✅');return;}
+  if(!auto && !force){
     var obrig=ITENS.filter(function(i){return i.obrigatorio});
     var faltam=obrig.filter(function(i){return !fotosDoItem(i.id).length});
     var msg='Enviar o relatório no grupo do cliente?\n\nO grupo recebe as fotos dos módulos e do inversor + o link do relatório completo com todas as '+FOTOS.length+' fotos.';
     if(faltam.length) msg+='\n\n⚠️ Itens obrigatórios sem foto:\n• '+faltam.map(function(i){return i.titulo}).join('\n• ');
     if(!confirm(msg))return;
   }
-  var btn=document.getElementById('btnSend');btn.disabled=true;btn.textContent='📤 Enviando relatório no grupo...';
+  ENVIANDO=true;
+  var btn=document.getElementById('btnSend');
+  if(btn){btn.disabled=true;btn.textContent='📤 Enviando relatório no grupo...';}
   var r=await fetch(FN_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
-    body:JSON.stringify({acao:'enviar',slug:SLUG,token:TOKEN})});
+    body:JSON.stringify({acao:'enviar',slug:SLUG,token:TOKEN,force:!!force})});
   var j=await r.json();
-  if(!r.ok||j.error){toast('Erro: '+(j.error||r.status));btn.disabled=false;btn.textContent='📤 Enviar relatório no grupo';try{localStorage.removeItem('polaris-rel-'+SLUG)}catch(e){}return;}
+  ENVIANDO=false;
+  if(j.ja_enviado){
+    toast('Este relatório já foi enviado no grupo ✅');
+    OBRA.relatorio_enviado_em=j.enviado_em||new Date().toISOString();
+    renderChecklist(); return;
+  }
+  if(!r.ok||j.error){
+    toast('Erro: '+(j.error||r.status));
+    if(btn){btn.disabled=false;btn.textContent='📤 Enviar relatório no grupo';}
+    return;
+  }
   toast('✅ Relatório enviado no grupo!');
-  try{localStorage.setItem('polaris-rel-'+SLUG,'1')}catch(e){}
-  btn.textContent='✅ Relatório enviado no grupo';
-  setTimeout(function(){btn.disabled=false;btn.textContent='📤 Reenviar relatório';},2000);
+  OBRA.relatorio_enviado_em=new Date().toISOString();
+  if(j.etapa_avancada) OBRA.etapa_numero=7;
+  renderChecklist();
 }
 
 /* ===== TERMO DE ACEITE ===== */
