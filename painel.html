@@ -773,11 +773,18 @@ navigator.clipboard.writeText(url).then(()=>toast('Link copiado ✓')).catch(()=
 
 /* ---------- mensagem de WhatsApp ---------- */
 function buildWA(o){
-const e=ET[o.etapa_numero]||{};
+const e=etOf(o);
+const _elet=(o.trilha==='eletroposto');
 if(o.etapa_numero===8){
 const dF=parseDate(o.data_fechamento), dC=parseDate(o.data_conclusao);
 let dias=null, antes=null;
 if(dF&&dC){ dias=diffDays(dF,dC); antes=PRAZO_CONTRATUAL-dias; }
+if(_elet){
+let m=`⚡ *${o.cliente}*, seu eletroposto está *em operação*! 🚀\n\nO ponto de recarga já está ativo, credenciado nos aplicativos e gerando a própria energia pelo carport solar. 🌱`;
+if(dias!==null) m+=`\n\n📊 Prazo previsto: 45 a 60 dias\n✅ Entregamos em: *${dias} dias*`;
+m+=`\n\nMonitoramento 24/7 e pós-venda Polaris ativos a partir de agora.\n\n*Equipe Polaris Energia Solar* ☀️`;
+return m;
+}
 if(dias!==null && antes>0)
 return `☀️ *${o.cliente}*, temos uma ótima notícia!\n\nSeu sistema solar foi *ativado* — e com muito orgulho: entregamos sua obra *${antes} dias antes* do prazo contratual! 🚀\n\n📊 Prazo contratual: ${PRAZO_CONTRATUAL} dias\n✅ Entregamos em: *${dias} dias*\n\nSeu sistema já está gerando energia limpa e reduzindo sua conta. 🌱\n\n*Equipe Polaris Energia Solar* ☀️`;
 if(dias!==null && antes===0)
