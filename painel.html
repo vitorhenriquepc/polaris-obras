@@ -337,6 +337,7 @@ root.innerHTML = `
 <div class="toolbar">
 <div class="search">🔍 <input id="busca" placeholder="Buscar cliente ou contrato..."></div>
 <div class="viewtabs"><button id="vCards" class="on" onclick="setView('cards')">▦ Cards</button><button id="vKanban" onclick="setView('kanban')">▤ Kanban</button><button id="vVazias" style="display:none" onclick="toggleVazias()" title="Ocultar/mostrar colunas sem obras">⊟</button></div>
+<select id="selTrilha" onchange="setTrilha(this.value)" style="display:none;background:var(--card);border:1px solid var(--border);color:var(--txt);border-radius:11px;padding:0 12px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer"></select>
 <button class="btn-equipe" id="bBrindes" title="Brindes dos clientes" onclick="openBrindes()">🎁</button>
 <button class="btn-equipe" id="bAgenda" title="Copiar link da agenda do instalador">📅</button>
 <button class="btn-equipe" id="bEquipe" title="Gerenciar equipe">👥</button>
@@ -361,11 +362,18 @@ await loadObras();
 subscribeRealtime();
 }
 
+let ETT={}, TRILHAS=[];
 async function loadEtapas(){
 const { data, error } = await sb.from('etapas').select('*').order('numero');
 if(error){ toast('Erro ao carregar etapas'); return; }
-ET = {}; (data||[]).forEach(e=> ET[e.numero]=e);
+ETT={}; (data||[]).forEach(e=>{ (ETT[e.trilha]=ETT[e.trilha]||{})[e.numero]=e; });
+ET = ETT['padrao'] || {};
+const t = await sb.from('trilhas').select('*').order('ordem');
+TRILHAS = t.data || [{codigo:'padrao',nome:'Sistema Fotovoltaico',icone:'☀️'}];
 }
+function etapasDe(tr){ return ETT[tr||'padrao'] || ETT['padrao'] || {}; }
+function etOf(o,n){ const m=etapasDe(o&&o.trilha); return m[n!=null?n:o.etapa_numero] || {nome:'Etapa '+(n!=null?n:o.etapa_numero),icone:''}; }
+function trilhaNome(cod){ const t=TRILHAS.find(x=>x.codigo===cod); return t?(t.icone||'')+' '+t.nome:''; }
 
 async function loadObras(){
 const { data, error } = await sb.from('obras').select('*');
@@ -378,7 +386,7 @@ renderStats(); renderDChips(); renderList();
 function renderStats(){
 const cont={}; OBRAS.forEach(o=> cont[o.etapa_numero]=(cont[o.etapa_numero]||0)+1);
 let h=`<div class="chip total ${filtroEtapa===null?'on':''}" onclick="setFiltro(null)"><div class="n">${OBRAS.length}</div><div class="l">Total</div></div>`;
-for(let n=8;n>=0;n--){ if(!cont[n]) continue; const e=ET[n]||{nome:'?',icone:''};
+for(let n=8;n>=0;n--){ if(!cont[n]) continue; const e=ET[n]||{nome:'Etapa '+n,icone:''};
 h+=`<div class="chip ${filtroEtapa===n?'on':''}" onclick="setFiltro(${n})"><div class="n">${cont[n]}</div><div class="l">${e.icone||''} ${esc((e.nome||'').replace('!',''))}</div></div>`; }
 document.getElementById('stats').innerHTML=h;
 }
@@ -416,6 +424,7 @@ document.body.classList.toggle('kbmode', v==='kanban');
 const a=document.getElementById('vCards'),b=document.getElementById('vKanban'),z=document.getElementById('vVazias');
 if(a&&b){a.classList.toggle('on',v==='cards');b.classList.toggle('on',v==='kanban');}
 if(z){z.style.display=(v==='kanban')?'':'none';z.classList.toggle('on',KHIDE);}
+const st=document.getElementById('selTrilha'); if(st&&v!=='kanban') st.style.display='none';
 renderList();
 }
 function toggleVazias(){
@@ -441,15 +450,27 @@ el.className='list'; el.style.display='';
 if(!arr.length){ el.innerHTML=`<div class="empty"><span class="i">📋</span>Nenhuma obra encontrada.</div>`; return; }
 el.innerHTML = arr.map(cardHtml).join('');
 }
+let KTR='padrao';
+try{KTR=localStorage.getItem('polaris-kb-trilha')||'padrao'}catch(_){}
+function setTrilha(t){ KTR=t; try{localStorage.setItem('polaris-kb-trilha',t)}catch(_){} renderKanban(); }
 function renderKanban(){
-let arr=OBRAS.slice().filter(o=>passaDias(o,filtroDias));
+const sel=document.getElementById('selTrilha');
+if(sel){
+  const usadas=TRILHAS.filter(t=>OBRAS.some(o=>(o.trilha||'padrao')===t.codigo));
+  if(usadas.length>1){
+    sel.style.display='';
+    if(!usadas.some(t=>t.codigo===KTR)) KTR=usadas[0].codigo;
+    sel.innerHTML=usadas.map(t=>`<option value="${t.codigo}" ${t.codigo===KTR?'selected':''}>${t.icone||''} ${esc(t.nome)}</option>`).join('');
+  } else { sel.style.display='none'; KTR=(usadas[0]||{codigo:'padrao'}).codigo; }
+}
+let arr=OBRAS.slice().filter(o=>passaDias(o,filtroDias)).filter(o=>(o.trilha||'padrao')===KTR);
 if(busca) arr=arr.filter(o=> (o.cliente||'').toLowerCase().includes(busca) || (o.contrato||'').includes(busca));
 const el=document.getElementById('list');
 el.className='kb'; el.style.display='flex';
 let h='';
 for(let n=0;n<=8;n++){
 if(filtroEtapa!==null && filtroEtapa!==n) continue;
-const e=ET[n]||{nome:'Etapa '+n,icone:''};
+const e=etapasDe(KTR)[n]||{nome:'Etapa '+n,icone:''};
 const obs=arr.filter(o=>o.etapa_numero===n).sort((a,b)=>{const da=diasObra(a),db=diasObra(b);return (db==null?-1:db)-(da==null?-1:da);});
 if(KHIDE && !obs.length) continue;
 h+='<div class="kcol '+(n===8?'fim':'')+'" data-etapa="'+n+'" ondragover="kOver(event,this)" ondragleave="kLeave(this)" ondrop="kDrop(event,this)">'
@@ -493,15 +514,17 @@ if(!o||o.etapa_numero===n) return;
 await mudarEtapa(id,n);
 }
 function cardHtml(o){
-const e=ET[o.etapa_numero]||{nome:'?',icone:''};
+const e=etOf(o);
 const metaBits=[];
 if(o.contrato) metaBits.push('#'+esc(o.contrato));
 if(o.potencia_kwp) metaBits.push(esc(String(o.potencia_kwp).replace('.',','))+' kWp');
 if(o.data_instalacao){const di=o.data_instalacao.split('-');metaBits.push('📅 instalação '+di[2]+'/'+di[1]);}
 if(o.aceite_em){metaBits.push('✍️ termo assinado');}
+if(o.trilha&&o.trilha!=='padrao'){metaBits.push(trilhaNome(o.trilha));}
 metaBits.push('atualizado '+diasAtras(o.atualizado_em));
 if(o.observacoes) metaBits.push('📝 '+esc(o.observacoes));
-const opts=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===o.etapa_numero?'selected':''}>${(ET[n]?.icone||'')} ${n} - ${esc((ET[n]?.nome||'').replace('!',''))}</option>`).join('');
+const _et=etapasDe(o.trilha);
+const opts=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===o.etapa_numero?'selected':''}>${(_et[n]?.icone||'')} ${n} - ${esc((_et[n]?.nome||'').replace('!',''))}</option>`).join('');
 return `<div class="obra" data-id="${o.id}">
 <div class="top">
 <div>
@@ -643,6 +666,11 @@ await sb.rpc('marcar_nps_enviado',{p_obra:id});
 toast('✓ Pesquisa enviada no grupo ⭐');
 await loadObras();
 }
+function trocarTrilha(tr){
+const sel=document.getElementById('f_et'); if(!sel) return;
+const m=etapasDe(tr), atual=parseInt(sel.value,10)||0;
+sel.innerHTML=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===atual?'selected':''}>${n} - ${((m[n]||{}).nome||'').replace('!','')}</option>`).join('');
+}
 function dataBRs(iso){ if(!iso) return ''; const p=String(iso).split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 async function avisarAgendamento(o, antes, depois){
 const primeiro=(o.cliente||'').split(' ')[0];
@@ -696,15 +724,28 @@ el.innerHTML=arr.map(b=>{
 const nome=b.brinde==='copo'?'Copo térmico personalizado':'Fone Bluetooth';
 const emoji=b.brinde==='copo'?'🥤':'🎧';
 const d=new Date(b.brinde_em).toLocaleDateString('pt-BR');
+const gav=b.avaliou_google_em
+ ? '<span style="color:#58B868;font-weight:800">✓ avaliou no Google</span>'
+ : '<span style="color:var(--gold);font-weight:800">⏳ avaliação pendente</span>';
 return '<div class="brrow '+(b.entregue_em?'ok':'')+'">'
 +'<div class="em">'+emoji+'</div>'
 +'<div class="info"><div class="cl">'+esc(b.cliente)+'</div>'
 +'<div class="dt"><span>'+nome+'</span>'+(b.contrato?'<span>#'+esc(b.contrato)+'</span>':'')
-+'<span>⭐ '+b.nota+'/10</span><span>'+d+'</span></div></div>'
++'<span>⭐ '+b.nota+'/10</span><span>'+d+'</span>'+gav
++(b.avaliou_google_em?'':'<button class="del" style="color:var(--gold);margin-left:0" onclick="confirmarGoogle(\''+b.voucher+'\')">confirmar avaliação</button>')
++'</div></div>'
 +'<div class="brcode" onclick="copiarCod(\''+b.voucher+'\')" title="Copiar código">'+esc(b.voucher)+'</div>'
 +(b.entregue_em?'<div class="brdone">✓ entregue</div>':'<button class="brok" onclick="entregarBrinde(\''+b.voucher+'\')">Entregar</button>')
 +'</div>';
 }).join('');
+}
+async function confirmarGoogle(v){
+if(!confirm('Confirmar que este cliente avaliou a Polaris no Google?\n\nVerifique antes no Google Meu Negócio.'))return;
+const r=await sb.rpc('marcar_avaliou_google',{p_voucher:v});
+if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
+toast('Avaliação confirmada ✓');
+const b=BRINDES.find(x=>x.voucher===v); if(b) b.avaliou_google_em=new Date().toISOString();
+renderBrindes();
 }
 function copiarCod(v){ navigator.clipboard.writeText(v).then(()=>toast('Código copiado ✓')).catch(()=>prompt('Código:',v)); }
 async function entregarBrinde(v){
@@ -772,7 +813,9 @@ function openForm(id, focoFone){
 const o = id ? getObra(id) : {};
 const novo = !id;
 const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovForm';
-const etOpts=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===(o.etapa_numero??1)?'selected':''}>${n} - ${(ET[n]?.nome||'').replace('!','')}</option>`).join('');
+const _tr=o.trilha||'padrao'; const _etf=etapasDe(_tr);
+const etOpts=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===(o.etapa_numero??1)?'selected':''}>${n} - ${(_etf[n]?.nome||'').replace('!','')}</option>`).join('');
+const trOpts=TRILHAS.map(t=>`<option value="${t.codigo}" ${t.codigo===_tr?'selected':''}>${t.icone||''} ${esc(t.nome)}</option>`).join('');
 const instOpts='<option value="">— Instalador —</option>'+EQUIPE.filter(p=>p.papel==='Instalador'&&p.ativo!==false).map(p=>`<option value="${p.id}" ${p.id===o.instalador_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 const vendOpts='<option value="">— Vendedor —</option>'+EQUIPE.filter(p=>p.papel==='Vendedor').map(p=>`<option value="${p.id}" ${p.id===o.vendedor_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 ov.innerHTML=`<div class="modal">
@@ -796,6 +839,7 @@ ov.innerHTML=`<div class="modal">
 <div class="fld"><label>Observações</label><input id="f_obs" value="${esc(o.observacoes||'')}" placeholder="opcional"></div>
 </div>
 <div class="grid2">
+<div class="fld"><label>Tipo de projeto</label><select id="f_trilha" onchange="trocarTrilha(this.value)">${trOpts}</select></div>
 <div class="fld"><label>Tipo de telhado</label><select id="f_tel2">${['','Cerâmico','Metálico','Fibrocimento','Laje','Solo','Outro'].map(t=>`<option value="${t}" ${t===(o.tipo_telhado||'')?'selected':''}>${t||'— Telhado —'}</option>`).join('')}</select></div>
 <div class="fld"><label>Incluso no serviço</label><div style="display:flex;gap:14px;padding:11px 2px">
 <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--txt);cursor:pointer"><input type="checkbox" id="f_est" ${o.tem_estrutura?'checked':''} style="width:16px;height:16px"> Estrutura</label>
@@ -850,6 +894,7 @@ instalador_id:document.getElementById('f_inst').value||null,
 qtd_modulos:parseInt(document.getElementById('f_qtm').value,10)||null,
 modelo_modulo:document.getElementById('f_mdm').value.trim()||null,
 inversor_descricao:document.getElementById('f_inv').value.trim()||null,
+trilha:document.getElementById('f_trilha')?.value||'padrao',
 tipo_telhado:document.getElementById('f_tel2').value||null,
 endereco:document.getElementById('f_end').value.trim()||null,
 tem_estrutura:document.getElementById('f_est').checked,

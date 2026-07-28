@@ -183,7 +183,7 @@ function render(){
     +'</div>';
   var etAtual=ET.find(function(e){return e.numero===num})||{};
   h+='<div class="heroTag '+(fim?'done':'')+'"><span class="d">●</span> '
-    +(fim?'Sistema ativo e gerando energia ☀️':(etAtual.icone||'')+' Etapa atual: '+esc((etAtual.nome||'').replace('!','')))
+    +(fim?((o.trilha==='eletroposto')?'Eletroposto em operação ⚡':'Sistema ativo e gerando energia ☀️'):(etAtual.icone||'')+' Etapa atual: '+esc((etAtual.nome||'').replace('!','')))
     +'</div>'
     +'</div></div>';
 
@@ -192,11 +192,11 @@ function render(){
     +'<div class="stat"><div class="k">Potência</div><div class="v">'+(o.potencia_kwp?String(o.potencia_kwp).replace('.',',')+' <small>kWp</small>':'—')+'</div></div>'
     +'<div class="stat"><div class="k">Módulos</div><div class="v">'+(o.qtd_modulos?o.qtd_modulos+' <small>unid.</small>':'—')+'</div></div>'
     +'<div class="stat"><div class="k">Início</div><div class="v">'+(dataBR(o.data_fechamento)||'—')+'</div></div>'
-    +'<div class="stat"><div class="k">'+(fim?'Ativação':'Previsão')+'</div><div class="v">'+(fim?(dataBR(o.data_conclusao)||'—'):'até 60 dias')+'</div></div>'
+    +'<div class="stat"><div class="k">'+(fim?'Ativação':'Previsão')+'</div><div class="v">'+(fim?(dataBR(o.data_conclusao)||'—'):((o.trilha==='eletroposto')?'45 a 60 dias':'até 60 dias'))+'</div></div>'
     +'</div></div>';
 
   /* TIMELINE */
-  h+='<section class="rv"><div class="shead"><div class="n">Linha do tempo</div><h2>A jornada da sua energia</h2></div><div class="tl">';
+  h+='<section class="rv"><div class="shead"><div class="n">Linha do tempo</div><h2>'+((o.trilha==='eletroposto')?'A jornada do seu eletroposto':'A jornada da sua energia')+'</h2></div><div class="tl">';
   ET.forEach(function(e){
     var st = e.numero<num?'done':(e.numero===num?(fim?'done':'now'):'');
     if(fim&&e.numero===8) st='done';

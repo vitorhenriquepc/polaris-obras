@@ -220,7 +220,7 @@ function render(){
     +'<div class="in">'
     +'<div class="top"><img src="'+LOGO_BRANCA+'" onerror="this.style.display=\'none\'"></div>'
     +'<div class="mid">'
-    +'<div class="kicker">Relatório de Instalação</div>'
+    +'<div class="kicker">'+((o.trilha==='eletroposto')?'Relatório de Implantação':'Relatório de Instalação')+'</div>'
     +'<h1>'+esc(o.cliente)+'</h1>'
     +'<div class="rule"></div>'
     +'</div>'
@@ -233,7 +233,7 @@ function render(){
     +'</div><div class="scroll">▾</div></div>';
 
   /* USINA */
-  h+='<div class="wrap"><section class="rv"><div class="shead"><div class="n">01 — Ficha Técnica</div><h2>A sua usina</h2><div class="hl"></div></div>'
+  h+='<div class="wrap"><section class="rv"><div class="shead"><div class="n">01 — Ficha Técnica</div><h2>'+((o.trilha==='eletroposto')?'O seu eletroposto':'A sua usina')+'</h2><div class="hl"></div></div>'
     +'<div class="stats">'
     +'<div class="stat"><div class="k">Potência do sistema</div><div class="v">'+(o.potencia_kwp?String(o.potencia_kwp).replace('.',',')+' <small>kWp</small>':'—')+'</div></div>'
     +'<div class="stat"><div class="k">Módulos fotovoltaicos</div><div class="v">'+(o.qtd_modulos?o.qtd_modulos+' <small>unidades</small>':'—')+'</div>'+(o.modelo_modulo?'<div class="s">'+esc(o.modelo_modulo)+'</div>':'')+'</div>'

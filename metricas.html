@@ -80,7 +80,7 @@ function tema(t){document.documentElement.setAttribute('data-theme',t);document.
 document.getElementById('bTema').onclick=function(){tema(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')};
 try{tema(localStorage.getItem('polaris-tema')||'dark')}catch(e){tema('dark')}
 
-var ETAPAS={}, PER='mes';
+var ETAPAS={}, PER='mes', HR=null;
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function n(v){return v==null?'—':String(v).replace('.',',');}
 function iso(d){return d.toISOString().slice(0,10);}
@@ -121,6 +121,8 @@ async function boot(){
   var et=await sb.from('etapas').select('numero,nome,icone');
   (et.data||[]).forEach(function(e){ETAPAS[e.numero]=e;});
   var iv=intervalo(PER);
+  var rh=await sb.rpc('get_horarios_resposta');
+  HR=(rh&&rh.data)||null;
   var r=await sb.rpc('get_metricas',{p_ini:iv.ini,p_fim:iv.fim});
   if(r.error||!r.data){document.getElementById('app').innerHTML='<div class="center"><span class="i">🔒</span><b>Acesso restrito ao administrador.</b></div>';return;}
   render(r.data);
@@ -180,17 +182,46 @@ function render(M){
     h+='</table></div>';
   }
 
+  /* GOOGLE + HORÁRIOS */
+  if(HR){
+    var g=HR.google||{};
+    h+='<h2>🔎 Avaliações no Google <small>funil dos promotores</small></h2><div class="kpis">'
+      +'<div class="kpi destaque"><div class="v">'+n(g.promotores)+'</div><div class="l">Promotores (nota 9-10)</div></div>'
+      +'<div class="kpi ok"><div class="v">'+n(g.avaliaram)+'</div><div class="l">Confirmaram avaliação</div></div>'
+      +'<div class="kpi ruim"><div class="v">'+n(g.pendentes)+'</div><div class="l">Pendentes</div></div>'
+      +'<div class="kpi"><div class="v">'+(g.promotores?Math.round(100*(g.avaliaram||0)/g.promotores):0)+'<small>%</small></div><div class="l">Taxa de conversão</div></div>'
+      +'<div class="kpi"><div class="v">'+n(g.lembretes_enviados)+'</div><div class="l">Lembretes enviados</div></div>'
+      +'<div class="kpi"><div class="v">'+n(HR.tempo_resposta_horas)+' <small>h</small></div><div class="l">Tempo médio p/ responder</div></div>'
+      +'</div>';
+
+    var ph=(HR.por_hora||[]).filter(function(x){return x.respostas>0});
+    if(ph.length){
+      var maxH=Math.max.apply(null,ph.map(function(x){return x.respostas}))||1;
+      var melhor=ph.slice().sort(function(a,b){return b.respostas-a.respostas})[0];
+      h+='<h2>🕐 Horário em que seus clientes respondem <small>dados reais da sua operação</small></h2><div class="card">'
+        +'<div style="font-size:12.5px;color:var(--muted);margin-bottom:12px;font-weight:600">Melhor horário até agora: <b style="color:var(--gold)">'+melhor.hora+'h</b> — use isso para ajustar os disparos.</div>'
+        +'<table><tr><th>Horário</th><th class="num">Respostas</th><th></th></tr>';
+      ph.forEach(function(x){
+        h+='<tr><td>'+String(x.hora).padStart(2,'0')+'h</td><td class="num"><b>'+x.respostas+'</b></td>'
+          +'<td style="width:60%"><div class="bar"><div class="b" style="width:'+Math.round(x.respostas/maxH*100)+'%"></div></div></td></tr>';
+      });
+      h+='</table></div>';
+    }
+  }
+
   /* BRINDES */
   var br=M.brindes||[];
   if(br.length){
     h+='<h2>🎁 Brindes dos promotores</h2><div class="card"><table>'
-      +'<tr><th>Cliente</th><th>Brinde</th><th>Voucher</th><th class="num">Escolhido</th><th class="num">Status</th></tr>';
+      +'<tr><th>Cliente</th><th>Brinde</th><th>Voucher</th><th class="num">Google</th><th class="num">Escolhido</th><th class="num">Status</th></tr>';
     br.forEach(function(b){
       var nome=b.brinde==='copo'?'🥤 Copo térmico':'🎧 Fone Bluetooth';
+      var gv=b.avaliou_google_em?'<span style="color:#58B868">✓</span>':'<span style="color:#e0a070">⏳</span>';
       var st=b.entregue_em?'<span style="color:#58B868;font-weight:800">✓ entregue</span>'
         :'<button onclick="entregar(\''+b.voucher+'\')" style="background:var(--card2);border:1px solid var(--border);color:var(--gold);border-radius:8px;padding:5px 10px;font-family:inherit;font-size:11px;font-weight:800;cursor:pointer">marcar entregue</button>';
       h+='<tr><td><b>'+esc(b.cliente)+'</b></td><td>'+nome+'</td>'
         +'<td><code style="font-size:12px;letter-spacing:1px">'+esc(b.voucher)+'</code></td>'
+        +'<td class="num">'+gv+'</td>'
         +'<td class="num">'+new Date(b.brinde_em).toLocaleDateString('pt-BR')+'</td>'
         +'<td class="num">'+st+'</td></tr>';
     });

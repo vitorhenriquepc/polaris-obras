@@ -125,7 +125,7 @@ async function boot(){
     return;
   }
   var e=await sb.from('etapas').select('*').order('numero');
-  (e.data||[]).forEach(function(x){ET[x.numero]=x;});
+  ET={}; (e.data||[]).forEach(function(x){ (ET[x.trilha]=ET[x.trilha]||{})[x.numero]=x; });
   await carregar();
   sb.channel('tv-obras').on('postgres_changes',{event:'*',schema:'public',table:'obras'},function(){carregar()}).subscribe();
   setInterval(carregar,120000); // reforço a cada 2 min
@@ -156,8 +156,8 @@ function render(){
 
   var h='';
   for(var n=0;n<=7;n++){
-    var e=ET[n]||{nome:'Etapa '+n,icone:''};
-    var obs=andamento.filter(function(o){return o.etapa_numero===n})
+    var e=(ET['padrao']||{})[n]||{nome:'Etapa '+n,icone:''};
+    var obs=andamento.filter(function(o){return o.etapa_numero===n && (o.trilha||'padrao')==='padrao'})
       .sort(function(a,b){var da=dias(a),db=dias(b);return (db==null?-1:db)-(da==null?-1:da);});
     if(!obs.length) continue;   // usa todo o espaço: só etapas com obras
     var temLate=obs.some(function(o){var d=dias(o);return d!=null&&d>60});

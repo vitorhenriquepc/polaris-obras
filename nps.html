@@ -61,6 +61,13 @@ border-radius:18px;padding:20px 18px;margin-top:24px}
 .gt{font-size:15px;font-weight:800;color:var(--ink)}
 .gs{font-size:12.5px;color:var(--mut);margin-top:6px;line-height:1.55;font-weight:600}
 .cta.gcta{background:linear-gradient(135deg,#E8B00A,#C99206);box-shadow:0 10px 28px rgba(214,165,24,.4);margin-top:14px}
+.jaav{background:#F4FBF4;border:1.5px solid var(--green);border-radius:14px;padding:16px;margin-top:12px;text-align:center}
+.jaav .ic{font-size:26px}
+.jaav b{display:block;font-size:14px;color:var(--ink);margin-top:6px}
+.jaav span{font-size:12px;color:var(--mut);display:block;margin-top:4px;line-height:1.5}
+.btnJa{width:100%;background:none;border:1.5px solid var(--green);color:var(--green);border-radius:14px;
+padding:13px;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;margin-top:10px}
+.btnJa:active{transform:scale(.98)}
 .gift{margin-top:26px;text-align:center;position:relative}
 .giftBox{width:150px;height:150px;margin:0 auto;cursor:pointer;position:relative;
 animation:shake 2.6s ease-in-out infinite;transition:transform .3s}
@@ -110,7 +117,9 @@ text-transform:uppercase;background:var(--green);color:#fff;border-radius:20px;p
 <div class="wrap" id="root"><div class="center">⏳ Carregando...</div></div>
 
 <script>
-var sb=supabase.createClient('https://dakubhcgohiwzyqiegqf.supabase.co','sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx');
+var SUPABASE_URL='https://dakubhcgohiwzyqiegqf.supabase.co';
+var SUPABASE_KEY='sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx';
+var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 var qs=new URLSearchParams(location.search), SLUG=qs.get('id'), TOKEN=qs.get('t');
 var LOGO='https://obras.polarisenergiasolar.com/logo.png', WHATS='5518930852573';
 var GOOGLE_REVIEW='https://g.page/r/CUf-E27VPrELEBM/review';
@@ -192,7 +201,8 @@ function obrigado(n,jaEra){
               +'<div id="gopts">'+(temV?opcoesHtml(D.brinde)+voucherHtml(D.brinde,D.voucher,D.entregue_em):'')+'</div></div>'
               +'<div class="gbox"><div class="gt">Ajuda a gente com 30 segundos?</div>'
               +'<div class="gs">Sua avaliação no Google ajuda outras famílias a encontrarem energia solar de confiança — e é o que libera a retirada do seu brinde. ⭐</div>'
-              +'<a class="cta gcta" target="_blank" href="'+GOOGLE_REVIEW+'">⭐ Avaliar a Polaris no Google</a></div>'
+              +'<a class="cta gcta" target="_blank" href="'+GOOGLE_REVIEW+'" onclick="marcouIr()">⭐ Avaliar a Polaris no Google</a>'
+              +'<div id="gavbox">'+googleStatusHtml()+'</div></div>'
               +'<a class="cta" target="_blank" href="https://wa.me/?text='+txtInd+'">💬 Indicar a Polaris a um amigo</a>'
               +'<a class="cta alt" href="relatorio.html?id='+encodeURIComponent(SLUG)+'">📄 Ver o relatório da minha obra</a>';
   else h+='<a class="cta" target="_blank" href="https://wa.me/'+WHATS+'">💬 Falar com nossa equipe</a>';
@@ -308,6 +318,38 @@ async function escolherBrinde(tipo,el){
   document.getElementById('gsub').textContent='Apresente o código abaixo para a nossa equipe.';
   if(!r.data.ja) confete();
   ESCOLHENDO=false;
+}
+
+/* ===== AVALIAÇÃO NO GOOGLE ===== */
+var FOI_AO_GOOGLE=false;
+function marcouIr(){ FOI_AO_GOOGLE=true;
+  setTimeout(function(){ var b=document.getElementById('btnJaAv'); if(b) b.style.display=''; }, 1500);
+}
+function googleStatusHtml(){
+  if(D && D.avaliou_google_em){
+    return '<div class="jaav"><div class="ic">💚</div><b>Obrigado pela sua avaliação!</b>'
+      +'<span>Recebemos sua confirmação. Isso ajuda demais a nossa equipe.'
+      +(D.voucher?'<br>Seu brinde está liberado para retirada. 🎁':'')+'</span></div>';
+  }
+  return '<button class="btnJa" id="btnJaAv" style="display:none" onclick="declararAvaliei()">✅ Já avaliei no Google</button>';
+}
+async function declararAvaliei(){
+  if(!confirm('Confirmar que você avaliou a Polaris no Google?\n\nNossa equipe agradece muito! 💚')) return;
+  var b=document.getElementById('btnJaAv'); if(b){b.disabled=true;b.textContent='Registrando...';}
+  var r=await sb.rpc('declarar_avaliacao_google',{p_slug:SLUG,p_token:TOKEN});
+  if(r.error||(r.data&&r.data.erro)){
+    if(b){b.disabled=false;b.textContent='✅ Já avaliei no Google';}
+    alert('Não foi possível registrar. Tente novamente.'); return;
+  }
+  D.avaliou_google_em=new Date().toISOString();
+  document.getElementById('gavbox').innerHTML=googleStatusHtml();
+  confete();
+  // Agradecimento no grupo
+  try{
+    fetch(SUPABASE_URL+'/functions/v1/lembrete-google',{method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
+      body:JSON.stringify({acao:'agradecer',slug:SLUG,token:TOKEN})});
+  }catch(e){}
 }
 boot();
 </script>
