@@ -530,8 +530,10 @@ var AG=[], vMode='semana', vRef=new Date();
 async function bootAgenda(){
   document.getElementById('topTit').textContent='Agenda';
   var r=await sb.rpc('get_agenda',{p_token:AGENDA});
-  if(r.error||r.data===null){document.getElementById('app').innerHTML='<div class="center"><span class="i">🔒</span><b>Link de agenda inválido.</b></div>';return;}
-  AG=r.data||[];
+  if(r.error||!r.data){document.getElementById('app').innerHTML='<div class="center"><span class="i">🔒</span><b>Link de agenda inválido.</b><br>Peça um link novo ao escritório.</div>';return;}
+  var d=r.data;
+  AG = Array.isArray(d) ? d : (d.obras||[]);
+  if(d && d.titulo) document.getElementById('topTit').textContent=d.titulo;
   renderAgenda();
 }
 function d0(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate());}

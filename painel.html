@@ -339,7 +339,7 @@ root.innerHTML = `
 <div class="viewtabs"><button id="vCards" class="on" onclick="setView('cards')">▦ Cards</button><button id="vKanban" onclick="setView('kanban')">▤ Kanban</button><button id="vVazias" style="display:none" onclick="toggleVazias()" title="Ocultar/mostrar colunas sem obras">⊟</button></div>
 <select id="selTrilha" onchange="setTrilha(this.value)" style="display:none;background:var(--card);border:1px solid var(--border);color:var(--txt);border-radius:11px;padding:0 12px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer"></select>
 <button class="btn-equipe" id="bBrindes" title="Brindes dos clientes" onclick="openBrindes()">🎁</button>
-<button class="btn-equipe" id="bAgenda" title="Copiar link da agenda do instalador">📅</button>
+<button class="btn-equipe" id="bAgenda" title="Links de agenda das equipes">📅</button>
 <button class="btn-equipe" id="bEquipe" title="Gerenciar equipe">👥</button>
 <button class="btn-new" id="bNew">+ Nova obra</button>
 </div>
@@ -352,7 +352,7 @@ document.getElementById('bUsers').onclick = ()=> location.href='usuarios.html';
 sb.rpc('is_admin').then(r=>{ if(r.data){ document.getElementById('bUsers').style.display=''; const bm=document.getElementById('bMet'); bm.style.display=''; bm.onclick=()=>location.href='metricas.html'; } });
 document.getElementById('bNew').onclick = ()=> openForm(null);
 document.getElementById('bEquipe').onclick = ()=> openEquipe();
-document.getElementById('bAgenda').onclick = ()=> copiarLinkAgenda();
+document.getElementById('bAgenda').onclick = ()=> abrirAgendas();
 document.getElementById('busca').addEventListener('input', e=>{ busca=e.target.value.toLowerCase(); renderList(); });
 
 setView(VIEW);
@@ -672,6 +672,46 @@ const m=etapasDe(tr), atual=parseInt(sel.value,10)||0;
 sel.innerHTML=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===atual?'selected':''}>${n} - ${((m[n]||{}).nome||'').replace('!','')}</option>`).join('');
 }
 function dataBRs(iso){ if(!iso) return ''; const p=String(iso).split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+function fichaTexto(o){
+  const L=[];
+  if(o.potencia_kwp) L.push('⚡ '+String(o.potencia_kwp).replace('.',',')+' kWp');
+  if(o.qtd_modulos) L.push('🔋 '+o.qtd_modulos+' módulos'+(o.modelo_modulo?' · '+o.modelo_modulo:''));
+  if(o.inversor_descricao) L.push('🔌 '+o.inversor_descricao);
+  if(o.tipo_telhado) L.push('🏠 Telhado: '+o.tipo_telhado);
+  const inc=[];
+  if(o.tem_estrutura===true) inc.push('✅ Com estrutura'); else if(o.tem_estrutura===false) inc.push('❌ Sem estrutura');
+  if(o.tem_cabo===true) inc.push('✅ Com cabo'); else if(o.tem_cabo===false) inc.push('❌ Sem cabo');
+  if(inc.length) L.push(inc.join(' · '));
+  return L.join('\n');
+}
+async function avisarInstalador(o, antes, depois){
+  if(!o.instalador_id) return;
+  const eq=EQUIPE.find(x=>x.id===o.instalador_id);
+  if(!eq || !eq.whatsapp_grupo_id) return;
+  const reag=!!antes;
+  const linkChk=`${location.origin}/instalador.html?id=${encodeURIComponent(o.slug)}&t=${o.instalador_token}`;
+  const maps=o.endereco?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.endereco)}`:'';
+  let msg;
+  if(reag){
+    msg='🔄 *Obra remarcada — '+o.cliente+'*\n\n'
+      +'📅 Nova data: *'+dataBRs(depois)+'*\n'
+      +'(anterior: '+dataBRs(antes)+')\n\n'
+      +(o.endereco?'📍 '+o.endereco+'\n'+(maps?maps+'\n':''):'')
+      +'\n📋 Checklist de fotos:\n'+linkChk
+      +'\n\nPor favor, confirmem a disponibilidade. 🙏\n\n*Polaris Energia Solar* ☀️';
+  } else {
+    msg='🔧 *Nova obra agendada para vocês!*\n\n'
+      +'👤 Cliente: *'+o.cliente+'*'+(o.contrato?' · #'+o.contrato:'')+'\n'
+      +'📅 Data: *'+dataBRs(depois)+'*\n'
+      +(o.endereco?'📍 '+o.endereco+'\n'+(maps?'🗺️ '+maps+'\n':''):'')
+      +'\n*Ficha técnica*\n'+fichaTexto(o)
+      +'\n\n📋 Checklist de fotos da obra:\n'+linkChk
+      +'\n\nQualquer dúvida, é só chamar. 💪\n\n*Polaris Energia Solar* ☀️';
+  }
+  const r=await sb.functions.invoke('notificar-grupo',{body:{grupo_id:eq.whatsapp_grupo_id,message:msg}});
+  if(r.error||(r.data&&r.data.error)) toast('⚠️ Não consegui avisar a equipe '+eq.nome);
+  else toast('✓ '+eq.nome+' avisada no grupo 🔧');
+}
 async function avisarAgendamento(o, antes, depois){
 const primeiro=(o.cliente||'').split(' ')[0];
 const reag = !!antes;
@@ -760,6 +800,35 @@ function copiarLinkInst(id){
 const o=getObra(id); const url=`${location.origin}/instalador.html?id=${o.slug}&t=${o.instalador_token}`;
 navigator.clipboard.writeText(url).then(()=>toast('Link do instalador copiado ✓ Envie pra ele no WhatsApp')).catch(()=>prompt('Link do instalador:',url));
 }
+async function copiarAgendaDe(id){
+const p=EQUIPE.find(x=>x.id===id); if(!p) return;
+let tok=p.agenda_token;
+if(!tok){
+  const r=await sb.rpc('regenerar_agenda_token',{p_equipe:id});
+  if(r.error||(r.data&&r.data.erro)){ toast('Erro ao gerar link'); return; }
+  tok=r.data.token; p.agenda_token=tok;
+}
+const url=`${location.origin}/instalador.html?agenda=${tok}`;
+navigator.clipboard.writeText(url).then(()=>toast('Agenda de '+p.nome+' copiada ✓ Envie no grupo dessa equipe')).catch(()=>prompt('Agenda de '+p.nome+':',url));
+}
+async function abrirAgendas(){
+const insts=EQUIPE.filter(p=>p.papel==='Instalador');
+const { data } = await sb.from('config').select('valor').eq('chave','agenda_token').single();
+const geral = data ? `${location.origin}/instalador.html?agenda=${data.valor}` : '';
+const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovAg';
+ov.innerHTML=`<div class="modal"><h2>📅 Links de agenda</h2>
+<p style="color:var(--muted);font-size:12.5px;margin:-8px 0 14px">Cada equipe recebe um link exclusivo e enxerga <b>apenas as obras dela</b>. O link geral mostra todas — use só no escritório.</p>
+<div class="eqlist">
+${geral?`<div class="eqrow"><div><b>🏢 Agenda geral (escritório)</b><span>Todas as obras de todas as equipes</span></div>
+<div class="eqact"><button onclick="copiarUrl('${geral}','Agenda geral')" title="Copiar">📋</button></div></div>`:''}
+${insts.map(p=>`<div class="eqrow ${p.ativo?'':'off'}"><div><b>👷 ${esc(p.nome)}</b><span>Somente as obras desta equipe${p.whatsapp_grupo_id?' • grupo configurado ✓':''}</span></div>
+<div class="eqact"><button onclick="copiarAgendaDe('${p.id}')" title="Copiar">📋</button></div></div>`).join('')||'<div class="eqempty">Nenhum instalador cadastrado.</div>'}
+</div>
+<button class="cancel" style="width:100%;margin-top:12px" onclick="document.getElementById('ovAg').remove()">Fechar</button></div>`;
+document.body.appendChild(ov);
+ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+}
+function copiarUrl(u,nome){ navigator.clipboard.writeText(u).then(()=>toast(nome+' copiada ✓')).catch(()=>prompt(nome+':',u)); }
 async function copiarLinkAgenda(){
 const { data } = await sb.from('config').select('valor').eq('chave','agenda_token').single();
 if(!data){ toast('Erro ao buscar token da agenda'); return; }
@@ -922,7 +991,10 @@ const dtiDepois = rec.data_instalacao || null;
 const dtiAntes = window._dtiAntes || null;
 if(id && dtiDepois && dtiDepois!==dtiAntes){
 const oAtual=getObra(id);
-if(oAtual && oAtual.whatsapp_grupo_id) avisarAgendamento(oAtual, dtiAntes, dtiDepois);
+if(oAtual){
+if(oAtual.whatsapp_grupo_id) await avisarAgendamento(oAtual, dtiAntes, dtiDepois);
+avisarInstalador(oAtual, dtiAntes, dtiDepois);
+}
 }
 await loadObras();
 }
@@ -944,6 +1016,7 @@ const linhas = EQUIPE.map(p=>`<div class="eqrow ${p.ativo?'':'off'}">
 <div><b>${esc(p.nome)}</b><span>${esc(p.papel)} • ${esc(p.telefone)}</span></div>
 <div class="eqact">
 <button onclick="toggleAtivo('${p.id}',${!p.ativo})" title="${p.ativo?'Ativo (clique p/ desativar)':'Inativo (clique p/ ativar)'}">${p.ativo?'🟢':'⚪'}</button>
+${p.papel==='Instalador'?`<button onclick="copiarAgendaDe('${p.id}')" title="Copiar link da agenda desta equipe">📅</button>`:''}
 <button onclick="editEquipe('${p.id}')">✏️</button>
 </div></div>`).join('') || '<div class="eqempty">Nenhum membro cadastrado.</div>';
 const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovEquipe';
@@ -969,6 +1042,9 @@ ov.innerHTML=`<div class="modal">
 <div class="fld"><label>Papel</label><select id="e_papel">${pOpts}</select></div>
 <div class="fld"><label>WhatsApp (DDD+nº) *</label><input id="e_tel" value="${esc(p.telefone||'')}" placeholder="18999999999"></div>
 </div>
+<div class="fld" id="fldGrupo" style="${(p.papel==='Instalador')?'':'display:none'}"><label>ID do grupo de instalação (opcional)</label>
+<input id="e_grupo" value="${esc(p.whatsapp_grupo_id||'')}" placeholder="1203630xxxxxxxxx-group">
+<div style="font-size:11px;color:var(--muted);margin-top:5px;line-height:1.45">Grupo que vocês têm com esta equipe. Ao concluir o checklist, o relatório e a ficha da obra também são enviados nele.</div></div>
 <div class="row">
 ${novo?'':`<button class="cancel" onclick="delEquipe('${id}')" style="color:#ff9a9a">Excluir</button>`}
 <button class="save" id="e_save">${novo?'Adicionar':'Salvar'}</button>
@@ -976,12 +1052,16 @@ ${novo?'':`<button class="cancel" onclick="delEquipe('${id}')" style="color:#ff9
 </div>`;
 document.body.appendChild(ov);
 ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+const _pap=document.getElementById('e_papel');
+if(_pap) _pap.onchange=()=>{ const g=document.getElementById('fldGrupo'); if(g) g.style.display=(_pap.value==='Instalador')?'':'none'; };
 document.getElementById('e_save').onclick = async ()=>{
 const nome=document.getElementById('e_nome').value.trim();
 let tel=document.getElementById('e_tel').value.replace(/\D/g,'');
 if(!nome||!tel){ toast('Preencha nome e telefone'); return; }
 if(tel.length<=11 && !tel.startsWith('55')) tel='55'+tel;
 const rec={ nome, papel:document.getElementById('e_papel').value, telefone:tel };
+const _g=document.getElementById('e_grupo');
+if(_g) rec.whatsapp_grupo_id = _g.value.trim() || null;
 let error;
 if(id){ ({error}=await sb.from('equipe').update(rec).eq('id',id)); }
 else { ({error}=await sb.from('equipe').insert(rec)); }
