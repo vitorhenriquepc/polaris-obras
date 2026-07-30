@@ -800,6 +800,22 @@ function copiarLinkInst(id){
 const o=getObra(id); const url=`${location.origin}/instalador.html?id=${o.slug}&t=${o.instalador_token}`;
 navigator.clipboard.writeText(url).then(()=>toast('Link do instalador copiado ✓ Envie pra ele no WhatsApp')).catch(()=>prompt('Link do instalador:',url));
 }
+async function resolverGrupo(id){
+const inp=document.getElementById('e_grupo');
+const v=(inp.value||'').trim();
+if(!v){ toast('Cole o link do convite do grupo primeiro'); return; }
+if(!/chat\.whatsapp\.com/i.test(v)){
+  if(/-group$|@g\.us$|^\d{15,}$/.test(v)){ toast('Isso já parece ser um ID de grupo ✓'); return; }
+  toast('Cole o link completo: chat.whatsapp.com/...'); return;
+}
+toast('Consultando o WhatsApp... 🔗');
+const r=await sb.functions.invoke('resolver-grupo',{body:{convite:v, equipe_id:id||null}});
+const d=r.data||{};
+if(r.error||d.error){ toast('Erro: '+(d.error||r.error.message)); return; }
+inp.value=d.grupo_id;
+toast('✓ Grupo '+(d.nome?'"'+d.nome+'" ':'')+'identificado'+(d.salvo?' e salvo':'')+'!');
+if(d.salvo) await loadEquipe();
+}
 async function copiarAgendaDe(id){
 const p=EQUIPE.find(x=>x.id===id); if(!p) return;
 let tok=p.agenda_token;
@@ -1043,8 +1059,9 @@ ov.innerHTML=`<div class="modal">
 <div class="fld"><label>WhatsApp (DDD+nº) *</label><input id="e_tel" value="${esc(p.telefone||'')}" placeholder="18999999999"></div>
 </div>
 <div class="fld" id="fldGrupo" style="${(p.papel==='Instalador')?'':'display:none'}"><label>ID do grupo de instalação (opcional)</label>
-<input id="e_grupo" value="${esc(p.whatsapp_grupo_id||'')}" placeholder="1203630xxxxxxxxx-group">
-<div style="font-size:11px;color:var(--muted);margin-top:5px;line-height:1.45">Grupo que vocês têm com esta equipe. Ao concluir o checklist, o relatório e a ficha da obra também são enviados nele.</div></div>
+<input id="e_grupo" value="${esc(p.whatsapp_grupo_id||'')}" placeholder="cole o link do convite ou o ID do grupo">
+<button class="act act-gh" style="width:100%;margin-top:7px;justify-content:center" onclick="resolverGrupo('${id||''}')">🔗 Descobrir ID pelo link do convite</button>
+<div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.45">Cole o link de convite do grupo (chat.whatsapp.com/...) e clique acima — o sistema descobre o ID e preenche sozinho. Ao concluir o checklist, o relatório e a ficha da obra são enviados nesse grupo.</div></div>
 <div class="row">
 ${novo?'':`<button class="cancel" onclick="delEquipe('${id}')" style="color:#ff9a9a">Excluir</button>`}
 <button class="save" id="e_save">${novo?'Adicionar':'Salvar'}</button>
