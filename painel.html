@@ -544,7 +544,7 @@ if(o.data_instalacao){const di=o.data_instalacao.split('-');metaBits.push('📅 
 if(o.aceite_em){metaBits.push('✍️ termo assinado');}
 if(o.trilha&&o.trilha!=='padrao'){metaBits.push(trilhaNome(o.trilha));}
 const _ci=catInfo(o.categoria);
-if(o.categoria&&o.categoria!=='residencial'){metaBits.push(_ci.icone+' '+_ci.nome+(o.ramo?' · '+ramoNome(o.ramo):''));}
+metaBits.push(_ci.icone+' '+_ci.nome+(o.ramo?' · '+ramoNome(o.ramo):''));
 if(o.cidade&&o.cidade!=='Araçatuba'){metaBits.push('📍 '+o.cidade);}
 metaBits.push('atualizado '+diasAtras(o.atualizado_em));
 if(o.observacoes) metaBits.push('📝 '+esc(o.observacoes));
