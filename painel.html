@@ -64,6 +64,10 @@ border-radius:12px;padding:9px 13px;cursor:pointer;transition:.15s;min-width:74p
 padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}
 .dchip:hover{border-color:var(--gold)}
 .dchip.on{border-color:var(--gold);color:var(--gold);background:var(--card2)}
+.cchip{background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:20px;
+padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.cchip:hover{border-color:var(--gold)}
+.cchip.on{border-color:var(--green);color:var(--green-l,#58B868);background:var(--card2)}
 .brlist{display:flex;flex-direction:column;gap:9px;max-height:56vh;overflow-y:auto}
 .brrow{display:flex;align-items:center;gap:12px;background:var(--card2);border:1px solid var(--border);
 border-radius:12px;padding:12px 13px;border-left:3px solid var(--gold)}
@@ -334,6 +338,7 @@ root.innerHTML = `
 <div class="wrap">
 <div class="stats" id="stats"></div>
 <div class="dchips" id="dchips"></div>
+<div class="dchips" id="cchips"></div>
 <div class="toolbar">
 <div class="search">🔍 <input id="busca" placeholder="Buscar cliente ou contrato..."></div>
 <div class="viewtabs"><button id="vCards" class="on" onclick="setView('cards')">▦ Cards</button><button id="vKanban" onclick="setView('kanban')">▤ Kanban</button><button id="vVazias" style="display:none" onclick="toggleVazias()" title="Ocultar/mostrar colunas sem obras">⊟</button></div>
@@ -362,7 +367,7 @@ await loadObras();
 subscribeRealtime();
 }
 
-let ETT={}, TRILHAS=[];
+let ETT={}, TRILHAS=[], CATS=[], RAMOS=[], CIDIPTU={};
 async function loadEtapas(){
 const { data, error } = await sb.from('etapas').select('*').order('numero');
 if(error){ toast('Erro ao carregar etapas'); return; }
@@ -370,16 +375,23 @@ ETT={}; (data||[]).forEach(e=>{ (ETT[e.trilha]=ETT[e.trilha]||{})[e.numero]=e; }
 ET = ETT['padrao'] || {};
 const t = await sb.from('trilhas').select('*').order('ordem');
 TRILHAS = t.data || [{codigo:'padrao',nome:'Sistema Fotovoltaico',icone:'☀️'}];
+const ct = await sb.from('categorias').select('*').order('ordem'); CATS = ct.data || [];
+const rm = await sb.from('ramos').select('*').order('ordem'); RAMOS = rm.data || [];
+const ci = await sb.from('cidades_iptu').select('*'); CIDIPTU = {};
+(ci.data||[]).forEach(x => CIDIPTU[x.cidade] = x);
 }
 function etapasDe(tr){ return ETT[tr||'padrao'] || ETT['padrao'] || {}; }
 function etOf(o,n){ const m=etapasDe(o&&o.trilha); return m[n!=null?n:o.etapa_numero] || {nome:'Etapa '+(n!=null?n:o.etapa_numero),icone:''}; }
+function catInfo(cod){ return CATS.find(x=>x.codigo===(cod||'residencial')) || {nome:'—',icone:''}; }
+function ramoNome(cod){ const r=RAMOS.find(x=>x.codigo===cod); return r?r.nome:''; }
+function iptuDaObra(o){ return o.cidade ? (CIDIPTU[o.cidade]||null) : null; }
 function trilhaNome(cod){ const t=TRILHAS.find(x=>x.codigo===cod); return t?(t.icone||'')+' '+t.nome:''; }
 
 async function loadObras(){
 const { data, error } = await sb.from('obras').select('*');
 if(error){ document.getElementById('list').innerHTML=`<div class="empty"><span class="i">⚠️</span>Erro ao carregar: ${esc(error.message)}</div>`; return; }
 OBRAS = data||[];
-renderStats(); renderDChips(); renderList();
+renderStats(); renderDChips(); renderCChips(); renderList();
 }
 
 /* ---------- stats ---------- */
@@ -393,6 +405,15 @@ document.getElementById('stats').innerHTML=h;
 function setFiltro(n){ filtroEtapa=(filtroEtapa===n?null:n); renderStats(); renderList(); }
 let filtroDias=null;
 const DFILTROS=[{k:null,l:'Todos os prazos'},{k:7,l:'⏱️ Até 7 dias'},{k:30,l:'📅 +30 dias'},{k:60,l:'🚨 +60 dias'}];
+let filtroCat='';
+function setCat(c){ filtroCat=(filtroCat===c)?'':c; renderCChips(); renderList(); }
+function renderCChips(){
+const el=document.getElementById('cchips'); if(!el) return;
+const usadas={}; OBRAS.forEach(o=>{const k=o.categoria||'residencial'; usadas[k]=(usadas[k]||0)+1;});
+const lista=CATS.filter(x=>usadas[x.codigo]);
+if(lista.length<2){ el.innerHTML=''; return; }
+el.innerHTML=lista.map(x=>`<button class="cchip ${filtroCat===x.codigo?'on':''}" onclick="setCat('${x.codigo}')">${x.icone} ${esc(x.nome)} <b>${usadas[x.codigo]}</b></button>`).join('');
+}
 function renderDChips(){
 const el=document.getElementById('dchips'); if(!el) return;
 el.innerHTML=DFILTROS.map(f=>{
@@ -435,7 +456,7 @@ renderKanban();
 function diasObra(o){ if(!o.data_fechamento) return null; const d=parseDate(o.data_fechamento); if(!d) return null; return diffDays(d,new Date()); }
 function renderList(){
 if(VIEW==='kanban') return renderKanban();
-let arr=OBRAS.slice().filter(o=>passaDias(o,filtroDias));
+let arr=OBRAS.slice().filter(o=>passaDias(o,filtroDias)).filter(o=>!filtroCat||(o.categoria||'residencial')===filtroCat);
 if(filtroEtapa!==null) arr=arr.filter(o=>o.etapa_numero===filtroEtapa);
 if(busca) arr=arr.filter(o=> (o.cliente||'').toLowerCase().includes(busca) || (o.contrato||'').includes(busca));
 // ordena: não finalizadas primeiro, depois por etapa desc, depois nome
@@ -463,7 +484,7 @@ if(sel){
     sel.innerHTML=usadas.map(t=>`<option value="${t.codigo}" ${t.codigo===KTR?'selected':''}>${t.icone||''} ${esc(t.nome)}</option>`).join('');
   } else { sel.style.display='none'; KTR=(usadas[0]||{codigo:'padrao'}).codigo; }
 }
-let arr=OBRAS.slice().filter(o=>passaDias(o,filtroDias)).filter(o=>(o.trilha||'padrao')===KTR);
+let arr=OBRAS.slice().filter(o=>passaDias(o,filtroDias)).filter(o=>(o.trilha||'padrao')===KTR).filter(o=>!filtroCat||(o.categoria||'residencial')===filtroCat);
 if(busca) arr=arr.filter(o=> (o.cliente||'').toLowerCase().includes(busca) || (o.contrato||'').includes(busca));
 const el=document.getElementById('list');
 el.className='kb'; el.style.display='flex';
@@ -491,6 +512,7 @@ h+='<div class="kcard '+(n===8?'fim':(late?'late':''))+'" draggable="true" data-
  +(o.whatsapp_grupo_id?'<button onclick="event.stopPropagation();notificarGrupo(\''+o.id+'\')" title="Avisar no grupo">📣</button>':'<button onclick="event.stopPropagation();criarGrupo(\''+o.id+'\')" title="Criar grupo">➕</button>')
  +'<button onclick="event.stopPropagation();abrirRelatorio(\''+o.id+'\')" title="Relatório">📄</button>'
 +((o.etapa_numero>=8&&!o.nps_enviado_em)?'<button onclick="event.stopPropagation();pedirAvaliacao(\''+o.id+'\')" title="Pesquisa de satisfação">⭐</button>':'')
++((o.etapa_numero>=8&&!o.iptu_avisado_em&&(CIDIPTU[o.cidade]||{}).tem_programa==='sim')?'<button onclick="event.stopPropagation();avisarIPTU(\''+o.id+'\')" title="IPTU Sustentável">🏛️</button>':'')
  +'<button onclick="event.stopPropagation();copiarLinkInst(\''+o.id+'\')" title="Link do instalador">🔧</button>'
  +'<button onclick="event.stopPropagation();openForm(\''+o.id+'\')" title="Editar">✏️</button>'
  +'</div></div>';
@@ -521,6 +543,9 @@ if(o.potencia_kwp) metaBits.push(esc(String(o.potencia_kwp).replace('.',','))+' 
 if(o.data_instalacao){const di=o.data_instalacao.split('-');metaBits.push('📅 instalação '+di[2]+'/'+di[1]);}
 if(o.aceite_em){metaBits.push('✍️ termo assinado');}
 if(o.trilha&&o.trilha!=='padrao'){metaBits.push(trilhaNome(o.trilha));}
+const _ci=catInfo(o.categoria);
+if(o.categoria&&o.categoria!=='residencial'){metaBits.push(_ci.icone+' '+_ci.nome+(o.ramo?' · '+ramoNome(o.ramo):''));}
+if(o.cidade&&o.cidade!=='Araçatuba'){metaBits.push('📍 '+o.cidade);}
 metaBits.push('atualizado '+diasAtras(o.atualizado_em));
 if(o.observacoes) metaBits.push('📝 '+esc(o.observacoes));
 const _et=etapasDe(o.trilha);
@@ -544,6 +569,7 @@ ${o.whatsapp_grupo_id
 <button class="act act-gh" onclick="copiarLinkInst('${o.id}')" title="Link do checklist do instalador">🔧</button>
 <button class="act act-gh" onclick="abrirRelatorio('${o.id}')" title="Relatório de instalação">📄</button>
 ${o.etapa_numero>=8 && !o.nps_enviado_em ? `<button class="act act-gh" onclick="pedirAvaliacao('${o.id}')" title="Enviar pesquisa de satisfação">⭐</button>` : ''}
+${o.etapa_numero>=8 && !o.iptu_avisado_em && (CIDIPTU[o.cidade]||{}).tem_programa==='sim' ? `<button class="act act-gh" onclick="avisarIPTU('${o.id}')" title="Avisar sobre o IPTU Sustentável">🏛️</button>` : ''}
 <button class="act act-gh" onclick="openForm('${o.id}')">✏️</button>
 </div>
 </div>`;
@@ -649,6 +675,28 @@ const ov=document.getElementById('ovForm'); if(ov) ov.remove();
 toast('Obra excluída ✓');
 await loadObras();
 }
+async function avisarIPTU(id){
+const o=getObra(id);
+if(!o.whatsapp_grupo_id){ toast('Esta obra não tem grupo de WhatsApp'); return; }
+const inf=CIDIPTU[o.cidade];
+if(!inf||inf.tem_programa!=='sim'){ toast('A cidade '+(o.cidade||'—')+' não tem programa confirmado'); return; }
+const primeiro=(o.cliente||'').split(' ')[0];
+let msg='🏛️ *'+primeiro+', você pode pagar menos IPTU por causa do seu sistema solar.*\n\n'
+ +(o.cidade||'Sua cidade')+' tem o programa de desconto no IPTU para imóveis sustentáveis — e *energia solar fotovoltaica está na lista*. ☀️\n\n'
+ +'📉 Desconto: *'+inf.percentual+'*\n'
+ +(inf.nome_lei?'📜 '+inf.nome_lei+'\n':'')
+ +(inf.prazo?'\n⏰ *Atenção ao prazo:* o pedido precisa ser protocolado até *'+inf.prazo+'*.\n':'')
+ +'\n📄 *A parte boa: nós preparamos a documentação para você.*\n'
+ +'Já temos o projeto, a ART e a homologação do seu sistema. É só organizarmos tudo e te orientarmos no protocolo — *sem custo*, faz parte do nosso pós-venda.\n\n'
+ +'Quer que a gente prepare? É só responder aqui. 🙌\n\n*Equipe Polaris Energia Solar*';
+if(!confirm('Enviar o aviso do IPTU Sustentável para '+o.cliente+'?\n\nCidade: '+o.cidade+'\nDesconto: '+inf.percentual))return;
+toast('Enviando aviso do IPTU... 🏛️');
+const r=await sb.functions.invoke('notificar-grupo',{body:{grupo_id:o.whatsapp_grupo_id,message:msg}});
+if(r.error||(r.data&&r.data.error)){ toast('Erro: '+((r.data&&r.data.error)||r.error.message)); return; }
+await sb.rpc('marcar_iptu_avisado',{p_obra:id});
+toast('✓ Aviso do IPTU enviado 🏛️');
+await loadObras();
+}
 async function pedirAvaliacao(id){
 const o=getObra(id);
 if(!o.whatsapp_grupo_id){ toast('Esta obra não tem grupo de WhatsApp'); return; }
@@ -666,6 +714,7 @@ await sb.rpc('marcar_nps_enviado',{p_obra:id});
 toast('✓ Pesquisa enviada no grupo ⭐');
 await loadObras();
 }
+function trocarCat(v){ const f=document.getElementById('fldRamo'); if(f) f.style.display=(v==='comercial')?'':'none'; }
 function trocarTrilha(tr){
 const sel=document.getElementById('f_et'); if(!sel) return;
 const m=etapasDe(tr), atual=parseInt(sel.value,10)||0;
@@ -685,9 +734,10 @@ function fichaTexto(o){
   return L.join('\n');
 }
 async function avisarInstalador(o, antes, depois){
-  if(!o.instalador_id) return;
+  if(!o.instalador_id){ toast('ℹ️ Equipe não avisada: nenhum instalador definido nesta obra'); return; }
   const eq=EQUIPE.find(x=>x.id===o.instalador_id);
-  if(!eq || !eq.whatsapp_grupo_id) return;
+  if(!eq){ toast('ℹ️ Instalador não encontrado na equipe'); return; }
+  if(!eq.whatsapp_grupo_id){ toast('ℹ️ '+eq.nome+' não avisada: cadastre o grupo em 👥 Equipe'); return; }
   const reag=!!antes;
   const linkChk=`${location.origin}/instalador.html?id=${encodeURIComponent(o.slug)}&t=${o.instalador_token}`;
   const maps=o.endereco?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.endereco)}`:'';
@@ -908,6 +958,8 @@ const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovForm';
 const _tr=o.trilha||'padrao'; const _etf=etapasDe(_tr);
 const etOpts=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===(o.etapa_numero??1)?'selected':''}>${n} - ${(_etf[n]?.nome||'').replace('!','')}</option>`).join('');
 const trOpts=TRILHAS.map(t=>`<option value="${t.codigo}" ${t.codigo===_tr?'selected':''}>${t.icone||''} ${esc(t.nome)}</option>`).join('');
+const catOpts=CATS.map(x=>`<option value="${x.codigo}" ${x.codigo===(o.categoria||'residencial')?'selected':''}>${x.icone||''} ${esc(x.nome)}</option>`).join('');
+const ramoOpts='<option value="">— selecione —</option>'+RAMOS.map(x=>`<option value="${x.codigo}" ${x.codigo===o.ramo?'selected':''}>${esc(x.nome)}</option>`).join('');
 const instOpts='<option value="">— Instalador —</option>'+EQUIPE.filter(p=>p.papel==='Instalador'&&p.ativo!==false).map(p=>`<option value="${p.id}" ${p.id===o.instalador_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 const vendOpts='<option value="">— Vendedor —</option>'+EQUIPE.filter(p=>p.papel==='Vendedor').map(p=>`<option value="${p.id}" ${p.id===o.vendedor_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 ov.innerHTML=`<div class="modal">
@@ -932,6 +984,12 @@ ov.innerHTML=`<div class="modal">
 </div>
 <div class="grid2">
 <div class="fld"><label>Tipo de projeto</label><select id="f_trilha" onchange="trocarTrilha(this.value)">${trOpts}</select></div>
+<div class="row">
+<div class="fld"><label>Categoria</label><select id="f_cat" onchange="trocarCat(this.value)">${catOpts}</select></div>
+<div class="fld" id="fldRamo" style="${(o.categoria==='comercial')?'':'display:none'}"><label>Ramo</label><select id="f_ramo">${ramoOpts}</select></div>
+</div>
+<div class="fld"><label>Cidade</label><input id="f_cidade" list="lstCidades" value="${esc(o.cidade||'')}" placeholder="Araçatuba">
+<datalist id="lstCidades">${Object.keys(CIDIPTU).map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div>
 <div class="fld"><label>Tipo de telhado</label><select id="f_tel2">${['','Cerâmico','Metálico','Fibrocimento','Laje','Solo','Outro'].map(t=>`<option value="${t}" ${t===(o.tipo_telhado||'')?'selected':''}>${t||'— Telhado —'}</option>`).join('')}</select></div>
 <div class="fld"><label>Incluso no serviço</label><div style="display:flex;gap:14px;padding:11px 2px">
 <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--txt);cursor:pointer"><input type="checkbox" id="f_est" ${o.tem_estrutura?'checked':''} style="width:16px;height:16px"> Estrutura</label>
@@ -964,6 +1022,7 @@ document.body.appendChild(ov);
 ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
 if(focoFone) setTimeout(()=>document.getElementById('f_tel').focus(),50);
 window._dtiAntes = o.data_instalacao || null;
+window._instAntes = o.instalador_id || null;
 if(id) sb.rpc('is_admin').then(r=>{ const rd=document.getElementById('rowDel'); if(r.data&&rd) rd.style.display=''; });
 document.getElementById('f_save').onclick = ()=> salvarForm(id);
 }
@@ -987,6 +1046,9 @@ qtd_modulos:parseInt(document.getElementById('f_qtm').value,10)||null,
 modelo_modulo:document.getElementById('f_mdm').value.trim()||null,
 inversor_descricao:document.getElementById('f_inv').value.trim()||null,
 trilha:document.getElementById('f_trilha')?.value||'padrao',
+categoria:document.getElementById('f_cat')?.value||'residencial',
+ramo:(document.getElementById('f_cat')?.value==='comercial')?(document.getElementById('f_ramo')?.value||null):null,
+cidade:document.getElementById('f_cidade')?.value.trim()||null,
 tipo_telhado:document.getElementById('f_tel2').value||null,
 endereco:document.getElementById('f_end').value.trim()||null,
 tem_estrutura:document.getElementById('f_est').checked,
@@ -1005,14 +1067,27 @@ document.getElementById('ovForm').remove();
 toast(id?'Obra salva ✓':'Obra criada ✓');
 const dtiDepois = rec.data_instalacao || null;
 const dtiAntes = window._dtiAntes || null;
-if(id && dtiDepois && dtiDepois!==dtiAntes){
-const oAtual=getObra(id);
-if(oAtual){
-if(oAtual.whatsapp_grupo_id) await avisarAgendamento(oAtual, dtiAntes, dtiDepois);
-avisarInstalador(oAtual, dtiAntes, dtiDepois);
-}
-}
+const instDepois = rec.instalador_id || null;
+const instAntes = window._instAntes || null;
+
+// Recarrega ANTES de avisar, para usar os dados já salvos
 await loadObras();
+const oAtual = id ? getObra(id) : OBRAS.find(o => o.slug === rec.slug);
+
+if(oAtual && dtiDepois){
+  const mudouData = (dtiDepois !== dtiAntes);
+  const mudouInst = (instDepois !== instAntes);
+
+  if(mudouData){
+    // Data nova ou remarcada → avisa cliente e equipe
+    if(oAtual.whatsapp_grupo_id) await avisarAgendamento(oAtual, dtiAntes, dtiDepois);
+    else toast('ℹ️ Cliente não avisado: esta obra ainda não tem grupo de WhatsApp');
+    await avisarInstalador(oAtual, dtiAntes, dtiDepois);
+  } else if(mudouInst && instDepois){
+    // Só trocou/definiu a equipe → avisa apenas a equipe nova
+    await avisarInstalador(oAtual, null, dtiDepois);
+  }
+}
 }
 async function slugUnico(base){
 if(!base) base='cliente';
