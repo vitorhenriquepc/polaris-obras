@@ -86,6 +86,22 @@ font-size:11.5px;font-weight:800;cursor:pointer;flex-shrink:0}
 .brbusca{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--txt);border-radius:11px;
 padding:12px 13px;font-family:inherit;font-size:14px;outline:none;margin-bottom:12px}
 .brbusca:focus{border-color:var(--gold)}
+.rsp{display:flex;flex-direction:column;gap:9px;max-height:58vh;overflow-y:auto}
+.rrow{background:var(--card2);border:1px solid var(--border);border-left:3px solid var(--gold);
+border-radius:12px;padding:12px 13px}
+.rrow.lida{opacity:.5;border-left-color:var(--border)}
+.rrow .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rrow .cl{font-weight:800;font-size:14px}
+.rrow .tag{font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;
+border-radius:20px;padding:2px 8px;background:var(--card);border:1px solid var(--gold);color:var(--gold)}
+.rrow .tx{font-size:13px;margin-top:7px;line-height:1.5;color:var(--txt)}
+.rrow .mt{font-size:11px;color:var(--muted);margin-top:7px;display:flex;align-items:center;gap:9px}
+.rrow .mt button{margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);
+border-radius:8px;padding:4px 10px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer}
+.rrow .mt button:hover{border-color:var(--green);color:var(--green-l,#58B868)}
+.badge{position:absolute;top:-5px;right:-5px;background:#e07070;color:#fff;font-size:10px;font-weight:800;
+border-radius:20px;padding:1px 6px;min-width:17px;text-align:center}
+.btn-equipe{position:relative}
 
 /* ---- Toolbar ---- */
 .toolbar{display:flex;gap:8px;margin:12px 0}
@@ -343,6 +359,7 @@ root.innerHTML = `
 <div class="search">🔍 <input id="busca" placeholder="Buscar cliente ou contrato..."></div>
 <div class="viewtabs"><button id="vCards" class="on" onclick="setView('cards')">▦ Cards</button><button id="vKanban" onclick="setView('kanban')">▤ Kanban</button><button id="vVazias" style="display:none" onclick="toggleVazias()" title="Ocultar/mostrar colunas sem obras">⊟</button></div>
 <select id="selTrilha" onchange="setTrilha(this.value)" style="display:none;background:var(--card);border:1px solid var(--border);color:var(--txt);border-radius:11px;padding:0 12px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer"></select>
+<button class="btn-equipe" id="bResp" title="Respostas dos clientes" onclick="openRespostas()">💬<span class="badge" id="bdgResp" style="display:none">0</span></button>
 <button class="btn-equipe" id="bBrindes" title="Brindes dos clientes" onclick="openBrindes()">🎁</button>
 <button class="btn-equipe" id="bAgenda" title="Links de agenda das equipes">📅</button>
 <button class="btn-equipe" id="bEquipe" title="Gerenciar equipe">👥</button>
@@ -391,7 +408,7 @@ async function loadObras(){
 const { data, error } = await sb.from('obras').select('*');
 if(error){ document.getElementById('list').innerHTML=`<div class="empty"><span class="i">⚠️</span>Erro ao carregar: ${esc(error.message)}</div>`; return; }
 OBRAS = data||[];
-renderStats(); renderDChips(); renderCChips(); renderList();
+renderStats(); renderDChips(); renderCChips(); renderList(); checarRespostas();
 }
 
 /* ---------- stats ---------- */
@@ -509,7 +526,7 @@ h+='<div class="kcard '+(n===8?'fim':(late?'late':''))+'" draggable="true" data-
  +(o.aceite_em?'<span>✍️</span>':'')+'</div>'
  +'<div class="kacts">'
  +'<button onclick="event.stopPropagation();enviarWA(\''+o.id+'\')" title="Mensagem ao cliente">💬</button>'
- +(o.whatsapp_grupo_id?'<button onclick="event.stopPropagation();notificarGrupo(\''+o.id+'\')" title="Avisar no grupo">📣</button>':'<button onclick="event.stopPropagation();criarGrupo(\''+o.id+'\')" title="Criar grupo">➕</button>')
+ +(o.whatsapp_grupo_id?'<button onclick="event.stopPropagation();notificarGrupo(\''+o.id+'\')" title="Avisar no grupo">📣</button>':'')
  +'<button onclick="event.stopPropagation();abrirRelatorio(\''+o.id+'\')" title="Relatório">📄</button>'
 +((o.etapa_numero>=8&&!o.nps_enviado_em)?'<button onclick="event.stopPropagation();pedirAvaliacao(\''+o.id+'\')" title="Pesquisa de satisfação">⭐</button>':'')
 +((o.etapa_numero>=8&&!o.iptu_avisado_em&&(CIDIPTU[o.cidade]||{}).tem_programa==='sim')?'<button onclick="event.stopPropagation();avisarIPTU(\''+o.id+'\')" title="IPTU Sustentável">🏛️</button>':'')
@@ -564,7 +581,7 @@ return `<div class="obra" data-id="${o.id}">
 <button class="act act-wa" onclick="enviarWA('${o.id}')">💬 Cliente</button>
 ${o.whatsapp_grupo_id
 ? `<button class="act act-grp" onclick="notificarGrupo('${o.id}')" title="Avisar no grupo do cliente">📣 Grupo</button>`
-: `<button class="act act-gh" onclick="criarGrupo('${o.id}')" title="Criar grupo do cliente">➕ Grupo</button>`}
+: `<button class="act act-gh" style="opacity:.55" onclick="criarGrupo('${o.id}')" title="Esta obra ainda não tem grupo — clique para criar pelo sistema">⚠️ Sem grupo</button>`}
 <button class="act act-gh" onclick="copiarLink('${o.id}')">🔗 Link</button>
 <button class="act act-gh" onclick="copiarLinkInst('${o.id}')" title="Link do checklist do instalador">🔧</button>
 <button class="act act-gh" onclick="abrirRelatorio('${o.id}')" title="Relatório de instalação">📄</button>
@@ -789,6 +806,50 @@ toast('Avisando o cliente... 📅');
 const r=await sb.functions.invoke('notificar-grupo',{body:{grupo_id:o.whatsapp_grupo_id,message:msg}});
 if(r.error||(r.data&&r.data.error)) toast('⚠️ Não consegui avisar no grupo — use o 📣 para reenviar');
 else toast('✓ Cliente avisado no grupo 📅');
+}
+async function checarRespostas(){
+try{
+  const r = await sb.rpc('get_respostas',{p_apenas_nao_lidas:true});
+  const n = (r.data||[]).length;
+  const b = document.getElementById('bdgResp');
+  if(b){ b.style.display = n ? '' : 'none'; b.textContent = n>9?'9+':n; }
+}catch(e){}
+}
+async function openRespostas(){
+const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovResp';
+ov.innerHTML='<div class="modal"><h2>💬 Respostas dos clientes</h2>'
++'<p style="color:var(--muted);font-size:12.5px;margin:-8px 0 14px">Mensagens recebidas nos grupos. Marque como lida depois de tratar.</p>'
++'<div class="rsp" id="rsplist"><div class="eqempty">Carregando...</div></div>'
++'<button class="cancel" style="width:100%;margin-top:12px" onclick="document.getElementById(\'ovResp\').remove()">Fechar</button></div>';
+document.body.appendChild(ov);
+ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+const r = await sb.rpc('get_respostas',{p_apenas_nao_lidas:false});
+renderRespostas(r.data||[]);
+}
+function renderRespostas(arr){
+const el=document.getElementById('rsplist'); if(!el) return;
+if(!arr.length){ el.innerHTML='<div class="eqempty">Nenhuma resposta recebida ainda.</div>'; return; }
+const ctxLabel={iptu:'🏛️ IPTU',nps:'⭐ NPS',geral:'💬 Geral'};
+el.innerHTML=arr.map(m=>{
+const d=new Date(m.recebida_em);
+return '<div class="rrow '+(m.lida_em?'lida':'')+'" id="rr'+m.id+'">'
+ +'<div class="top"><span class="cl">'+esc(m.cliente||m.remetente_nome||'Desconhecido')+'</span>'
+ +(m.contexto&&m.contexto!=='geral'?'<span class="tag">'+(ctxLabel[m.contexto]||m.contexto)+'</span>':'')
+ +(m.contrato?'<span style="font-size:11.5px;color:var(--muted)">#'+esc(m.contrato)+'</span>':'')+'</div>'
+ +'<div class="tx">'+esc(m.texto||'')+'</div>'
+ +'<div class="mt"><span>'+d.toLocaleDateString('pt-BR')+' às '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</span>'
+ +(m.remetente_nome&&m.cliente?'<span>por '+esc(m.remetente_nome)+'</span>':'')
+ +(m.lida_em?'<span style="margin-left:auto;color:#58B868;font-weight:800">✓ tratada</span>'
+            :'<button onclick="lerResposta('+m.id+')">marcar tratada</button>')
+ +'</div></div>';
+}).join('');
+}
+async function lerResposta(id){
+const r=await sb.rpc('marcar_resposta_lida',{p_id:id});
+if(r.error||(r.data&&r.data.erro)){ toast('Erro ao marcar'); return; }
+const el=document.getElementById('rr'+id); if(el) el.classList.add('lida');
+const bt=el?.querySelector('.mt button'); if(bt) bt.outerHTML='<span style="margin-left:auto;color:#58B868;font-weight:800">✓ tratada</span>';
+checarRespostas();
 }
 let BRINDES=[];
 async function openBrindes(){
