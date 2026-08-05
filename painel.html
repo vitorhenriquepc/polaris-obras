@@ -961,7 +961,7 @@ const trOpts=TRILHAS.map(t=>`<option value="${t.codigo}" ${t.codigo===_tr?'selec
 const catOpts=CATS.map(x=>`<option value="${x.codigo}" ${x.codigo===(o.categoria||'residencial')?'selected':''}>${x.icone||''} ${esc(x.nome)}</option>`).join('');
 const ramoOpts='<option value="">— selecione —</option>'+RAMOS.map(x=>`<option value="${x.codigo}" ${x.codigo===o.ramo?'selected':''}>${esc(x.nome)}</option>`).join('');
 const instOpts='<option value="">— Instalador —</option>'+EQUIPE.filter(p=>p.papel==='Instalador'&&p.ativo!==false).map(p=>`<option value="${p.id}" ${p.id===o.instalador_id?'selected':''}>${esc(p.nome)}</option>`).join('');
-const vendOpts='<option value="">— Vendedor —</option>'+EQUIPE.filter(p=>p.papel==='Vendedor').map(p=>`<option value="${p.id}" ${p.id===o.vendedor_id?'selected':''}>${esc(p.nome)}</option>`).join('');
+const vendOpts='<option value="">— Vendedor —</option>'+EQUIPE.filter(p=>(p.papel==='Vendedor'||p.vende)&&p.ativo!==false).map(p=>`<option value="${p.id}" ${p.id===o.vendedor_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 ov.innerHTML=`<div class="modal">
 <h2>${novo?'Nova obra':'Editar obra'}</h2>
 <button class="act act-gh" style="margin:-4px 0 12px" onclick="importarProposta()">📎 Importar proposta (PDF)</button>
@@ -1104,7 +1104,7 @@ EQUIPE = data||[];
 function reabrirEquipe(){ const o=document.getElementById('ovEquipe'); if(o){ o.remove(); openEquipe(); } }
 function openEquipe(){
 const linhas = EQUIPE.map(p=>`<div class="eqrow ${p.ativo?'':'off'}">
-<div><b>${esc(p.nome)}</b><span>${esc(p.papel)} • ${esc(p.telefone)}</span></div>
+<div><b>${esc(p.nome)}</b><span>${esc(p.papel)}${(p.vende&&p.papel!=='Vendedor')?' · 💼 também vende':''} • ${esc(p.telefone)}</span></div>
 <div class="eqact">
 <button onclick="toggleAtivo('${p.id}',${!p.ativo})" title="${p.ativo?'Ativo (clique p/ desativar)':'Inativo (clique p/ ativar)'}">${p.ativo?'🟢':'⚪'}</button>
 ${p.papel==='Instalador'?`<button onclick="copiarAgendaDe('${p.id}')" title="Copiar link da agenda desta equipe">📅</button>`:''}
@@ -1133,6 +1133,10 @@ ov.innerHTML=`<div class="modal">
 <div class="fld"><label>Papel</label><select id="e_papel">${pOpts}</select></div>
 <div class="fld"><label>WhatsApp (DDD+nº) *</label><input id="e_tel" value="${esc(p.telefone||'')}" placeholder="18999999999"></div>
 </div>
+<div class="fld"><label style="display:flex;align-items:center;gap:9px;cursor:pointer">
+<input type="checkbox" id="e_vende" ${p.vende?'checked':''} style="width:17px;height:17px;accent-color:var(--green)">
+<span>Também atua como vendedor</span></label>
+<div style="font-size:11px;color:var(--muted);margin-top:5px">Marque para aparecer na lista de vendedores das obras, mesmo com outro papel.</div></div>
 <div class="fld" id="fldGrupo" style="${(p.papel==='Instalador')?'':'display:none'}"><label>ID do grupo de instalação (opcional)</label>
 <input id="e_grupo" value="${esc(p.whatsapp_grupo_id||'')}" placeholder="cole o link do convite ou o ID do grupo">
 <button class="act act-gh" style="width:100%;margin-top:7px;justify-content:center" onclick="resolverGrupo('${id||''}')">🔗 Descobrir ID pelo link do convite</button>
@@ -1151,7 +1155,7 @@ const nome=document.getElementById('e_nome').value.trim();
 let tel=document.getElementById('e_tel').value.replace(/\D/g,'');
 if(!nome||!tel){ toast('Preencha nome e telefone'); return; }
 if(tel.length<=11 && !tel.startsWith('55')) tel='55'+tel;
-const rec={ nome, papel:document.getElementById('e_papel').value, telefone:tel };
+const rec={ nome, papel:document.getElementById('e_papel').value, telefone:tel, vende:document.getElementById('e_vende')?.checked||false };
 const _g=document.getElementById('e_grupo');
 if(_g) rec.whatsapp_grupo_id = _g.value.trim() || null;
 let error;
