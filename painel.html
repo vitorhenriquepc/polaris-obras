@@ -486,7 +486,7 @@ await loadObras();
 subscribeRealtime();
 }
 
-let ETT={}, TRILHAS=[], CATS=[], RAMOS=[], CIDIPTU={};
+let ETT={}, TRILHAS=[], CATS=[], RAMOS=[], CIDIPTU={}, IPTU_ATIVO=false;
 async function loadEtapas(){
 const { data, error } = await sb.from('etapas').select('*').order('numero');
 if(error){ toast('Erro ao carregar etapas'); return; }
@@ -496,6 +496,8 @@ const t = await sb.from('trilhas').select('*').order('ordem');
 TRILHAS = t.data || [{codigo:'padrao',nome:'Sistema Fotovoltaico',icone:'☀️'}];
 const ct = await sb.from('categorias').select('*').order('ordem'); CATS = ct.data || [];
 const rm = await sb.from('ramos').select('*').order('ordem'); RAMOS = rm.data || [];
+const cf = await sb.from('config').select('valor').eq('chave','iptu_envio_ativo').maybeSingle();
+IPTU_ATIVO = (cf.data?.valor === '1');
 const ci = await sb.from('cidades_iptu').select('*'); CIDIPTU = {};
 (ci.data||[]).forEach(x => CIDIPTU[x.cidade] = x);
 }
@@ -631,7 +633,7 @@ h+='<div class="kcard '+(n===8?'fim':(late?'late':''))+'" draggable="true" data-
  +(o.whatsapp_grupo_id?'<button onclick="event.stopPropagation();notificarGrupo(\''+o.id+'\')" title="Avisar no grupo">📣</button>':'')
  +'<button onclick="event.stopPropagation();abrirRelatorio(\''+o.id+'\')" title="Relatório">📄</button>'
 +((o.etapa_numero>=8&&!o.nps_enviado_em)?'<button onclick="event.stopPropagation();pedirAvaliacao(\''+o.id+'\')" title="Pesquisa de satisfação">⭐</button>':'')
-+((o.etapa_numero>=8&&!o.iptu_avisado_em&&(CIDIPTU[o.cidade]||{}).tem_programa==='sim')?'<button onclick="event.stopPropagation();avisarIPTU(\''+o.id+'\')" title="IPTU Sustentável">🏛️</button>':'')
++((IPTU_ATIVO&&o.etapa_numero>=8&&!o.iptu_avisado_em&&(CIDIPTU[o.cidade]||{}).tem_programa==='sim')?'<button onclick="event.stopPropagation();avisarIPTU(\''+o.id+'\')" title="IPTU Sustentável">🏛️</button>':'')
  +'<button onclick="event.stopPropagation();copiarLinkInst(\''+o.id+'\')" title="Link do instalador">🔧</button>'
  +'<button onclick="event.stopPropagation();openForm(\''+o.id+'\')" title="Editar">✏️</button>'
  +'</div></div>';
@@ -688,7 +690,7 @@ ${o.whatsapp_grupo_id
 <button class="act act-gh" onclick="copiarLinkInst('${o.id}')" title="Link do checklist do instalador">🔧</button>
 <button class="act act-gh" onclick="abrirRelatorio('${o.id}')" title="Relatório de instalação">📄</button>
 ${o.etapa_numero>=8 && !o.nps_enviado_em ? `<button class="act act-gh" onclick="pedirAvaliacao('${o.id}')" title="Enviar pesquisa de satisfação">⭐</button>` : ''}
-${o.etapa_numero>=8 && !o.iptu_avisado_em && (CIDIPTU[o.cidade]||{}).tem_programa==='sim' ? `<button class="act act-gh" onclick="avisarIPTU('${o.id}')" title="Avisar sobre o IPTU Sustentável">🏛️</button>` : ''}
+${(IPTU_ATIVO && o.etapa_numero>=8 && !o.iptu_avisado_em && (CIDIPTU[o.cidade]||{}).tem_programa==='sim') ? `<button class="act act-gh" onclick="avisarIPTU('${o.id}')" title="Avisar sobre o IPTU Sustentável">🏛️</button>` : ''}
 <button class="act act-gh" onclick="openForm('${o.id}')">✏️</button>
 </div>
 </div>`;
