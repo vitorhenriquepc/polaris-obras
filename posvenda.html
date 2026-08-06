@@ -346,6 +346,8 @@ function render(){
         <div class="n">${R.clientes_ativos||0}</div><div class="l">Clientes ativos</div></button>
       <button class="pcard" onclick="setFiltro('sem_nps')">
         <div class="n">${R.sem_nps||0}</div><div class="l">Sem pesquisa respondida</div></button>
+      <button class="pcard ${R.sem_aniversario?'alerta':''}" onclick="setFiltro('sem_aniv')">
+        <div class="n">${R.sem_aniversario||0}</div><div class="l">Sem data de aniversário</div></button>
     </div>
   </div>`;
 
@@ -358,7 +360,8 @@ function render(){
     ${VISAO==='lista'?`
     <button class="chip ${FILTRO===''?'on':''}" onclick="setFiltro('')">Todos</button>
     <button class="chip ${FILTRO==='pendentes'?'on':''}" onclick="setFiltro('pendentes')">Com pendência</button>
-    <button class="chip ${FILTRO==='sem_nps'?'on':''}" onclick="setFiltro('sem_nps')">Sem NPS</button>`:''}
+    <button class="chip ${FILTRO==='sem_nps'?'on':''}" onclick="setFiltro('sem_nps')">Sem NPS</button>
+    <button class="chip ${FILTRO==='sem_aniv'?'on':''}" onclick="setFiltro('sem_aniv')">🎂 Sem aniversário</button>`:''}
   </div>`;
 
   if(VISAO==='jornada'){
@@ -370,6 +373,7 @@ function render(){
   let arr=cl.slice();
   if(FILTRO==='pendentes') arr=arr.filter(c=>c.pendentes>0);
   if(FILTRO==='sem_nps') arr=arr.filter(c=>c.nps==null);
+  if(FILTRO==='sem_aniv') arr=arr.filter(c=>!c.nascimento_dia);
   if(FILTRO==='indicacao') arr=arr.filter(c=>c.pendentes>0);
   if(BUSCA){const b=BUSCA.toLowerCase();
     arr=arr.filter(c=>(c.cliente||'').toLowerCase().includes(b)||(c.contrato||'').includes(b));}
@@ -391,7 +395,10 @@ function render(){
           <div class="nota ${cls}">${n==null?'—':n}</div>
         </div>
         <div class="meta">${bits.join('<span style="opacity:.4">·</span>')}</div>
-        ${c.pendentes?`<div style="margin-top:8px"><span class="tag gold">💬 ${c.pendentes} para tratar</span></div>`:''}
+        <div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">
+        ${c.pendentes?`<span class="tag gold">💬 ${c.pendentes} para tratar</span>`:''}
+        ${!c.nascimento_dia?`<span class="tag">🎂 sem aniversário</span>`:''}
+        </div>
       </button>`;
     }).join('')+'</div>';
   }
@@ -478,6 +485,23 @@ function renderFicha(D){
     <div class="dado"><div class="k">Ativado em</div><div class="v" style="font-size:13px">${dataBR(o.data_conclusao)}</div></div>
     <div class="dado"><div class="k">Registro</div><div class="v" style="font-size:13px">${D.fotos_total||0} fotos${D.videos_total?` · ${D.videos_total} vídeo${D.videos_total>1?'s':''}`:''}</div></div>
   </div></div>`;
+
+  /* Aniversário */
+  h+=`<div class="sec"><h3>Aniversário do cliente</h3>`;
+  if(o.nascimento_dia){
+    const mes=['','janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'][o.nascimento_mes];
+    h+=`<div class="dado" style="display:flex;align-items:center;gap:12px">
+      <div style="font-size:26px">🎂</div>
+      <div style="flex:1"><div class="v" style="font-size:15px">${o.nascimento_dia} de ${mes}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">Parabéns automático às 9h no grupo</div></div>
+      ${D.pode_agir?`<button class="chip" onclick="formAniversario('${o.id}',${o.nascimento_dia},${o.nascimento_mes})">alterar</button>`:''}
+    </div>`;
+  } else if(D.pode_agir){
+    h+=`<button class="mini" onclick="formAniversario('${o.id}',null,null)">🎂 Adicionar data de aniversário</button>`;
+  } else {
+    h+=`<div class="vazio">Sem data cadastrada.</div>`;
+  }
+  h+=`<div id="fani"></div></div>`;
 
   /* Satisfação */
   h+=`<div class="sec"><h3>Satisfação</h3>`;
@@ -596,6 +620,39 @@ async function tratar(id,obraId){
 /* ===== REGISTRO MANUAL ===== */
 let OBRA_ABERTA=null;
 
+function formAniversario(id, dia, mes){
+  const el=document.getElementById('fani');
+  if(el.innerHTML){ el.innerHTML=''; return; }
+  let meses='';
+  const nomes=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  nomes.forEach((n,i)=>{ meses+=`<option value="${i+1}" ${(i+1)===mes?'selected':''}>${n}</option>`; });
+  let dias='';
+  for(let d=1;d<=31;d++) dias+=`<option value="${d}" ${d===dia?'selected':''}>${d}</option>`;
+  el.innerHTML=`<div class="reg">
+    <div class="lin">
+      <div class="cp" style="max-width:88px"><label>Dia</label><select id="a_dia">${dias}</select></div>
+      <div class="cp"><label>Mês</label><select id="a_mes">${meses}</select></div>
+    </div>
+    <button class="salvar" onclick="salvarAniversario('${id}')">Salvar aniversário</button>
+    ${dia?`<button class="mini" style="margin-top:7px" onclick="limparAniversario('${id}')">remover data</button>`:''}
+    <div class="dica">Só dia e mês — não guardamos o ano. Às 9h do dia, o sistema manda os parabéns no grupo e avisa a equipe.</div>
+  </div>`;
+}
+async function salvarAniversario(id){
+  const d=parseInt(document.getElementById('a_dia').value,10);
+  const m=parseInt(document.getElementById('a_mes').value,10);
+  const r=await sb.rpc('definir_aniversario',{p_obra:id,p_dia:d,p_mes:m});
+  if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
+  toast('Aniversário salvo ✓');
+  await abrirFicha(id);
+}
+async function limparAniversario(id){
+  if(!confirm('Remover a data de aniversário deste cliente?')) return;
+  const r=await sb.rpc('definir_aniversario',{p_obra:id,p_dia:null,p_mes:null});
+  if(r.error){ toast('Erro'); return; }
+  toast('Data removida');
+  await abrirFicha(id);
+}
 function formNPS(id, notaAtual){
   OBRA_ABERTA=id;
   const el=document.getElementById('fnps');
