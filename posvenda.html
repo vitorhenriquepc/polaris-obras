@@ -2,7 +2,7 @@
 <html lang="pt-BR" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5">
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="theme-color" content="#011D2E">
 <title>Polaris — Pós-venda</title>
@@ -10,8 +10,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;min-width:0}
-html,body{overflow-x:hidden;max-width:100%;width:100%}
+html{overflow-x:hidden;width:100%}
+body{overflow-x:hidden;width:100%;max-width:100vw;position:relative}
 img,video,table{max-width:100%}
+.wrap,.toolbar,.stats,.dchips,.cchips,.tools{max-width:100%}
 :root{--navy:#011D2E;--green:#3B8B3B;--green-l:#58B868;--gold:#F5A623;
 --bg:#0a1622;--card:#0f2233;--card2:#13293c;--border:#1d3850;--txt:#eaf2f8;--muted:#8fa6b8}
 html[data-theme="light"]{--gold:#B8790A;--green-l:#3B8B3B;--bg:#F0F2ED;--card:#FFF;--card2:#F4F6F3;
@@ -223,7 +225,7 @@ display:flex;gap:7px;flex-wrap:wrap;align-items:center}
   <div class="tbrow">
     <img id="logo" src="https://obras.polarisenergiasolar.com/logo.png" onerror="this.style.display='none'">
     <div class="tabs">
-      <a class="tab" href="painel.html">🏗️ Obras</a>
+      <a class="tab" id="tabObras" href="painel.html">🏗️ Obras</a>
       <button class="tab on">💚 Pós-venda</button>
     </div>
     <div class="tbacts">
@@ -286,6 +288,7 @@ const CTX={
 };
 
 async function boot(){
+  const t=document.getElementById('tabObras'); if(t) t.href='painel.html?v='+Date.now();
   const s=await sb.auth.getSession();
   if(!s.data.session){location.href='login.html';return;}
   document.getElementById('who').textContent=s.data.session.user.email;
