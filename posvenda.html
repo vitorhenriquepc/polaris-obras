@@ -3,12 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="theme-color" content="#011D2E">
 <title>Polaris — Pós-venda</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
+*{box-sizing:border-box;margin:0;padding:0;min-width:0}
+html,body{overflow-x:hidden;max-width:100%;width:100%}
+img,video,table{max-width:100%}
 :root{--navy:#011D2E;--green:#3B8B3B;--green-l:#58B868;--gold:#F5A623;
 --bg:#0a1622;--card:#0f2233;--card2:#13293c;--border:#1d3850;--txt:#eaf2f8;--muted:#8fa6b8}
 html[data-theme="light"]{--gold:#B8790A;--green-l:#3B8B3B;--bg:#F0F2ED;--card:#FFF;--card2:#F4F6F3;
@@ -31,6 +34,8 @@ display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:.18
 .tab.on{background:var(--card);color:var(--gold);box-shadow:0 1px 6px rgba(0,0,0,.18)}
 .tbrow{display:flex;align-items:center;gap:10px;width:100%;flex-wrap:wrap}
 .tbacts{margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0}
+.ver{font-size:9.5px;color:var(--muted);opacity:.55;font-weight:700;white-space:nowrap}
+@media(max-width:640px){.ver{display:none}}
 .who{font-size:11px;color:var(--muted);font-weight:600;max-width:150px;
 overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .btn-out{background:none;border:1px solid var(--border);color:var(--muted);border-radius:9px;
@@ -225,6 +230,7 @@ display:flex;gap:7px;flex-wrap:wrap;align-items:center}
       <span class="who" id="who"></span>
       <button class="btn-out" id="bTema">🌙</button>
       <button class="btn-out" onclick="sair()" title="Sair">↪</button>
+      <span class="ver">v06/08 21:22</span>
     </div>
   </div>
 </div>
