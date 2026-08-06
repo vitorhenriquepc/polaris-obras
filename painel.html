@@ -216,6 +216,10 @@ border-radius:12px;padding:14px 16px;margin:14px 0;font-size:13.5px;line-height:
 .login .box{background:var(--card);border:1px solid var(--border);border-radius:18px;
 padding:30px 26px;width:100%;max-width:360px;text-align:center}
 .login img{height:42px;margin-bottom:6px}
+html[data-theme="light"] .login img{filter:none}
+html[data-theme="light"] .login .box{background:#fff}
+.login .logowrap{display:inline-flex;padding:10px 16px;border-radius:14px;margin-bottom:8px}
+html[data-theme="light"] .login .logowrap{background:var(--navy)}
 .login h1{font-size:18px;font-weight:800;margin-bottom:4px}
 .login h1 span{color:var(--gold)}
 .login p{color:var(--muted);font-size:13px;margin-bottom:20px}
@@ -348,6 +352,7 @@ let rtChannel = null;
 const root = document.getElementById('root');
 const LOGO = "https://obras.polarisenergiasolar.com/logo.png";
 const LOGO_CLARO = "https://obras.polarisenergiasolar.com/logo-claro.png";
+function logoAtual(){ return (document.documentElement.getAttribute('data-theme')==='light') ? LOGO_CLARO : LOGO; }
 
 /* ---------- util ---------- */
 function slugify(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
@@ -387,7 +392,7 @@ Você pega os dois em <b>Supabase → Project Settings → API</b>.
 function renderLogin(){
 if(rtChannel){ sb.removeChannel(rtChannel); rtChannel=null; }
 root.innerHTML = `<div class="login"><div class="box">
-<img src="${LOGO}" onerror="this.style.display='none'">
+<div class="logowrap"><img src="${LOGO}" onerror="this.style.display='none'"></div>
 <h1>Polaris <span>Obras</span></h1>
 <p>Painel da equipe — acesso restrito</p>
 <input id="email" type="email" placeholder="seu e-mail" autocomplete="username">
@@ -417,7 +422,7 @@ document.getElementById('senha').addEventListener('keydown',e=>{if(e.key==='Ente
 async function renderApp(session){
 root.innerHTML = `
 <div class="topbar">
-<img src="${LOGO}" onerror="this.style.display='none'">
+<img src="${logoAtual()}" onerror="this.style.display='none'">
 <div class="tabs">
 <button class="tab on">🏗️ Obras</button>
 <a class="tab" href="posvenda.html">💚 Pós-venda</a>
