@@ -29,8 +29,10 @@ font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-decoratio
 display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:.18s}
 .tab:hover{color:var(--txt)}
 .tab.on{background:var(--card);color:var(--gold);box-shadow:0 1px 6px rgba(0,0,0,.18)}
-.sp{margin-left:auto;display:flex;gap:8px;align-items:center}
-.who{font-size:11px;color:var(--muted);text-align:right;line-height:1.35}
+.tbrow{display:flex;align-items:center;gap:10px;width:100%;flex-wrap:wrap}
+.tbacts{margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0}
+.who{font-size:11px;color:var(--muted);font-weight:600;max-width:150px;
+overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .btn-out{background:none;border:1px solid var(--border);color:var(--muted);border-radius:9px;
 padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}
 .btn-out:hover{border-color:var(--gold);color:var(--gold)}
@@ -151,10 +153,16 @@ border-radius:50%;animation:g .8s linear infinite;margin:0 auto 12px}
 @keyframes g{to{transform:rotate(360deg)}}
 
 @media(max-width:640px){
-  .topbar{padding:10px 12px;gap:8px}
+  .topbar{padding:9px 11px;gap:7px}
   .topbar img{height:22px}
+  .tbrow{gap:7px}
   .who{display:none}
-  .tab{padding:8px 11px;font-size:12px}
+  .tabs{order:3;flex:1 1 100%;justify-content:center}
+  .tab{flex:1;justify-content:center;padding:9px 8px;font-size:12.5px}
+  .btn-out{padding:6px 9px;font-size:12px;min-height:32px}
+  .vtabs{flex:1 1 100%}
+  .vtab{flex:1;text-align:center}
+  .tools{gap:7px}
   .wrap{padding:14px 11px 50px}
   .hero{padding:16px}
   .hero h1{font-size:17px}
@@ -207,15 +215,17 @@ display:flex;gap:7px;flex-wrap:wrap;align-items:center}
 </head>
 <body>
 <div class="topbar">
-  <img id="logo" src="logo.png" onerror="this.style.display='none'">
-  <div class="tabs">
-    <a class="tab" href="painel.html">🏗️ Obras</a>
-    <button class="tab on">💚 Pós-venda</button>
-  </div>
-  <div class="sp">
-    <div class="who" id="who"></div>
-    <button class="btn-out" id="bTema">🌙</button>
-    <button class="btn-out" onclick="sair()">Sair</button>
+  <div class="tbrow">
+    <img id="logo" src="https://obras.polarisenergiasolar.com/logo.png" onerror="this.style.display='none'">
+    <div class="tabs">
+      <a class="tab" href="painel.html">🏗️ Obras</a>
+      <button class="tab on">💚 Pós-venda</button>
+    </div>
+    <div class="tbacts">
+      <span class="who" id="who"></span>
+      <button class="btn-out" id="bTema">🌙</button>
+      <button class="btn-out" onclick="sair()" title="Sair">↪</button>
+    </div>
   </div>
 </div>
 
@@ -230,7 +240,7 @@ display:flex;gap:7px;flex-wrap:wrap;align-items:center}
 const SB_URL='https://dakubhcgohiwzyqiegqf.supabase.co';
 const SB_KEY='sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx';
 const sb=supabase.createClient(SB_URL,SB_KEY);
-const LOGO_D='logo.png', LOGO_L='logo-claro.png';
+const LOGO_D='https://obras.polarisenergiasolar.com/logo.png', LOGO_L='https://obras.polarisenergiasolar.com/logo-claro.png';
 let DADOS=null, FILTRO='', BUSCA='';
 let VISAO='jornada', KB=null;
 try{VISAO=localStorage.getItem('polaris-pv-visao')||'jornada'}catch(e){}
