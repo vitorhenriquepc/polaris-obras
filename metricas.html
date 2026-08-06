@@ -63,6 +63,26 @@ td.num,th.num{text-align:right}
 .center .i{font-size:44px;display:block;margin-bottom:14px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+@media(max-width:640px){
+  .topbar{padding:10px 12px;gap:8px}
+  .topbar img{height:22px}
+  .topbar .ttl{font-size:14px}
+  .btn{padding:6px 9px;font-size:11.5px}
+  .wrap{padding:12px 10px 50px}
+  h2{font-size:14px;margin:20px 0 10px}
+  .kpis{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+  .kpi{padding:12px}
+  .kpi .v{font-size:21px}
+  .kpi .l{font-size:9.5px}
+  .pfilt{padding:8px;gap:5px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
+  .pfilt::-webkit-scrollbar{display:none}
+  .pfilt button{flex:0 0 auto;padding:7px 12px;font-size:12px}
+  .pfilt .lbl{flex:0 0 auto}
+  .card{padding:12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{font-size:12px;min-width:440px}
+  th{font-size:9.5px;padding:6px 7px}
+  td{padding:7px}
+}
 </style>
 </head>
 <body>
