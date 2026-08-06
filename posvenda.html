@@ -164,6 +164,39 @@ letter-spacing:.5px;padding:6px 5px;border-bottom:1px solid var(--border);font-w
 .gtab td{padding:7px 5px;border-bottom:1px solid var(--border);font-weight:600}
 .gtab tr:last-child td{border-bottom:none}
 .gtab .num{text-align:right}
+.rgstat{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px}
+.rgstat .b{flex:1;min-width:110px;background:var(--card);border:1px solid var(--border);
+border-radius:12px;padding:12px}
+.rgstat .b .n{font-size:22px;font-weight:800;line-height:1}
+.rgstat .b .l{font-size:10.5px;color:var(--muted);font-weight:700;margin-top:4px}
+.switch{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--border);
+border-radius:13px;padding:14px;margin-bottom:14px}
+.switch .info{flex:1}
+.switch .tt{font-size:14px;font-weight:800}
+.switch .ds{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.45}
+.sw{width:52px;height:29px;border-radius:20px;background:var(--border);border:none;cursor:pointer;
+position:relative;flex-shrink:0;transition:.22s}
+.sw.on{background:var(--green)}
+.sw::after{content:'';position:absolute;top:3px;left:3px;width:23px;height:23px;border-radius:50%;
+background:#fff;transition:.22s}
+.sw.on::after{transform:translateX(23px)}
+.rgrow{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--border);
+border-radius:12px;padding:12px;margin-bottom:7px}
+.rgrow.hoje{border-left:3px solid var(--gold)}
+.rgrow.bloq{opacity:.6;border-left:3px solid #e07070}
+.rgrow .ic{font-size:19px;flex-shrink:0}
+.rgrow .cn{flex:1;min-width:0}
+.rgrow .cn b{display:block;font-size:13.5px;line-height:1.3}
+.rgrow .cn span{font-size:11px;color:var(--muted);font-weight:600}
+.rgrow .qd{font-size:11px;font-weight:800;color:var(--muted);text-align:right;flex-shrink:0}
+.mod{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:7px}
+.mod .top{display:flex;align-items:center;gap:9px}
+.mod .top b{flex:1;font-size:13.5px}
+.mod .dia{background:var(--card2);border:1px solid var(--border);border-radius:20px;padding:3px 9px;
+font-size:11px;font-weight:800;color:var(--gold)}
+.mod .tx{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.5;
+white-space:pre-wrap;max-height:64px;overflow:hidden;position:relative}
+.mod.aberto .tx{max-height:none}
 .acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .ac{flex:1;min-width:130px;background:var(--card2);border:1px solid var(--border);color:var(--txt);
 border-radius:11px;padding:11px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;
@@ -355,6 +388,7 @@ function render(){
     <div class="vtabs">
       <button class="vtab ${VISAO==='jornada'?'on':''}" onclick="setVisao('jornada')">🗺️ Jornada</button>
       <button class="vtab ${VISAO==='lista'?'on':''}" onclick="setVisao('lista')">☰ Lista</button>
+      <button class="vtab ${VISAO==='regua'?'on':''}" onclick="setVisao('regua')">📅 Régua</button>
     </div>
     <div class="search">🔍<input id="q" placeholder="Buscar cliente ou contrato..." value="${esc(BUSCA)}" oninput="setBusca(this.value)"></div>
     ${VISAO==='lista'?`
@@ -367,6 +401,12 @@ function render(){
   if(VISAO==='jornada'){
     h+=renderJornada();
     document.getElementById('app').innerHTML=h;
+    return;
+  }
+  if(VISAO==='regua'){
+    h+='<div id="reguabox"><div class="center"><div class="spin"></div>Carregando régua...</div></div>';
+    document.getElementById('app').innerHTML=h;
+    carregarRegua();
     return;
   }
 
@@ -753,6 +793,74 @@ async function marcarOptin(id, valor){
   await abrirFicha(id);
 }
 
+
+/* ===== RÉGUA ===== */
+let REGUA=null;
+async function carregarRegua(){
+  const r=await sb.rpc('get_regua_painel');
+  REGUA=r.data||null;
+  renderRegua();
+}
+function renderRegua(){
+  const el=document.getElementById('reguabox'); if(!el) return;
+  if(!REGUA){ el.innerHTML='<div class="vazio">Não foi possível carregar a régua.</div>'; return; }
+  const R=REGUA.resumo||{}, hoje=REGUA.hoje||[], mods=REGUA.modelos||[];
+
+  let h=`<div class="switch">
+    <div class="info">
+      <div class="tt">${REGUA.ativa?'✅ Régua ativa':'⏸️ Régua desativada'}</div>
+      <div class="ds">${REGUA.ativa
+        ? 'Os contatos saem automaticamente todo dia às 10h, no máximo 15 por dia.'
+        : 'Nenhuma mensagem está sendo enviada. Ative quando quiser começar.'}</div>
+    </div>
+    <button class="sw ${REGUA.ativa?'on':''}" onclick="toggleRegua(${!REGUA.ativa})"></button>
+  </div>`;
+
+  h+=`<div class="rgstat">
+    <div class="b"><div class="n" style="color:var(--gold)">${R.hoje||0}</div><div class="l">Para sair hoje</div></div>
+    <div class="b"><div class="n">${R.pendentes||0}</div><div class="l">Programados</div></div>
+    <div class="b"><div class="n" style="color:var(--green-l)">${R.enviados||0}</div><div class="l">Já enviados</div></div>
+    <div class="b"><div class="n">${R.obras_na_regua||0}</div><div class="l">Clientes na régua</div></div>
+  </div>`;
+
+  h+=`<div class="sec"><h3>Próximos 7 dias</h3>`;
+  if(!hoje.length){
+    h+='<div class="vazio">Nenhum contato programado para os próximos dias.</div>';
+  } else {
+    hoje.forEach(c=>{
+      const atrasado=c.atraso>0, hj=c.atraso===0;
+      const quando=atrasado?`${c.atraso}d de atraso`:(hj?'hoje':dataBR(c.data_prevista));
+      h+=`<div class="rgrow ${c.bloqueio?'bloq':(hj||atrasado?'hoje':'')}">
+        <div class="ic">${c.icone||'📨'}</div>
+        <div class="cn"><b>${esc(c.cliente)}</b>
+          <span>${esc(c.nome_modelo)}${c.bloqueio?` · ⚠️ ${esc(c.bloqueio)}`:''}</span></div>
+        <div class="qd">${quando}</div>
+      </div>`;
+    });
+  }
+  h+=`</div>`;
+
+  h+=`<div class="sec"><h3>Os contatos da régua</h3>`;
+  mods.forEach(m=>{
+    const tipo=m.tipo==='pede'?'🙏 pede':(m.tipo==='oferece'?'💼 oferece':'🎁 entrega valor');
+    h+=`<div class="mod" onclick="this.classList.toggle('aberto')">
+      <div class="top"><span>${m.icone}</span><b>${esc(m.nome)}</b>
+        <span class="dia">${m.dia>0?'D+'+m.dia:'sob demanda'}</span></div>
+      <div style="font-size:10.5px;color:var(--muted);font-weight:700;margin-top:5px">${tipo}${m.condicao!=='sempre'?' · condição: '+m.condicao.replace('_',' '):''}</div>
+      <div class="tx">${esc(m.texto)}</div>
+    </div>`;
+  });
+  h+=`</div>`;
+
+  el.innerHTML=h;
+}
+async function toggleRegua(ativar){
+  if(ativar && !confirm('Ativar a régua de relacionamento?\n\nA partir de agora o sistema vai enviar os contatos programados automaticamente, no máximo 15 por dia.')) return;
+  const r=await sb.rpc('regua_toggle',{p_ativa:ativar});
+  if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
+  toast(ativar?'Régua ativada ✅':'Régua desativada');
+  await carregarRegua();
+}
 boot();
 </script>
 </body>
