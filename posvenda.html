@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="theme-color" content="#011D2E">
+<title>Polaris — Pós-venda</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--navy:#011D2E;--green:#3B8B3B;--green-l:#58B868;--gold:#F5A623;
+--bg:#0a1622;--card:#0f2233;--card2:#13293c;--border:#1d3850;--txt:#eaf2f8;--muted:#8fa6b8}
+html[data-theme="light"]{--gold:#B8790A;--green-l:#3B8B3B;--bg:#F0F2ED;--card:#FFF;--card2:#F4F6F3;
+--border:#DCE4EA;--txt:#022C44;--muted:#5F7787}
+body{font-family:'Manrope',system-ui,sans-serif;background:
+radial-gradient(1100px 560px at 82% -12%, rgba(12,60,90,.32) 0%, transparent 62%),var(--bg);
+color:var(--txt);min-height:100vh;transition:background .3s;-webkit-font-smoothing:antialiased}
+
+/* ---- Topbar com abas ---- */
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 16px;
+background:rgba(1,29,46,.88);backdrop-filter:blur(10px);
+position:sticky;top:0;z-index:40;border-bottom:1px solid var(--border)}
+html[data-theme="light"] .topbar{background:rgba(255,255,255,.9)}
+.topbar img{height:26px}
+.tabs{display:flex;gap:4px;background:var(--card2);border-radius:12px;padding:3px}
+.tab{background:none;border:none;color:var(--muted);border-radius:9px;padding:8px 14px;
+font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;
+display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:.18s}
+.tab:hover{color:var(--txt)}
+.tab.on{background:var(--card);color:var(--gold);box-shadow:0 1px 6px rgba(0,0,0,.18)}
+.sp{margin-left:auto;display:flex;gap:8px;align-items:center}
+.who{font-size:11px;color:var(--muted);text-align:right;line-height:1.35}
+.btn-out{background:none;border:1px solid var(--border);color:var(--muted);border-radius:9px;
+padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn-out:hover{border-color:var(--gold);color:var(--gold)}
+
+.wrap{max-width:1240px;margin:0 auto;padding:18px 16px 60px}
+
+/* ---- Hero: o que precisa de você ---- */
+.hero{background:var(--card);border:1px solid var(--border);border-radius:18px;
+padding:20px;margin-bottom:16px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+background:linear-gradient(180deg,var(--gold),var(--green))}
+.hero .eyebrow{font-size:10.5px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;
+color:var(--muted)}
+.hero h1{font-size:20px;font-weight:800;margin-top:6px;line-height:1.25}
+.hero .sub{font-size:13px;color:var(--muted);margin-top:6px;font-weight:600}
+.pend{display:flex;flex-wrap:wrap;gap:9px;margin-top:15px}
+.pcard{flex:1 1 160px;background:var(--card2);border:1px solid var(--border);border-radius:13px;
+padding:13px;cursor:pointer;transition:.18s;text-align:left;font-family:inherit;color:var(--txt)}
+.pcard:hover{border-color:var(--gold);transform:translateY(-2px)}
+.pcard .n{font-size:26px;font-weight:800;line-height:1}
+.pcard .l{font-size:11px;color:var(--muted);font-weight:700;margin-top:5px;line-height:1.35}
+.pcard.alerta .n{color:var(--gold)}
+.pcard.ok .n{color:var(--green-l)}
+
+/* ---- Busca e lista ---- */
+.tools{display:flex;gap:8px;margin:16px 0 12px;flex-wrap:wrap;align-items:center}
+.search{flex:1;min-width:180px;display:flex;align-items:center;gap:8px;background:var(--card);
+border:1px solid var(--border);border-radius:11px;padding:0 12px}
+.search input{flex:1;background:none;border:none;outline:none;color:var(--txt);
+font-family:inherit;font-size:14px;padding:11px 0}
+.chip{background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:20px;
+padding:8px 13px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.chip:hover{border-color:var(--gold)}
+.chip.on{border-color:var(--gold);color:var(--gold);background:var(--card2)}
+
+.lista{display:grid;gap:9px}
+@media(min-width:900px){.lista{grid-template-columns:1fr 1fr}}
+.cli{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;
+cursor:pointer;transition:.18s;text-align:left;font-family:inherit;color:var(--txt);width:100%;
+display:block;position:relative}
+.cli:hover{border-color:var(--gold);transform:translateY(-2px)}
+.cli.pend{border-left:3px solid var(--gold)}
+.cli .top{display:flex;align-items:flex-start;gap:9px}
+.cli .nome{font-size:15px;font-weight:800;line-height:1.25;flex:1}
+.cli .meta{font-size:11.5px;color:var(--muted);margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 10px;font-weight:600}
+.nota{flex-shrink:0;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;
+justify-content:center;font-size:14px;font-weight:800;background:var(--card2);border:1px solid var(--border)}
+.nota.p{color:var(--green-l);border-color:var(--green-l)}
+.nota.d{color:#e07070;border-color:#e07070}
+.nota.vazio{color:var(--muted);font-size:16px}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;
+letter-spacing:.5px;text-transform:uppercase;border-radius:20px;padding:3px 8px;
+background:var(--card2);border:1px solid var(--border);color:var(--muted)}
+.tag.gold{border-color:var(--gold);color:var(--gold)}
+.tag.green{border-color:var(--green-l);color:var(--green-l)}
+.tag.red{border-color:#e07070;color:#e07070}
+
+/* ---- Ficha (drawer) ---- */
+.ov{position:fixed;inset:0;background:rgba(0,10,20,.72);backdrop-filter:blur(4px);
+z-index:60;display:none;align-items:flex-end;justify-content:center}
+.ov.on{display:flex}
+.ficha{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:760px;
+max-height:94vh;overflow-y:auto;border:1px solid var(--border);border-bottom:none}
+@media(min-width:700px){.ov{align-items:center}.ficha{border-radius:20px;border-bottom:1px solid var(--border)}}
+.fhead{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--border);
+padding:18px 20px;z-index:2}
+.fhead .nome{font-size:19px;font-weight:800;line-height:1.2;padding-right:36px}
+.fhead .meta{font-size:12px;color:var(--muted);margin-top:6px;font-weight:600;
+display:flex;flex-wrap:wrap;gap:4px 12px}
+.fechar{position:absolute;top:16px;right:16px;background:var(--card2);border:1px solid var(--border);
+color:var(--muted);width:30px;height:30px;border-radius:9px;cursor:pointer;font-size:15px;font-family:inherit}
+.fbody{padding:18px 20px 30px}
+.sec{margin-bottom:22px}
+.sec h3{font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;
+color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.sec h3::after{content:'';flex:1;height:1px;background:var(--border)}
+
+.dados{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.dado{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:11px}
+.dado .k{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.dado .v{font-size:15px;font-weight:800;margin-top:3px}
+.dado .v small{font-size:11px;color:var(--muted);font-weight:700}
+
+/* trilha — o elemento assinatura */
+.trilha{position:relative;padding-left:26px}
+.trilha::before{content:'';position:absolute;left:8px;top:6px;bottom:6px;width:2px;
+background:linear-gradient(180deg,var(--gold),var(--green),var(--border))}
+.ev{position:relative;padding-bottom:16px}
+.ev::before{content:'';position:absolute;left:-22px;top:4px;width:10px;height:10px;
+border-radius:50%;background:var(--card);border:2px solid var(--border)}
+.ev.on::before{border-color:var(--gold);background:var(--gold)}
+.ev.cli::before{border-color:var(--green-l);background:var(--green-l)}
+.ev .quando{font-size:10.5px;color:var(--muted);font-weight:700;letter-spacing:.4px}
+.ev .oque{font-size:13.5px;font-weight:700;margin-top:2px;line-height:1.4}
+.ev .txt{font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.5;
+background:var(--card);border:1px solid var(--border);border-radius:10px;padding:9px 11px;font-weight:600}
+.ev .txt b{color:var(--txt)}
+
+.vazio{color:var(--muted);text-align:center;padding:26px 14px;font-size:13px;
+background:var(--card);border:1px dashed var(--border);border-radius:13px;line-height:1.6}
+.acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.ac{flex:1;min-width:130px;background:var(--card2);border:1px solid var(--border);color:var(--txt);
+border-radius:11px;padding:11px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;
+display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.ac:hover{border-color:var(--gold);color:var(--gold)}
+.ac.pri{background:var(--green);border-color:var(--green);color:#fff}
+.ac.pri:hover{color:#fff;opacity:.92}
+
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(90px);
+background:var(--card);border:1px solid var(--gold);color:var(--txt);padding:12px 18px;
+border-radius:12px;font-size:13.5px;font-weight:700;z-index:90;transition:transform .28s;
+box-shadow:0 12px 34px rgba(0,0,0,.4);max-width:88vw;text-align:center}
+.toast.on{transform:translateX(-50%) translateY(0)}
+.center{text-align:center;padding:70px 20px;color:var(--muted)}
+.center .i{font-size:42px;display:block;margin-bottom:14px}
+.spin{width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--gold);
+border-radius:50%;animation:g .8s linear infinite;margin:0 auto 12px}
+@keyframes g{to{transform:rotate(360deg)}}
+
+@media(max-width:640px){
+  .topbar{padding:10px 12px;gap:8px}
+  .topbar img{height:22px}
+  .who{display:none}
+  .tab{padding:8px 11px;font-size:12px}
+  .wrap{padding:14px 11px 50px}
+  .hero{padding:16px}
+  .hero h1{font-size:17px}
+  .pcard{flex:1 1 44%}
+  .pcard .n{font-size:22px}
+  .fhead{padding:15px 16px}
+  .fbody{padding:15px 16px 26px}
+  .dados{grid-template-columns:1fr 1fr}
+  input{font-size:16px}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <img id="logo" src="logo.png" onerror="this.style.display='none'">
+  <div class="tabs">
+    <a class="tab" href="painel.html">🏗️ Obras</a>
+    <button class="tab on">💚 Pós-venda</button>
+  </div>
+  <div class="sp">
+    <div class="who" id="who"></div>
+    <button class="btn-out" id="bTema">🌙</button>
+    <button class="btn-out" onclick="sair()">Sair</button>
+  </div>
+</div>
+
+<div class="wrap" id="app">
+  <div class="center"><div class="spin"></div>Carregando...</div>
+</div>
+
+<div class="ov" id="ov"><div class="ficha" id="ficha"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL='https://dakubhcgohiwzyqiegqf.supabase.co';
+const SB_KEY='sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+const LOGO_D='logo.png', LOGO_L='logo-claro.png';
+let DADOS=null, FILTRO='', BUSCA='';
+
+function tema(t){document.documentElement.setAttribute('data-theme',t);
+  document.getElementById('bTema').textContent=t==='dark'?'🌙':'☀️';
+  const l=document.getElementById('logo'); if(l) l.src=(t==='light')?LOGO_L:LOGO_D;
+  try{localStorage.setItem('polaris-tema',t)}catch(e){}}
+document.getElementById('bTema').onclick=()=>tema(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
+try{tema(localStorage.getItem('polaris-tema')||'dark')}catch(e){tema('dark')}
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');
+  clearTimeout(window._t);window._t=setTimeout(()=>t.classList.remove('on'),3200);}
+function dataBR(d){if(!d)return'—';const p=String(d).split('T')[0].split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+function quando(iso){
+  if(!iso) return '—';
+  const d=new Date(iso), h=Math.floor((Date.now()-d)/3600000);
+  if(h<1) return 'agora há pouco';
+  if(h<24) return `há ${h}h`;
+  const dias=Math.floor(h/24);
+  if(dias<7) return `há ${dias} dia${dias>1?'s':''}`;
+  return d.toLocaleDateString('pt-BR');
+}
+async function sair(){await sb.auth.signOut();location.href='login.html';}
+
+const CTX={
+  indicacao:{i:'🎁',n:'Indicação',c:'gold'},
+  iptu:{i:'🏛️',n:'IPTU',c:''},
+  tecnico:{i:'🔧',n:'Técnico',c:'red'},
+  conta:{i:'📄',n:'Conta de luz',c:''},
+  reclamacao:{i:'😠',n:'Reclamação',c:'red'},
+  elogio:{i:'💚',n:'Elogio',c:'green'},
+  sair:{i:'🚪',n:'Pediu para sair',c:'red'},
+  agendamento:{i:'📅',n:'Agendamento',c:''},
+  geral:{i:'💬',n:'Mensagem',c:''}
+};
+
+async function boot(){
+  const s=await sb.auth.getSession();
+  if(!s.data.session){location.href='login.html';return;}
+  document.getElementById('who').textContent=s.data.session.user.email;
+  const r=await sb.rpc('get_posvenda_lista');
+  if(r.error||!r.data){
+    document.getElementById('app').innerHTML='<div class="center"><span class="i">🔒</span><b>Sem acesso ao pós-venda.</b><br>Peça ao administrador para liberar.</div>';
+    return;
+  }
+  DADOS=r.data;
+  render();
+}
+
+function render(){
+  const R=DADOS.resumo||{}, cl=DADOS.clientes||[];
+  const hora=new Date().getHours();
+  const saud=hora<12?'Bom dia':(hora<18?'Boa tarde':'Boa noite');
+  const pend=(R.respostas_pendentes||0);
+
+  let h=`<div class="hero">
+    <div class="eyebrow">Pós-venda</div>
+    <h1>${saud}. ${pend? `Você tem ${pend} ${pend>1?'mensagens':'mensagem'} para tratar.` : 'Nada pendente por aqui.'}</h1>
+    <div class="sub">${pend? 'Clientes escreveram nos grupos e ainda não tiveram retorno.' : 'Todas as mensagens dos clientes foram tratadas. 👏'}</div>
+    <div class="pend">
+      <button class="pcard ${R.indicacoes_pendentes?'alerta':''}" onclick="setFiltro('indicacao')">
+        <div class="n">${R.indicacoes_pendentes||0}</div><div class="l">Indicações aguardando</div></button>
+      <button class="pcard ${pend?'alerta':''}" onclick="setFiltro('pendentes')">
+        <div class="n">${pend}</div><div class="l">Respostas para tratar</div></button>
+      <button class="pcard ok" onclick="setFiltro('')">
+        <div class="n">${R.clientes_ativos||0}</div><div class="l">Clientes ativos</div></button>
+      <button class="pcard" onclick="setFiltro('sem_nps')">
+        <div class="n">${R.sem_nps||0}</div><div class="l">Sem pesquisa respondida</div></button>
+    </div>
+  </div>`;
+
+  h+=`<div class="tools">
+    <div class="search">🔍<input id="q" placeholder="Buscar cliente ou contrato..." value="${esc(BUSCA)}" oninput="setBusca(this.value)"></div>
+    <button class="chip ${FILTRO===''?'on':''}" onclick="setFiltro('')">Todos</button>
+    <button class="chip ${FILTRO==='pendentes'?'on':''}" onclick="setFiltro('pendentes')">Com pendência</button>
+    <button class="chip ${FILTRO==='indicacao'?'on':''}" onclick="setFiltro('indicacao')">Indicações</button>
+    <button class="chip ${FILTRO==='sem_nps'?'on':''}" onclick="setFiltro('sem_nps')">Sem NPS</button>
+  </div>`;
+
+  let arr=cl.slice();
+  if(FILTRO==='pendentes') arr=arr.filter(c=>c.pendentes>0);
+  if(FILTRO==='sem_nps') arr=arr.filter(c=>c.nps==null);
+  if(FILTRO==='indicacao') arr=arr.filter(c=>c.pendentes>0);
+  if(BUSCA){const b=BUSCA.toLowerCase();
+    arr=arr.filter(c=>(c.cliente||'').toLowerCase().includes(b)||(c.contrato||'').includes(b));}
+
+  if(!arr.length){
+    h+=`<div class="vazio">Nenhum cliente com esse filtro.<br>Ajuste a busca ou escolha "Todos".</div>`;
+  } else {
+    h+='<div class="lista">'+arr.map(c=>{
+      const n=c.nps;
+      const cls=n==null?'vazio':(n>=9?'p':(n<=6?'d':''));
+      const bits=[];
+      if(c.cidade) bits.push('📍 '+esc(c.cidade));
+      if(c.potencia_kwp) bits.push('⚡ '+String(c.potencia_kwp).replace('.',',')+' kWp');
+      if(c.dias_ativo!=null) bits.push('☀️ '+c.dias_ativo+' dias ativo');
+      if(c.vendedor) bits.push('👔 '+esc(c.vendedor));
+      return `<button class="cli ${c.pendentes?'pend':''}" onclick="abrirFicha('${c.id}')">
+        <div class="top">
+          <div class="nome">${esc(c.cliente)}${c.contrato?` <span style="color:var(--muted);font-weight:600;font-size:12px">#${esc(c.contrato)}</span>`:''}</div>
+          <div class="nota ${cls}">${n==null?'—':n}</div>
+        </div>
+        <div class="meta">${bits.join('<span style="opacity:.4">·</span>')}</div>
+        ${c.pendentes?`<div style="margin-top:8px"><span class="tag gold">💬 ${c.pendentes} para tratar</span></div>`:''}
+      </button>`;
+    }).join('')+'</div>';
+  }
+  document.getElementById('app').innerHTML=h;
+}
+function setFiltro(f){FILTRO=(FILTRO===f)?'':f;render();}
+function setBusca(v){BUSCA=v;const p=document.activeElement===document.getElementById('q');render();
+  if(p){const q=document.getElementById('q');q.focus();q.setSelectionRange(q.value.length,q.value.length);}}
+
+async function abrirFicha(id){
+  const ov=document.getElementById('ov'), f=document.getElementById('ficha');
+  f.innerHTML='<div class="center"><div class="spin"></div>Abrindo ficha...</div>';
+  ov.classList.add('on');
+  const r=await sb.rpc('get_ficha_cliente',{p_obra:id});
+  if(r.error||!r.data||r.data.erro){
+    f.innerHTML=`<div class="center"><span class="i">🔒</span>${(r.data&&r.data.erro)||'Não foi possível abrir.'}</div>`;
+    return;
+  }
+  renderFicha(r.data);
+}
+function fecharFicha(){document.getElementById('ov').classList.remove('on');}
+document.getElementById('ov').addEventListener('click',e=>{if(e.target.id==='ov')fecharFicha();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')fecharFicha();});
+
+function renderFicha(D){
+  const o=D.obra, n=D.nps, msgs=D.mensagens||[];
+  const bits=[];
+  if(o.contrato) bits.push('#'+esc(o.contrato));
+  if(o.cidade) bits.push('📍 '+esc(o.cidade));
+  if(o.vendedor) bits.push('👔 '+esc(o.vendedor));
+  if(o.dias_ativo!=null) bits.push('☀️ ativo há '+o.dias_ativo+' dias');
+
+  let h=`<div class="fhead">
+    <button class="fechar" onclick="fecharFicha()">✕</button>
+    <div class="nome">${esc(o.cliente)}</div>
+    <div class="meta">${bits.join('<span style="opacity:.4">·</span>')}</div>
+  </div><div class="fbody">`;
+
+  /* Sistema */
+  h+=`<div class="sec"><h3>O sistema</h3><div class="dados">
+    <div class="dado"><div class="k">Potência</div><div class="v">${o.potencia_kwp?String(o.potencia_kwp).replace('.',','):'—'} <small>kWp</small></div></div>
+    <div class="dado"><div class="k">Módulos</div><div class="v">${o.qtd_modulos||'—'}</div></div>
+    <div class="dado"><div class="k">Ativado em</div><div class="v" style="font-size:13px">${dataBR(o.data_conclusao)}</div></div>
+    <div class="dado"><div class="k">Registro</div><div class="v" style="font-size:13px">${D.fotos_total||0} fotos${D.videos_total?` · ${D.videos_total} vídeo${D.videos_total>1?'s':''}`:''}</div></div>
+  </div></div>`;
+
+  /* Satisfação */
+  h+=`<div class="sec"><h3>Satisfação</h3>`;
+  if(n&&n.nota!=null){
+    const cor=n.nota>=9?'var(--green-l)':(n.nota<=6?'#e07070':'var(--gold)');
+    h+=`<div class="dado" style="padding:14px">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="font-size:34px;font-weight:800;color:${cor};line-height:1">${n.nota}</div>
+        <div style="flex:1">
+          <div style="font-size:12.5px;font-weight:700">${n.nota>=9?'Promotor':(n.nota<=6?'Detrator':'Neutro')}</div>
+          <div style="font-size:11.5px;color:var(--muted);margin-top:2px">respondeu ${quando(n.criado_em)}</div>
+        </div>
+      </div>
+      ${n.comentario?`<div style="font-size:13px;margin-top:11px;line-height:1.55;font-style:italic;color:var(--muted)">"${esc(n.comentario)}"</div>`:''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:11px">
+        ${n.brinde?`<span class="tag">${n.brinde==='copo'?'🥤 Copo térmico':'🎧 Fone'} · ${esc(n.voucher||'')}</span>`:''}
+        ${n.entregue_em?'<span class="tag green">✓ brinde entregue</span>':(n.brinde?'<span class="tag gold">brinde pendente</span>':'')}
+        ${n.avaliou_google_em?'<span class="tag green">✓ avaliou no Google</span>':(n.nota>=9?'<span class="tag gold">Google pendente</span>':'')}
+      </div></div>`;
+  } else {
+    h+=`<div class="vazio">Ainda não respondeu a pesquisa.</div>`;
+  }
+  h+=`</div>`;
+
+  /* Trilha — o elemento assinatura */
+  h+=`<div class="sec"><h3>A trilha do relacionamento</h3>`;
+  const eventos=[];
+  if(o.data_conclusao) eventos.push({d:o.data_conclusao,tipo:'sis',t:'☀️ Sistema ativado',x:null});
+  if(o.relatorio_enviado_em) eventos.push({d:o.relatorio_enviado_em,tipo:'sis',t:'📄 Relatório enviado no grupo',x:null});
+  if(o.aceite_em) eventos.push({d:o.aceite_em,tipo:'sis',t:'✍️ Termo assinado'+(o.aceite_nome?' por '+esc(o.aceite_nome):''),x:null});
+  if(n&&n.criado_em) eventos.push({d:n.criado_em,tipo:'cli',t:`⭐ Respondeu a pesquisa — nota ${n.nota}`,x:n.comentario});
+  if(n&&n.avaliou_google_em) eventos.push({d:n.avaliou_google_em,tipo:'cli',t:'💚 Avaliou a Polaris no Google',x:null});
+  if(o.iptu_avisado_em) eventos.push({d:o.iptu_avisado_em,tipo:'sis',t:'🏛️ Avisado sobre o IPTU Sustentável',x:null});
+  msgs.forEach(m=>{
+    const c=CTX[m.contexto]||CTX.geral;
+    eventos.push({d:m.recebida_em,tipo:'cli',
+      t:`${c.i} ${c.n}${m.remetente_nome?' — '+esc(m.remetente_nome):''}`,
+      x:m.texto, id:m.id, ctx:m.contexto, lida:m.lida_em,
+      ind:m.nome_indicado, fone:m.telefone_indicado});
+  });
+  eventos.sort((a,b)=>new Date(b.d)-new Date(a.d));
+
+  if(!eventos.length){
+    h+=`<div class="vazio">Nada registrado ainda.<br>Os contatos aparecem aqui conforme acontecem.</div>`;
+  } else {
+    h+='<div class="trilha">'+eventos.map(e=>{
+      let ex='';
+      if(e.ind) ex+=`<div style="margin-top:7px"><span class="tag gold">🤝 ${esc(e.ind)}${e.fone?' · '+esc(e.fone):''}</span></div>`;
+      return `<div class="ev ${e.tipo==='cli'?'cli':'on'}">
+        <div class="quando">${quando(e.d)} · ${dataBR(e.d)}</div>
+        <div class="oque">${e.t}</div>
+        ${e.x?`<div class="txt">${esc(e.x)}</div>`:''}
+        ${ex}
+        ${(e.id&&!e.lida&&D.pode_agir)?`<div style="margin-top:7px"><button class="chip" onclick="tratar(${e.id},'${o.id}')">marcar tratada</button></div>`:''}
+      </div>`;
+    }).join('')+'</div>';
+  }
+  h+=`</div>`;
+
+  /* Ações */
+  h+=`<div class="sec"><h3>Atalhos</h3><div class="acoes">
+    <a class="ac" href="relatorio.html?id=${encodeURIComponent(o.slug)}" target="_blank">📄 Relatório</a>
+    <a class="ac" href="cliente.html?id=${encodeURIComponent(o.slug)}" target="_blank">📱 Acompanhamento</a>
+    ${o.telefone?`<a class="ac" href="https://wa.me/55${String(o.telefone).replace(/\D/g,'')}" target="_blank">💬 WhatsApp</a>`:''}
+  </div></div>`;
+
+  h+='</div>';
+  document.getElementById('ficha').innerHTML=h;
+}
+
+async function tratar(id,obraId){
+  const r=await sb.rpc('marcar_resposta_lida',{p_id:id});
+  if(r.error||(r.data&&r.data.erro)){toast('Não foi possível marcar');return;}
+  toast('Marcada como tratada ✓');
+  await abrirFicha(obraId);
+  const nova=await sb.rpc('get_posvenda_lista');
+  if(nova.data){DADOS=nova.data;}
+}
+
+boot();
+</script>
+</body>
+</html>
