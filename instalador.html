@@ -104,6 +104,12 @@ font-weight:800;border-radius:13px;padding:15px;font-family:inherit;font-size:15
 .btn-send:active{transform:scale(.98)}
 .jaenv{background:rgba(59,139,59,.14);border:1px solid rgba(88,184,104,.45);color:var(--green-l);
 border-radius:12px;padding:13px;font-size:13px;font-weight:800;text-align:center;line-height:1.4}
+.optin{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:13px;margin-top:14px}
+.optin label{display:flex;align-items:flex-start;gap:11px;cursor:pointer}
+.optin input[type=checkbox]{width:21px;height:21px;flex-shrink:0;margin-top:1px;accent-color:var(--green)}
+.optin .tx{font-size:12.5px;line-height:1.55;color:var(--txt);font-weight:600}
+.optin .nota{font-size:10.5px;color:var(--muted);margin-top:8px;padding-left:32px;line-height:1.45}
+.termo.assinado .oksel{font-size:11.5px;color:var(--green-l,#58B868);font-weight:700;margin-top:6px;display:block}
 .btn-reenv{width:100%;background:none;border:none;color:var(--muted);font-family:inherit;font-size:11.5px;
 font-weight:700;cursor:pointer;padding:9px 0 2px;text-decoration:underline}
 /* Apontamentos */
@@ -203,7 +209,7 @@ try{applyTheme(localStorage.getItem('polaris-tema-inst')||'dark')}catch(e){}
 
 var qs=new URLSearchParams(location.search);
 var SLUG=qs.get('id'), TOKEN=qs.get('t'), AGENDA=qs.get('agenda');
-var OBRA=null, ITENS=[], FOTOS=[], APONT=[];
+var OBRA=null, ITENS=[], FOTOS=[], APONT=[], OPTIN_TXT='';
 
 function toast(m){var t=document.getElementById('tst');if(!t){t=document.createElement('div');t.id='tst';t.className='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('on')},3200);}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -211,7 +217,7 @@ function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 async function bootObra(){
   var r=await sb.rpc('get_obra_instalador',{p_slug:SLUG,p_token:TOKEN});
   if(r.error||!r.data){document.getElementById('app').innerHTML='<div class="center"><span class="i">🔒</span><b>Link inválido.</b><br>Confirme com o escritório o link correto desta obra.</div>';return;}
-  OBRA=r.data.obra; ITENS=r.data.itens; FOTOS=r.data.fotos; APONT=r.data.apontamentos||[];
+  OBRA=r.data.obra; ITENS=r.data.itens; FOTOS=r.data.fotos; APONT=r.data.apontamentos||[]; OPTIN_TXT=r.data.optin_texto||'';
   renderChecklist();
 }
 function fichaHtml(o){
@@ -377,7 +383,9 @@ function termoHtml(){
     var d=new Date(OBRA.aceite_em).toLocaleDateString('pt-BR')+' '+new Date(OBRA.aceite_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     return '<div class="termo assinado"><div class="aok"><div class="ck">✅</div>'
       +'<b>Termo de conclusão assinado</b>'
-      +'<span>Por '+esc(OBRA.aceite_nome||'')+' em '+d+'</span></div></div>';
+      +'<span>Por '+esc(OBRA.aceite_nome||'')+' em '+d+'</span>'
+      +(OBRA.optin_em?'<span class="oksel">✓ Autorizou receber comunicações da Polaris</span>':'')
+      +'</div></div>';
   }
   return '<div class="termo" id="termo"><h2>✍️ Termo de conclusão de obra</h2>'
     +'<div class="txt">O cliente declara que <b>recebeu e aceitou</b> o projeto de energia fotovoltaica concluído, '
@@ -388,6 +396,10 @@ function termoHtml(){
     +'<div class="fld"><label>Assinatura</label>'
     +'<div class="sigwrap"><button class="sigclear" onclick="clearSig()">limpar</button>'
     +'<div class="ph" id="sigph">assine com o dedo aqui</div><canvas id="sig"></canvas></div></div>'
+    +'<div class="optin"><label>'
+    +'<input type="checkbox" id="a_optin" checked>'
+    +'<span class="tx">'+esc(OPTIN_TXT)+'</span></label>'
+    +'<div class="nota">📋 Leia esta autorização para o cliente antes de marcar. Se ele não concordar, é só desmarcar — o termo é registrado do mesmo jeito.</div></div>'
     +'<button class="btn2 btn-main" id="btnAceite" onclick="salvarAceite()">Registrar aceite do cliente</button></div>';
 }
 var sigCtx=null, sigDrawing=false, sigHasInk=false;
@@ -414,13 +426,16 @@ async function salvarAceite(){
   if(!sigHasInk){toast('Peça para o cliente assinar no quadro.');return;}
   var cv=document.getElementById('sig');
   var b64=cv.toDataURL('image/png').split(',')[1];
+  var chk=document.getElementById('a_optin');
+  var optin=chk?chk.checked:false;
   var btn=document.getElementById('btnAceite');btn.disabled=true;btn.textContent='Registrando...';
   var r=await fetch(FN_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
-    body:JSON.stringify({acao:'aceite',slug:SLUG,token:TOKEN,assinatura_base64:b64,nome:nome,documento:doc})});
+    body:JSON.stringify({acao:'aceite',slug:SLUG,token:TOKEN,assinatura_base64:b64,nome:nome,documento:doc,optin:optin})});
   var j=await r.json();
   if(!r.ok||j.error){toast('Erro: '+(j.error||r.status));btn.disabled=false;btn.textContent='Registrar aceite do cliente';return;}
   OBRA.aceite_em=new Date().toISOString(); OBRA.aceite_nome=nome;
-  toast('✅ Aceite registrado!');
+  if(optin) OBRA.optin_em=OBRA.aceite_em;
+  toast(optin?'✅ Aceite e autorização registrados!':'✅ Aceite registrado!');
   renderChecklist();
 }
 
