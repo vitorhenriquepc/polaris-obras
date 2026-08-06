@@ -3,25 +3,37 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#011D2E">
-<meta http-equiv="refresh" content="0; url=painel.html">
 <title>Polaris Obras</title>
 <style>
   html,body{height:100%;margin:0}
   body{font-family:'Manrope',system-ui,sans-serif;background:#081522;color:#eef4f9;
-    display:flex;align-items:center;justify-content:center;text-align:center}
+    display:flex;align-items:center;justify-content:center;text-align:center;padding:20px}
   a{color:#F5A623;font-weight:700;text-decoration:none}
   .sp{width:34px;height:34px;border:3px solid rgba(255,255,255,.12);border-top-color:#F5A623;
     border-radius:50%;animation:s .7s linear infinite;margin:0 auto 16px}
   @keyframes s{to{transform:rotate(360deg)}}
+  p{font-size:14px;opacity:.8}
 </style>
 </head>
 <body>
   <div>
     <div class="sp"></div>
-    <p>Redirecionando para o painel...</p>
-    <p><a href="painel.html">Clique aqui se não for automático</a></p>
+    <p>Carregando a versão mais recente...</p>
+    <p><a id="manual" href="painel.html">Clique aqui se não for automático</a></p>
   </div>
-  <script>window.location.replace('painel.html');</script>
+<script>
+/* Cache-buster: cada acesso pede uma versão nova ao servidor.
+   Resolve o cache agressivo do Safari no iPhone sem o usuário fazer nada. */
+(function(){
+  var v = Date.now();
+  var destino = 'painel.html?v=' + v;
+  document.getElementById('manual').href = destino;
+  location.replace(destino);
+})();
+</script>
 </body>
 </html>
