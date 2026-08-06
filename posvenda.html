@@ -140,6 +140,30 @@ background:var(--card);border:1px solid var(--border);border-radius:10px;padding
 
 .vazio{color:var(--muted);text-align:center;padding:26px 14px;font-size:13px;
 background:var(--card);border:1px dashed var(--border);border-radius:13px;line-height:1.6}
+.reg{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:14px;margin-top:8px}
+.reg .lin{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:9px}
+.reg .cp{flex:1;min-width:96px}
+.reg label{display:block;font-size:10px;color:var(--muted);font-weight:700;
+text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.reg input,.reg select,.reg textarea{width:100%;background:var(--card2);border:1px solid var(--border);
+color:var(--txt);border-radius:9px;padding:10px;font-family:inherit;font-size:14px;outline:none}
+.reg input:focus,.reg select:focus,.reg textarea:focus{border-color:var(--gold)}
+.reg .chk{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;cursor:pointer;
+padding:8px 0}
+.reg .chk input{width:19px;height:19px;accent-color:var(--green)}
+.reg .salvar{width:100%;background:var(--green);border:none;color:#fff;border-radius:10px;
+padding:12px;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;margin-top:4px}
+.reg .salvar:active{transform:scale(.99)}
+.reg .dica{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.45;font-weight:600}
+.mini{background:none;border:1px dashed var(--border);color:var(--muted);border-radius:9px;
+padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;width:100%}
+.mini:hover{border-color:var(--gold);color:var(--gold)}
+.gtab{width:100%;font-size:12px;border-collapse:collapse;margin-top:8px}
+.gtab th{text-align:left;font-size:9.5px;color:var(--muted);text-transform:uppercase;
+letter-spacing:.5px;padding:6px 5px;border-bottom:1px solid var(--border);font-weight:800}
+.gtab td{padding:7px 5px;border-bottom:1px solid var(--border);font-weight:600}
+.gtab tr:last-child td{border-bottom:none}
+.gtab .num{text-align:right}
 .acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .ac{flex:1;min-width:130px;background:var(--card2);border:1px solid var(--border);color:var(--txt);
 border-radius:11px;padding:11px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;
@@ -418,6 +442,8 @@ async function abrirFicha(id){
     f.innerHTML=`<div class="center"><span class="i">🔒</span>${(r.data&&r.data.erro)||'Não foi possível abrir.'}</div>`;
     return;
   }
+  const g=await sb.rpc('get_geracao',{p_obra:id});
+  r.data.geracao=g.data||null;
   renderFicha(r.data);
 }
 function fecharFicha(){document.getElementById('ov').classList.remove('on');}
@@ -439,7 +465,9 @@ function renderFicha(D){
     <div style="margin-top:9px">
       ${o.optout_em?'<span class="tag red">🚪 Pediu para sair</span>'
         :(o.optin_em?'<span class="tag green">✓ Autorizou comunicações</span>'
-        :'<span class="tag">⚠️ Sem autorização — não enviar indicação</span>')}
+        :'<span class="tag">⚠️ Sem autorização</span>')}
+      ${(D.pode_agir && !o.optin_em && !o.optout_em)?`<button class="tag gold" style="cursor:pointer;background:none" onclick="marcarOptin('${o.id}',true)">+ registrar autorização</button>`:''}
+      ${(D.pode_agir && o.optin_em && !o.optout_em)?`<button class="tag" style="cursor:pointer;background:none" onclick="marcarOptin('${o.id}',false)">registrar saída</button>`:''}
     </div>
   </div><div class="fbody">`;
 
@@ -471,6 +499,41 @@ function renderFicha(D){
       </div></div>`;
   } else {
     h+=`<div class="vazio">Ainda não respondeu a pesquisa.</div>`;
+  }
+  if(D.pode_agir){
+    h+=`<button class="mini" style="margin-top:8px" onclick="formNPS('${o.id}',${n&&n.nota!=null?n.nota:'null'})">
+      ${n&&n.nota!=null?'✏️ Corrigir registro':'➕ Registrar resposta que veio por fora'}</button>
+      <div id="fnps"></div>`;
+  }
+  h+=`</div>`;
+
+  /* Geração */
+  const G=D.geracao;
+  h+=`<div class="sec"><h3>Geração e desempenho</h3>`;
+  if(G && (G.acumulado?.meses||0)>0){
+    const a=G.acumulado;
+    h+=`<div class="dados">
+      <div class="dado"><div class="k">Acumulado</div><div class="v">${a.kwh||0} <small>kWh</small></div></div>
+      <div class="dado"><div class="k">Economia</div><div class="v">R$ ${a.economia||0}</div></div>
+      <div class="dado"><div class="k">Desempenho médio</div><div class="v" style="color:${(a.desempenho_medio>=90)?'var(--green-l)':((a.desempenho_medio>=75)?'var(--gold)':'#e07070')}">${a.desempenho_medio||'—'}<small>%</small></div></div>
+      <div class="dado"><div class="k">Meses registrados</div><div class="v">${a.meses}</div></div>
+    </div>`;
+    h+=`<table class="gtab"><tr><th>Mês</th><th class="num">kWh</th><th class="num">Desemp.</th><th class="num">Economia</th></tr>`;
+    (G.meses||[]).slice(0,6).forEach(m=>{
+      const p=m.referencia.split('-');
+      const cor=m.desempenho>=90?'var(--green-l)':(m.desempenho>=75?'var(--gold)':'#e07070');
+      h+=`<tr><td>${p[1]}/${p[0]}</td><td class="num">${m.kwh||'—'}</td>
+        <td class="num" style="color:${cor};font-weight:800">${m.desempenho!=null?m.desempenho+'%':'—'}</td>
+        <td class="num">R$ ${m.economia||'—'}</td></tr>`;
+    });
+    h+=`</table>`;
+  } else {
+    h+=`<div class="vazio">Nenhum mês registrado.<br>
+      <span style="font-size:11.5px;opacity:.8">Estimativa pela potência: <b>${G?G.estimativa_mensal:'—'} kWh/mês</b> · ~R$ ${G?G.estimativa_economia:'—'}</span></div>`;
+  }
+  if(D.pode_agir){
+    h+=`<button class="mini" style="margin-top:8px" onclick="formGeracao('${o.id}')">➕ Registrar geração do mês</button>
+      <div id="fger"></div>`;
   }
   h+=`</div>`;
 
@@ -527,6 +590,110 @@ async function tratar(id,obraId){
   await abrirFicha(obraId);
   const nova=await sb.rpc('get_posvenda_lista');
   if(nova.data){DADOS=nova.data;}
+}
+
+
+/* ===== REGISTRO MANUAL ===== */
+let OBRA_ABERTA=null;
+
+function formNPS(id, notaAtual){
+  OBRA_ABERTA=id;
+  const el=document.getElementById('fnps');
+  if(el.innerHTML){ el.innerHTML=''; return; }
+  let notas='';
+  for(let i=0;i<=10;i++) notas+=`<option value="${i}" ${i===notaAtual?'selected':''}>${i}</option>`;
+  el.innerHTML=`<div class="reg">
+    <div class="lin">
+      <div class="cp" style="max-width:110px"><label>Nota (0-10)</label>
+        <select id="n_nota">${notaAtual==null?'<option value="">—</option>':''}${notas}</select></div>
+      <div class="cp"><label>Quando respondeu</label>
+        <input type="date" id="n_data" value="${new Date().toISOString().slice(0,10)}"></div>
+    </div>
+    <div class="cp" style="margin-bottom:9px"><label>Comentário (opcional)</label>
+      <textarea id="n_com" rows="2" placeholder="O que o cliente falou..."></textarea></div>
+    <label class="chk"><input type="checkbox" id="n_google"> Já avaliou no Google</label>
+    <div class="lin">
+      <div class="cp"><label>Brinde escolhido</label>
+        <select id="n_brinde">
+          <option value="">— nenhum —</option>
+          <option value="copo">🥤 Copo térmico</option>
+          <option value="fone">🎧 Fone Bluetooth</option>
+        </select></div>
+    </div>
+    <label class="chk"><input type="checkbox" id="n_entregue"> Brinde já entregue</label>
+    <button class="salvar" onclick="salvarNPS('${id}')">Salvar registro</button>
+    <div class="dica">Use quando o cliente respondeu por WhatsApp, ligação ou pessoalmente — e não pelo link da pesquisa.</div>
+  </div>`;
+}
+
+async function salvarNPS(id){
+  const nota=document.getElementById('n_nota').value;
+  if(nota===''){ toast('Escolha a nota'); return; }
+  const r=await sb.rpc('registrar_nps_manual',{
+    p_obra:id, p_nota:parseInt(nota,10),
+    p_comentario:document.getElementById('n_com').value.trim()||null,
+    p_avaliou_google:document.getElementById('n_google').checked,
+    p_brinde:document.getElementById('n_brinde').value||null,
+    p_brinde_entregue:document.getElementById('n_entregue').checked,
+    p_data:document.getElementById('n_data').value||null
+  });
+  if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
+  toast('Registro salvo ✓');
+  await abrirFicha(id);
+  const nova=await sb.rpc('get_posvenda_lista'); if(nova.data) DADOS=nova.data;
+  const k=await sb.rpc('get_kanban_posvenda'); if(k.data) KB=k.data;
+}
+
+function formGeracao(id){
+  const el=document.getElementById('fger');
+  if(el.innerHTML){ el.innerHTML=''; return; }
+  const hoje=new Date();
+  const mesAnterior=new Date(hoje.getFullYear(), hoje.getMonth()-1, 1);
+  el.innerHTML=`<div class="reg">
+    <div class="lin">
+      <div class="cp"><label>Mês de referência</label>
+        <input type="month" id="g_ref" value="${mesAnterior.toISOString().slice(0,7)}"></div>
+      <div class="cp"><label>Gerado (kWh)</label>
+        <input type="number" id="g_kwh" step="0.01" placeholder="450"></div>
+    </div>
+    <div class="lin">
+      <div class="cp"><label>Previsto (opcional)</label>
+        <input type="number" id="g_prev" step="0.01" placeholder="calcula sozinho"></div>
+      <div class="cp"><label>Economia R$ (opcional)</label>
+        <input type="number" id="g_econ" step="0.01" placeholder="calcula sozinho"></div>
+    </div>
+    <button class="salvar" onclick="salvarGeracao('${id}')">Salvar geração</button>
+    <div class="dica">Pegue os números no relatório da Solarz. Se deixar "previsto" e "economia" em branco, o sistema calcula pela potência do sistema e pela tarifa da CPFL.</div>
+  </div>`;
+}
+
+async function salvarGeracao(id){
+  const ref=document.getElementById('g_ref').value;
+  const kwh=document.getElementById('g_kwh').value;
+  if(!ref||!kwh){ toast('Preencha o mês e o valor gerado'); return; }
+  const prev=document.getElementById('g_prev').value;
+  const econ=document.getElementById('g_econ').value;
+  const r=await sb.rpc('registrar_geracao',{
+    p_obra:id, p_referencia:ref+'-01', p_kwh:parseFloat(kwh),
+    p_previsto:prev?parseFloat(prev):null,
+    p_economia:econ?parseFloat(econ):null,
+    p_origem:'manual'
+  });
+  if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
+  toast(`Salvo ✓ Desempenho: ${r.data.desempenho}%`);
+  await abrirFicha(id);
+}
+
+async function marcarOptin(id, valor){
+  const fn = valor ? 'registrar_optin_manual' : 'registrar_optout_manual';
+  const args = valor ? {p_obra:id, p_origem:'manual'} : {p_obra:id};
+  if(!confirm(valor
+    ? 'Confirmar que este cliente autorizou receber comunicações?\n\nRegistre apenas se ele realmente concordou.'
+    : 'Marcar que este cliente NÃO quer mais receber comunicações?')) return;
+  const r=await sb.rpc(fn,args);
+  if(r.error||(r.data&&r.data.erro)){ toast('Erro'); return; }
+  toast(valor?'Autorização registrada ✓':'Opt-out registrado');
+  await abrirFicha(id);
 }
 
 boot();
