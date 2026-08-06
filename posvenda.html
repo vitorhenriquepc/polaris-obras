@@ -436,6 +436,11 @@ function renderFicha(D){
     <button class="fechar" onclick="fecharFicha()">✕</button>
     <div class="nome">${esc(o.cliente)}</div>
     <div class="meta">${bits.join('<span style="opacity:.4">·</span>')}</div>
+    <div style="margin-top:9px">
+      ${o.optout_em?'<span class="tag red">🚪 Pediu para sair</span>'
+        :(o.optin_em?'<span class="tag green">✓ Autorizou comunicações</span>'
+        :'<span class="tag">⚠️ Sem autorização — não enviar indicação</span>')}
+    </div>
   </div><div class="fbody">`;
 
   /* Sistema */
