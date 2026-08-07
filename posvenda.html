@@ -197,6 +197,32 @@ font-size:11px;font-weight:800;color:var(--gold)}
 .mod .tx{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.5;
 white-space:pre-wrap;max-height:64px;overflow:hidden;position:relative}
 .mod.aberto .tx{max-height:none}
+/* ---- Calculadora ---- */
+.fab{position:fixed;right:18px;bottom:18px;width:56px;height:56px;border-radius:50%;
+background:var(--green);border:none;color:#fff;font-size:23px;cursor:pointer;z-index:50;
+box-shadow:0 6px 22px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center}
+.fab:active{transform:scale(.94)}
+.calc .res{background:var(--card2);border:1px solid var(--border);border-radius:13px;
+padding:15px;margin-top:13px}
+.calc .big{font-size:30px;font-weight:800;color:var(--green-l);line-height:1}
+.calc .big small{font-size:13px;color:var(--muted);font-weight:700;display:block;margin-top:3px}
+.calc .brk{display:flex;justify-content:space-between;font-size:12.5px;padding:7px 0;
+border-bottom:1px solid var(--border);font-weight:600}
+.calc .brk:last-child{border-bottom:none}
+.calc .brk span:last-child{font-weight:800}
+.calc .brk.tot span{color:var(--gold)}
+.calc .al{background:rgba(224,112,112,.12);border:1px solid #e07070;color:#e07070;
+border-radius:9px;padding:10px;font-size:12px;font-weight:700;margin-top:11px;line-height:1.45}
+.plano{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:14px;
+margin-bottom:9px;cursor:pointer;transition:.16s}
+.plano:hover{border-color:var(--gold)}
+.plano.sel{border-color:var(--green-l);background:var(--card2)}
+.plano .ph{display:flex;align-items:center;gap:9px}
+.plano .pn{font-size:14.5px;font-weight:800;flex:1}
+.plano .pp{font-size:19px;font-weight:800;color:var(--green-l)}
+.plano .pp small{font-size:11px;color:var(--muted);font-weight:700}
+.plano .pd{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5;font-weight:600}
+
 /* ---- Indicações ---- */
 .funil{display:flex;gap:7px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px;scrollbar-width:none}
 .funil::-webkit-scrollbar{display:none}
@@ -372,6 +398,7 @@ display:flex;gap:7px;flex-wrap:wrap;align-items:center}
 </div>
 
 <div class="ov" id="ov"><div class="ficha" id="ficha"></div></div>
+<button class="fab" id="fab" title="Calculadora de serviços" onclick="abrirCalc()">🧮</button>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -730,6 +757,7 @@ function renderFicha(D){
     <a class="ac" href="relatorio.html?id=${encodeURIComponent(o.slug)}" target="_blank">📄 Relatório</a>
     <a class="ac" href="cliente.html?id=${encodeURIComponent(o.slug)}" target="_blank">📱 Acompanhamento</a>
     ${o.telefone?`<a class="ac" href="https://wa.me/55${String(o.telefone).replace(/\D/g,'')}" target="_blank">💬 WhatsApp</a>`:''}
+    <button class="ac pri" onclick="abrirCalc('${o.id}')">🧮 Orçar serviço</button>
   </div></div>`;
 
   h+='</div>';
@@ -1278,6 +1306,107 @@ async function salvarIndic(){
   if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
   toast('Indicação '+r.data.codigo+' registrada ✓');
   carregarIndic();
+}
+
+
+/* ===== CALCULADORA ===== */
+let CALC_OBRA=null;
+async function abrirCalc(obraId){
+  CALC_OBRA=obraId||null;
+  const ov=document.getElementById('ov'), f=document.getElementById('ficha');
+  let pre={modulos:'',km:'',cliente:null};
+  if(obraId){
+    const d=await sb.rpc('dados_calculadora',{p_obra:obraId});
+    if(d.data&&!d.data.erro) pre={modulos:d.data.modulos||'',km:d.data.km_estimado||'',
+      cliente:d.data.cliente, assinatura:d.data.assinatura};
+  }
+  f.innerHTML=`<div class="fhead">
+    <button class="fechar" onclick="fecharFicha()">✕</button>
+    <div class="nome">🧮 Calculadora de serviços</div>
+    <div class="meta">${pre.cliente?esc(pre.cliente):'Orçamento avulso'}</div>
+  </div><div class="fbody calc">
+    ${pre.assinatura?`<div class="dado" style="margin-bottom:14px;border-color:var(--green-l)">
+      <div class="k">Plano ativo</div><div class="v" style="font-size:14px">${esc(pre.assinatura.nome)} · R$ ${pre.assinatura.valor}</div></div>`:''}
+    <div class="reg" style="margin-top:0">
+      <div class="lin">
+        <div class="cp"><label>Módulos</label><input type="number" id="c_mod" value="${pre.modulos}" placeholder="15"></div>
+        <div class="cp"><label>Distância (km)</label><input type="number" id="c_km" value="${pre.km}" placeholder="30"></div>
+      </div>
+      <div class="lin">
+        <div class="cp"><label>Tipo</label><select id="c_tipo">
+          <option value="preventiva">🔍 Preventiva (limpeza + inspeção)</option>
+          <option value="corretiva">🔧 Corretiva (com problema)</option>
+        </select></div>
+        <div class="cp" style="max-width:110px"><label>Visitas na rota</label>
+          <select id="c_rota"><option value="1">1</option><option value="2" selected>2</option>
+          <option value="3">3</option><option value="4">4</option></select></div>
+      </div>
+      <button class="salvar" onclick="rodarCalc()">Calcular</button>
+      <div class="dica">A rota divide o deslocamento. Agrupar visitas na mesma região aumenta bastante a margem.</div>
+    </div>
+    <div id="cres"></div>
+    <div id="cplanos"></div>
+  </div>`;
+  ov.classList.add('on');
+  if(pre.modulos) setTimeout(rodarCalc, 120);
+}
+async function rodarCalc(){
+  const m=parseInt(document.getElementById('c_mod').value,10);
+  if(!m){ toast('Informe a quantidade de módulos'); return; }
+  const km=parseFloat(document.getElementById('c_km').value)||0;
+  const tipo=document.getElementById('c_tipo').value;
+  const rota=parseInt(document.getElementById('c_rota').value,10);
+
+  const r=await sb.rpc('calcular_visita',{p_modulos:m,p_km:km,p_tipo:tipo,p_rota:rota});
+  const el=document.getElementById('cres');
+  if(r.error||!r.data){ el.innerHTML='<div class="vazio">Erro no cálculo.</div>'; return; }
+  const d=r.data;
+  if(d.sob_consulta){
+    el.innerHTML=`<div class="res"><div class="big">Sob consulta<small>${d.modulos} módulos — acima da tabela</small></div>
+      <div class="dica" style="margin-top:9px">Sistemas acima de 45 módulos exigem orçamento específico. Considere o custo de ${d.modulos} × R$ 15 = R$ ${d.modulos*15} de equipe, mais deslocamento.</div></div>`;
+    return;
+  }
+  el.innerHTML=`<div class="res">
+    <div class="big">R$ ${Number(d.preco_final).toFixed(2).replace('.',',')}<small>${esc(d.faixa_nome)} · ${d.tipo}</small></div>
+    <div style="margin-top:14px">
+      <div class="brk"><span>Equipe (${d.modulos} × R$ 15)</span><span>R$ ${Number(d.custo_equipe).toFixed(2)}</span></div>
+      <div class="brk"><span>Deslocamento (${d.km} km ÷ ${d.rota} visitas)</span><span>R$ ${Number(d.custo_deslocamento).toFixed(2)}</span></div>
+      <div class="brk"><span>Custo total</span><span>R$ ${Number(d.custo_total).toFixed(2)}</span></div>
+      <div class="brk"><span>Preço de tabela</span><span>R$ ${Number(d.preco_tabela).toFixed(2)}</span></div>
+      ${d.adicional_km>0?`<div class="brk"><span>Adicional de km</span><span>R$ ${Number(d.adicional_km).toFixed(2)}</span></div>`:''}
+      <div class="brk tot"><span>Margem</span><span>R$ ${Number(d.margem).toFixed(2)} (${d.margem_pct}%)</span></div>
+    </div>
+    ${d.alerta?`<div class="al">⚠️ ${esc(d.alerta)}</div>`:''}
+  </div>`;
+  mostrarPlanos(m);
+}
+async function mostrarPlanos(mods){
+  const r=await sb.rpc('planos_para',{p_modulos:mods});
+  const el=document.getElementById('cplanos');
+  if(r.error||!r.data||!r.data.length){ el.innerHTML=''; return; }
+  el.innerHTML=`<div class="sec"><h3>Planos para este sistema</h3>`+r.data.map(p=>`
+    <div class="plano" ${CALC_OBRA?`onclick="assinar('${p.codigo}','${esc(p.nome)}',${p.anual})"`:''}>
+      <div class="ph"><span style="font-size:19px">${p.icone}</span>
+        <span class="pn">${esc(p.nome)}</span>
+        <span class="pp">${p.cortesia?'Cortesia':'R$ '+p.anual}<small>${p.cortesia?' 1º ano':'/ano'}</small></span></div>
+      <div class="pd">${p.cortesia?'Solarz, relatório no app e alerta de falha — cortesia no primeiro ano.'
+        :(p.visita?`Monitoramento ativo + <b>1 visita técnica anual com limpeza e laudo</b> · ${p.desconto}% de desconto em serviços · R$ ${p.mensal}/mês`
+        :`Monitoramento por equipe, relatório mensal, suporte prioritário e auxílio com a concessionária · ${p.desconto}% de desconto · R$ ${p.mensal}/mês`)}</div>
+    </div>`).join('')+
+    (CALC_OBRA?'<div class="dica">Toque no plano para registrar a assinatura deste cliente.</div>':'')+
+    `</div>`;
+}
+async function assinar(plano, nome, valor){
+  if(!CALC_OBRA) return;
+  const per=confirm(`Registrar o plano ${nome}?\n\nOK = anual (R$ ${valor})\nCancelar = escolher mensal`)?'anual':null;
+  if(per===null){
+    if(!confirm('Registrar como plano MENSAL?')) return;
+  }
+  const r=await sb.rpc('registrar_assinatura',{p_obra:CALC_OBRA,p_plano:plano,
+    p_periodicidade:per||'mensal'});
+  if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
+  toast(`Plano registrado ✓ Vence em ${new Date(r.data.vencimento).toLocaleDateString('pt-BR')}`);
+  fecharFicha();
 }
 
 boot();
