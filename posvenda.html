@@ -197,6 +197,42 @@ font-size:11px;font-weight:800;color:var(--gold)}
 .mod .tx{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.5;
 white-space:pre-wrap;max-height:64px;overflow:hidden;position:relative}
 .mod.aberto .tx{max-height:none}
+/* ---- Régua ---- */
+.rgstat{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.rgs{flex:1 1 100px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
+.rgs .n{font-size:22px;font-weight:800;line-height:1}
+.rgs .l{font-size:10px;color:var(--muted);font-weight:700;margin-top:4px;line-height:1.3}
+.rgs.hot{border-color:var(--gold)}.rgs.hot .n{color:var(--gold)}
+.rgs.blk{border-color:#e07070}.rgs.blk .n{color:#e07070}
+.liga{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--border);
+border-radius:13px;padding:13px;margin-bottom:14px}
+.liga .txt{flex:1}
+.liga .tt{font-size:13.5px;font-weight:800}
+.liga .sb{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.4}
+.sw{position:relative;width:50px;height:28px;flex-shrink:0;cursor:pointer}
+.sw input{opacity:0;width:0;height:0}
+.sw .tr{position:absolute;inset:0;background:var(--border);border-radius:28px;transition:.25s}
+.sw .tr:before{content:'';position:absolute;height:22px;width:22px;left:3px;bottom:3px;
+background:var(--muted);border-radius:50%;transition:.25s}
+.sw input:checked + .tr{background:rgba(88,184,104,.25)}
+.sw input:checked + .tr:before{transform:translateX(22px);background:var(--green-l)}
+.rgrow{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;
+margin-bottom:8px;border-left:3px solid var(--border)}
+.rgrow.hoje{border-left-color:var(--gold)}
+.rgrow.bloq{border-left-color:#e07070;opacity:.82}
+.rgrow .l1{display:flex;align-items:flex-start;gap:9px}
+.rgrow .ic{font-size:17px;line-height:1.2}
+.rgrow .cl{font-size:14px;font-weight:800;flex:1;line-height:1.3}
+.rgrow .qd{font-size:10.5px;color:var(--muted);font-weight:700;white-space:nowrap}
+.rgrow .mo{font-size:12px;color:var(--muted);font-weight:600;margin-top:4px;padding-left:26px}
+.rgrow .bq{font-size:11.5px;color:#e07070;font-weight:700;margin-top:6px;padding-left:26px}
+.rgrow .ac{display:flex;gap:6px;margin-top:9px;padding-left:26px;flex-wrap:wrap}
+.rgrow .ac button{background:var(--card2);border:1px solid var(--border);color:var(--muted);
+border-radius:8px;padding:6px 11px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
+.rgrow .ac button:hover{border-color:var(--gold);color:var(--gold)}
+.rgrow .ac button.go{border-color:var(--green);color:var(--green-l)}
+.prev{background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:12px;
+margin-top:9px;font-size:12.5px;line-height:1.55;white-space:pre-wrap;color:var(--txt);font-weight:500}
 .acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .ac{flex:1;min-width:130px;background:var(--card2);border:1px solid var(--border);color:var(--txt);
 border-radius:11px;padding:11px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;
@@ -398,6 +434,11 @@ function render(){
     <button class="chip ${FILTRO==='sem_aniv'?'on':''}" onclick="setFiltro('sem_aniv')">🎂 Sem aniversário</button>`:''}
   </div>`;
 
+  if(VISAO==='regua'){
+    document.getElementById('app').innerHTML=h+'<div id="rgbox"><div class="center"><div class="spin"></div>Carregando a régua...</div></div>';
+    carregarRegua();
+    return;
+  }
   if(VISAO==='jornada'){
     h+=renderJornada();
     document.getElementById('app').innerHTML=h;
@@ -861,6 +902,122 @@ async function toggleRegua(ativar){
   toast(ativar?'Régua ativada ✅':'Régua desativada');
   await carregarRegua();
 }
+
+/* ===== RÉGUA ===== */
+let RG=null;
+async function carregarRegua(){
+  const r=await sb.rpc('get_regua_painel');
+  if(r.error||!r.data){
+    document.getElementById('rgbox').innerHTML='<div class="vazio">Não foi possível carregar a régua.</div>';
+    return;
+  }
+  RG=r.data; renderRegua();
+}
+function renderRegua(){
+  const R=RG.resumo||{}, fila=RG.fila||[], ult=RG.ultimos||[];
+  const hoje=fila.filter(f=>f.quando<=new Date().toISOString().slice(0,10));
+  const prox=fila.filter(f=>f.quando>new Date().toISOString().slice(0,10));
+
+  let h='';
+  if(RG.pode_agir){
+    h+=`<div class="liga">
+      <div class="txt">
+        <div class="tt">${RG.ativa?'✅ Régua ativa':'⏸️ Régua pausada'}</div>
+        <div class="sb">${RG.ativa
+          ? `Envia até ${RG.por_dia} contatos por dia útil, às 11h. Cada envio respeita 6 segundos de intervalo.`
+          : 'Nenhum contato está sendo enviado automaticamente. Você ainda pode disparar manualmente abaixo.'}</div>
+      </div>
+      <label class="sw"><input type="checkbox" ${RG.ativa?'checked':''} onchange="ligarRegua(this.checked)"><span class="tr"></span></label>
+    </div>`;
+  }
+
+  h+=`<div class="rgstat">
+    <div class="rgs ${R.hoje?'hot':''}"><div class="n">${R.hoje||0}</div><div class="l">Para enviar hoje</div></div>
+    <div class="rgs"><div class="n">${R.proximos7||0}</div><div class="l">Próximos 7 dias</div></div>
+    <div class="rgs ${R.bloqueados?'blk':''}"><div class="n">${R.bloqueados||0}</div><div class="l">Bloqueados</div></div>
+    <div class="rgs"><div class="n">${R.enviados_30d||0}</div><div class="l">Enviados em 30 dias</div></div>
+    <div class="rgs"><div class="n">${R.clientes_na_regua||0}</div><div class="l">Clientes na régua</div></div>
+  </div>`;
+
+  if(hoje.length){
+    h+=`<div class="sec"><h3>Para enviar hoje</h3>`+hoje.map(f=>linhaRegua(f,true)).join('')+`</div>`;
+  } else {
+    h+=`<div class="vazio">Nada para enviar hoje. 👏</div>`;
+  }
+
+  if(prox.length){
+    h+=`<div class="sec"><h3>Próximos dias</h3>`+prox.slice(0,20).map(f=>linhaRegua(f,false)).join('')+`</div>`;
+  }
+
+  if(ult.length){
+    h+=`<div class="sec"><h3>Últimos enviados</h3>`+ult.map(u=>{
+      const d=new Date(u.enviado_em);
+      return `<div class="rgrow"><div class="l1"><span class="ic">${u.icone||'📬'}</span>
+        <span class="cl">${esc(u.cliente)}</span>
+        <span class="qd">${d.toLocaleDateString('pt-BR')}</span></div>
+        <div class="mo">${esc(u.nome_modelo)}</div></div>`;
+    }).join('')+`</div>`;
+  }
+
+  document.getElementById('rgbox').innerHTML=h;
+}
+function linhaRegua(f, ehHoje){
+  const q=f.quando.split('-');
+  const lim=f.data_limite.split('-');
+  return `<div class="rgrow ${f.bloqueio?'bloq':(ehHoje?'hoje':'')}" id="rg${f.id}">
+    <div class="l1"><span class="ic">${f.icone||'📬'}</span>
+      <span class="cl">${esc(f.cliente)}${f.contrato?` <span style="color:var(--muted);font-weight:600;font-size:11.5px">#${esc(f.contrato)}</span>`:''}</span>
+      <span class="qd">${ehHoje?'hoje':q[2]+'/'+q[1]}</span></div>
+    <div class="mo">${esc(f.nome_modelo)} · ${f.dias_ativo} dias de ativo · janela até ${lim[2]}/${lim[1]}</div>
+    ${f.bloqueio?`<div class="bq">⚠️ ${esc(f.bloqueio)}</div>`:''}
+    ${RG.pode_agir?`<div class="ac">
+      <button onclick="previaRegua(${f.id})">👁️ ver texto</button>
+      ${!f.bloqueio?`<button class="go" onclick="enviarRegua(${f.id},'${esc(f.cliente)}')">📤 enviar agora</button>`:''}
+      <button onclick="adiarRegua(${f.id})">⏰ adiar 7 dias</button>
+      <button onclick="cancelarRegua(${f.id})">✕ cancelar</button>
+    </div>`:''}
+    <div id="pv${f.id}"></div>
+  </div>`;
+}
+async function ligarRegua(v){
+  if(v && !confirm('Ativar a régua?\n\nA partir de agora o sistema envia automaticamente os contatos programados, todo dia útil às 11h.')){
+    renderRegua(); return;
+  }
+  const r=await sb.from('config').update({valor:v?'1':'0'}).eq('chave','regua_ativa');
+  if(r.error){ toast('Erro ao salvar'); return; }
+  toast(v?'Régua ativada ✅':'Régua pausada');
+  carregarRegua();
+}
+async function previaRegua(id){
+  const el=document.getElementById('pv'+id);
+  if(el.innerHTML){ el.innerHTML=''; return; }
+  const r=await sb.rpc('regua_previa',{p_id:id});
+  if(r.error||!r.data||r.data.erro){ toast('Não foi possível carregar'); return; }
+  el.innerHTML=`<div class="prev">${esc(r.data.texto||'')}</div>`;
+}
+async function enviarRegua(id, cliente){
+  if(!confirm('Enviar este contato para '+cliente+' agora?')) return;
+  toast('Enviando...');
+  const s=await sb.auth.getSession();
+  const r=await sb.functions.invoke('regua-disparo',{body:{contato_id:id}});
+  if(r.error||(r.data&&r.data.error)){ toast('Erro: '+((r.data&&r.data.error)||r.error.message)); return; }
+  toast('Enviado ✓');
+  carregarRegua();
+}
+async function adiarRegua(id){
+  const r=await sb.rpc('regua_adiar',{p_id:id,p_dias:7});
+  if(r.error||(r.data&&r.data.erro)){ toast((r.data&&r.data.erro)||'Erro ao adiar'); return; }
+  toast('Adiado por 7 dias');
+  carregarRegua();
+}
+async function cancelarRegua(id){
+  if(!confirm('Cancelar este contato?\n\nEle não será enviado a este cliente.')) return;
+  const r=await sb.rpc('regua_cancelar',{p_id:id});
+  if(r.error){ toast('Erro'); return; }
+  toast('Contato cancelado');
+  carregarRegua();
+}
+
 boot();
 </script>
 </body>
