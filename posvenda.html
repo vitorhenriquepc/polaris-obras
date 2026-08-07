@@ -931,6 +931,7 @@ function renderRegua(){
     </div>`;
   }
 
+  h+=`<div id="optbox"></div>`;
   h+=`<div class="rgstat">
     <div class="rgs ${R.hoje?'hot':''}"><div class="n">${R.hoje||0}</div><div class="l">Para enviar hoje</div></div>
     <div class="rgs"><div class="n">${R.proximos7||0}</div><div class="l">Próximos 7 dias</div></div>
@@ -960,6 +961,58 @@ function renderRegua(){
   }
 
   document.getElementById('rgbox').innerHTML=h;
+  carregarOptin();
+}
+
+/* ===== CAMPANHA DE AUTORIZAÇÃO ===== */
+let OPT=null;
+async function carregarOptin(){
+  const r=await sb.rpc('get_optin_status');
+  if(r.error||!r.data) return;
+  OPT=r.data; renderOptin();
+}
+function renderOptin(){
+  const el=document.getElementById('optbox'); if(!el||!OPT) return;
+  const o=OPT;
+  const pct=o.total_ativos?Math.round(100*o.autorizados/o.total_ativos):0;
+  el.innerHTML=`<div class="liga" style="flex-direction:column;align-items:stretch;gap:11px">
+    <div style="display:flex;align-items:center;gap:11px">
+      <div class="txt">
+        <div class="tt">🔓 Autorização para indicação</div>
+        <div class="sb">${o.autorizados} de ${o.total_ativos} clientes autorizaram (${pct}%). Sem isso, os pedidos de indicação ficam bloqueados.</div>
+      </div>
+    </div>
+    <div style="height:7px;background:var(--card2);border-radius:20px;overflow:hidden">
+      <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--green),var(--green-l));transition:width .4s"></div>
+    </div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;font-size:11px">
+      <span class="tag green">✓ ${o.autorizados} autorizaram</span>
+      <span class="tag">⏳ ${o.pedido_enviado} aguardando resposta</span>
+      <span class="tag">📭 ${o.nunca_pedido} sem pedido</span>
+      ${o.recusados?`<span class="tag red">✕ ${o.recusados} recusaram</span>`:''}
+    </div>
+    ${(o.pode_agir && o.nunca_pedido)?`<div style="display:flex;gap:7px;flex-wrap:wrap">
+      <button class="mini" style="flex:1" onclick="verTextoOptin()">👁️ ver o texto</button>
+      <button class="mini" style="flex:1;border-style:solid;border-color:var(--green);color:var(--green-l)"
+        onclick="dispararOptin()">📤 pedir para ${Math.min(o.por_dia,o.nunca_pedido)} clientes</button>
+    </div>
+    <div id="optxt"></div>`:''}
+  </div>`;
+}
+function verTextoOptin(){
+  const el=document.getElementById('optxt');
+  if(el.innerHTML){ el.innerHTML=''; return; }
+  el.innerHTML=`<div class="prev">${esc((OPT.texto||'').replace(/\{nome\}/g,'Mario'))}</div>
+    <div class="dica" style="margin-top:7px">A mensagem só pede permissão — não oferece nada. Quem responder <b>SIM</b> é autorizado automaticamente; quem responder <b>NÃO</b> sai da lista. Sem resposta, o sistema não insiste.</div>`;
+}
+async function dispararOptin(){
+  const q=Math.min(OPT.por_dia, OPT.nunca_pedido);
+  if(!confirm(`Enviar o pedido de autorização para ${q} cliente(s)?\n\nSão os que ainda não receberam. Cada envio tem 7 segundos de intervalo.`)) return;
+  toast('Enviando pedidos...');
+  const r=await sb.functions.invoke('campanha-optin',{body:{}});
+  if(r.error||(r.data&&r.data.error)){ toast('Erro: '+((r.data&&r.data.error)||r.error.message)); return; }
+  toast(`${r.data.enviados} pedido(s) enviado(s) ✓`);
+  carregarOptin();
 }
 function linhaRegua(f, ehHoje){
   const q=f.quando.split('-');
