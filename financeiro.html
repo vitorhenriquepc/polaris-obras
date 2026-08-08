@@ -269,6 +269,7 @@ let DRE=null, OBRAS=null, FLUXO=null, DESEMP=null, CONTAS=[], PARAMS=[], ORIGENS
 let FILA=null, EDIT=null, FILA_TODAS=false, RESUMO=null, ABRIR=null, ATALHO=null, VERCONTAS=false;
 let FNAT='', DRILL=null, EQUIPE=[], PARC=[];
 let CALC={mod:8,estr:'fibrocimento',km:0,res:null}, ESTRUTURAS=[], KITS=[];
+let DESV=null, VERDESV=false;
 function fnat(v,l){return '<button class="stb'+(FNAT===v?' on':'')+'" onclick="FNAT=\''+v+'\';render()">'+l+'</button>';}
 
 document.getElementById('ver').textContent='v'+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
@@ -345,14 +346,15 @@ async function carregar(){
     sb.rpc('get_fluxo_caixa',{p_ini:INI,p_fim:FIM}),
     sb.rpc('get_financeiro_desempenho',{p_ini:INI,p_fim:FIM}),
     sb.rpc('get_fila_financeiro'),
-    sb.rpc('get_resumo_financeiro',{p_ini:INI,p_fim:FIM})
+    sb.rpc('get_resumo_financeiro',{p_ini:INI,p_fim:FIM}),
+    sb.rpc('get_desvios',{p_ini:INI,p_fim:FIM})
   ]);
   if(r[0].error||!r[0].data){
     document.getElementById('app').innerHTML='<div class="center"><span style="font-size:32px">🔒</span>'+
       '<br><br><b>Sem permissão financeira.</b><br>Seu usuário precisa ser admin ou nível financeiro.</div>';
     return;
   }
-  DRE=r[0].data; OBRAS=r[1].data; FLUXO=r[2].data; DESEMP=r[3].data; FILA=r[4].data; RESUMO=r[5].data;
+  DRE=r[0].data; OBRAS=r[1].data; FLUXO=r[2].data; DESEMP=r[3].data; FILA=r[4].data; RESUMO=r[5].data; DESV=r[6].data;
   render();
 }
 
@@ -435,12 +437,69 @@ function viewDRE(){
        'operação — são destino do lucro. Aparecem no <b>Fluxo de caixa</b>.</div>';
   }
 
+  h+=blocoDesvio();
   h+='<button class="linkmais" onclick="VERCONTAS=!VERCONTAS;render()">'+
      (VERCONTAS?'Esconder o detalhe contábil':'Ver o detalhe contábil (para o contador)')+'</button>';
   if(VERCONTAS) h+=arvoreContabil();
   return h;
 }
 
+function blocoDesvio(){
+  if(!DESV || !n(DESV.obras)) return '';
+  const d=n(DESV.desvio_pct), ant=DESV.desvio_pct_anterior;
+  const acima = d>0;
+  const cor = Math.abs(d)<0.02 ? 'var(--muted)' : (acima?'var(--red)':'var(--green-l)');
+  let tend='';
+  if(ant!=null && n(DESV.obras_anterior)>0){
+    const dif=d-n(ant);
+    tend = Math.abs(dif)<0.01 ? 'igual ao período anterior'
+         : (dif>0 ? '↑ piorou '+pct(Math.abs(dif))+' vs. anterior'
+                  : '↓ melhorou '+pct(Math.abs(dif))+' vs. anterior');
+  }
+  let titulo;
+  if(Math.abs(d)<0.02) titulo='As obras do mês fecharam dentro do orçado';
+  else if(acima) titulo='As obras do mês custaram '+pct(d)+' acima do orçado';
+  else titulo='As obras do mês custaram '+pct(Math.abs(d))+' abaixo do orçado';
+
+  let h='<div class="step" style="border-color:'+cor+';cursor:pointer;margin-bottom:9px" '+
+    'onclick="VERDESV=!VERDESV;render()">'+
+    '<div class="dot" style="background:'+cor+'"></div>'+
+    '<div class="cn"><b>'+esc(titulo)+'</b><span>'+n(DESV.obras)+' obra(s) comparadas'+
+    (tend?' · '+esc(tend):'')+' · toque para ver</span></div>'+
+    '<div class="vl"><div class="v" style="color:'+cor+'">'+(acima?'+':'')+moeda(DESV.desvio_total)+'</div>'+
+    '<div class="p">'+(VERDESV?'▲':'▼')+'</div></div></div>';
+  if(!VERDESV) return h;
+
+  const L=DESV.linhas||[];
+  h+='<div class="det" style="margin-bottom:12px"><table class="gtab" style="border:none">'+
+     '<thead><tr><th>Item</th><th class="num">Orçado</th><th class="num">Real</th>'+
+     '<th class="num">Desvio</th></tr></thead><tbody>';
+  for(let i=0;i<L.length;i++){
+    const x=L[i], dv=n(x.desvio);
+    const c2 = Math.abs(n(x.desvio_pct))<0.02?'var(--muted)':(dv>0?'var(--red)':'var(--green-l)');
+    h+='<tr><td>'+esc(x.item)+'</td><td class="num">'+moeda(x.previsto)+'</td>'+
+      '<td class="num">'+moeda(x.realizado)+'</td>'+
+      '<td class="num" style="color:'+c2+';font-weight:800">'+(dv>0?'+':'')+pct(x.desvio_pct)+'</td></tr>';
+  }
+  h+='</tbody></table>';
+  const P=DESV.piores||[];
+  if(P.length){
+    h+='<div style="margin-top:10px;font-size:11px;font-weight:800;color:var(--muted);'+
+       'text-transform:uppercase;letter-spacing:.6px">Obras que mais fugiram</div>';
+    for(let i=0;i<P.length;i++){
+      h+='<div class="chk" style="border-color:var(--border)"><div class="st no">'+n(P[i].modulos)+'</div>'+
+        '<div class="cn"><b>'+esc(P[i].cliente)+'</b><span>orçado '+moeda(P[i].prev)+
+        ' · real '+moeda(P[i].rea)+'</span></div>'+
+        '<div style="text-align:right"><b style="color:var(--red)">+'+moeda(P[i].desvio)+'</b><br>'+
+        '<span style="font-size:11px;color:var(--muted);font-weight:800">'+pct(P[i].pct)+'</span></div>'+
+        '<button class="bmini" onclick="event.stopPropagation();abrirFin(\''+P[i].id+'\')">›</button></div>';
+    }
+  }
+  if(n(DESV.sem_telhado)>0)
+    h+='<div class="dica">⚠️ '+n(DESV.sem_telhado)+' obra(s) sem tipo de telhado — '+
+       'o orçado dessas usou fibrocimento como padrão.</div>';
+  return h+'</div>';
+}
 function passo(k,cor,titulo,sub,valor,pc){
   const aberto = ABRIR===k;
   let h='<button class="step" onclick="ABRIR=(ABRIR===\''+k+'\'?null:\''+k+'\');render()">'+
@@ -541,6 +600,10 @@ function viewObras(){
     kc('Ticket médio',moeda(T.ticket_medio),'','')+
     kc('Preço por kWp',moeda(T.preco_kwp),n(T.kwp).toFixed(2)+' kWp','')+
   '</div>';
+  h+='<div class="reg" style="padding:11px"><button class="bmini" style="width:100%" '+
+     'onclick="calcPrevistoLote()">🧮 Calcular orçado de todas as obras do mês</button>'+
+     '<div class="dica" style="margin-top:7px">Usa a tabela de kits, o telhado e a distância de cada obra. '+
+     'Habilita a comparação orçado × real no Resumo.</div></div>';
   h+='<div class="periodo"><span style="font-size:11px;font-weight:800;color:var(--muted);'+
      'text-transform:uppercase;letter-spacing:.6px">Base do rateio</span>'+
      '<select onchange="RATEIO=this.value;render()">'+
@@ -649,7 +712,7 @@ function renderFin(){
     let val = (F[c[0]]!=null?F[c[0]]:'');
     if(c[0]==='custo_operacional' && val==='' && EDIT.sugereOper) val=EDIT.sugereOper.toFixed(2);
     h+='<div class="cp"><label>'+esc(c[1])+(c[2]?' *':'')+'</label>'+
-      '<input type="number" step="0.01" id="e_'+c[0]+'" value="'+val+'" '+
+      '<input type="number" step="0.01" inputmode="decimal" id="e_'+c[0]+'" value="'+val+'" '+
       'oninput="recalcFin()" placeholder="0,00"></div>';
   }
   h+='</div><div id="calcBox"></div>';
@@ -717,6 +780,13 @@ function renderPrevisto(){
   h+='</tbody></table><div class="dica">Vermelho é custo acima do orçado. '+
      'Verde é economia. Só compara o que já foi lançado.</div>';
   box.innerHTML=h;
+}
+async function calcPrevistoLote(){
+  const r=await sb.rpc('calcular_previsto_lote',{p_ini:INI,p_fim:FIM});
+  if(r.error){toast('Erro: '+r.error.message);return;}
+  const d=r.data||{};
+  toast((d.calculadas||0)+' obra(s) com orçado calculado');
+  await carregar();
 }
 async function calcularPrevistoObra(){
   const estr=document.getElementById('eEstr').value;
