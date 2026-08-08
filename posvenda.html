@@ -412,6 +412,12 @@ background:var(--card2);border:2px solid var(--border);color:var(--muted)}
 .mrc .mt{font-size:8.5px;color:var(--muted);margin-top:2px;line-height:1.25;opacity:.85;
 white-space:normal;padding:0 2px}
 .trjflags{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+.chkline{display:flex;align-items:center;gap:10px;padding:11px;border-bottom:1px solid var(--border);cursor:pointer}
+.chkline:last-child{border-bottom:none}
+.chkline:hover{background:var(--card2)}
+.chkline .cn{flex:1;min-width:0}
+.chkline .cn b{display:block;font-size:13.5px;font-weight:800;line-height:1.3}
+.chkline .cn span{font-size:11px;color:var(--muted);font-weight:700}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -447,7 +453,7 @@ const SB_KEY='sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const LOGO_D='https://obras.polarisenergiasolar.com/logo.png', LOGO_L='https://obras.polarisenergiasolar.com/logo-claro.png';
 let DADOS=null, FILTRO='', BUSCA='';
-let VISAO='jornada', KB=null, TRAJ=null;
+let VISAO='jornada', KB=null, TRAJ=null, TCEL=null, BRINDES=[];
 try{VISAO=localStorage.getItem('polaris-pv-visao')||'jornada'}catch(e){}
 
 function tema(t){document.documentElement.setAttribute('data-theme',t);
@@ -532,6 +538,7 @@ function render(){
       <button class="vtab ${VISAO==='lista'?'on':''}" onclick="setVisao('lista')">☰ Lista</button>
       <button class="vtab ${VISAO==='regua'?'on':''}" onclick="setVisao('regua')">📅 Régua</button>
       <button class="vtab ${VISAO==='indic'?'on':''}" onclick="setVisao('indic')">🎁 Indicações</button>
+      <button class="vtab ${VISAO==='brindes'?'on':''}" onclick="setVisao('brindes')">🥤 Brindes</button>
     </div>
     <div class="search">🔍<input id="q" placeholder="Buscar cliente ou contrato..." value="${esc(BUSCA)}" oninput="setBusca(this.value)"></div>
     ${VISAO==='lista'?`
@@ -549,6 +556,11 @@ function render(){
   if(VISAO==='regua'){
     document.getElementById('app').innerHTML=h+'<div id="rgbox"><div class="center"><div class="spin"></div>Carregando a régua...</div></div>';
     carregarRegua();
+    return;
+  }
+  if(VISAO==='brindes'){
+    document.getElementById('app').innerHTML=h+'<div id="brbox"><div class="center"><div class="spin"></div>Carregando brindes...</div></div>';
+    carregarBrindes();
     return;
   }
   if(VISAO==='traj'){
@@ -606,6 +618,79 @@ function render(){
     }).join('')+'</div>';
   }
   document.getElementById('app').innerHTML=h;
+}
+async function carregarBrindes(){
+  var box=document.getElementById('brbox'); if(!box) return;
+  var r=await sb.rpc('get_brindes');
+  if(r.error){box.innerHTML='<div class="vazio">Não foi possível carregar os brindes.</div>';return;}
+  BRINDES=r.data||[];
+  box.innerHTML=renderBrindes();
+}
+function renderBrindes(){
+  var arr=BRINDES;
+  var b=(BUSCA||'').toLowerCase();
+  if(b) arr=arr.filter(function(x){
+    return (x.cliente||'').toLowerCase().indexOf(b)>=0 || (x.voucher||'').toLowerCase().indexOf(b)>=0;});
+  var pend=arr.filter(function(x){return !x.entregue_em;});
+  var ent=arr.filter(function(x){return !!x.entregue_em;});
+  var semG=arr.filter(function(x){return !x.avaliou_google_em;});
+
+  var h='<div class="rgstat">'+
+    '<div class="b"><div class="n">'+arr.length+'</div><div class="l">Brindes solicitados</div></div>'+
+    '<div class="b"><div class="n" style="color:var(--gold)">'+pend.length+'</div><div class="l">A entregar</div></div>'+
+    '<div class="b"><div class="n" style="color:var(--green-l)">'+ent.length+'</div><div class="l">Entregues</div></div>'+
+    '<div class="b"><div class="n" style="color:#e07070">'+semG.length+'</div><div class="l">Sem avaliação no Google</div></div>'+
+  '</div>';
+  if(!arr.length) return h+'<div class="vazio"><span class="i">🥤</span>Nenhum brinde solicitado ainda.<br>'+
+    'O cliente escolhe o brinde ao responder a pesquisa com nota 9 ou 10.</div>';
+  h+='<div class="trjres"><div class="dica" style="margin:0 0 8px">Confira a avaliação no Google antes de entregar. Toque no código para copiar.</div>';
+  for(var i=0;i<arr.length;i++) h+=linhaBrinde(arr[i]);
+  return h+'</div>';
+}
+function linhaBrinde(b){
+  var nome=b.brinde==='copo'?'Copo térmico':'Fone Bluetooth';
+  var emoji=b.brinde==='copo'?'🥤':'🎧';
+  var d=b.brinde_em?dataBR(b.brinde_em):'—';
+  var g=b.avaliou_google_em
+    ? '<span class="tag green">avaliou no Google</span>'
+    : '<span class="tag gold">avaliação pendente</span>';
+  var h='<div class="chkline" style="cursor:default">'+
+    '<span style="font-size:22px;flex-shrink:0">'+emoji+'</span>'+
+    '<div class="cn"><b>'+esc(b.cliente)+'</b>'+
+    '<span>'+esc(nome)+(b.contrato?' · #'+esc(b.contrato):'')+' · ⭐ '+n(b.nota)+'/10 · '+d+'</span>'+
+    '<div class="trjflags" style="margin-top:6px">'+g+
+    (b.entregue_em?'<span class="tag green">entregue</span>':'')+'</div></div>'+
+    '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0">'+
+    '<button class="stb" style="font-family:monospace;letter-spacing:1.5px;color:var(--gold)" '+
+      'onclick="copiarCod(\''+b.voucher+'\')">'+esc(b.voucher)+'</button>';
+  if(!b.avaliou_google_em)
+    h+='<button class="stb" onclick="confirmarGoogle(\''+b.voucher+'\')">Confirmar Google</button>';
+  if(!b.entregue_em)
+    h+='<button class="stb" style="border-color:var(--green-l);color:var(--green-l)" '+
+       'onclick="entregarBrinde(\''+b.voucher+'\')">Entregar</button>';
+  return h+'</div></div>';
+}
+function copiarCod(v){
+  navigator.clipboard.writeText(v).then(function(){toast('Código copiado');})
+    .catch(function(){prompt('Código:',v);});
+}
+async function confirmarGoogle(v){
+  if(!confirm('Confirmar que este cliente avaliou a Polaris no Google?\n\nVerifique antes no Google Meu Negócio.'))return;
+  var r=await sb.rpc('marcar_avaliou_google',{p_voucher:v});
+  if(r.error||(r.data&&r.data.erro)){toast('Erro: '+((r.data&&r.data.erro)||r.error.message));return;}
+  toast('Avaliação confirmada');
+  var b=BRINDES.find(function(x){return x.voucher===v;});
+  if(b) b.avaliou_google_em=new Date().toISOString();
+  document.getElementById('brbox').innerHTML=renderBrindes();
+}
+async function entregarBrinde(v){
+  if(!confirm('Confirmar a entrega do brinde '+v+'?'))return;
+  var r=await sb.rpc('marcar_brinde_entregue',{p_voucher:v});
+  if(r.error||(r.data&&r.data.erro)){toast('Erro: '+((r.data&&r.data.erro)||r.error.message));return;}
+  toast('Brinde entregue');
+  var b=BRINDES.find(function(x){return x.voucher===v;});
+  if(b) b.entregue_em=new Date().toISOString();
+  document.getElementById('brbox').innerHTML=renderBrindes();
 }
 function setVisao(v){VISAO=v;try{localStorage.setItem('polaris-pv-visao',v)}catch(e){}render();}
 function renderJornada(){
@@ -668,14 +753,17 @@ function renderTraj(){
     '<div class="b"><div class="n" style="color:#e07070">'+((T.bloqueado||0)+(T.cancelado||0))+'</div><div class="l">Travados ou perdidos</div></div>'+
   '</div>';
 
-  h+='<div class="trjres"><table><thead><tr><th>Marco</th><th class="num">✓ Env.</th>'+
+  h+='<div class="trjres"><div class="dica" style="margin:0 0 8px">Toque em qualquer número para ver quais clientes estão nele.</div>'+
+     '<table><thead><tr><th>Marco</th><th class="num">✓ Env.</th>'+
      '<th class="num">● Prog.</th><th class="num">🔒 Bloq.</th><th class="num">✕ Canc.</th></tr></thead><tbody>';
   for(var i=0;i<RM.length;i++){
     var r=RM[i];
     h+='<tr><td>'+(r.icone||'')+' D+'+r.dia+' · '+esc(r.nome)+'</td>'+
-      td(r.enviado,'e')+td(r.programado,'p')+td(r.bloqueado,'b')+td(r.cancelado,'c')+'</tr>';
+      td(r.enviado,'e',r.codigo,'enviado')+td(r.programado,'p',r.codigo,'programado')+
+      td(r.bloqueado,'b',r.codigo,'bloqueado')+td(r.cancelado,'c',r.codigo,'cancelado')+'</tr>';
   }
   h+='</tbody></table></div>';
+  if(TCEL) h+=blocoCelula();
 
   if(!cls.length) return h+'<div class="vazio">Nenhum cliente encontrado.</div>';
   h+='<div class="trjwrap">';
@@ -683,10 +771,46 @@ function renderTraj(){
   h+='</div>';
   return h;
 }
-function td(v,k){
+function td(v,k,cod,est){
   v=Number(v||0);
   if(!v) return '<td class="num z">—</td>';
-  return '<td class="num"><span class="pill '+k+'">'+v+'</span></td>';
+  var on=(TCEL && TCEL.cod===cod && TCEL.est===est);
+  return '<td class="num" style="cursor:pointer" onclick="setCel(\''+cod+'\',\''+est+'\')">'+
+    '<span class="pill '+k+'"'+(on?' style="outline:2px solid var(--gold)"':'')+'>'+v+'</span></td>';
+}
+function setCel(cod,est){
+  if(TCEL && TCEL.cod===cod && TCEL.est===est) TCEL=null;
+  else TCEL={cod:cod,est:est};
+  var box=document.getElementById('trjbox'); if(box) box.innerHTML=renderTraj();
+}
+function blocoCelula(){
+  var M=TRAJ.marcos||[], cls=TRAJ.clientes||[];
+  var marco=M.find(function(m){return m.codigo===TCEL.cod;}) || {nome:TCEL.cod};
+  var rot={enviado:'já receberam',programado:'estão programados',
+           bloqueado:'estão bloqueados',cancelado:'foram cancelados'};
+  var alvo=[];
+  for(var i=0;i<cls.length;i++){
+    var mk=(cls[i].marcos||[]).find(function(x){return x.codigo===TCEL.cod;});
+    if(mk && mk.estado===TCEL.est) alvo.push({c:cls[i],m:mk});
+  }
+  var h='<div class="trjres" style="border-color:var(--gold)">'+
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'+
+    '<b style="font-size:14px">'+(marco.icone||'')+' '+esc(marco.nome)+' — '+alvo.length+' '+
+    esc(rot[TCEL.est]||TCEL.est)+'</b>'+
+    '<button class="stb" style="margin-left:auto" onclick="TCEL=null;document.getElementById(\'trjbox\').innerHTML=renderTraj()">✕</button></div>';
+  if(!alvo.length) h+='<div class="dica">Nenhum cliente aqui.</div>';
+  for(var j=0;j<alvo.length;j++){
+    var a=alvo[j];
+    var leg='';
+    if(a.m.enviado_em) leg=quando(a.m.enviado_em);
+    else if(a.m.programada) leg='previsto '+dataBR(a.m.programada);
+    if(a.m.motivo) leg=(leg?leg+' · ':'')+a.m.motivo;
+    h+='<div class="chkline" onclick="abrirFicha(\''+a.c.id+'\')">'+
+      '<div class="cn"><b>'+esc(a.c.cliente)+'</b><span>'+
+      (a.c.dias!=null?a.c.dias+' dias':'sem ativação')+(leg?' · '+esc(leg):'')+'</span></div>'+
+      '<span style="color:var(--muted);font-size:15px">›</span></div>';
+  }
+  return h+'</div>';
 }
 function cardTraj(c,M){
   var mp={}; var mk=c.marcos||[];
