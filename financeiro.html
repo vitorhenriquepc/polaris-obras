@@ -267,7 +267,7 @@ const LOGO_L='https://obras.polarisenergiasolar.com/logo-claro.png';
 let ABA='dre', INI=null, FIM=null, RATEIO='obra';
 let DRE=null, OBRAS=null, FLUXO=null, DESEMP=null, CONTAS=[], PARAMS=[], ORIGENS=[];
 let FILA=null, EDIT=null, FILA_TODAS=false, RESUMO=null, ABRIR=null, ATALHO=null, VERCONTAS=false;
-let FNAT='', DRILL=null;
+let FNAT='', DRILL=null, EQUIPE=[], PARC=[];
 function fnat(v,l){return '<button class="stb'+(FNAT===v?' on':'')+'" onclick="FNAT=\''+v+'\';render()">'+l+'</button>';}
 
 document.getElementById('ver').textContent='v'+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
@@ -327,6 +327,8 @@ async function boot(){
   PARAMS=pr.data||[];
   const og=await sb.from('origens_lead').select('*').eq('ativo',true).order('ordem');
   ORIGENS=og.data||[];
+  const eq=await sb.from('equipe').select('id,nome,papel,vende,ativo');
+  EQUIPE=(eq.data||[]).filter(function(p){return (p.papel==='Vendedor'||p.vende) && p.ativo!==false;});
   if(PARAMS.length&&PARAMS[0].rateio_base) RATEIO=PARAMS[0].rateio_base;
   await carregar();
 }
@@ -563,6 +565,9 @@ function cardObra(o){
     '<span>CMV '+pct(o.cmv_pct)+'</span><span>MC '+pct(o.mc_pct)+'</span>'+
     (o.vendedor?'<span>'+esc(o.vendedor)+'</span>':'')+
     (o.origem?'<span class="tag">'+esc(o.origem)+'</span>':'<span class="tag red">sem origem</span>')+
+    (o.status_pgto==='quitado'?'<span class="tag green">quitado</span>'
+      :o.status_pgto==='parcelado'?'<span class="tag gold">'+n(o.qtd_parcelas)+'x · '+n(o.parcelas_recebidas)+' recebida(s)</span>'
+      :'<span class="tag">em aberto</span>')+
     '</div><div class="barra">'+
     '<i style="width:'+wD+'%;background:#3d6b8f"></i>'+
     '<i style="width:'+wI+'%;background:#7a5aa0"></i>'+
@@ -594,9 +599,16 @@ async function abrirFin(id){
   d.innerHTML='<div class="center"><div class="spin"></div>Abrindo...</div>';
   ov.classList.add('on');
   const r=await sb.from('obra_financeiro').select('*').eq('obra_id',id).maybeSingle();
-  const o=await sb.from('obras').select('id,cliente,contrato,potencia_kwp,qtd_modulos,data_fechamento,data_instalacao,data_conclusao,origem_lead').eq('id',id).maybeSingle();
+  const o=await sb.from('obras').select('id,cliente,contrato,potencia_kwp,qtd_modulos,data_fechamento,data_instalacao,data_conclusao,origem_lead,vendedor_id').eq('id',id).maybeSingle();
+  const pp=await sb.from('obra_parcelas').select('*').eq('obra_id',id).order('numero');
   if(r.error||o.error||!o.data){d.innerHTML='<div class="center">Não foi possível abrir.</div>';return;}
   EDIT={fin:r.data||{obra_id:id}, obra:o.data};
+  PARC=(pp.data||[]).map(function(x){return {numero:x.numero,valor:x.valor,
+    vencimento:x.vencimento,recebida:x.recebida};});
+  const F0=EDIT.fin;
+  if((F0.custo_operacional==null||F0.custo_operacional===0) && o.data.qtd_modulos>0 && PARAMS.length){
+    EDIT.sugereOper = n(o.data.qtd_modulos)*n(PARAMS[0].custo_operacional_placa);
+  }
   renderFin();
 }
 function fecharFin(){document.getElementById('ov').classList.remove('on');EDIT=null;}
@@ -608,46 +620,100 @@ function renderFin(){
     (O.qtd_modulos?n(O.qtd_modulos)+' módulos':'')+'</span>'+
     '<button class="fechar" onclick="fecharFin()">✕</button></div><div class="dwbody">';
 
-  h+='<div class="reg"><h3>Origem do lead</h3><div class="lin"><div class="cp w2"><select id="eOrigem">'+
-     '<option value="">Não informado</option>';
+  h+='<div class="reg"><h3>Quem trouxe e quem vendeu</h3><div class="lin">'+
+     '<div class="cp"><label>Vendedor</label><select id="eVend">'+
+     '<option value="">— Sem vendedor —</option>';
+  for(let i=0;i<EQUIPE.length;i++){
+    h+='<option value="'+esc(EQUIPE[i].id)+'"'+(O.vendedor_id===EQUIPE[i].id?' selected':'')+'>'+
+       esc(EQUIPE[i].nome)+'</option>';
+  }
+  h+='</select></div><div class="cp"><label>Origem do lead</label><select id="eOrigem">'+
+     '<option value="">— Não informado —</option>';
   for(let i=0;i<ORIGENS.length;i++){
     h+='<option value="'+esc(ORIGENS[i].codigo)+'"'+(O.origem_lead===ORIGENS[i].codigo?' selected':'')+'>'+
        esc(ORIGENS[i].nome)+'</option>';
   }
-  h+='</select></div></div><div class="dica">Sem isso o CAC não fecha.</div></div>';
+  h+='</select></div></div>'+
+     '<div class="dica">Os dois gravam direto na obra — não precisa ir no painel.</div></div>';
 
   h+='<div class="reg"><h3>Preço e custos</h3><div class="lin">';
   for(let i=0;i<CAMPOS.length;i++){
     const c=CAMPOS[i];
+    let val = (F[c[0]]!=null?F[c[0]]:'');
+    if(c[0]==='custo_operacional' && val==='' && EDIT.sugereOper) val=EDIT.sugereOper.toFixed(2);
     h+='<div class="cp"><label>'+esc(c[1])+(c[2]?' *':'')+'</label>'+
-      '<input type="number" step="0.01" id="e_'+c[0]+'" value="'+(F[c[0]]!=null?F[c[0]]:'')+'" '+
+      '<input type="number" step="0.01" id="e_'+c[0]+'" value="'+val+'" '+
       'oninput="recalcFin()" placeholder="0,00"></div>';
   }
-  h+='</div><div id="calcBox"></div>'+
-     '<div class="dica">Deixe imposto e comissão em branco e clique em <b>Sugerir</b> para calcular '+
-     'pelos parâmetros da vigência.</div>'+
-     '<button class="bmini" style="width:100%;margin-top:8px" onclick="sugerirFin()">Sugerir imposto e comissão</button></div>';
+  h+='</div><div id="calcBox"></div>';
+  if(EDIT.sugereOper)
+    h+='<div class="dica">💡 Custo operacional sugerido: '+n(O.qtd_modulos)+' módulos × '+
+       moeda2(PARAMS[0].custo_operacional_placa)+' = <b>'+moeda2(EDIT.sugereOper)+'</b>. Pode alterar.</div>';
+  h+='<button class="bmini" style="width:100%;margin-top:8px" onclick="sugerirFin()">'+
+     'Sugerir imposto e comissão pelos parâmetros</button></div>';
 
-  h+='<div class="reg"><h3>Recebimento</h3>'+
-    '<div class="lin"><div class="cp"><label>Status</label><select id="eStatus">'+
-    optS('aberto','Aberto',F.status_pagamento)+optS('parcelado','Parcelado',F.status_pagamento)+
-    optS('quitado','Quitado',F.status_pagamento)+'</select></div></div>'+
-    '<div class="lin"><div class="cp"><label>1ª parcela</label>'+
-      '<input type="number" step="0.01" id="e_p1v" value="'+(F.parcela_1_valor!=null?F.parcela_1_valor:'')+'"></div>'+
-      '<div class="cp"><label>Data</label><input type="date" id="e_p1d" value="'+(F.parcela_1_data||'')+'"></div>'+
-      '<div class="cp"><label>Recebida</label><select id="e_p1r">'+
-      optS('nao','Não',F.parcela_1_recebida?'sim':'nao')+optS('sim','Sim',F.parcela_1_recebida?'sim':'nao')+'</select></div></div>'+
-    '<div class="lin"><div class="cp"><label>2ª parcela</label>'+
-      '<input type="number" step="0.01" id="e_p2v" value="'+(F.parcela_2_valor!=null?F.parcela_2_valor:'')+'"></div>'+
-      '<div class="cp"><label>Data</label><input type="date" id="e_p2d" value="'+(F.parcela_2_data||'')+'"></div>'+
-      '<div class="cp"><label>Recebida</label><select id="e_p2r">'+
-      optS('nao','Não',F.parcela_2_recebida?'sim':'nao')+optS('sim','Sim',F.parcela_2_recebida?'sim':'nao')+'</select></div></div></div>';
+  h+='<div class="reg"><h3>Recebimento</h3><div id="parcBox"></div>'+
+     '<div class="lin" style="margin-top:8px"><button class="bmini" onclick="addParcela()">+ Adicionar parcela</button>'+
+     '<button class="bmini" onclick="gerarParcelas()">Dividir em N vezes</button></div>'+
+     '<div class="dica">Sem parcela cadastrada, a obra fica como <b>Em aberto</b>. '+
+     'Quando todas estiverem recebidas, vira <b>Quitado</b> sozinho.</div></div>';
 
   h+='<button class="salvar" id="bFin" onclick="salvarFin()">Salvar</button></div>';
   document.getElementById('dw').innerHTML=h;
-  recalcFin();
+  recalcFin(); renderParc();
 }
-function optS(v,l,at){return '<option value="'+v+'"'+(at===v?' selected':'')+'>'+esc(l)+'</option>';}
+function renderParc(){
+  const box=document.getElementById('parcBox'); if(!box) return;
+  if(!PARC.length){
+    box.innerHTML='<div class="dica" style="margin:0"><b>Em aberto</b> — nenhuma parcela definida ainda.</div>';
+    return;
+  }
+  const rec=PARC.filter(function(p){return p.recebida;}).length;
+  const tot=PARC.reduce(function(a,p){return a+n(p.valor);},0);
+  const sit = rec===PARC.length ? ['Quitado','var(--green-l)']
+            : ['Parcelado em '+PARC.length+'x — '+rec+' recebida(s)','var(--gold)'];
+  let h='<div class="resumoCalc" style="margin:0 0 10px"><div class="r tot">'+
+    '<span style="color:'+sit[1]+'">'+sit[0]+'</span><span>'+moeda2(tot)+'</span></div></div>';
+  for(let i=0;i<PARC.length;i++){
+    const p=PARC[i];
+    h+='<div class="lin" style="align-items:center">'+
+      '<div style="font-size:12px;font-weight:800;color:var(--muted);min-width:36px">'+p.numero+'ª</div>'+
+      '<div class="cp"><input type="number" step="0.01" placeholder="Valor" value="'+(p.valor!=null?p.valor:'')+'" '+
+        'oninput="PARC['+i+'].valor=parseFloat(this.value)||null;renderParcResumo()"></div>'+
+      '<div class="cp"><input type="date" value="'+(p.vencimento||'')+'" '+
+        'onchange="PARC['+i+'].vencimento=this.value||null"></div>'+
+      '<button class="bmini'+(p.recebida?' go':'')+'" onclick="PARC['+i+'].recebida=!PARC['+i+'].recebida;renderParc()">'+
+        (p.recebida?'✓ recebida':'a receber')+'</button>'+
+      '<button class="bmini" onclick="PARC.splice('+i+',1);renumerar();renderParc()">✕</button>'+
+      '</div>';
+  }
+  box.innerHTML=h;
+}
+function renderParcResumo(){ /* recalcula só o cabeçalho sem perder foco */
+  const box=document.getElementById('parcBox'); if(!box) return;
+  const el=box.querySelector('.resumoCalc .r.tot span:last-child'); if(!el) return;
+  el.textContent=moeda2(PARC.reduce(function(a,p){return a+n(p.valor);},0));
+}
+function renumerar(){ for(let i=0;i<PARC.length;i++) PARC[i].numero=i+1; }
+function addParcela(){
+  PARC.push({numero:PARC.length+1, valor:null, vencimento:null, recebida:false});
+  renderParc();
+}
+function gerarParcelas(){
+  const q=parseInt(prompt('Dividir em quantas parcelas?','2'),10);
+  if(!(q>0&&q<=36)){ if(q) toast('Informe um número entre 1 e 36'); return; }
+  const total=n(gv('e_preco_negociado'));
+  if(!(total>0)){ toast('Informe o preço negociado primeiro'); return; }
+  const base=Math.floor(total/q*100)/100;
+  const hoje=new Date();
+  PARC=[];
+  for(let i=0;i<q;i++){
+    const d=new Date(hoje.getFullYear(),hoje.getMonth()+i,hoje.getDate());
+    const v = (i===q-1) ? Math.round((total-base*(q-1))*100)/100 : base;
+    PARC.push({numero:i+1, valor:v, vencimento:iso(d), recebida:false});
+  }
+  renderParc();
+}
 function gv(id){const e=document.getElementById(id);if(!e)return null;
   const v=e.value;return v===''?null:parseFloat(v);}
 function recalcFin(){
@@ -687,14 +753,23 @@ async function salvarFin(){
   const b=document.getElementById('bFin'); b.disabled=true; b.textContent='Salvando...';
   const payload={obra_id:EDIT.obra.id, atualizado_em:new Date().toISOString()};
   for(let i=0;i<CAMPOS.length;i++) payload[CAMPOS[i][0]]=gv('e_'+CAMPOS[i][0]);
-  payload.status_pagamento=document.getElementById('eStatus').value;
-  payload.parcela_1_valor=gv('e_p1v'); payload.parcela_1_data=document.getElementById('e_p1d').value||null;
-  payload.parcela_1_recebida=document.getElementById('e_p1r').value==='sim';
-  payload.parcela_2_valor=gv('e_p2v'); payload.parcela_2_data=document.getElementById('e_p2d').value||null;
-  payload.parcela_2_recebida=document.getElementById('e_p2r').value==='sim';
+  const recT=PARC.filter(function(p){return p.recebida;}).length;
+  payload.status_pagamento = PARC.length===0 ? 'aberto'
+                           : (recT===PARC.length ? 'quitado' : 'parcelado');
   const r=await sb.from('obra_financeiro').upsert(payload,{onConflict:'obra_id'});
+  // parcelas: apaga e regrava
+  await sb.from('obra_parcelas').delete().eq('obra_id',EDIT.obra.id);
+  if(PARC.length){
+    await sb.from('obra_parcelas').insert(PARC.map(function(p){
+      return {obra_id:EDIT.obra.id, numero:p.numero, valor:p.valor,
+              vencimento:p.vencimento||null, recebida:!!p.recebida};}));
+  }
   const og=document.getElementById('eOrigem').value||null;
-  if(og!==EDIT.obra.origem_lead) await sb.from('obras').update({origem_lead:og}).eq('id',EDIT.obra.id);
+  const vd=document.getElementById('eVend').value||null;
+  const upd={};
+  if(og!==EDIT.obra.origem_lead) upd.origem_lead=og;
+  if(vd!==EDIT.obra.vendedor_id) upd.vendedor_id=vd;
+  if(Object.keys(upd).length) await sb.from('obras').update(upd).eq('id',EDIT.obra.id);
   b.disabled=false; b.textContent='Salvar';
   if(r.error){toast('Erro: '+r.error.message);return;}
   toast('Financeiro da obra salvo');
@@ -712,7 +787,7 @@ async function dispensarFin(id){
 /* ---------- FLUXO ---------- */
 function viewFluxo(){
   const R=(FLUXO&&FLUXO.resumo)||{}, ent=(FLUXO&&FLUXO.entradas)||[], sai=(FLUXO&&FLUXO.saidas)||[];
-  if(!ent.length&&!sai.length){
+  if(!ent.length&&!sai.length&&!((FLUXO&&FLUXO.atrasadas)||[]).length){
     return '<div class="vazio"><span class="i">💵</span><b>Sem movimento previsto em '+esc(mesLabel())+'.</b><br>'+
       'As entradas vêm das parcelas cadastradas na obra. As saídas vêm dos lançamentos com data de caixa preenchida.</div>';
   }
@@ -722,12 +797,25 @@ function viewFluxo(){
     kc('A pagar',moeda(R.a_pagar),'','neg')+
     kc('Saldo do mês',moeda(R.saldo),'',n(R.saldo)>=0?'pos':'neg')+
   '</div>';
+  const atr=(FLUXO&&FLUXO.atrasadas)||[];
+  if(atr.length){
+    h+='<div class="fila" style="border-color:var(--red)"><h3 style="color:var(--red)">'+
+       '⚠️ Parcelas atrasadas — '+atr.length+' · '+moeda(R.atrasado)+'</h3>';
+    for(let i=0;i<atr.length;i++){
+      h+='<div class="fitem atrasado"><div class="cn"><b>'+esc(atr[i].cliente)+'</b>'+
+        '<span>parcela '+n(atr[i].parcela)+' de '+n(atr[i].de)+' · venceu '+dataBR(atr[i].data)+
+        ' · '+n(atr[i].dias)+' dias</span></div>'+
+        '<div class="acts"><b style="font-size:14px">'+moeda(atr[i].valor)+'</b>'+
+        '<button class="bmini go" onclick="abrirFin(\''+atr[i].obra_id+'\')">Abrir</button></div></div>';
+    }
+    h+='</div>';
+  }
   if(ent.length){
     h+='<div class="reg"><h3>Entradas previstas</h3><table class="gtab"><thead><tr>'+
       '<th>Data</th><th>Cliente</th><th>Parcela</th><th class="num">Valor</th><th>Status</th></tr></thead><tbody>';
     for(let i=0;i<ent.length;i++){
       h+='<tr><td>'+dataBR(ent[i].data)+'</td><td>'+esc(ent[i].cliente)+'</td>'+
-        '<td>'+n(ent[i].parcela)+'ª</td><td class="num">'+moeda2(ent[i].valor)+'</td>'+
+        '<td>'+n(ent[i].parcela)+' de '+n(ent[i].de)+'</td><td class="num">'+moeda2(ent[i].valor)+'</td>'+
         '<td>'+(ent[i].recebida?'<span class="tag green">recebida</span>':'<span class="tag gold">aberta</span>')+'</td></tr>';
     }
     h+='</tbody></table></div>';
