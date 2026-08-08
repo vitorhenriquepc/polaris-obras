@@ -373,6 +373,45 @@ display:flex;gap:7px;flex-wrap:wrap;align-items:center}
   .kcol{flex:0 0 78vw}
   .vtab{padding:7px 10px;font-size:12px}
 }
+/* ---- Trajetória do cliente ---- */
+.trjwrap{display:grid;gap:9px}
+.trjres{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;overflow-x:auto}
+.trjres table{width:100%;border-collapse:collapse;font-size:12px;min-width:520px}
+.trjres th{text-align:left;font-size:9.5px;color:var(--muted);text-transform:uppercase;
+letter-spacing:.5px;padding:8px 6px;border-bottom:1px solid var(--border);font-weight:800}
+.trjres td{padding:8px 6px;border-bottom:1px solid var(--border);font-weight:700}
+.trjres tr:last-child td{border-bottom:none}
+.trjres .num{text-align:center;font-variant-numeric:tabular-nums}
+.trjres .z{color:var(--muted);opacity:.35}
+.pill{display:inline-block;min-width:26px;text-align:center;border-radius:20px;padding:2px 7px;font-size:11px;font-weight:800}
+.pill.e{background:rgba(88,184,104,.16);color:var(--green-l)}
+.pill.p{background:rgba(245,166,35,.16);color:var(--gold)}
+.pill.b{background:rgba(143,166,184,.16);color:var(--muted)}
+.pill.c{background:rgba(224,112,112,.16);color:#e07070}
+.trjcli{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px;
+cursor:pointer;transition:.18s;text-align:left;font-family:inherit;color:var(--txt);width:100%}
+.trjcli:hover{border-color:var(--gold)}
+.trjcli .top{display:flex;align-items:baseline;gap:9px;margin-bottom:10px}
+.trjcli .nm{flex:1;font-size:14.5px;font-weight:800;line-height:1.25}
+.trjcli .dd{font-size:11px;color:var(--muted);font-weight:800;white-space:nowrap}
+.trilha2{display:flex;align-items:flex-start;gap:0;overflow-x:auto;padding-bottom:4px}
+.trilha2::-webkit-scrollbar{height:4px}
+.trilha2::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.mrc{flex:1 0 62px;position:relative;text-align:center}
+.mrc::before{content:'';position:absolute;top:11px;left:-50%;width:100%;height:2px;background:var(--border);z-index:0}
+.mrc:first-child::before{display:none}
+.mrc.ok::before{background:var(--green-l)}
+.mrc .bo{position:relative;z-index:1;width:24px;height:24px;border-radius:50%;margin:0 auto;
+display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;
+background:var(--card2);border:2px solid var(--border);color:var(--muted)}
+.mrc.ok .bo{background:var(--green-l);border-color:var(--green-l);color:#04240b}
+.mrc.pg .bo{border-color:var(--gold);color:var(--gold)}
+.mrc.bl .bo{border-style:dashed;opacity:.75}
+.mrc.cn .bo{border-color:#e07070;color:#e07070}
+.mrc .dia{font-size:9px;color:var(--muted);font-weight:800;margin-top:5px;letter-spacing:.3px}
+.mrc .mt{font-size:8.5px;color:var(--muted);margin-top:2px;line-height:1.25;opacity:.85;
+white-space:normal;padding:0 2px}
+.trjflags{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -408,7 +447,7 @@ const SB_KEY='sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const LOGO_D='https://obras.polarisenergiasolar.com/logo.png', LOGO_L='https://obras.polarisenergiasolar.com/logo-claro.png';
 let DADOS=null, FILTRO='', BUSCA='';
-let VISAO='jornada', KB=null;
+let VISAO='jornada', KB=null, TRAJ=null;
 try{VISAO=localStorage.getItem('polaris-pv-visao')||'jornada'}catch(e){}
 
 function tema(t){document.documentElement.setAttribute('data-theme',t);
@@ -489,6 +528,7 @@ function render(){
   h+=`<div class="tools">
     <div class="vtabs">
       <button class="vtab ${VISAO==='jornada'?'on':''}" onclick="setVisao('jornada')">🗺️ Jornada</button>
+      <button class="vtab ${VISAO==='traj'?'on':''}" onclick="setVisao('traj')">🛤️ Trajetória</button>
       <button class="vtab ${VISAO==='lista'?'on':''}" onclick="setVisao('lista')">☰ Lista</button>
       <button class="vtab ${VISAO==='regua'?'on':''}" onclick="setVisao('regua')">📅 Régua</button>
       <button class="vtab ${VISAO==='indic'?'on':''}" onclick="setVisao('indic')">🎁 Indicações</button>
@@ -509,6 +549,11 @@ function render(){
   if(VISAO==='regua'){
     document.getElementById('app').innerHTML=h+'<div id="rgbox"><div class="center"><div class="spin"></div>Carregando a régua...</div></div>';
     carregarRegua();
+    return;
+  }
+  if(VISAO==='traj'){
+    document.getElementById('app').innerHTML=h+'<div id="trjbox"><div class="center"><div class="spin"></div>Montando a trajetória...</div></div>';
+    carregarTraj();
     return;
   }
   if(VISAO==='jornada'){
@@ -593,6 +638,81 @@ function renderJornada(){
       }).join(''):'<div class="kvazio">nenhum cliente</div>'}
     </div>`;
   }).join('')+'</div>';
+}
+async function carregarTraj(){
+  const box=document.getElementById('trjbox'); if(!box) return;
+  if(!TRAJ){
+    const r=await sb.rpc('get_trajetoria_posvenda');
+    if(r.error||!r.data){box.innerHTML='<div class="vazio">Não foi possível montar a trajetória.</div>';return;}
+    TRAJ=r.data;
+  }
+  box.innerHTML=renderTraj();
+}
+const TRJ_EST={
+  enviado:   {cls:'ok', ic:'✓',  nm:'Enviado'},
+  programado:{cls:'pg', ic:'●',  nm:'Programado'},
+  bloqueado: {cls:'bl', ic:'🔒', nm:'Bloqueado'},
+  cancelado: {cls:'cn', ic:'✕',  nm:'Cancelado'},
+  nao_gerado:{cls:'',   ic:'○',  nm:'Não gerado'}
+};
+function renderTraj(){
+  const M=TRAJ.marcos||[], RM=TRAJ.resumo_marcos||[], T=TRAJ.totais||{};
+  let cls=TRAJ.clientes||[];
+  const b=(BUSCA||'').toLowerCase();
+  if(b) cls=cls.filter(function(c){return (c.cliente||'').toLowerCase().indexOf(b)>=0;});
+
+  var h='<div class="rgstat">'+
+    '<div class="b"><div class="n">'+(T.clientes||0)+'</div><div class="l">Clientes na régua</div></div>'+
+    '<div class="b"><div class="n" style="color:var(--green-l)">'+(T.enviado||0)+'</div><div class="l">Contatos enviados</div></div>'+
+    '<div class="b"><div class="n" style="color:var(--gold)">'+(T.programado||0)+'</div><div class="l">Programados</div></div>'+
+    '<div class="b"><div class="n" style="color:#e07070">'+((T.bloqueado||0)+(T.cancelado||0))+'</div><div class="l">Travados ou perdidos</div></div>'+
+  '</div>';
+
+  h+='<div class="trjres"><table><thead><tr><th>Marco</th><th class="num">✓ Env.</th>'+
+     '<th class="num">● Prog.</th><th class="num">🔒 Bloq.</th><th class="num">✕ Canc.</th></tr></thead><tbody>';
+  for(var i=0;i<RM.length;i++){
+    var r=RM[i];
+    h+='<tr><td>'+(r.icone||'')+' D+'+r.dia+' · '+esc(r.nome)+'</td>'+
+      td(r.enviado,'e')+td(r.programado,'p')+td(r.bloqueado,'b')+td(r.cancelado,'c')+'</tr>';
+  }
+  h+='</tbody></table></div>';
+
+  if(!cls.length) return h+'<div class="vazio">Nenhum cliente encontrado.</div>';
+  h+='<div class="trjwrap">';
+  for(var j=0;j<cls.length;j++) h+=cardTraj(cls[j],M);
+  h+='</div>';
+  return h;
+}
+function td(v,k){
+  v=Number(v||0);
+  if(!v) return '<td class="num z">—</td>';
+  return '<td class="num"><span class="pill '+k+'">'+v+'</span></td>';
+}
+function cardTraj(c,M){
+  var mp={}; var mk=c.marcos||[];
+  for(var i=0;i<mk.length;i++) mp[mk[i].codigo]=mk[i];
+  var h='<button class="trjcli" onclick="abrirFicha(\''+c.id+'\')"><div class="top">'+
+    '<div class="nm">'+esc(c.cliente)+'</div>'+
+    '<div class="dd">'+(c.dias!=null?c.dias+' dias':'sem ativação')+'</div></div>'+
+    '<div class="trilha2">';
+  for(var k=0;k<M.length;k++){
+    var m=M[k], e=mp[m.codigo]||{estado:'nao_gerado'};
+    var cfg=TRJ_EST[e.estado]||TRJ_EST.nao_gerado;
+    var leg='';
+    if(e.estado==='enviado'&&e.enviado_em) leg=quando(e.enviado_em);
+    else if(e.estado==='programado'&&e.programada) leg=dataBR(e.programada);
+    else if(e.motivo) leg=e.motivo;
+    h+='<div class="mrc '+cfg.cls+'" title="'+esc(m.nome+' — '+cfg.nm+(leg?' · '+leg:''))+'">'+
+      '<div class="bo">'+cfg.ic+'</div>'+
+      '<div class="dia">'+(m.dia>0?'D+'+m.dia:'—')+'</div>'+
+      '<div class="mt">'+esc(leg||'')+'</div></div>';
+  }
+  h+='</div><div class="trjflags">'+
+    (c.optin?'<span class="tag green">opt-in</span>':'<span class="tag red">sem opt-in</span>')+
+    (c.indicou?'<span class="tag gold">já indicou</span>':'')+
+    (c.tem_geracao?'<span class="tag">geração ok</span>':'<span class="tag">sem geração</span>')+
+    '</div></button>';
+  return h;
 }
 function setFiltro(f){FILTRO=(FILTRO===f)?'':f;render();}
 function setBusca(v){BUSCA=v;const p=document.activeElement===document.getElementById('q');render();
