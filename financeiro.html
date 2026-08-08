@@ -268,6 +268,7 @@ let ABA='dre', INI=null, FIM=null, RATEIO='obra';
 let DRE=null, OBRAS=null, FLUXO=null, DESEMP=null, CONTAS=[], PARAMS=[], ORIGENS=[];
 let FILA=null, EDIT=null, FILA_TODAS=false, RESUMO=null, ABRIR=null, ATALHO=null, VERCONTAS=false;
 let FNAT='', DRILL=null, EQUIPE=[], PARC=[];
+let CALC={mod:8,estr:'fibrocimento',km:0,res:null}, ESTRUTURAS=[], KITS=[];
 function fnat(v,l){return '<button class="stb'+(FNAT===v?' on':'')+'" onclick="FNAT=\''+v+'\';render()">'+l+'</button>';}
 
 document.getElementById('ver').textContent='v'+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
@@ -327,6 +328,10 @@ async function boot(){
   PARAMS=pr.data||[];
   const og=await sb.from('origens_lead').select('*').eq('ativo',true).order('ordem');
   ORIGENS=og.data||[];
+  const te=await sb.from('tabela_estrutura').select('*').order('ordem');
+  ESTRUTURAS=te.data||[];
+  const tk=await sb.from('tabela_kits').select('*').order('qtd_modulos');
+  KITS=tk.data||[];
   const eq=await sb.from('equipe').select('id,nome,papel,vende,ativo');
   EQUIPE=(eq.data||[]).filter(function(p){return (p.papel==='Vendedor'||p.vende) && p.ativo!==false;});
   if(PARAMS.length&&PARAMS[0].rateio_base) RATEIO=PARAMS[0].rateio_base;
@@ -354,17 +359,19 @@ async function carregar(){
 function render(){
   let h='<div class="subtabs">';
   const abas=[['dre','📊 Resumo do mês'],['obras','🏗️ Obra a obra'],['fluxo','💵 Fluxo de caixa'],
-              ['desemp','📈 Desempenho'],['lancar','✏️ Lançar'],['param','⚙️ Parâmetros']];
+              ['desemp','📈 Desempenho'],['calc','🧮 Calculadora'],['lancar','✏️ Lançar'],
+              ['param','⚙️ Parâmetros']];
   for(let i=0;i<abas.length;i++){
     h+='<button class="stb'+(ABA===abas[i][0]?' on':'')+'" onclick="irAba(\''+abas[i][0]+'\')">'+abas[i][1]+'</button>';
   }
   h+='</div>';
-  if(ABA!=='param'&&ABA!=='lancar') h+=blocoPeriodo();
+  if(ABA!=='param'&&ABA!=='lancar'&&ABA!=='calc') h+=blocoPeriodo();
   h+='<div class="pane on">';
   if(ABA==='dre') h+=viewDRE();
   else if(ABA==='obras') h+=viewObras();
   else if(ABA==='fluxo') h+=viewFluxo();
   else if(ABA==='desemp') h+=viewDesemp();
+  else if(ABA==='calc') h+=viewCalc();
   else if(ABA==='lancar') h+=viewLancar();
   else h+=viewParam();
   h+='</div>';
@@ -599,7 +606,7 @@ async function abrirFin(id){
   d.innerHTML='<div class="center"><div class="spin"></div>Abrindo...</div>';
   ov.classList.add('on');
   const r=await sb.from('obra_financeiro').select('*').eq('obra_id',id).maybeSingle();
-  const o=await sb.from('obras').select('id,cliente,contrato,potencia_kwp,qtd_modulos,data_fechamento,data_instalacao,data_conclusao,origem_lead,vendedor_id').eq('id',id).maybeSingle();
+  const o=await sb.from('obras').select('id,cliente,contrato,potencia_kwp,qtd_modulos,data_fechamento,data_instalacao,data_conclusao,origem_lead,vendedor_id,tipo_estrutura,distancia_km').eq('id',id).maybeSingle();
   const pp=await sb.from('obra_parcelas').select('*').eq('obra_id',id).order('numero');
   if(r.error||o.error||!o.data){d.innerHTML='<div class="center">Não foi possível abrir.</div>';return;}
   EDIT={fin:r.data||{obra_id:id}, obra:o.data};
@@ -652,6 +659,19 @@ function renderFin(){
   h+='<button class="bmini" style="width:100%;margin-top:8px" onclick="sugerirFin()">'+
      'Sugerir imposto e comissão pelos parâmetros</button></div>';
 
+  h+='<div class="reg"><h3>Previsto × Realizado</h3>'+
+     '<div class="lin"><div class="cp"><label>Telhado</label><select id="eEstr">';
+  for(let i=0;i<ESTRUTURAS.length;i++){
+    h+='<option value="'+esc(ESTRUTURAS[i].tipo)+'"'+
+       ((O.tipo_estrutura||'fibrocimento')===ESTRUTURAS[i].tipo?' selected':'')+'>'+
+       esc(ESTRUTURAS[i].nome)+'</option>';
+  }
+  h+='</select></div><div class="cp"><label>Distância (km)</label>'+
+     '<input type="number" id="eKm" step="1" value="'+(O.distancia_km!=null?O.distancia_km:'')+'"></div>'+
+     '<div class="cp"><button class="bmini go" style="width:100%;padding:11px" '+
+     'onclick="calcularPrevistoObra()">Calcular previsto</button></div></div>'+
+     '<div id="prevBox"></div></div>';
+
   h+='<div class="reg"><h3>Recebimento</h3><div id="parcBox"></div>'+
      '<div class="lin" style="margin-top:8px"><button class="bmini" onclick="addParcela()">+ Adicionar parcela</button>'+
      '<button class="bmini" onclick="gerarParcelas()">Dividir em N vezes</button></div>'+
@@ -660,7 +680,58 @@ function renderFin(){
 
   h+='<button class="salvar" id="bFin" onclick="salvarFin()">Salvar</button></div>';
   document.getElementById('dw').innerHTML=h;
-  recalcFin(); renderParc();
+  recalcFin(); renderParc(); renderPrevisto();
+}
+function renderPrevisto(){
+  const box=document.getElementById('prevBox'); if(!box) return;
+  const F=EDIT.fin;
+  if(F.previsto_total==null){
+    box.innerHTML='<div class="dica" style="margin:0">Previsto ainda não calculado para esta obra. '+
+      'Confira o telhado e a distância e toque em <b>Calcular previsto</b>.</div>';
+    return;
+  }
+  const linhas=[
+    ['Kit', F.previsto_kit, n(gv('e_valor_kit'))],
+    ['Estrutura e cabo', F.previsto_estrutura, n(gv('e_cabo'))],
+    ['Material CA', F.previsto_material_ca, n(gv('e_material_ca'))],
+    ['Instalação', F.previsto_instalacao, n(gv('e_instalacao'))],
+    ['Deslocamento', F.previsto_deslocamento, n(gv('e_deslocamento'))]
+  ];
+  let h='<table class="gtab" style="margin-top:4px"><thead><tr><th>Item</th>'+
+    '<th class="num">Previsto</th><th class="num">Realizado</th><th class="num">Desvio</th></tr></thead><tbody>';
+  let tp=0, tr=0;
+  for(let i=0;i<linhas.length;i++){
+    const p=n(linhas[i][1]), r=n(linhas[i][2]); tp+=p; tr+=r;
+    const d=r-p;
+    const cor = Math.abs(d)<1 ? 'var(--muted)' : (d>0?'var(--red)':'var(--green-l)');
+    const sinal = Math.abs(d)<1 ? '—' : (d>0?'+':'')+moeda(d);
+    h+='<tr><td>'+esc(linhas[i][0])+'</td><td class="num">'+moeda(p)+'</td>'+
+      '<td class="num">'+(r>0?moeda(r):'—')+'</td>'+
+      '<td class="num" style="color:'+cor+';font-weight:800">'+sinal+'</td></tr>';
+  }
+  const dt=tr-tp;
+  h+='<tr style="border-top:2px solid var(--gold)"><td><b>Total</b></td>'+
+    '<td class="num"><b>'+moeda(tp)+'</b></td><td class="num"><b>'+moeda(tr)+'</b></td>'+
+    '<td class="num" style="color:'+(Math.abs(dt)<1?'var(--muted)':(dt>0?'var(--red)':'var(--green-l)'))+
+    ';font-weight:800">'+(Math.abs(dt)<1?'—':(dt>0?'+':'')+moeda(dt))+'</b></td></tr>';
+  h+='</tbody></table><div class="dica">Vermelho é custo acima do orçado. '+
+     'Verde é economia. Só compara o que já foi lançado.</div>';
+  box.innerHTML=h;
+}
+async function calcularPrevistoObra(){
+  const estr=document.getElementById('eEstr').value;
+  const km=parseFloat(document.getElementById('eKm').value)||0;
+  const mods=n(EDIT.obra.qtd_modulos);
+  if(!(mods>0)){toast('Obra sem quantidade de módulos — cadastre no painel de obras');return;}
+  await sb.from('obras').update({tipo_estrutura:estr, distancia_km:km}).eq('id',EDIT.obra.id);
+  const r=await sb.rpc('gravar_previsto',{p_obra:EDIT.obra.id});
+  if(r.error){toast('Erro: '+r.error.message);return;}
+  if(r.data&&r.data.erro){toast(r.data.erro);return;}
+  const f=await sb.from('obra_financeiro').select('*').eq('obra_id',EDIT.obra.id).maybeSingle();
+  if(f.data) EDIT.fin=f.data;
+  EDIT.obra.tipo_estrutura=estr; EDIT.obra.distancia_km=km;
+  toast('Previsto calculado');
+  renderPrevisto();
 }
 function renderParc(){
   const box=document.getElementById('parcBox'); if(!box) return;
@@ -726,6 +797,7 @@ function recalcFin(){
   const mc=p-dir-imp-com-op;
   const rat=n(DRE&&DRE.rateio&&DRE.rateio.por_obra);
   const ml=mc-rat;
+  if(document.getElementById('prevBox')&&EDIT&&EDIT.fin&&EDIT.fin.previsto_total!=null) setTimeout(renderPrevisto,0);
   box.innerHTML='<div class="resumoCalc">'+
     lr('Preço',p)+lr('Custos diretos',-dir)+lr('Imposto + comissão + operacional',-(imp+com+op))+
     '<div class="r tot"><span>Margem de contribuição</span><span style="color:'+
@@ -909,6 +981,70 @@ function blocoDrill(){
   h+='<div class="dica">Só aparecem as obras do período selecionado. '+
      'Mude o mês acima para ver outras.</div>';
   return h+'</div>';
+}
+
+/* ---------- CALCULADORA ---------- */
+function viewCalc(){
+  let h='<div class="reg"><h3>Simular uma obra</h3><div class="lin">'+
+    '<div class="cp"><label>Módulos</label><input type="number" id="cMod" min="4" max="40" '+
+      'value="'+CALC.mod+'" oninput="CALC.mod=parseInt(this.value,10)||0;rodarCalc()"></div>'+
+    '<div class="cp"><label>Telhado</label><select id="cEstr" onchange="CALC.estr=this.value;rodarCalc()">';
+  for(let i=0;i<ESTRUTURAS.length;i++){
+    h+='<option value="'+esc(ESTRUTURAS[i].tipo)+'"'+(CALC.estr===ESTRUTURAS[i].tipo?' selected':'')+'>'+
+       esc(ESTRUTURAS[i].nome)+' · '+moeda2(ESTRUTURAS[i].valor_modulo)+'/mód</option>';
+  }
+  h+='</select></div><div class="cp"><label>Distância (km)</label>'+
+     '<input type="number" id="cKm" step="1" value="'+CALC.km+'" '+
+     'oninput="CALC.km=parseFloat(this.value)||0;rodarCalc()"></div></div>'+
+     '<div id="calcRes"><div class="dica">Informe os dados acima.</div></div></div>';
+
+  h+='<div class="reg"><h3>Tabela de kits</h3>'+
+     '<div class="dica" style="margin:0 0 10px">Custo do kit por quantidade de módulos. '+
+     'Módulo de 620W. Atualizada em 15/06.</div>'+
+     '<table class="gtab"><thead><tr><th class="num">Mód.</th><th class="num">kWp</th>'+
+     '<th>Inversor</th><th class="num">Custo kit</th><th class="num">R$/kWp</th></tr></thead><tbody>';
+  for(let i=0;i<KITS.length;i++){
+    const k=KITS[i];
+    h+='<tr'+(CALC.mod===k.qtd_modulos?' style="background:var(--card2)"':'')+
+      '><td class="num"><b>'+k.qtd_modulos+'</b></td>'+
+      '<td class="num">'+n(k.potencia_kwp).toFixed(2)+'</td>'+
+      '<td>'+esc(k.inversor||'')+(k.marca?' <span class="tag">'+esc(k.marca)+'</span>':'')+'</td>'+
+      '<td class="num">'+moeda2(k.custo_kit)+'</td>'+
+      '<td class="num">'+moeda(n(k.custo_kit)/n(k.potencia_kwp))+'</td></tr>';
+  }
+  h+='</tbody></table><div class="dica">Acima de 40 módulos o kit não está cadastrado — '+
+     'nesses casos o previsto sai sem o custo do equipamento.</div></div>';
+  setTimeout(rodarCalc,60);
+  return h;
+}
+async function rodarCalc(){
+  const box=document.getElementById('calcRes'); if(!box) return;
+  if(!(CALC.mod>=4)){ box.innerHTML='<div class="dica">Mínimo de 4 módulos.</div>'; return; }
+  const r=await sb.rpc('calcular_previsto',{p_modulos:CALC.mod,p_estrutura:CALC.estr,p_km:CALC.km});
+  if(r.error||!r.data){ box.innerHTML='<div class="dica">Não foi possível calcular.</div>'; return; }
+  const c=r.data; CALC.res=c;
+  let h='';
+  if(!c.kit_cadastrado)
+    h+='<div class="aviso">⚠️ <b>Kit de '+CALC.mod+' módulos não cadastrado.</b> '+
+       'O custo abaixo sai sem o equipamento.</div>';
+  h+='<div class="resumoCalc">'+
+    lr('Kit ('+esc(c.inversor||'—')+(c.marca?' '+esc(c.marca):'')+')',c.kit)+
+    lr('Estrutura '+esc(c.estrutura_nome||''),c.estrutura)+
+    lr('Cabo',c.cabo)+
+    lr('Material CA',c.material_ca)+
+    lr('Instalação',c.instalacao)+
+    lr('Deslocamento ('+CALC.km+' km)',c.deslocamento)+
+    lr('Homologação e pós-venda',c.homologacao)+
+    '<div class="r tot"><span>Custo total</span><span>'+moeda2(c.total)+'</span></div>'+
+    '</div>';
+  h+='<div class="cards" style="margin-top:10px">'+
+    kc('Potência',c.potencia_kwp?n(c.potencia_kwp).toFixed(2)+' kWp':'—','','')+
+    kc('Custo por kWp',c.custo_por_kwp?moeda(c.custo_por_kwp):'—','','')+
+    kc('Preço sugerido',moeda(c.preco_sugerido),'com imposto, comissão, 20% estrutura e 5% lucro','gold')+
+    kc('Preço por kWp',c.potencia_kwp?moeda(n(c.preco_sugerido)/n(c.potencia_kwp)):'—',
+       'Greener: R$ 2.310 a 3.620','')+
+    '</div>';
+  box.innerHTML=h;
 }
 
 /* ---------- LANÇAR ---------- */
