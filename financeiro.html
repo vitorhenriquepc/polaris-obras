@@ -152,6 +152,39 @@ max-width:90vw;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.4)}
 .toast.on{transform:translateX(-50%) translateY(0);opacity:1}
 .pane{display:none}
 .pane.on{display:block}
+/* ---- Fila e drawer ---- */
+.fila{background:var(--card);border:1px solid var(--gold);border-radius:14px;padding:14px;margin-bottom:14px}
+.fila h3{font-size:11px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;
+color:var(--gold);margin-bottom:10px}
+.fitem{display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--border);
+border-radius:11px;padding:11px;margin-bottom:7px;text-align:left;width:100%;font-family:inherit;color:var(--txt)}
+.fitem.atrasado{border-left:3px solid var(--red)}
+.fitem.parcial{border-left:3px solid var(--gold)}
+.fitem.aberto{border-left:3px solid var(--muted)}
+.fitem .cn{flex:1;min-width:0}
+.fitem .cn b{display:block;font-size:13.5px;line-height:1.3}
+.fitem .cn span{font-size:11px;color:var(--muted);font-weight:600}
+.fitem .acts{display:flex;gap:5px;flex-shrink:0}
+.bmini{background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:8px;
+padding:7px 11px;font-family:inherit;font-size:11.5px;font-weight:800;cursor:pointer;white-space:nowrap}
+.bmini.go{border-color:var(--green);color:var(--green-l)}
+.bmini:hover{border-color:var(--gold);color:var(--gold)}
+.ov{position:fixed;inset:0;background:rgba(0,10,20,.72);backdrop-filter:blur(4px);
+z-index:60;display:none;align-items:flex-end;justify-content:center}
+.ov.on{display:flex}
+.dw{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:760px;
+max-height:94vh;overflow-y:auto;border:1px solid var(--border);border-bottom:none}
+@media(min-width:700px){.ov{align-items:center}.dw{border-radius:20px;border-bottom:1px solid var(--border)}}
+.dwhead{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--border);
+padding:17px 20px;z-index:2}
+.dwhead b{font-size:18px;font-weight:800;display:block;padding-right:36px}
+.dwhead span{font-size:12px;color:var(--muted);font-weight:600}
+.fechar{position:absolute;top:15px;right:16px;background:var(--card2);border:1px solid var(--border);
+color:var(--muted);width:30px;height:30px;border-radius:9px;cursor:pointer;font-size:15px;font-family:inherit}
+.dwbody{padding:16px 20px 30px}
+.resumoCalc{background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:12px;margin:10px 0}
+.resumoCalc .r{display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;padding:4px 0}
+.resumoCalc .r.tot{border-top:1px solid var(--border);margin-top:5px;padding-top:8px;font-size:14px;font-weight:800}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -176,6 +209,7 @@ max-width:90vw;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.4)}
 <div class="wrap" id="app">
   <div class="center"><div class="spin"></div>Carregando financeiro...</div>
 </div>
+<div class="ov" id="ov"><div class="dw" id="dw"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -187,6 +221,7 @@ const LOGO_L='https://obras.polarisenergiasolar.com/logo-claro.png';
 
 let ABA='dre', INI=null, FIM=null, RATEIO='obra';
 let DRE=null, OBRAS=null, FLUXO=null, DESEMP=null, CONTAS=[], PARAMS=[], ORIGENS=[];
+let FILA=null, EDIT=null, FILA_TODAS=false;
 
 document.getElementById('ver').textContent='v'+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
 
@@ -254,14 +289,15 @@ async function carregar(){
     sb.rpc('get_dre_mensal',{p_ini:INI,p_fim:FIM}),
     sb.rpc('get_dre_obras',{p_ini:INI,p_fim:FIM}),
     sb.rpc('get_fluxo_caixa',{p_ini:INI,p_fim:FIM}),
-    sb.rpc('get_financeiro_desempenho',{p_ini:INI,p_fim:FIM})
+    sb.rpc('get_financeiro_desempenho',{p_ini:INI,p_fim:FIM}),
+    sb.rpc('get_fila_financeiro')
   ]);
   if(r[0].error||!r[0].data){
     document.getElementById('app').innerHTML='<div class="center"><span style="font-size:32px">🔒</span>'+
       '<br><br><b>Sem permissão financeira.</b><br>Seu usuário precisa ser admin ou nível financeiro.</div>';
     return;
   }
-  DRE=r[0].data; OBRAS=r[1].data; FLUXO=r[2].data; DESEMP=r[3].data;
+  DRE=r[0].data; OBRAS=r[1].data; FLUXO=r[2].data; DESEMP=r[3].data; FILA=r[4].data;
   render();
 }
 
@@ -359,13 +395,40 @@ function kc(l,valor,p,cls){
 }
 
 /* ---------- OBRA A OBRA ---------- */
+function blocoFila(){
+  if(!FILA) return '';
+  const R=FILA.resumo||{}, it=FILA.itens||[];
+  if(!it.length) return '';
+  const rot={atrasado:'Ativada sem lançamento',parcial:'Falta o custo do kit',aberto:'Em obra'};
+  let h='<div class="fila"><h3>⏳ Aguardando lançamento — '+it.length+'</h3>';
+  if(n(R.atrasado)>0){
+    h+='<div class="dica" style="margin:0 0 10px">'+n(R.atrasado)+' obra(s) já ativada(s) sem financeiro lançado. '+
+       'A obra entra na fila no contrato fechado e vira atraso quando o sistema é ativado.</div>';
+  }
+  const mostra=FILA_TODAS?it:it.slice(0,8);
+  for(let i=0;i<mostra.length;i++){
+    const o=mostra[i];
+    h+='<div class="fitem '+esc(o.situacao)+'"><div class="cn"><b>'+esc(o.cliente)+'</b>'+
+      '<span>'+(o.contrato?'#'+esc(o.contrato)+' · ':'')+
+      (o.kwp?n(o.kwp).toFixed(2)+' kWp · ':'')+esc(rot[o.situacao]||o.situacao)+'</span></div>'+
+      '<div class="acts">'+
+      '<button class="bmini go" onclick="abrirFin(\''+o.id+'\')">Lançar</button>'+
+      '<button class="bmini" onclick="dispensarFin(\''+o.id+'\')" title="Tirar da fila">✕</button>'+
+      '</div></div>';
+  }
+  if(it.length>8) h+='<button class="bmini" style="width:100%;margin-top:6px" onclick="FILA_TODAS=!FILA_TODAS;render()">'+
+    (FILA_TODAS?'Mostrar menos':'Ver todas as '+it.length)+'</button>';
+  return h+'</div>';
+}
+
 function viewObras(){
   const T=(OBRAS&&OBRAS.totais)||{}, lista=(OBRAS&&OBRAS.obras)||[];
+  const fila=blocoFila();
   if(!lista.length){
-    return '<div class="vazio"><span class="i">🏗️</span><b>Nenhuma obra com financeiro em '+esc(mesLabel())+'.</b><br>'+
-      'As obras aparecem aqui quando tiverem dados em <b>obra_financeiro</b> e data de conclusão, instalação ou fechamento no período.</div>';
+    return fila+'<div class="vazio"><span class="i">🏗️</span><b>Nenhuma obra lançada em '+esc(mesLabel())+'.</b><br>'+
+      'Use a fila acima para lançar, ou navegue para outro mês.</div>';
   }
-  let h='<div class="cards">'+
+  let h=fila+'<div class="cards">'+
     kc('Obras',n(T.qtd),'','')+
     kc('Faturado',moeda(T.faturado),'','gold')+
     kc('Ticket médio',moeda(T.ticket_medio),'','')+
@@ -414,6 +477,142 @@ function verObra(id){
   const o=(OBRAS.obras||[]).find(function(x){return x.id===id;});
   if(!o) return;
   toast(o.cliente+' · diretos '+moeda(o.diretos)+' · rateio '+moeda(o.rateio_obra)+' · MC '+moeda(o.mc));
+}
+
+/* ---------- LANÇAMENTO DA OBRA ---------- */
+const CAMPOS=[
+  ['preco_negociado','Preço negociado',1],
+  ['valor_kit','Kit fotovoltaico',1],
+  ['material_ca','Material CA',0],
+  ['material_eletrico','Material elétrico',0],
+  ['cabo','Cabo',0],
+  ['instalacao','Instalação',0],
+  ['deslocamento','Deslocamento',0],
+  ['art','ART do projeto',0],
+  ['seguro','Seguro',0],
+  ['frete','Frete',0],
+  ['imposto_valor','Imposto',0],
+  ['comissao_valor','Comissão',0],
+  ['custo_operacional','Custo operacional',0]
+];
+async function abrirFin(id){
+  const ov=document.getElementById('ov'), d=document.getElementById('dw');
+  d.innerHTML='<div class="center"><div class="spin"></div>Abrindo...</div>';
+  ov.classList.add('on');
+  const r=await sb.from('obra_financeiro').select('*').eq('obra_id',id).maybeSingle();
+  const o=await sb.from('obras').select('id,cliente,contrato,potencia_kwp,qtd_modulos,data_fechamento,data_instalacao,data_conclusao,origem_lead').eq('id',id).maybeSingle();
+  if(r.error||o.error||!o.data){d.innerHTML='<div class="center">Não foi possível abrir.</div>';return;}
+  EDIT={fin:r.data||{obra_id:id}, obra:o.data};
+  renderFin();
+}
+function fecharFin(){document.getElementById('ov').classList.remove('on');EDIT=null;}
+function renderFin(){
+  const F=EDIT.fin, O=EDIT.obra;
+  let h='<div class="dwhead"><b>'+esc(O.cliente)+'</b>'+
+    '<span>'+(O.contrato?'Contrato #'+esc(O.contrato)+' · ':'')+
+    (O.potencia_kwp?n(O.potencia_kwp).toFixed(2)+' kWp · ':'')+
+    (O.qtd_modulos?n(O.qtd_modulos)+' módulos':'')+'</span>'+
+    '<button class="fechar" onclick="fecharFin()">✕</button></div><div class="dwbody">';
+
+  h+='<div class="reg"><h3>Origem do lead</h3><div class="lin"><div class="cp w2"><select id="eOrigem">'+
+     '<option value="">Não informado</option>';
+  for(let i=0;i<ORIGENS.length;i++){
+    h+='<option value="'+esc(ORIGENS[i].codigo)+'"'+(O.origem_lead===ORIGENS[i].codigo?' selected':'')+'>'+
+       esc(ORIGENS[i].nome)+'</option>';
+  }
+  h+='</select></div></div><div class="dica">Sem isso o CAC não fecha.</div></div>';
+
+  h+='<div class="reg"><h3>Preço e custos</h3><div class="lin">';
+  for(let i=0;i<CAMPOS.length;i++){
+    const c=CAMPOS[i];
+    h+='<div class="cp"><label>'+esc(c[1])+(c[2]?' *':'')+'</label>'+
+      '<input type="number" step="0.01" id="e_'+c[0]+'" value="'+(F[c[0]]!=null?F[c[0]]:'')+'" '+
+      'oninput="recalcFin()" placeholder="0,00"></div>';
+  }
+  h+='</div><div id="calcBox"></div>'+
+     '<div class="dica">Deixe imposto e comissão em branco e clique em <b>Sugerir</b> para calcular '+
+     'pelos parâmetros da vigência.</div>'+
+     '<button class="bmini" style="width:100%;margin-top:8px" onclick="sugerirFin()">Sugerir imposto e comissão</button></div>';
+
+  h+='<div class="reg"><h3>Recebimento</h3>'+
+    '<div class="lin"><div class="cp"><label>Status</label><select id="eStatus">'+
+    optS('aberto','Aberto',F.status_pagamento)+optS('parcelado','Parcelado',F.status_pagamento)+
+    optS('quitado','Quitado',F.status_pagamento)+'</select></div></div>'+
+    '<div class="lin"><div class="cp"><label>1ª parcela</label>'+
+      '<input type="number" step="0.01" id="e_p1v" value="'+(F.parcela_1_valor!=null?F.parcela_1_valor:'')+'"></div>'+
+      '<div class="cp"><label>Data</label><input type="date" id="e_p1d" value="'+(F.parcela_1_data||'')+'"></div>'+
+      '<div class="cp"><label>Recebida</label><select id="e_p1r">'+
+      optS('nao','Não',F.parcela_1_recebida?'sim':'nao')+optS('sim','Sim',F.parcela_1_recebida?'sim':'nao')+'</select></div></div>'+
+    '<div class="lin"><div class="cp"><label>2ª parcela</label>'+
+      '<input type="number" step="0.01" id="e_p2v" value="'+(F.parcela_2_valor!=null?F.parcela_2_valor:'')+'"></div>'+
+      '<div class="cp"><label>Data</label><input type="date" id="e_p2d" value="'+(F.parcela_2_data||'')+'"></div>'+
+      '<div class="cp"><label>Recebida</label><select id="e_p2r">'+
+      optS('nao','Não',F.parcela_2_recebida?'sim':'nao')+optS('sim','Sim',F.parcela_2_recebida?'sim':'nao')+'</select></div></div></div>';
+
+  h+='<button class="salvar" id="bFin" onclick="salvarFin()">Salvar</button></div>';
+  document.getElementById('dw').innerHTML=h;
+  recalcFin();
+}
+function optS(v,l,at){return '<option value="'+v+'"'+(at===v?' selected':'')+'>'+esc(l)+'</option>';}
+function gv(id){const e=document.getElementById(id);if(!e)return null;
+  const v=e.value;return v===''?null:parseFloat(v);}
+function recalcFin(){
+  const box=document.getElementById('calcBox'); if(!box) return;
+  const p=n(gv('e_preco_negociado'));
+  let dir=0;
+  const diretos=['valor_kit','material_ca','material_eletrico','cabo','instalacao','deslocamento','art','seguro','frete'];
+  for(let i=0;i<diretos.length;i++) dir+=n(gv('e_'+diretos[i]));
+  const imp=n(gv('e_imposto_valor')), com=n(gv('e_comissao_valor')), op=n(gv('e_custo_operacional'));
+  const mc=p-dir-imp-com-op;
+  const rat=n(DRE&&DRE.rateio&&DRE.rateio.por_obra);
+  const ml=mc-rat;
+  box.innerHTML='<div class="resumoCalc">'+
+    lr('Preço',p)+lr('Custos diretos',-dir)+lr('Imposto + comissão + operacional',-(imp+com+op))+
+    '<div class="r tot"><span>Margem de contribuição</span><span style="color:'+
+      (mc>=0?'var(--green-l)':'var(--red)')+'">'+moeda2(mc)+(p>0?' · '+pct(mc/p):'')+'</span></div>'+
+    (rat>0?('<div class="r"><span>Rateio do mês (por obra)</span><span>'+moeda2(-rat)+'</span></div>'+
+    '<div class="r tot"><span>Margem líquida real</span><span style="color:'+
+      (ml>=0?'var(--green-l)':'var(--red)')+'">'+moeda2(ml)+(p>0?' · '+pct(ml/p):'')+'</span></div>'):'')+
+    '</div>';
+}
+function lr(l,v){return '<div class="r"><span>'+esc(l)+'</span><span>'+moeda2(v)+'</span></div>';}
+function sugerirFin(){
+  const p=n(gv('e_preco_negociado'));
+  if(!(p>0)){toast('Informe o preço primeiro');return;}
+  const par=PARAMS.length?PARAMS[0]:null;
+  if(!par){toast('Sem parâmetros cadastrados');return;}
+  if(gv('e_imposto_valor')==null) document.getElementById('e_imposto_valor').value=(p*n(par.aliquota_imposto)).toFixed(2);
+  if(gv('e_comissao_valor')==null) document.getElementById('e_comissao_valor').value=(p*n(par.comissao_pct_padrao)).toFixed(2);
+  const mods=n(EDIT.obra.qtd_modulos);
+  if(mods>0&&gv('e_custo_operacional')==null)
+    document.getElementById('e_custo_operacional').value=(mods*n(par.custo_operacional_placa)).toFixed(2);
+  recalcFin();
+  toast('Valores sugeridos pela vigência de '+dataBR(par.vigencia_inicio));
+}
+async function salvarFin(){
+  const b=document.getElementById('bFin'); b.disabled=true; b.textContent='Salvando...';
+  const payload={obra_id:EDIT.obra.id, atualizado_em:new Date().toISOString()};
+  for(let i=0;i<CAMPOS.length;i++) payload[CAMPOS[i][0]]=gv('e_'+CAMPOS[i][0]);
+  payload.status_pagamento=document.getElementById('eStatus').value;
+  payload.parcela_1_valor=gv('e_p1v'); payload.parcela_1_data=document.getElementById('e_p1d').value||null;
+  payload.parcela_1_recebida=document.getElementById('e_p1r').value==='sim';
+  payload.parcela_2_valor=gv('e_p2v'); payload.parcela_2_data=document.getElementById('e_p2d').value||null;
+  payload.parcela_2_recebida=document.getElementById('e_p2r').value==='sim';
+  const r=await sb.from('obra_financeiro').upsert(payload,{onConflict:'obra_id'});
+  const og=document.getElementById('eOrigem').value||null;
+  if(og!==EDIT.obra.origem_lead) await sb.from('obras').update({origem_lead:og}).eq('id',EDIT.obra.id);
+  b.disabled=false; b.textContent='Salvar';
+  if(r.error){toast('Erro: '+r.error.message);return;}
+  toast('Financeiro da obra salvo');
+  fecharFin();
+  await carregar();
+}
+async function dispensarFin(id){
+  if(!confirm('Tirar esta obra da fila? Ela some do "aguardando lançamento", mas o registro continua.')) return;
+  const r=await sb.from('obra_financeiro').update({dispensado:true}).eq('obra_id',id);
+  if(r.error){toast('Erro ao dispensar');return;}
+  toast('Obra removida da fila');
+  await carregar();
 }
 
 /* ---------- FLUXO ---------- */
