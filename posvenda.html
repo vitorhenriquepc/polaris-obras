@@ -383,6 +383,7 @@ display:flex;gap:7px;flex-wrap:wrap;align-items:center}
     <div class="tabs">
       <a class="tab" id="tabObras" href="painel.html">🏗️ Obras</a>
       <button class="tab on">💚 Pós-venda</button>
+      <a class="tab" id="tabFin" href="financeiro.html">💰 Financeiro</a>
     </div>
     <div class="tbacts">
       <span class="who" id="who"></span>
@@ -446,6 +447,7 @@ const CTX={
 
 async function boot(){
   const t=document.getElementById('tabObras'); if(t) t.href='painel.html?v='+Date.now();
+  const tf=document.getElementById('tabFin'); if(tf) tf.href='financeiro.html?v='+Date.now();
   const s=await sb.auth.getSession();
   if(!s.data.session){location.href='login.html';return;}
   document.getElementById('who').textContent=s.data.session.user.email;
