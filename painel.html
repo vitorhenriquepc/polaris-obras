@@ -1072,6 +1072,8 @@ const catOpts=CATS.map(x=>`<option value="${x.codigo}" ${x.codigo===(o.categoria
 const ramoOpts='<option value="">— selecione —</option>'+RAMOS.map(x=>`<option value="${x.codigo}" ${x.codigo===o.ramo?'selected':''}>${esc(x.nome)}</option>`).join('');
 const instOpts='<option value="">— Instalador —</option>'+EQUIPE.filter(p=>p.papel==='Instalador'&&p.ativo!==false).map(p=>`<option value="${p.id}" ${p.id===o.instalador_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 const ORIG=[['trafego','Tráfego pago'],['indicacao','Indicação'],['retomada','Retomada de base'],['ativa','Prospecção ativa']];
+const ESTR=[['fibrocimento','Fibrocimento'],['colonial','Colonial'],['metalica','Metálica'],['laje','Laje'],['solo','Solo']];
+const estrOpts='<option value="">— Tipo de telhado —</option>'+ESTR.map(x=>`<option value="${x[0]}" ${x[0]===o.tipo_estrutura?'selected':''}>${x[1]}</option>`).join('');
 const origOpts='<option value="">— Como chegou? —</option>'+ORIG.map(x=>`<option value="${x[0]}" ${x[0]===o.origem_lead?'selected':''}>${x[1]}</option>`).join('');
 const vendOpts='<option value="">— Vendedor —</option>'+EQUIPE.filter(p=>(p.papel==='Vendedor'||p.vende)&&p.ativo!==false).map(p=>`<option value="${p.id}" ${p.id===o.vendedor_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 ov.innerHTML=`<div class="modal">
@@ -1086,6 +1088,13 @@ ov.innerHTML=`<div class="modal">
 <div class="grid2">
 <div class="fld"><label>Potência (kWp)</label><input id="f_pot" value="${o.potencia_kwp!=null?String(o.potencia_kwp).replace('.',','):''}" placeholder="8,54"></div>
 <div class="fld"><label>Origem do lead</label><select id="f_org">${origOpts}</select></div>
+</div>
+<div class="grid2">
+<div class="fld"><label>Qtd. de módulos</label><input id="f_mod" type="number" value="${o.qtd_modulos!=null?o.qtd_modulos:''}" placeholder="8"></div>
+<div class="fld"><label>Tipo de telhado</label><select id="f_estr">${estrOpts}</select></div>
+</div>
+<div class="grid2">
+<div class="fld"><label>Distância até a obra (km)</label><input id="f_km" type="number" step="0.1" value="${o.distancia_km!=null?o.distancia_km:''}" placeholder="35"></div>
 </div>
 <div class="grid2">
 <div class="fld"><label>Etapa</label><select id="f_et">${etOpts}</select></div>
@@ -1154,6 +1163,9 @@ data_conclusao:document.getElementById('f_dtc').value||null,
 observacoes:document.getElementById('f_obs').value.trim()||null,
 vendedor_id:document.getElementById('f_vend').value||null,
 origem_lead:document.getElementById('f_org').value||null,
+tipo_estrutura:document.getElementById('f_estr').value||null,
+distancia_km:parseFloat(document.getElementById('f_km').value)||null,
+qtd_modulos:parseInt(document.getElementById('f_mod').value,10)||null,
 data_instalacao:document.getElementById('f_dti').value||null,
 instalador_id:document.getElementById('f_inst').value||null,
 qtd_modulos:parseInt(document.getElementById('f_qtm').value,10)||null,
