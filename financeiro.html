@@ -267,6 +267,8 @@ const LOGO_L='https://obras.polarisenergiasolar.com/logo-claro.png';
 let ABA='dre', INI=null, FIM=null, RATEIO='obra';
 let DRE=null, OBRAS=null, FLUXO=null, DESEMP=null, CONTAS=[], PARAMS=[], ORIGENS=[];
 let FILA=null, EDIT=null, FILA_TODAS=false, RESUMO=null, ABRIR=null, ATALHO=null, VERCONTAS=false;
+let FNAT='', DRILL=null;
+function fnat(v,l){return '<button class="stb'+(FNAT===v?' on':'')+'" onclick="FNAT=\''+v+'\';render()">'+l+'</button>';}
 
 document.getElementById('ver').textContent='v'+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
 
@@ -495,12 +497,12 @@ function blocoFila(){
   if(!FILA) return '';
   const R=FILA.resumo||{}, it=FILA.itens||[];
   if(!it.length) return '';
-  const rot={atrasado:'Ativada sem lançamento',parcial:'Falta o custo do kit',aberto:'Em obra'};
-  let h='<div class="fila"><h3>⏳ Aguardando lançamento — '+it.length+'</h3>';
-  if(n(R.atrasado)>0){
-    h+='<div class="dica" style="margin:0 0 10px">'+n(R.atrasado)+' obra(s) já ativada(s) sem financeiro lançado. '+
-       'A obra entra na fila no contrato fechado e vira atraso quando o sistema é ativado.</div>';
-  }
+  const rot={atrasado:'⚠️ Já ativada, ainda não lançada',parcial:'Falta o custo do kit',
+             aberto:'Em obra — ainda não tem custo fechado'};
+  let h='<div class="fila"><h3>📋 Ainda não lançadas — '+it.length+'</h3>'+
+    '<div class="dica" style="margin:0 0 10px">Estas obras <b>não entram no Resumo do mês</b>. '+
+    'O sistema abre o registro quando o contrato fecha; o lançamento é feito aqui.</div>';
+
   const mostra=FILA_TODAS?it:it.slice(0,8);
   for(let i=0;i<mostra.length;i++){
     const o=mostra[i];
@@ -569,11 +571,7 @@ function cardObra(o){
     '</div></button>';
   return h;
 }
-function verObra(id){
-  const o=(OBRAS.obras||[]).find(function(x){return x.id===id;});
-  if(!o) return;
-  toast(o.cliente+' · diretos '+moeda(o.diretos)+' · rateio '+moeda(o.rateio_obra)+' · MC '+moeda(o.mc));
-}
+function verObra(id){ abrirFin(id); }
 
 /* ---------- LANÇAMENTO DA OBRA ---------- */
 const CAMPOS=[
@@ -759,8 +757,10 @@ function viewDesemp(){
     kc('Obras de tráfego',n(C.obras_trafego),'','')+
     kc('CAC por tráfego',C.cac_trafego!=null?moeda(C.cac_trafego):'—',
        C.cac_trafego!=null?'':'sem obras de tráfego','gold')+
-    kc('Sem origem',n(C.obras_sem_origem),'obras a classificar',n(C.obras_sem_origem)>0?'neg':'pos')+
+    kcClick('Sem origem',n(C.obras_sem_origem),'toque para ver quais','origem',
+       n(C.obras_sem_origem)>0?'neg':'pos')+
   '</div>';
+  if(DRILL) h+=blocoDrill();
   if(n(C.obras_sem_origem)>0){
     h+='<div class="aviso">⚠️ <b>'+n(C.obras_sem_origem)+' obra(s) sem origem de lead.</b> '+
        'Enquanto houver obras sem classificar, o CAC fica subestimado. '+
@@ -771,7 +771,10 @@ function viewDesemp(){
       '<th>Vendedor</th><th class="num">Obras</th><th class="num">Faturado</th>'+
       '<th class="num">Contribuição</th><th class="num">MC %</th></tr></thead><tbody>';
     for(let i=0;i<V.length;i++){
-      h+='<tr><td>'+esc(V[i].nome)+'</td><td class="num">'+n(V[i].obras)+'</td>'+
+      const semv=(V[i].nome==='Sem vendedor');
+      h+='<tr'+(semv?' style="cursor:pointer" onclick="setDrill(\'vendedor\')"':'')+
+        '><td>'+esc(V[i].nome)+(semv?' <span class="tag red">ver quais</span>':'')+
+        '</td><td class="num">'+n(V[i].obras)+'</td>'+
         '<td class="num">'+moeda(V[i].faturado)+'</td><td class="num">'+moeda(V[i].mc)+'</td>'+
         '<td class="num">'+pct(V[i].mc_pct)+'</td></tr>';
     }
@@ -782,12 +785,42 @@ function viewDesemp(){
       '<th>Origem</th><th class="num">Obras</th><th class="num">Faturado</th>'+
       '<th class="num">Contribuição</th></tr></thead><tbody>';
     for(let i=0;i<O.length;i++){
-      h+='<tr><td>'+esc(O[i].nome)+'</td><td class="num">'+n(O[i].obras)+'</td>'+
+      const semo = (O[i].nome==='Não informado');
+      h+='<tr'+(semo?' style="cursor:pointer" onclick="setDrill(\'origem\')"':'')+
+        '><td>'+esc(O[i].nome)+(semo?' <span class="tag red">ver quais</span>':'')+
+        '</td><td class="num">'+n(O[i].obras)+'</td>'+
         '<td class="num">'+moeda(O[i].faturado)+'</td><td class="num">'+moeda(O[i].mc)+'</td></tr>';
     }
     h+='</tbody></table></div>';
   }
   return h;
+}
+
+function kcClick(l,valor,p,drill,cls){
+  return '<button class="kc '+(cls||'')+'" style="cursor:pointer;text-align:left;font-family:inherit" '+
+    'onclick="setDrill(\''+drill+'\')"><div class="l">'+esc(l)+'</div>'+
+    '<div class="n">'+valor+'</div><div class="p">'+esc(p)+'</div></button>';
+}
+function setDrill(k){ DRILL=(DRILL===k?null:k); render(); }
+function blocoDrill(){
+  const lista=(OBRAS&&OBRAS.obras)||[];
+  let alvo, titulo;
+  if(DRILL==='origem'){ alvo=lista.filter(function(o){return !o.origem;});
+    titulo='Obras sem origem de lead'; }
+  else { alvo=lista.filter(function(o){return !o.vendedor;});
+    titulo='Obras sem vendedor'; }
+  let h='<div class="fila"><h3>'+esc(titulo)+' — '+alvo.length+'</h3>';
+  if(!alvo.length) h+='<div class="dica">Nenhuma obra nesta situação no período.</div>';
+  for(let i=0;i<alvo.length;i++){
+    const o=alvo[i];
+    h+='<div class="fitem aberto"><div class="cn"><b>'+esc(o.cliente)+'</b>'+
+      '<span>'+(o.contrato?'#'+esc(o.contrato)+' · ':'')+moeda(o.preco)+
+      (o.kwp?' · '+n(o.kwp).toFixed(2)+' kWp':'')+'</span></div>'+
+      '<div class="acts"><button class="bmini go" onclick="abrirFin(\''+o.id+'\')">Corrigir</button></div></div>';
+  }
+  h+='<div class="dica">Só aparecem as obras do período selecionado. '+
+     'Mude o mês acima para ver outras.</div>';
+  return h+'</div>';
 }
 
 /* ---------- LANÇAR ---------- */
@@ -963,9 +996,16 @@ function viewParam(){
     kc('Rateáveis',rat,'entram no custo fixo por obra','gold')+
     kc('Fora do DRE',fora.length,'só fluxo de caixa','')+
     '</div>';
+  h+='<div class="subtabs" style="margin-bottom:10px">'+
+     fnat('','Todas')+fnat('fixo','🔒 Custo fixo')+fnat('variavel','📈 Custo variável')+
+     fnat('rateavel','⚖️ Rateáveis')+fnat('fora','🚫 Fora do DRE')+'</div>';
   h+='<table class="gtab"><thead><tr><th>Código</th><th>Conta</th><th>Natureza</th>'+
      '<th>Rateável</th><th>No DRE</th></tr></thead><tbody>';
-  const cts=CONTAS.filter(function(c){return c.nivel===3;});
+  let cts=CONTAS.filter(function(c){return c.nivel===3;});
+  if(FNAT==='fixo') cts=cts.filter(function(c){return c.natureza==='fixo';});
+  else if(FNAT==='variavel') cts=cts.filter(function(c){return c.natureza==='variavel';});
+  else if(FNAT==='rateavel') cts=cts.filter(function(c){return c.rateavel;});
+  else if(FNAT==='fora') cts=cts.filter(function(c){return c.no_dre===false;});
   for(let i=0;i<cts.length;i++){
     const c=cts[i];
     h+='<tr><td>'+esc(c.codigo)+'</td><td>'+esc(c.nome)+'</td>'+
