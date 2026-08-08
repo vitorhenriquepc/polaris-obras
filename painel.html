@@ -463,7 +463,7 @@ root.innerHTML = `
 <div class="viewtabs"><button id="vCards" class="on" onclick="setView('cards')">▦ Cards</button><button id="vKanban" onclick="setView('kanban')">▤ Kanban</button><button id="vVazias" style="display:none" onclick="toggleVazias()" title="Ocultar/mostrar colunas sem obras">⊟</button></div>
 <select id="selTrilha" onchange="setTrilha(this.value)" style="display:none;background:var(--card);border:1px solid var(--border);color:var(--txt);border-radius:11px;padding:0 12px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer"></select>
 <button class="btn-equipe" id="bResp" title="Respostas dos clientes" onclick="openRespostas()" style="font-weight:700;font-size:13px">💬 Respostas<span class="badge" id="bdgResp" style="display:none">0</span></button>
-<button class="btn-equipe" id="bBrindes" title="Brindes dos clientes" onclick="openBrindes()">🎁</button>
+
 <button class="btn-equipe" id="bAgenda" title="Links de agenda das equipes">📅</button>
 <button class="btn-equipe" id="bEquipe" title="Gerenciar equipe">👥</button>
 <button class="btn-new" id="bNew">+ Nova obra</button>
@@ -956,62 +956,6 @@ const el=document.getElementById('rr'+id); if(el) el.classList.add('lida');
 const bt=el?.querySelector('.mt button'); if(bt) bt.outerHTML='<span style="margin-left:auto;color:#58B868;font-weight:800">✓ tratada</span>';
 checarRespostas();
 }
-let BRINDES=[];
-async function openBrindes(){
-const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovBr';
-ov.innerHTML='<div class="modal"><h2>🎁 Brindes dos clientes</h2>'
-+'<p style="color:var(--muted);font-size:12.5px;margin:-8px 0 14px">Confirme a avaliação no Google antes de entregar. Toque no código para copiar.</p>'
-+'<input class="brbusca" id="brq" placeholder="Buscar por cliente ou código..." oninput="renderBrindes()">'
-+'<div class="brlist" id="brlist"><div class="eqempty">Carregando...</div></div>'
-+'<button class="cancel" style="width:100%;margin-top:12px" onclick="document.getElementById(\'ovBr\').remove()">Fechar</button></div>';
-document.body.appendChild(ov);
-ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
-const r=await sb.rpc('get_brindes');
-BRINDES=(r&&r.data)||[];
-renderBrindes();
-}
-function renderBrindes(){
-const el=document.getElementById('brlist'); if(!el) return;
-const q=(document.getElementById('brq')?.value||'').toLowerCase().trim();
-let arr=BRINDES;
-if(q) arr=arr.filter(b=>(b.cliente||'').toLowerCase().includes(q)||(b.voucher||'').toLowerCase().includes(q));
-if(!arr.length){ el.innerHTML='<div class="eqempty">Nenhum brinde '+(q?'encontrado':'solicitado ainda')+'.</div>'; return; }
-el.innerHTML=arr.map(b=>{
-const nome=b.brinde==='copo'?'Copo térmico personalizado':'Fone Bluetooth';
-const emoji=b.brinde==='copo'?'🥤':'🎧';
-const d=new Date(b.brinde_em).toLocaleDateString('pt-BR');
-const gav=b.avaliou_google_em
- ? '<span style="color:#58B868;font-weight:800">✓ avaliou no Google</span>'
- : '<span style="color:var(--gold);font-weight:800">⏳ avaliação pendente</span>';
-return '<div class="brrow '+(b.entregue_em?'ok':'')+'">'
-+'<div class="em">'+emoji+'</div>'
-+'<div class="info"><div class="cl">'+esc(b.cliente)+'</div>'
-+'<div class="dt"><span>'+nome+'</span>'+(b.contrato?'<span>#'+esc(b.contrato)+'</span>':'')
-+'<span>⭐ '+b.nota+'/10</span><span>'+d+'</span>'+gav
-+(b.avaliou_google_em?'':'<button class="del" style="color:var(--gold);margin-left:0" onclick="confirmarGoogle(\''+b.voucher+'\')">confirmar avaliação</button>')
-+'</div></div>'
-+'<div class="brcode" onclick="copiarCod(\''+b.voucher+'\')" title="Copiar código">'+esc(b.voucher)+'</div>'
-+(b.entregue_em?'<div class="brdone">✓ entregue</div>':'<button class="brok" onclick="entregarBrinde(\''+b.voucher+'\')">Entregar</button>')
-+'</div>';
-}).join('');
-}
-async function confirmarGoogle(v){
-if(!confirm('Confirmar que este cliente avaliou a Polaris no Google?\n\nVerifique antes no Google Meu Negócio.'))return;
-const r=await sb.rpc('marcar_avaliou_google',{p_voucher:v});
-if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
-toast('Avaliação confirmada ✓');
-const b=BRINDES.find(x=>x.voucher===v); if(b) b.avaliou_google_em=new Date().toISOString();
-renderBrindes();
-}
-function copiarCod(v){ navigator.clipboard.writeText(v).then(()=>toast('Código copiado ✓')).catch(()=>prompt('Código:',v)); }
-async function entregarBrinde(v){
-if(!confirm('Confirmar a entrega do brinde '+v+'?\n\nLembre de checar a avaliação no Google antes.'))return;
-const r=await sb.rpc('marcar_brinde_entregue',{p_voucher:v});
-if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
-toast('Brinde entregue ✓');
-const b=BRINDES.find(x=>x.voucher===v); if(b) b.entregue_em=new Date().toISOString();
-renderBrindes();
-}
 function copiarLinkInst(id){
 const o=getObra(id); const url=`${location.origin}/instalador.html?id=${o.slug}&t=${o.instalador_token}`;
 navigator.clipboard.writeText(url).then(()=>toast('Link do instalador copiado ✓ Envie pra ele no WhatsApp')).catch(()=>prompt('Link do instalador:',url));
@@ -1127,6 +1071,8 @@ const trOpts=TRILHAS.map(t=>`<option value="${t.codigo}" ${t.codigo===_tr?'selec
 const catOpts=CATS.map(x=>`<option value="${x.codigo}" ${x.codigo===(o.categoria||'residencial')?'selected':''}>${x.icone||''} ${esc(x.nome)}</option>`).join('');
 const ramoOpts='<option value="">— selecione —</option>'+RAMOS.map(x=>`<option value="${x.codigo}" ${x.codigo===o.ramo?'selected':''}>${esc(x.nome)}</option>`).join('');
 const instOpts='<option value="">— Instalador —</option>'+EQUIPE.filter(p=>p.papel==='Instalador'&&p.ativo!==false).map(p=>`<option value="${p.id}" ${p.id===o.instalador_id?'selected':''}>${esc(p.nome)}</option>`).join('');
+const ORIG=[['trafego','Tráfego pago'],['indicacao','Indicação'],['retomada','Retomada de base'],['ativa','Prospecção ativa']];
+const origOpts='<option value="">— Como chegou? —</option>'+ORIG.map(x=>`<option value="${x[0]}" ${x[0]===o.origem_lead?'selected':''}>${x[1]}</option>`).join('');
 const vendOpts='<option value="">— Vendedor —</option>'+EQUIPE.filter(p=>(p.papel==='Vendedor'||p.vende)&&p.ativo!==false).map(p=>`<option value="${p.id}" ${p.id===o.vendedor_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 ov.innerHTML=`<div class="modal">
 <h2>${novo?'Nova obra':'Editar obra'}</h2>
@@ -1139,6 +1085,7 @@ ov.innerHTML=`<div class="modal">
 </div>
 <div class="grid2">
 <div class="fld"><label>Potência (kWp)</label><input id="f_pot" value="${o.potencia_kwp!=null?String(o.potencia_kwp).replace('.',','):''}" placeholder="8,54"></div>
+<div class="fld"><label>Origem do lead</label><select id="f_org">${origOpts}</select></div>
 </div>
 <div class="grid2">
 <div class="fld"><label>Etapa</label><select id="f_et">${etOpts}</select></div>
@@ -1206,6 +1153,7 @@ data_fechamento:document.getElementById('f_dtf').value||null,
 data_conclusao:document.getElementById('f_dtc').value||null,
 observacoes:document.getElementById('f_obs').value.trim()||null,
 vendedor_id:document.getElementById('f_vend').value||null,
+origem_lead:document.getElementById('f_org').value||null,
 data_instalacao:document.getElementById('f_dti').value||null,
 instalador_id:document.getElementById('f_inst').value||null,
 qtd_modulos:parseInt(document.getElementById('f_qtm').value,10)||null,
