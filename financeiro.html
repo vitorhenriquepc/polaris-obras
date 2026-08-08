@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5">
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+<meta name="theme-color" content="#011D2E">
+<title>Polaris — Financeiro</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;min-width:0}
+html{overflow-x:hidden;width:100%}
+body{overflow-x:hidden;width:100%;max-width:100vw;position:relative}
+img,video,table{max-width:100%}
+:root{--navy:#011D2E;--green:#3B8B3B;--green-l:#58B868;--gold:#F5A623;--red:#e07070;
+--bg:#0a1622;--card:#0f2233;--card2:#13293c;--border:#1d3850;--txt:#eaf2f8;--muted:#8fa6b8}
+html[data-theme="light"]{--gold:#B8790A;--green-l:#3B8B3B;--red:#c44;--bg:#F0F2ED;--card:#FFF;--card2:#F4F6F3;
+--border:#DCE4EA;--txt:#022C44;--muted:#5F7787}
+body{font-family:'Manrope',system-ui,sans-serif;background:
+radial-gradient(1100px 560px at 82% -12%, rgba(12,60,90,.32) 0%, transparent 62%),var(--bg);
+color:var(--txt);min-height:100vh;transition:background .3s;-webkit-font-smoothing:antialiased}
+
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 16px;
+background:rgba(1,29,46,.88);backdrop-filter:blur(10px);
+position:sticky;top:0;z-index:40;border-bottom:1px solid var(--border)}
+html[data-theme="light"] .topbar{background:rgba(255,255,255,.9)}
+.topbar img{height:26px}
+.tabs{display:flex;gap:4px;background:var(--card2);border-radius:12px;padding:3px}
+.tab{background:none;border:none;color:var(--muted);border-radius:9px;padding:8px 14px;
+font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;
+display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:.18s}
+.tab:hover{color:var(--txt)}
+.tab.on{background:var(--card);color:var(--gold);box-shadow:0 1px 6px rgba(0,0,0,.18)}
+.tbrow{display:flex;align-items:center;gap:10px;width:100%;flex-wrap:wrap}
+.tbacts{margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0}
+.ver{font-size:9.5px;color:var(--muted);opacity:.55;font-weight:700;white-space:nowrap}
+@media(max-width:640px){.ver{display:none}}
+.who{font-size:11px;color:var(--muted);font-weight:600;max-width:150px;
+overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-out{background:none;border:1px solid var(--border);color:var(--muted);border-radius:9px;
+padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn-out:hover{border-color:var(--gold);color:var(--gold)}
+.wrap{max-width:1240px;margin:0 auto;padding:18px 16px 60px}
+
+.subtabs{display:flex;gap:5px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;
+-webkit-overflow-scrolling:touch}
+.subtabs::-webkit-scrollbar{display:none}
+.stb{background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:11px;
+padding:9px 14px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+.stb.on{border-color:var(--gold);color:var(--gold);background:var(--card2)}
+
+.periodo{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);
+border-radius:13px;padding:10px 12px;margin-bottom:14px;flex-wrap:wrap}
+.periodo .nav{background:var(--card2);border:1px solid var(--border);color:var(--txt);border-radius:9px;
+width:32px;height:32px;font-size:15px;cursor:pointer;font-family:inherit;flex-shrink:0}
+.periodo .lbl{flex:1;text-align:center;font-size:14px;font-weight:800;min-width:130px}
+.periodo .lbl small{display:block;font-size:10.5px;color:var(--muted);font-weight:700;margin-top:2px}
+.periodo select{background:var(--card2);border:1px solid var(--border);color:var(--txt);border-radius:9px;
+padding:8px 10px;font-family:inherit;font-size:12.5px;font-weight:700;outline:none}
+
+.cards{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:16px}
+.kc{flex:1 1 150px;background:var(--card);border:1px solid var(--border);border-radius:13px;padding:13px}
+.kc .l{font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.7px}
+.kc .n{font-size:21px;font-weight:800;margin-top:5px;line-height:1.1}
+.kc .p{font-size:11px;color:var(--muted);font-weight:700;margin-top:3px}
+.kc.pos .n{color:var(--green-l)}
+.kc.neg .n{color:var(--red)}
+.kc.gold .n{color:var(--gold)}
+.kc.destaque{border-color:var(--gold)}
+
+.dre{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.dre table{width:100%;border-collapse:collapse;font-size:13px}
+.dre th{text-align:left;font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;
+padding:10px 12px;border-bottom:1px solid var(--border);font-weight:800;background:var(--card2)}
+.dre td{padding:9px 12px;border-bottom:1px solid var(--border);font-weight:600}
+.dre tr:last-child td{border-bottom:none}
+.dre .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dre .g1{background:var(--card2);font-weight:800;font-size:13px}
+.dre .g2{font-weight:800;font-size:12.5px}
+.dre .g2 td:first-child{padding-left:26px}
+.dre .g3 td:first-child{padding-left:42px;color:var(--muted);font-size:12px}
+.dre .calc{background:linear-gradient(90deg,rgba(245,166,35,.09),transparent);font-weight:800}
+.dre .calc td{border-top:1px solid var(--gold);border-bottom:1px solid var(--gold)}
+.dre .zero td{opacity:.4}
+.dre .pct{font-size:11px;color:var(--muted);font-weight:700;text-align:right;white-space:nowrap}
+
+.olist{display:grid;gap:9px}
+@media(min-width:920px){.olist{grid-template-columns:1fr 1fr}}
+.ob{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;
+text-align:left;font-family:inherit;color:var(--txt);width:100%;cursor:pointer;transition:.18s}
+.ob:hover{border-color:var(--gold);transform:translateY(-2px)}
+.ob.bom{border-left:3px solid var(--green-l)}
+.ob.medio{border-left:3px solid var(--gold)}
+.ob.ruim{border-left:3px solid var(--red)}
+.ob .top{display:flex;align-items:flex-start;gap:9px}
+.ob .nm{flex:1;font-size:14.5px;font-weight:800;line-height:1.25}
+.ob .mg{flex-shrink:0;text-align:right}
+.ob .mg .v{font-size:17px;font-weight:800;line-height:1}
+.ob .mg .k{font-size:9.5px;color:var(--muted);font-weight:800;text-transform:uppercase;margin-top:3px}
+.ob .meta{font-size:11.5px;color:var(--muted);margin-top:7px;display:flex;flex-wrap:wrap;gap:4px 11px;font-weight:600}
+.ob .barra{display:flex;height:6px;border-radius:4px;overflow:hidden;margin-top:10px;background:var(--card2)}
+.ob .barra i{display:block;height:100%}
+
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;
+letter-spacing:.5px;text-transform:uppercase;border-radius:20px;padding:3px 8px;
+background:var(--card2);border:1px solid var(--border);color:var(--muted)}
+.tag.gold{border-color:var(--gold);color:var(--gold)}
+.tag.green{border-color:var(--green-l);color:var(--green-l)}
+.tag.red{border-color:var(--red);color:var(--red)}
+
+.gtab{width:100%;font-size:12.5px;border-collapse:collapse;background:var(--card);
+border:1px solid var(--border);border-radius:13px;overflow:hidden}
+.gtab th{text-align:left;font-size:9.5px;color:var(--muted);text-transform:uppercase;
+letter-spacing:.5px;padding:10px;border-bottom:1px solid var(--border);font-weight:800;background:var(--card2)}
+.gtab td{padding:9px 10px;border-bottom:1px solid var(--border);font-weight:600}
+.gtab tr:last-child td{border-bottom:none}
+.gtab .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+.reg{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:15px;margin-bottom:12px}
+.reg h3{font-size:11px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;
+color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.reg h3::after{content:'';flex:1;height:1px;background:var(--border)}
+.lin{display:flex;gap:9px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px}
+.cp{flex:1;min-width:120px}
+.cp.w2{flex:2;min-width:180px}
+label{display:block;font-size:10px;color:var(--muted);font-weight:800;
+text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+input,select,textarea{width:100%;background:var(--card2);border:1px solid var(--border);
+color:var(--txt);border-radius:9px;padding:10px;font-family:inherit;font-size:14px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--gold)}
+.salvar{width:100%;background:var(--green);border:none;color:#fff;border-radius:10px;
+padding:13px;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;margin-top:4px}
+.salvar:active{transform:scale(.99)}
+.salvar:disabled{opacity:.5;cursor:not-allowed}
+.dica{font-size:11.5px;color:var(--muted);margin-top:9px;line-height:1.5;font-weight:600}
+.aviso{background:var(--card2);border:1px solid var(--gold);border-radius:11px;padding:12px;
+font-size:12px;line-height:1.55;font-weight:600;margin-bottom:14px}
+.aviso b{color:var(--gold)}
+
+.vazio{color:var(--muted);text-align:center;padding:30px 16px;font-size:13px;
+background:var(--card);border:1px dashed var(--border);border-radius:13px;line-height:1.65;font-weight:600}
+.vazio .i{display:block;font-size:30px;margin-bottom:9px;opacity:.7}
+.center{text-align:center;padding:60px 20px;color:var(--muted)}
+.spin{width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--gold);
+border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 12px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);
+background:var(--card);border:1px solid var(--gold);color:var(--txt);border-radius:12px;
+padding:13px 18px;font-size:13px;font-weight:700;z-index:90;transition:.28s;opacity:0;
+max-width:90vw;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.toast.on{transform:translateX(-50%) translateY(0);opacity:1}
+.pane{display:none}
+.pane.on{display:block}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="tbrow">
+    <img id="logo" src="https://obras.polarisenergiasolar.com/logo.png" onerror="this.style.display='none'">
+    <div class="tabs">
+      <a class="tab" id="tabObras" href="painel.html">🏗️ Obras</a>
+      <a class="tab" id="tabPV" href="posvenda.html">💚 Pós-venda</a>
+      <button class="tab on">💰 Financeiro</button>
+    </div>
+    <div class="tbacts">
+      <span class="who" id="who"></span>
+      <button class="btn-out" id="bTema">🌙</button>
+      <button class="btn-out" onclick="sair()" title="Sair">↪</button>
+      <span class="ver" id="ver"></span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap" id="app">
+  <div class="center"><div class="spin"></div>Carregando financeiro...</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL='https://dakubhcgohiwzyqiegqf.supabase.co';
+const SB_KEY='sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+const LOGO_D='https://obras.polarisenergiasolar.com/logo.png';
+const LOGO_L='https://obras.polarisenergiasolar.com/logo-claro.png';
+
+let ABA='dre', INI=null, FIM=null, RATEIO='obra';
+let DRE=null, OBRAS=null, FLUXO=null, DESEMP=null, CONTAS=[], PARAMS=[], ORIGENS=[];
+
+document.getElementById('ver').textContent='v'+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+
+function tema(t){document.documentElement.setAttribute('data-theme',t);
+  document.getElementById('bTema').textContent=t==='dark'?'🌙':'☀️';
+  const l=document.getElementById('logo'); if(l) l.src=(t==='light')?LOGO_L:LOGO_D;
+  try{localStorage.setItem('polaris-tema',t)}catch(e){}}
+document.getElementById('bTema').onclick=function(){
+  tema(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');};
+try{tema(localStorage.getItem('polaris-tema')||'dark')}catch(e){tema('dark')}
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');
+  clearTimeout(window._t);window._t=setTimeout(function(){t.classList.remove('on')},3200);}
+function n(v){return Number(v||0);}
+function moeda(v){return n(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL',
+  minimumFractionDigits:0,maximumFractionDigits:0});}
+function moeda2(v){return n(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
+function pct(v){return (n(v)*100).toFixed(1).replace('.',',')+'%';}
+function dataBR(d){if(!d)return'—';const p=String(d).split('T')[0].split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+async function sair(){await sb.auth.signOut();location.href='login.html';}
+
+function setMes(d){
+  const a=new Date(d.getFullYear(),d.getMonth(),1);
+  const b=new Date(d.getFullYear(),d.getMonth()+1,0);
+  INI=iso(a); FIM=iso(b);
+}
+function mesLabel(){
+  const p=INI.split('-'); const d=new Date(Number(p[0]),Number(p[1])-1,1);
+  const s=d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  return s.charAt(0).toUpperCase()+s.slice(1);
+}
+function navMes(delta){
+  const p=INI.split('-');
+  setMes(new Date(Number(p[0]),Number(p[1])-1+delta,1));
+  carregar();
+}
+
+async function boot(){
+  const t1=document.getElementById('tabObras'); if(t1) t1.href='painel.html?v='+Date.now();
+  const t2=document.getElementById('tabPV'); if(t2) t2.href='posvenda.html?v='+Date.now();
+  const s=await sb.auth.getSession();
+  if(!s.data.session){location.href='login.html';return;}
+  document.getElementById('who').textContent=s.data.session.user.email;
+  setMes(new Date());
+  const c=await sb.from('dre_plano_contas').select('*').eq('ativo',true).order('ordem');
+  if(c.error||!c.data){
+    document.getElementById('app').innerHTML='<div class="center"><span style="font-size:32px">🔒</span>'+
+      '<br><br><b>Sem acesso ao financeiro.</b><br>Peça ao administrador para liberar o nível financeiro.</div>';
+    return;
+  }
+  CONTAS=c.data;
+  const pr=await sb.from('parametros_financeiros').select('*').order('vigencia_inicio',{ascending:false});
+  PARAMS=pr.data||[];
+  const og=await sb.from('origens_lead').select('*').eq('ativo',true).order('ordem');
+  ORIGENS=og.data||[];
+  if(PARAMS.length&&PARAMS[0].rateio_base) RATEIO=PARAMS[0].rateio_base;
+  await carregar();
+}
+
+async function carregar(){
+  const r=await Promise.all([
+    sb.rpc('get_dre_mensal',{p_ini:INI,p_fim:FIM}),
+    sb.rpc('get_dre_obras',{p_ini:INI,p_fim:FIM}),
+    sb.rpc('get_fluxo_caixa',{p_ini:INI,p_fim:FIM}),
+    sb.rpc('get_financeiro_desempenho',{p_ini:INI,p_fim:FIM})
+  ]);
+  if(r[0].error||!r[0].data){
+    document.getElementById('app').innerHTML='<div class="center"><span style="font-size:32px">🔒</span>'+
+      '<br><br><b>Sem permissão financeira.</b><br>Seu usuário precisa ser admin ou nível financeiro.</div>';
+    return;
+  }
+  DRE=r[0].data; OBRAS=r[1].data; FLUXO=r[2].data; DESEMP=r[3].data;
+  render();
+}
+
+function render(){
+  let h='<div class="subtabs">';
+  const abas=[['dre','📊 DRE do mês'],['obras','🏗️ Obra a obra'],['fluxo','💵 Fluxo de caixa'],
+              ['desemp','📈 Desempenho'],['lancar','✏️ Lançar'],['param','⚙️ Parâmetros']];
+  for(let i=0;i<abas.length;i++){
+    h+='<button class="stb'+(ABA===abas[i][0]?' on':'')+'" onclick="irAba(\''+abas[i][0]+'\')">'+abas[i][1]+'</button>';
+  }
+  h+='</div>';
+  if(ABA!=='param'&&ABA!=='lancar') h+=blocoPeriodo();
+  h+='<div class="pane on">';
+  if(ABA==='dre') h+=viewDRE();
+  else if(ABA==='obras') h+=viewObras();
+  else if(ABA==='fluxo') h+=viewFluxo();
+  else if(ABA==='desemp') h+=viewDesemp();
+  else if(ABA==='lancar') h+=viewLancar();
+  else h+=viewParam();
+  h+='</div>';
+  document.getElementById('app').innerHTML=h;
+}
+function irAba(a){ABA=a;render();window.scrollTo(0,0);}
+
+function blocoPeriodo(){
+  return '<div class="periodo">'+
+    '<button class="nav" onclick="navMes(-1)">‹</button>'+
+    '<div class="lbl">'+esc(mesLabel())+'<small>'+dataBR(INI)+' a '+dataBR(FIM)+'</small></div>'+
+    '<button class="nav" onclick="navMes(1)">›</button></div>';
+}
+
+/* ---------- DRE ---------- */
+function viewDRE(){
+  const R=DRE.resumo||{}, L=DRE.linhas||[], RT=DRE.rateio||{};
+  const rl=n(R.receita_liquida);
+  const temDado=L.some(function(x){return n(x.valor)!==0;});
+  if(!temDado){
+    return '<div class="vazio"><span class="i">📊</span><b>Nenhum lançamento em '+esc(mesLabel())+'.</b><br>'+
+      'Use a aba <b>Lançar</b> para registrar receitas e despesas do mês.</div>';
+  }
+  function pc(v){return rl>0?'<span class="pct">'+pct(n(v)/rl)+'</span>':'<span class="pct">—</span>';}
+  let h='<div class="cards">'+
+    kc('Receita líquida',moeda(R.receita_liquida),'','gold')+
+    kc('Margem bruta',moeda(R.margem_bruta),rl>0?pct(n(R.margem_bruta)/rl):'',n(R.margem_bruta)>=0?'pos':'neg')+
+    kc('EBITDA',moeda(R.ebitda),rl>0?pct(n(R.ebitda)/rl):'',n(R.ebitda)>=0?'pos':'neg')+
+    kc('Resultado',moeda(R.resultado),rl>0?pct(n(R.resultado)/rl):'',n(R.resultado)>=0?'pos':'neg')+
+  '</div>';
+
+  h+='<div class="aviso">💡 <b>Retiradas de sócio e amortização de empréstimo não entram aqui.</b> '+
+     'Elas são lançadas no grupo 08 e aparecem só no fluxo de caixa — por isso este resultado '+
+     'é o resultado da operação, não o que sobrou no banco.</div>';
+
+  h+='<div class="dre"><table><thead><tr><th>Conta</th><th class="num">Valor</th><th class="num">% Rec. líq.</th></tr></thead><tbody>';
+  const ordem=['01','02','__RL','03','__MB','04','__EB','05','__EBIT','06','07','__RES'];
+  for(let i=0;i<ordem.length;i++){
+    const cd=ordem[i];
+    if(cd.indexOf('__')===0){
+      const mapa={'__RL':['= RECEITA LÍQUIDA',R.receita_liquida],'__MB':['= MARGEM BRUTA',R.margem_bruta],
+        '__EB':['= EBITDA',R.ebitda],'__EBIT':['= EBIT',R.ebit],'__RES':['= RESULTADO DO EXERCÍCIO',R.resultado]};
+      const m=mapa[cd];
+      h+='<tr class="calc"><td>'+m[0]+'</td><td class="num">'+moeda2(m[1])+'</td><td>'+pc(m[1])+'</td></tr>';
+      continue;
+    }
+    const g=L.find(function(x){return x.codigo===cd;});
+    if(!g) continue;
+    h+=linhaDRE(g,'g1',pc);
+    const subs=L.filter(function(x){return x.pai===cd;});
+    for(let j=0;j<subs.length;j++){
+      if(n(subs[j].valor)===0) continue;
+      h+=linhaDRE(subs[j],'g2',pc);
+      const cts=L.filter(function(x){return x.pai===subs[j].codigo && n(x.valor)!==0;});
+      for(let k=0;k<cts.length;k++) h+=linhaDRE(cts[k],'g3',pc);
+    }
+  }
+  h+='</tbody></table></div>';
+
+  h+='<div class="reg" style="margin-top:14px"><h3>Rateio do custo fixo deste mês</h3>'+
+    '<div class="cards" style="margin-bottom:0">'+
+    kc('Custo fixo rateável',moeda(RT.custo_fixo_total),'contas marcadas como rateáveis','')+
+    kc('Por obra',moeda(RT.por_obra),n(RT.qtd_obras)+' obra(s) no mês','gold')+
+    kc('Por kWp',moeda(RT.por_kwp),n(RT.kwp_total).toFixed(2)+' kWp','')+
+    kc('% do faturamento',pct(RT.pct_faturamento),moeda(RT.faturado_total),'')+
+    '</div><div class="dica">O rateio oficial é <b>por obra</b>. Os outros dois aparecem na aba '+
+    'Obra a obra para você comparar o efeito de cada base.</div></div>';
+  return h;
+}
+function linhaDRE(g,cls,pc){
+  const z=(n(g.valor)===0&&cls==='g1')?' zero':'';
+  return '<tr class="'+cls+z+'"><td>'+esc(g.codigo)+' · '+esc(g.nome)+'</td>'+
+    '<td class="num">'+moeda2(g.valor)+'</td><td>'+pc(g.valor)+'</td></tr>';
+}
+function kc(l,valor,p,cls){
+  return '<div class="kc '+(cls||'')+'"><div class="l">'+esc(l)+'</div><div class="n">'+valor+'</div>'+
+    (p?'<div class="p">'+esc(p)+'</div>':'')+'</div>';
+}
+
+/* ---------- OBRA A OBRA ---------- */
+function viewObras(){
+  const T=(OBRAS&&OBRAS.totais)||{}, lista=(OBRAS&&OBRAS.obras)||[];
+  if(!lista.length){
+    return '<div class="vazio"><span class="i">🏗️</span><b>Nenhuma obra com financeiro em '+esc(mesLabel())+'.</b><br>'+
+      'As obras aparecem aqui quando tiverem dados em <b>obra_financeiro</b> e data de conclusão, instalação ou fechamento no período.</div>';
+  }
+  let h='<div class="cards">'+
+    kc('Obras',n(T.qtd),'','')+
+    kc('Faturado',moeda(T.faturado),'','gold')+
+    kc('Ticket médio',moeda(T.ticket_medio),'','')+
+    kc('Preço por kWp',moeda(T.preco_kwp),n(T.kwp).toFixed(2)+' kWp','')+
+  '</div>';
+  h+='<div class="periodo"><span style="font-size:11px;font-weight:800;color:var(--muted);'+
+     'text-transform:uppercase;letter-spacing:.6px">Base do rateio</span>'+
+     '<select onchange="RATEIO=this.value;render()">'+
+     opt('obra','Por obra (oficial)')+opt('kwp','Por kWp')+opt('faturamento','Por % faturamento')+
+     '</select></div>';
+  h+='<div class="olist">';
+  for(let i=0;i<lista.length;i++) h+=cardObra(lista[i]);
+  h+='</div>';
+  return h;
+}
+function opt(v,l){return '<option value="'+v+'"'+(RATEIO===v?' selected':'')+'>'+esc(l)+'</option>';}
+function cardObra(o){
+  let ml, rat;
+  if(RATEIO==='kwp'){ ml=n(o.ml_kwp_pct); rat=n(o.rateio_kwp); }
+  else if(RATEIO==='faturamento'){ ml=n(o.ml_fat_pct); rat=n(o.rateio_faturamento); }
+  else { ml=n(o.ml_obra_pct); rat=n(o.rateio_obra); }
+  const cls = ml>=0.12?'bom':(ml>=0?'medio':'ruim');
+  const cor = ml>=0.12?'var(--green-l)':(ml>=0?'var(--gold)':'var(--red)');
+  const preco=n(o.preco)||1;
+  const wD=Math.max(0,Math.min(100,n(o.diretos)/preco*100));
+  const wI=Math.max(0,Math.min(100,(n(o.imposto)+n(o.comissao)+n(o.operacional))/preco*100));
+  const wR=Math.max(0,Math.min(100,rat/preco*100));
+  const wM=Math.max(0,100-wD-wI-wR);
+  let h='<button class="ob '+cls+'" onclick="verObra(\''+o.id+'\')"><div class="top">'+
+    '<div class="nm">'+esc(o.cliente)+'</div>'+
+    '<div class="mg"><div class="v" style="color:'+cor+'">'+pct(ml)+'</div><div class="k">margem líq.</div></div>'+
+    '</div><div class="meta">'+
+    '<span>'+moeda(o.preco)+'</span><span>'+n(o.kwp).toFixed(2)+' kWp</span>'+
+    '<span>CMV '+pct(o.cmv_pct)+'</span><span>MC '+pct(o.mc_pct)+'</span>'+
+    (o.vendedor?'<span>'+esc(o.vendedor)+'</span>':'')+
+    (o.origem?'<span class="tag">'+esc(o.origem)+'</span>':'<span class="tag red">sem origem</span>')+
+    '</div><div class="barra">'+
+    '<i style="width:'+wD+'%;background:#3d6b8f"></i>'+
+    '<i style="width:'+wI+'%;background:#7a5aa0"></i>'+
+    '<i style="width:'+wR+'%;background:var(--gold)"></i>'+
+    '<i style="width:'+wM+'%;background:'+cor+'"></i>'+
+    '</div></button>';
+  return h;
+}
+function verObra(id){
+  const o=(OBRAS.obras||[]).find(function(x){return x.id===id;});
+  if(!o) return;
+  toast(o.cliente+' · diretos '+moeda(o.diretos)+' · rateio '+moeda(o.rateio_obra)+' · MC '+moeda(o.mc));
+}
+
+/* ---------- FLUXO ---------- */
+function viewFluxo(){
+  const R=(FLUXO&&FLUXO.resumo)||{}, ent=(FLUXO&&FLUXO.entradas)||[], sai=(FLUXO&&FLUXO.saidas)||[];
+  if(!ent.length&&!sai.length){
+    return '<div class="vazio"><span class="i">💵</span><b>Sem movimento previsto em '+esc(mesLabel())+'.</b><br>'+
+      'As entradas vêm das parcelas cadastradas na obra. As saídas vêm dos lançamentos com data de caixa preenchida.</div>';
+  }
+  let h='<div class="cards">'+
+    kc('A receber',moeda(R.a_receber),'','gold')+
+    kc('Recebido',moeda(R.recebido),'','pos')+
+    kc('A pagar',moeda(R.a_pagar),'','neg')+
+    kc('Saldo do mês',moeda(R.saldo),'',n(R.saldo)>=0?'pos':'neg')+
+  '</div>';
+  if(ent.length){
+    h+='<div class="reg"><h3>Entradas previstas</h3><table class="gtab"><thead><tr>'+
+      '<th>Data</th><th>Cliente</th><th>Parcela</th><th class="num">Valor</th><th>Status</th></tr></thead><tbody>';
+    for(let i=0;i<ent.length;i++){
+      h+='<tr><td>'+dataBR(ent[i].data)+'</td><td>'+esc(ent[i].cliente)+'</td>'+
+        '<td>'+n(ent[i].parcela)+'ª</td><td class="num">'+moeda2(ent[i].valor)+'</td>'+
+        '<td>'+(ent[i].recebida?'<span class="tag green">recebida</span>':'<span class="tag gold">aberta</span>')+'</td></tr>';
+    }
+    h+='</tbody></table></div>';
+  }
+  if(sai.length){
+    h+='<div class="reg"><h3>Saídas do mês</h3><table class="gtab"><thead><tr>'+
+      '<th>Data</th><th>Conta</th><th>Descrição</th><th class="num">Valor</th></tr></thead><tbody>';
+    for(let i=0;i<sai.length;i++){
+      h+='<tr><td>'+dataBR(sai[i].data)+'</td><td>'+esc(sai[i].conta)+'</td>'+
+        '<td>'+esc(sai[i].descricao||'—')+'</td><td class="num">'+moeda2(sai[i].valor)+'</td></tr>';
+    }
+    h+='</tbody></table></div>';
+  }
+  return h;
+}
+
+/* ---------- DESEMPENHO ---------- */
+function viewDesemp(){
+  const V=(DESEMP&&DESEMP.por_vendedor)||[], O=(DESEMP&&DESEMP.por_origem)||[], C=(DESEMP&&DESEMP.cac)||{};
+  if(!V.length&&!O.length){
+    return '<div class="vazio"><span class="i">📈</span><b>Sem dados de desempenho em '+esc(mesLabel())+'.</b><br>'+
+      'Depende de obras com financeiro lançado no período.</div>';
+  }
+  let h='';
+  h+='<div class="cards">'+
+    kc('Gasto em marketing',moeda(C.gasto_marketing),'no período','')+
+    kc('Obras de tráfego',n(C.obras_trafego),'','')+
+    kc('CAC por tráfego',C.cac_trafego!=null?moeda(C.cac_trafego):'—',
+       C.cac_trafego!=null?'':'sem obras de tráfego','gold')+
+    kc('Sem origem',n(C.obras_sem_origem),'obras a classificar',n(C.obras_sem_origem)>0?'neg':'pos')+
+  '</div>';
+  if(n(C.obras_sem_origem)>0){
+    h+='<div class="aviso">⚠️ <b>'+n(C.obras_sem_origem)+' obra(s) sem origem de lead.</b> '+
+       'Enquanto houver obras sem classificar, o CAC fica subestimado. '+
+       'Preencha o campo de origem no cadastro da obra.</div>';
+  }
+  if(V.length){
+    h+='<div class="reg"><h3>Por vendedor</h3><table class="gtab"><thead><tr>'+
+      '<th>Vendedor</th><th class="num">Obras</th><th class="num">Faturado</th>'+
+      '<th class="num">Contribuição</th><th class="num">MC %</th></tr></thead><tbody>';
+    for(let i=0;i<V.length;i++){
+      h+='<tr><td>'+esc(V[i].nome)+'</td><td class="num">'+n(V[i].obras)+'</td>'+
+        '<td class="num">'+moeda(V[i].faturado)+'</td><td class="num">'+moeda(V[i].mc)+'</td>'+
+        '<td class="num">'+pct(V[i].mc_pct)+'</td></tr>';
+    }
+    h+='</tbody></table></div>';
+  }
+  if(O.length){
+    h+='<div class="reg"><h3>Por origem do lead</h3><table class="gtab"><thead><tr>'+
+      '<th>Origem</th><th class="num">Obras</th><th class="num">Faturado</th>'+
+      '<th class="num">Contribuição</th></tr></thead><tbody>';
+    for(let i=0;i<O.length;i++){
+      h+='<tr><td>'+esc(O[i].nome)+'</td><td class="num">'+n(O[i].obras)+'</td>'+
+        '<td class="num">'+moeda(O[i].faturado)+'</td><td class="num">'+moeda(O[i].mc)+'</td></tr>';
+    }
+    h+='</tbody></table></div>';
+  }
+  return h;
+}
+
+/* ---------- LANÇAR ---------- */
+function viewLancar(){
+  const hoje=iso(new Date());
+  let ops='';
+  const grupos=CONTAS.filter(function(c){return c.nivel===1;});
+  for(let i=0;i<grupos.length;i++){
+    const g=grupos[i];
+    const subs=CONTAS.filter(function(c){return c.pai===g.codigo;});
+    let inner='';
+    for(let j=0;j<subs.length;j++){
+      const cts=CONTAS.filter(function(c){return c.pai===subs[j].codigo;});
+      for(let k=0;k<cts.length;k++){
+        inner+='<option value="'+esc(cts[k].codigo)+'">'+esc(cts[k].codigo)+' · '+esc(cts[k].nome)+
+          (cts[k].no_dre===false?' (fora do DRE)':'')+'</option>';
+      }
+    }
+    if(inner) ops+='<optgroup label="'+esc(g.codigo+' · '+g.nome)+'">'+inner+'</optgroup>';
+  }
+  let h='<div class="reg"><h3>Novo lançamento</h3>'+
+    '<div class="lin"><div class="cp"><label>Competência</label>'+
+      '<input type="date" id="fComp" value="'+hoje+'"></div>'+
+      '<div class="cp"><label>Data de caixa</label><input type="date" id="fCaixa"></div></div>'+
+    '<div class="lin"><div class="cp w2"><label>Conta</label>'+
+      '<select id="fConta"><option value="">Selecione...</option>'+ops+'</select></div></div>'+
+    '<div class="lin"><div class="cp"><label>Valor (R$)</label>'+
+      '<input type="number" id="fValor" step="0.01" min="0" placeholder="0,00"></div>'+
+      '<div class="cp w2"><label>Descrição</label>'+
+      '<input type="text" id="fDesc" placeholder="Ex: NF 1234 — cliente"></div></div>'+
+    '<button class="salvar" id="bSalvar" onclick="salvarLanc()">Salvar lançamento</button>'+
+    '<div class="dica">Informe o valor sempre <b>positivo</b> — o sinal é aplicado pelo tipo da conta. '+
+    'A <b>competência</b> define em que mês entra no DRE; a <b>data de caixa</b> é opcional e alimenta o fluxo.</div></div>';
+
+  h+='<div class="reg"><h3>Lançamentos de '+esc(mesLabel())+'</h3><div id="listaLanc">'+
+     '<div class="dica">Carregando...</div></div></div>';
+  setTimeout(listarLanc,60);
+  return h;
+}
+async function listarLanc(){
+  const el=document.getElementById('listaLanc'); if(!el) return;
+  const r=await sb.from('dre_lancamentos').select('id,data_competencia,conta_codigo,valor,descricao')
+    .gte('data_competencia',INI).lte('data_competencia',FIM).order('data_competencia',{ascending:false}).limit(200);
+  if(r.error){el.innerHTML='<div class="dica">Não foi possível carregar.</div>';return;}
+  const d=r.data||[];
+  if(!d.length){el.innerHTML='<div class="dica">Nenhum lançamento neste mês ainda.</div>';return;}
+  let h='<table class="gtab"><thead><tr><th>Data</th><th>Conta</th><th>Descrição</th>'+
+    '<th class="num">Valor</th><th></th></tr></thead><tbody>';
+  for(let i=0;i<d.length;i++){
+    const c=CONTAS.find(function(x){return x.codigo===d[i].conta_codigo;});
+    h+='<tr><td>'+dataBR(d[i].data_competencia)+'</td>'+
+      '<td>'+esc(c?c.nome:d[i].conta_codigo)+'</td><td>'+esc(d[i].descricao||'—')+'</td>'+
+      '<td class="num">'+moeda2(d[i].valor)+'</td>'+
+      '<td><button class="btn-out" onclick="apagarLanc(\''+d[i].id+'\')">✕</button></td></tr>';
+  }
+  h+='</tbody></table>';
+  el.innerHTML=h;
+}
+async function salvarLanc(){
+  const comp=document.getElementById('fComp').value;
+  const caixa=document.getElementById('fCaixa').value;
+  const conta=document.getElementById('fConta').value;
+  const valor=parseFloat(document.getElementById('fValor').value);
+  const desc=document.getElementById('fDesc').value;
+  if(!comp){toast('Informe a competência');return;}
+  if(!conta){toast('Escolha a conta');return;}
+  if(!(valor>0)){toast('Informe um valor maior que zero');return;}
+  const b=document.getElementById('bSalvar'); b.disabled=true; b.textContent='Salvando...';
+  const s=await sb.auth.getSession();
+  const r=await sb.from('dre_lancamentos').insert({
+    data_competencia:comp, data_caixa:caixa||null, conta_codigo:conta,
+    valor:valor, descricao:desc||null, origem:'manual',
+    criado_por:(s.data.session&&s.data.session.user.email)||null
+  });
+  b.disabled=false; b.textContent='Salvar lançamento';
+  if(r.error){toast('Erro: '+r.error.message);return;}
+  document.getElementById('fValor').value=''; document.getElementById('fDesc').value='';
+  toast('Lançamento salvo');
+  await listarLanc();
+  await carregar();
+  ABA='lancar'; render();
+}
+async function apagarLanc(id){
+  if(!confirm('Apagar este lançamento?')) return;
+  const r=await sb.from('dre_lancamentos').delete().eq('id',id);
+  if(r.error){toast('Erro ao apagar');return;}
+  toast('Lançamento apagado');
+  await listarLanc();
+  await carregar(); ABA='lancar'; render();
+}
+
+/* ---------- PARÂMETROS ---------- */
+function viewParam(){
+  let h='<div class="reg"><h3>Parâmetros por vigência</h3><table class="gtab"><thead><tr>'+
+    '<th>Vigência</th><th class="num">Imposto</th><th class="num">Comissão</th>'+
+    '<th class="num">Oper./placa</th><th class="num">Margem alvo</th><th>Rateio</th></tr></thead><tbody>';
+  for(let i=0;i<PARAMS.length;i++){
+    const p=PARAMS[i];
+    h+='<tr><td>'+dataBR(p.vigencia_inicio)+'</td><td class="num">'+pct(p.aliquota_imposto)+'</td>'+
+      '<td class="num">'+pct(p.comissao_pct_padrao)+'</td>'+
+      '<td class="num">'+moeda2(p.custo_operacional_placa)+'</td>'+
+      '<td class="num">'+pct(p.margem_bruta_alvo)+'</td>'+
+      '<td><span class="tag gold">'+esc(p.rateio_base)+'</span></td></tr>';
+  }
+  h+='</tbody></table><div class="dica">Cada obra usa o parâmetro vigente na data da venda. '+
+     'Foi assim que resolvemos a diferença entre a alíquota de 2025 e a de 2026.</div></div>';
+
+  const rat=CONTAS.filter(function(c){return c.rateavel;}).length;
+  const fora=CONTAS.filter(function(c){return c.no_dre===false;});
+  h+='<div class="reg"><h3>Plano de contas</h3>'+
+    '<div class="cards" style="margin-bottom:10px">'+
+    kc('Contas ativas',CONTAS.length,'','')+
+    kc('Rateáveis',rat,'entram no custo fixo por obra','gold')+
+    kc('Fora do DRE',fora.length,'só fluxo de caixa','')+
+    '</div>';
+  h+='<table class="gtab"><thead><tr><th>Código</th><th>Conta</th><th>Natureza</th>'+
+     '<th>Rateável</th><th>No DRE</th></tr></thead><tbody>';
+  const cts=CONTAS.filter(function(c){return c.nivel===3;});
+  for(let i=0;i<cts.length;i++){
+    const c=cts[i];
+    h+='<tr><td>'+esc(c.codigo)+'</td><td>'+esc(c.nome)+'</td>'+
+      '<td>'+esc(c.natureza||'—')+'</td>'+
+      '<td>'+(c.rateavel?'<span class="tag gold">sim</span>':'—')+'</td>'+
+      '<td>'+(c.no_dre===false?'<span class="tag red">não</span>':'<span class="tag green">sim</span>')+'</td></tr>';
+  }
+  h+='</tbody></table>'+
+     '<div class="dica">As contas marcadas como <b>fora do DRE</b> são retirada de sócio e amortização de '+
+     'empréstimo. Elas continuam sendo lançadas normalmente, mas não afetam o resultado da operação.</div></div>';
+
+  h+='<div class="reg"><h3>Origens de lead</h3><table class="gtab"><thead><tr>'+
+     '<th>Código</th><th>Nome</th></tr></thead><tbody>';
+  for(let i=0;i<ORIGENS.length;i++){
+    h+='<tr><td>'+esc(ORIGENS[i].codigo)+'</td><td>'+esc(ORIGENS[i].nome)+'</td></tr>';
+  }
+  h+='</tbody></table><div class="dica">Cadastradas no banco. O campo aparece no cadastro da obra e '+
+     'alimenta o cálculo de CAC na aba Desempenho.</div></div>';
+  return h;
+}
+
+boot();
+</script>
+</body>
+</html>
