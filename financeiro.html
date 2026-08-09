@@ -268,7 +268,7 @@ let ABA='dre', INI=null, FIM=null, RATEIO='obra';
 let DRE=null, OBRAS=null, FLUXO=null, DESEMP=null, CONTAS=[], PARAMS=[], ORIGENS=[];
 let FILA=null, EDIT=null, FILA_TODAS=false, RESUMO=null, ABRIR=null, ATALHO=null, VERCONTAS=false;
 let FNAT='', DRILL=null, EQUIPE=[], PARC=[];
-let CALC={mod:8,estr:'fibrocimento',km:0,res:null}, ESTRUTURAS=[], KITS=[];
+let CALC={mod:8,estr:'Cerâmico',km:0,res:null}, ESTRUTURAS=[], KITS=[];
 let DESV=null, VERDESV=false;
 function fnat(v,l){return '<button class="stb'+(FNAT===v?' on':'')+'" onclick="FNAT=\''+v+'\';render()">'+l+'</button>';}
 
@@ -669,7 +669,7 @@ async function abrirFin(id){
   d.innerHTML='<div class="center"><div class="spin"></div>Abrindo...</div>';
   ov.classList.add('on');
   const r=await sb.from('obra_financeiro').select('*').eq('obra_id',id).maybeSingle();
-  const o=await sb.from('obras').select('id,cliente,contrato,potencia_kwp,qtd_modulos,data_fechamento,data_instalacao,data_conclusao,origem_lead,vendedor_id,tipo_estrutura,distancia_km').eq('id',id).maybeSingle();
+  const o=await sb.from('obras').select('id,cliente,contrato,potencia_kwp,qtd_modulos,data_fechamento,data_instalacao,data_conclusao,origem_lead,vendedor_id,tipo_telhado,distancia_km').eq('id',id).maybeSingle();
   const pp=await sb.from('obra_parcelas').select('*').eq('obra_id',id).order('numero');
   if(r.error||o.error||!o.data){d.innerHTML='<div class="center">Não foi possível abrir.</div>';return;}
   EDIT={fin:r.data||{obra_id:id}, obra:o.data};
@@ -722,12 +722,12 @@ function renderFin(){
   h+='<button class="bmini" style="width:100%;margin-top:8px" onclick="sugerirFin()">'+
      'Sugerir imposto e comissão pelos parâmetros</button></div>';
 
-  h+='<div class="reg"><h3>Previsto × Realizado</h3>'+
+  h+='<div class="reg"><h3>Orçado × Realizado</h3>'+
      '<div class="lin"><div class="cp"><label>Telhado</label><select id="eEstr">';
   for(let i=0;i<ESTRUTURAS.length;i++){
-    h+='<option value="'+esc(ESTRUTURAS[i].tipo)+'"'+
-       ((O.tipo_estrutura||'fibrocimento')===ESTRUTURAS[i].tipo?' selected':'')+'>'+
-       esc(ESTRUTURAS[i].nome)+'</option>';
+    h+='<option value="'+esc(ESTRUTURAS[i].tipo_telhado)+'"'+
+       ((O.tipo_telhado||'Cerâmico')===ESTRUTURAS[i].tipo_telhado?' selected':'')+'>'+
+       esc(ESTRUTURAS[i].tipo_telhado)+'</option>';
   }
   h+='</select></div><div class="cp"><label>Distância (km)</label>'+
      '<input type="number" id="eKm" step="1" value="'+(O.distancia_km!=null?O.distancia_km:'')+'"></div>'+
@@ -793,13 +793,13 @@ async function calcularPrevistoObra(){
   const km=parseFloat(document.getElementById('eKm').value)||0;
   const mods=n(EDIT.obra.qtd_modulos);
   if(!(mods>0)){toast('Obra sem quantidade de módulos — cadastre no painel de obras');return;}
-  await sb.from('obras').update({tipo_estrutura:estr, distancia_km:km}).eq('id',EDIT.obra.id);
+  await sb.from('obras').update({tipo_telhado:estr, distancia_km:km}).eq('id',EDIT.obra.id);
   const r=await sb.rpc('gravar_previsto',{p_obra:EDIT.obra.id});
   if(r.error){toast('Erro: '+r.error.message);return;}
   if(r.data&&r.data.erro){toast(r.data.erro);return;}
   const f=await sb.from('obra_financeiro').select('*').eq('obra_id',EDIT.obra.id).maybeSingle();
   if(f.data) EDIT.fin=f.data;
-  EDIT.obra.tipo_estrutura=estr; EDIT.obra.distancia_km=km;
+  EDIT.obra.tipo_telhado=estr; EDIT.obra.distancia_km=km;
   toast('Previsto calculado');
   renderPrevisto();
 }
@@ -1060,8 +1060,9 @@ function viewCalc(){
       'value="'+CALC.mod+'" oninput="CALC.mod=parseInt(this.value,10)||0;rodarCalc()"></div>'+
     '<div class="cp"><label>Telhado</label><select id="cEstr" onchange="CALC.estr=this.value;rodarCalc()">';
   for(let i=0;i<ESTRUTURAS.length;i++){
-    h+='<option value="'+esc(ESTRUTURAS[i].tipo)+'"'+(CALC.estr===ESTRUTURAS[i].tipo?' selected':'')+'>'+
-       esc(ESTRUTURAS[i].nome)+' · '+moeda2(ESTRUTURAS[i].valor_modulo)+'/mód</option>';
+    h+='<option value="'+esc(ESTRUTURAS[i].tipo_telhado)+'"'+
+       (CALC.estr===ESTRUTURAS[i].tipo_telhado?' selected':'')+'>'+
+       esc(ESTRUTURAS[i].tipo_telhado)+' · '+moeda2(ESTRUTURAS[i].valor_modulo)+'/mód</option>';
   }
   h+='</select></div><div class="cp"><label>Distância (km)</label>'+
      '<input type="number" id="cKm" step="1" value="'+CALC.km+'" '+
@@ -1090,7 +1091,7 @@ function viewCalc(){
 async function rodarCalc(){
   const box=document.getElementById('calcRes'); if(!box) return;
   if(!(CALC.mod>=4)){ box.innerHTML='<div class="dica">Mínimo de 4 módulos.</div>'; return; }
-  const r=await sb.rpc('calcular_previsto',{p_modulos:CALC.mod,p_estrutura:CALC.estr,p_km:CALC.km});
+  const r=await sb.rpc('calcular_previsto',{p_modulos:CALC.mod,p_telhado:CALC.estr,p_km:CALC.km});
   if(r.error||!r.data){ box.innerHTML='<div class="dica">Não foi possível calcular.</div>'; return; }
   const c=r.data; CALC.res=c;
   let h='';
@@ -1099,7 +1100,7 @@ async function rodarCalc(){
        'O custo abaixo sai sem o equipamento.</div>';
   h+='<div class="resumoCalc">'+
     lr('Kit ('+esc(c.inversor||'—')+(c.marca?' '+esc(c.marca):'')+')',c.kit)+
-    lr('Estrutura '+esc(c.estrutura_nome||''),c.estrutura)+
+    lr('Estrutura ('+esc(c.telhado||'')+')',c.estrutura)+
     lr('Cabo',c.cabo)+
     lr('Material CA',c.material_ca)+
     lr('Instalação',c.instalacao)+
