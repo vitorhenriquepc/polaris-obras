@@ -1151,7 +1151,6 @@ ov.innerHTML=`<div class="modal">
 <input id="f_travaobs" value="${esc(o.trava_obs||'')}" placeholder="Observação (opcional): protocolo, nome do contato..." style="margin-top:7px">
 </div>
 <div class="grid2">
-<div class="fld"><label>Qtd. de módulos</label><input id="f_mod" type="number" inputmode="numeric" value="${o.qtd_modulos!=null?o.qtd_modulos:''}" placeholder="8"></div>
 <div class="fld"><label>Distância até a obra (km)</label><input id="f_km" type="number" inputmode="decimal" step="0.1" value="${o.distancia_km!=null?o.distancia_km:''}" placeholder="35"></div>
 </div>
 <div class="grid2">
@@ -1224,7 +1223,6 @@ origem_lead:document.getElementById('f_org').value||null,
 trava:travaEdit||null,
 trava_obs:travaEdit?(document.getElementById('f_travaobs').value||null):null,
 distancia_km:parseFloat(document.getElementById('f_km').value)||null,
-qtd_modulos:parseInt(document.getElementById('f_mod').value,10)||null,
 data_instalacao:document.getElementById('f_dti').value||null,
 instalador_id:document.getElementById('f_inst').value||null,
 qtd_modulos:parseInt(document.getElementById('f_qtm').value,10)||null,
