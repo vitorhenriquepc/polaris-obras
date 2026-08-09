@@ -330,6 +330,20 @@ padding:13px 18px;font-family:inherit;font-size:14px;cursor:pointer}
 background:var(--navy2);border:1px solid var(--gold);color:var(--txt);padding:12px 20px;
 border-radius:12px;font-size:13.5px;font-weight:600;z-index:99;transition:.3s;box-shadow:0 8px 30px rgba(0,0,0,.5)}
 .toast.on{transform:translateX(-50%) translateY(0)}
+/* ---- Travas ---- */
+.tarja{display:flex;align-items:center;gap:8px;background:rgba(224,112,112,.10);
+border:1px solid rgba(224,112,112,.35);border-radius:10px;padding:8px 11px;margin:9px 0 0;
+font-size:12px;font-weight:700;color:#e07070}
+.tarja.crit{background:rgba(224,112,112,.20);border-color:#e07070}
+.tarja .d{margin-left:auto;font-size:11px;font-weight:800;white-space:nowrap}
+.tarja .obs{color:#8fa6b8;font-weight:600}
+.chip.trava{border-color:rgba(224,112,112,.5)}
+.chip.trava .n{color:#e07070}
+.travasel{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.tbtn{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:#8fa6b8;
+border-radius:8px;padding:7px 11px;font-family:inherit;font-size:11.5px;font-weight:800;cursor:pointer}
+.tbtn.on{border-color:#e07070;color:#e07070;background:rgba(224,112,112,.12)}
+.tbtn.livre.on{border-color:#3B8B3B;color:#58b868;background:rgba(88,184,104,.12)}
 </style>
 </head>
 <body>
@@ -481,7 +495,7 @@ document.getElementById('bAgenda').onclick = ()=> abrirAgendas();
 document.getElementById('busca').addEventListener('input', e=>{ busca=e.target.value.toLowerCase(); renderList(); });
 
 setView(VIEW);
-await loadEtapas();
+await loadEtapas(); await loadTravas();
 await loadEquipe();
 await loadObras();
 subscribeRealtime();
@@ -509,6 +523,16 @@ function ramoNome(cod){ const r=RAMOS.find(x=>x.codigo===cod); return r?r.nome:'
 function iptuDaObra(o){ return o.cidade ? (CIDIPTU[o.cidade]||null) : null; }
 function trilhaNome(cod){ const t=TRILHAS.find(x=>x.codigo===cod); return t?(t.icone||'')+' '+t.nome:''; }
 
+let TRAVAS=[];
+async function loadTravas(){
+  const r=await sb.from('travas_tipos').select('*').eq('ativo',true).order('ordem');
+  TRAVAS=r.data||[];
+}
+function travaInfo(cod){ return TRAVAS.find(t=>t.codigo===cod)||null; }
+function diasTravada(o){ if(!o.trava||!o.trava_em) return null;
+  const d=parseDate(o.trava_em); return d?diffDays(d,new Date()):null; }
+function travaCritica(o){ const t=travaInfo(o.trava); const d=diasTravada(o);
+  return (t&&d!=null&&d>=t.alerta_dias); }
 async function loadObras(){
 const { data, error } = await sb.from('obras').select('*');
 if(error){ document.getElementById('list').innerHTML=`<div class="empty"><span class="i">⚠️</span>Erro ao carregar: ${esc(error.message)}</div>`; return; }
@@ -520,11 +544,15 @@ renderStats(); renderDChips(); renderCChips(); renderList(); checarRespostas();
 function renderStats(){
 const cont={}; OBRAS.forEach(o=> cont[o.etapa_numero]=(cont[o.etapa_numero]||0)+1);
 let h=`<div class="chip total ${filtroEtapa===null?'on':''}" onclick="setFiltro(null)"><div class="n">${OBRAS.length}</div><div class="l">Total</div></div>`;
+const trv=OBRAS.filter(o=>o.trava), crt=trv.filter(travaCritica);
+if(trv.length) h+=`<div class="chip trava ${filtroTrava?'on':''}" onclick="setFiltroTrava()"><div class="n">${trv.length}</div><div class="l">⏸ Travadas${crt.length?' · '+crt.length+' ⚠️':''}</div></div>`;
 for(let n=8;n>=0;n--){ if(!cont[n]) continue; const e=ET[n]||{nome:'Etapa '+n,icone:''};
 h+=`<div class="chip ${filtroEtapa===n?'on':''}" onclick="setFiltro(${n})"><div class="n">${cont[n]}</div><div class="l">${e.icone||''} ${esc((e.nome||'').replace('!',''))}</div></div>`; }
 document.getElementById('stats').innerHTML=h;
 }
-function setFiltro(n){ filtroEtapa=(filtroEtapa===n?null:n); renderStats(); renderList(); }
+function setFiltro(n){ filtroEtapa=(filtroEtapa===n?null:n); filtroTrava=false; renderStats(); renderList(); }
+let filtroTrava=false;
+function setFiltroTrava(){ filtroTrava=!filtroTrava; if(filtroTrava) filtroEtapa=null; renderStats(); renderList(); }
 let filtroDias=null;
 const DFILTROS=[{k:null,l:'Todos os prazos'},{k:7,l:'⏱️ Até 7 dias'},{k:30,l:'📅 +30 dias'},{k:60,l:'🚨 +60 dias'}];
 let filtroCat='';
@@ -580,11 +608,14 @@ function renderList(){
 if(VIEW==='kanban') return renderKanban();
 let arr=OBRAS.slice().filter(o=>passaDias(o,filtroDias)).filter(o=>!filtroCat||(o.categoria||'residencial')===filtroCat);
 if(filtroEtapa!==null) arr=arr.filter(o=>o.etapa_numero===filtroEtapa);
+if(filtroTrava) arr=arr.filter(o=>o.trava);
 if(busca) arr=arr.filter(o=> (o.cliente||'').toLowerCase().includes(busca) || (o.contrato||'').includes(busca));
 // ordena: não finalizadas primeiro, depois por etapa desc, depois nome
 arr.sort((a,b)=>{
 const fa=a.status==='Finalizado'?1:0, fb=b.status==='Finalizado'?1:0;
 if(fa!==fb) return fa-fb;
+const ca=travaCritica(a)?0:1, cb=travaCritica(b)?0:1;
+if(ca!==cb) return ca-cb;
 if(b.etapa_numero!==a.etapa_numero) return b.etapa_numero-a.etapa_numero;
 return (a.cliente||'').localeCompare(b.cliente||'');
 });
@@ -657,6 +688,33 @@ const o=getObra(id);
 if(!o||o.etapa_numero===n) return;
 await mudarEtapa(id,n);
 }
+let travaEdit=null;
+function travaBotoes(o){
+  travaEdit = o.trava||'';
+  let h=`<button type="button" class="tbtn livre ${!travaEdit?'on':''}" onclick="setTravaEdit('')">✅ Nada travando</button>`;
+  for(const t of TRAVAS){
+    h+=`<button type="button" class="tbtn ${travaEdit===t.codigo?'on':''}" onclick="setTravaEdit('${t.codigo}')">${t.icone||''} ${esc(t.nome.replace('Aguardando ',''))}</button>`;
+  }
+  return h;
+}
+function setTravaEdit(cod){
+  travaEdit=cod;
+  const el=document.getElementById('travaSel'); if(!el) return;
+  el.querySelectorAll('.tbtn').forEach((b,i)=>{
+    const alvo = i===0 ? '' : (TRAVAS[i-1]||{}).codigo;
+    b.classList.toggle('on', alvo===cod);
+  });
+}
+function tarjaTrava(o){
+  if(!o.trava) return '';
+  const t=travaInfo(o.trava); if(!t) return '';
+  const d=diasTravada(o); const crit=travaCritica(o);
+  return `<div class="tarja ${crit?'crit':''}">
+    <span>${t.icone||'⏸'}</span>
+    <span>${esc(t.nome)}${o.trava_obs?` <span class="obs">· ${esc(o.trava_obs)}</span>`:''}</span>
+    <span class="d">${crit?'⚠️ ':''}${d!=null?d+' dia'+(d===1?'':'s'):''}</span>
+  </div>`;
+}
 function cardHtml(o){
 const e=etOf(o);
 const metaBits=[];
@@ -680,6 +738,7 @@ return `<div class="obra" data-id="${o.id}">
 </div>
 <span class="badge b-stage">${e.icone||''} ${esc((e.nome||'').replace('!',''))}</span>${o.status==='Finalizado'?statusBadge(o.status):''}
 </div>
+${tarjaTrava(o)}
 <div class="ctrls">
 <select onchange="mudarEtapa('${o.id}',this.value)" title="Etapa">${opts}</select>
 <button class="act act-adv" ${o.etapa_numero>=8?'disabled':''} onclick="avancar('${o.id}')">Avançar ▶</button>
@@ -1087,6 +1146,10 @@ ov.innerHTML=`<div class="modal">
 <div class="fld"><label>Potência (kWp)</label><input id="f_pot" value="${o.potencia_kwp!=null?String(o.potencia_kwp).replace('.',','):''}" placeholder="8,54"></div>
 <div class="fld"><label>Origem do lead</label><select id="f_org">${origOpts}</select></div>
 </div>
+<div class="fld"><label>O que está travando esta obra?</label>
+<div class="travasel" id="travaSel">${travaBotoes(o)}</div>
+<input id="f_travaobs" value="${esc(o.trava_obs||'')}" placeholder="Observação (opcional): protocolo, nome do contato..." style="margin-top:7px">
+</div>
 <div class="grid2">
 <div class="fld"><label>Qtd. de módulos</label><input id="f_mod" type="number" inputmode="numeric" value="${o.qtd_modulos!=null?o.qtd_modulos:''}" placeholder="8"></div>
 <div class="fld"><label>Distância até a obra (km)</label><input id="f_km" type="number" inputmode="decimal" step="0.1" value="${o.distancia_km!=null?o.distancia_km:''}" placeholder="35"></div>
@@ -1158,6 +1221,8 @@ data_conclusao:document.getElementById('f_dtc').value||null,
 observacoes:document.getElementById('f_obs').value.trim()||null,
 vendedor_id:document.getElementById('f_vend').value||null,
 origem_lead:document.getElementById('f_org').value||null,
+trava:travaEdit||null,
+trava_obs:travaEdit?(document.getElementById('f_travaobs').value||null):null,
 distancia_km:parseFloat(document.getElementById('f_km').value)||null,
 qtd_modulos:parseInt(document.getElementById('f_mod').value,10)||null,
 data_instalacao:document.getElementById('f_dti').value||null,
