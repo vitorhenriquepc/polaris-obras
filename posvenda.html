@@ -619,6 +619,7 @@ function render(){
   }
   document.getElementById('app').innerHTML=h;
 }
+function n(v){var x=Number(v);return isNaN(x)?0:x;}
 async function carregarBrindes(){
   var box=document.getElementById('brbox'); if(!box) return;
   var r=await sb.rpc('get_brindes');
