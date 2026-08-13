@@ -262,6 +262,9 @@ margin-bottom:7px;display:flex;align-items:center;gap:11px}
 
 /* ---- Régua ---- */
 .rgstat{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+button.rgs{cursor:pointer;font-family:inherit;text-align:center;transition:.15s}
+button.rgs:hover{border-color:var(--gold)}
+button.rgs.sel{border-color:var(--gold);background:var(--card2)}
 .rgs{flex:1 1 100px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
 .rgs .n{font-size:22px;font-weight:800;line-height:1}
 .rgs .l{font-size:10px;color:var(--muted);font-weight:700;margin-top:4px;line-height:1.3}
@@ -573,18 +576,6 @@ function render(){
     document.getElementById('app').innerHTML=h;
     return;
   }
-  if(VISAO==='indic'){
-    document.getElementById('app').innerHTML=h+'<div id="inbox"><div class="center"><div class="spin"></div>Carregando indicações...</div></div>';
-    carregarIndic();
-    return;
-  }
-  if(VISAO==='regua'){
-    h+='<div id="reguabox"><div class="center"><div class="spin"></div>Carregando régua...</div></div>';
-    document.getElementById('app').innerHTML=h;
-    carregarRegua();
-    return;
-  }
-
   let arr=cl.slice();
   if(FILTRO==='pendentes') arr=arr.filter(c=>c.pendentes>0);
   if(FILTRO==='sem_nps') arr=arr.filter(c=>c.nps==null);
@@ -637,17 +628,27 @@ function renderBrindes(){
   var semG=arr.filter(function(x){return !x.avaliou_google_em;});
 
   var h='<div class="rgstat">'+
-    '<div class="b"><div class="n">'+arr.length+'</div><div class="l">Brindes solicitados</div></div>'+
-    '<div class="b"><div class="n" style="color:var(--gold)">'+pend.length+'</div><div class="l">A entregar</div></div>'+
-    '<div class="b"><div class="n" style="color:var(--green-l)">'+ent.length+'</div><div class="l">Entregues</div></div>'+
-    '<div class="b"><div class="n" style="color:#e07070">'+semG.length+'</div><div class="l">Sem avaliação no Google</div></div>'+
+    bcard('',arr.length,'Brindes solicitados','')+
+    bcard('pend',pend.length,'A entregar','var(--gold)')+
+    bcard('ent',ent.length,'Entregues','var(--green-l)')+
+    bcard('semg',semG.length,'Sem avaliação no Google','#e07070')+
   '</div>';
+  if(BRF==='pend') arr=pend;
+  else if(BRF==='ent') arr=ent;
+  else if(BRF==='semg') arr=semG;
   if(!arr.length) return h+'<div class="vazio"><span class="i">🥤</span>Nenhum brinde solicitado ainda.<br>'+
     'O cliente escolhe o brinde ao responder a pesquisa com nota 9 ou 10.</div>';
   h+='<div class="trjres"><div class="dica" style="margin:0 0 8px">Confira a avaliação no Google antes de entregar. Toque no código para copiar.</div>';
   for(var i=0;i<arr.length;i++) h+=linhaBrinde(arr[i]);
   return h+'</div>';
 }
+let BRF='';
+function bcard(k,v,l,cor){
+  return '<button class="rgs b'+(BRF===k&&k?' sel':'')+'" onclick="setBrf(\''+k+'\')">'+
+    '<div class="n"'+(cor?' style="color:'+cor+'"':'')+'>'+v+'</div>'+
+    '<div class="l">'+esc(l)+'</div></button>';
+}
+function setBrf(k){ BRF=(BRF===k?'':k); document.getElementById('brbox').innerHTML=renderBrindes(); }
 function linhaBrinde(b){
   var nome=b.brinde==='copo'?'Copo térmico':'Fone Bluetooth';
   var emoji=b.brinde==='copo'?'🥤':'🎧';
@@ -1159,75 +1160,6 @@ async function marcarOptin(id, valor){
 
 
 /* ===== RÉGUA ===== */
-let REGUA=null;
-async function carregarRegua(){
-  const r=await sb.rpc('get_regua_painel');
-  REGUA=r.data||null;
-  renderRegua();
-}
-function renderRegua(){
-  const el=document.getElementById('reguabox'); if(!el) return;
-  if(!REGUA){ el.innerHTML='<div class="vazio">Não foi possível carregar a régua.</div>'; return; }
-  const R=REGUA.resumo||{}, hoje=REGUA.hoje||[], mods=REGUA.modelos||[];
-
-  let h=`<div class="switch">
-    <div class="info">
-      <div class="tt">${REGUA.ativa?'✅ Régua ativa':'⏸️ Régua desativada'}</div>
-      <div class="ds">${REGUA.ativa
-        ? 'Os contatos saem automaticamente todo dia às 10h, no máximo 15 por dia.'
-        : 'Nenhuma mensagem está sendo enviada. Ative quando quiser começar.'}</div>
-    </div>
-    <button class="sw ${REGUA.ativa?'on':''}" onclick="toggleRegua(${!REGUA.ativa})"></button>
-  </div>`;
-
-  h+=`<div class="rgstat">
-    <div class="b"><div class="n" style="color:var(--gold)">${R.hoje||0}</div><div class="l">Para sair hoje</div></div>
-    <div class="b"><div class="n">${R.pendentes||0}</div><div class="l">Programados</div></div>
-    <div class="b"><div class="n" style="color:var(--green-l)">${R.enviados||0}</div><div class="l">Já enviados</div></div>
-    <div class="b"><div class="n">${R.obras_na_regua||0}</div><div class="l">Clientes na régua</div></div>
-  </div>`;
-
-  h+=`<div class="sec"><h3>Próximos 7 dias</h3>`;
-  if(!hoje.length){
-    h+='<div class="vazio">Nenhum contato programado para os próximos dias.</div>';
-  } else {
-    hoje.forEach(c=>{
-      const atrasado=c.atraso>0, hj=c.atraso===0;
-      const quando=atrasado?`${c.atraso}d de atraso`:(hj?'hoje':dataBR(c.data_prevista));
-      h+=`<div class="rgrow ${c.bloqueio?'bloq':(hj||atrasado?'hoje':'')}">
-        <div class="ic">${c.icone||'📨'}</div>
-        <div class="cn"><b>${esc(c.cliente)}</b>
-          <span>${esc(c.nome_modelo)}${c.bloqueio?` · ⚠️ ${esc(c.bloqueio)}`:''}</span></div>
-        <div class="qd">${quando}</div>
-      </div>`;
-    });
-  }
-  h+=`</div>`;
-
-  h+=`<div class="sec"><h3>Os contatos da régua</h3>`;
-  mods.forEach(m=>{
-    const tipo=m.tipo==='pede'?'🙏 pede':(m.tipo==='oferece'?'💼 oferece':'🎁 entrega valor');
-    h+=`<div class="mod" onclick="this.classList.toggle('aberto')">
-      <div class="top"><span>${m.icone}</span><b>${esc(m.nome)}</b>
-        <span class="dia">${m.dia>0?'D+'+m.dia:'sob demanda'}</span></div>
-      <div style="font-size:10.5px;color:var(--muted);font-weight:700;margin-top:5px">${tipo}${m.condicao!=='sempre'?' · condição: '+m.condicao.replace('_',' '):''}</div>
-      <div class="tx">${esc(m.texto)}</div>
-    </div>`;
-  });
-  h+=`</div>`;
-
-  el.innerHTML=h;
-}
-async function toggleRegua(ativar){
-  if(ativar && !confirm('Ativar a régua de relacionamento?\n\nA partir de agora o sistema vai enviar os contatos programados automaticamente, no máximo 15 por dia.')) return;
-  const r=await sb.rpc('regua_toggle',{p_ativa:ativar});
-  if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
-  toast(ativar?'Régua ativada ✅':'Régua desativada');
-  await carregarRegua();
-}
-
-/* ===== RÉGUA ===== */
-let RG=null;
 async function carregarRegua(){
   const r=await sb.rpc('get_regua_painel');
   if(r.error||!r.data){
@@ -1235,6 +1167,38 @@ async function carregarRegua(){
     return;
   }
   RG=r.data; renderRegua();
+}
+let RGF='';
+function setRgf(k){ RGF=(RGF===k?'':k); renderRegua(); }
+function listaRgf(){
+  const fila=RG.fila||[], ult=RG.ultimos||[];
+  const hj=new Date().toISOString().slice(0,10);
+  let arr=[], tit='';
+  if(RGF==='hoje'){ arr=fila.filter(f=>f.quando<=hj && !f.bloqueio); tit='Para enviar hoje'; }
+  else if(RGF==='prox'){
+    const lim=new Date(Date.now()+7*864e5).toISOString().slice(0,10);
+    arr=fila.filter(f=>f.quando>hj && f.quando<=lim); tit='Próximos 7 dias'; }
+  else if(RGF==='bloq'){ arr=fila.filter(f=>!!f.bloqueio); tit='Bloqueados'; }
+  else if(RGF==='env'){ arr=ult.slice(); tit='Enviados nos últimos 30 dias'; }
+  else if(RGF==='todos'){ arr=fila.slice(); tit='Todos na régua'; }
+
+  let h='<div class="sec" style="border-color:var(--gold)">'+
+    '<h3 style="display:flex;align-items:center;gap:8px">'+esc(tit)+' — '+arr.length+
+    '<button class="stb" style="margin-left:auto" onclick="setRgf(\''+RGF+'\')">✕ fechar</button></h3>';
+  if(!arr.length) h+='<div class="vazio">Nenhum cliente aqui.</div>';
+  for(let i=0;i<arr.length;i++){
+    const f=arr[i];
+    const quando = f.enviado_em ? dataBR(f.enviado_em)
+                 : (f.quando<=hj ? 'hoje' : dataBR(f.quando));
+    const clic = !!f.obra_id;
+    h+='<div class="chkline"'+(clic?' onclick="abrirFicha(\''+f.obra_id+'\')"':' style="cursor:default"')+'>'+
+      '<span style="font-size:19px;flex-shrink:0">'+(f.icone||'📨')+'</span>'+
+      '<div class="cn"><b>'+esc(f.cliente)+'</b><span>'+esc(f.nome_modelo||f.modelo||'')+
+      ' · '+esc(quando||'')+(f.bloqueio?' · ⚠️ '+esc(f.bloqueio):'')+'</span></div>'+
+      (clic?'<span style="color:var(--muted);font-size:15px">›</span>':'')+'</div>';
+  }
+  if(RGF==='env') h+='<div class="dica">Mostra os 15 envios mais recentes.</div>';
+  return h+'</div>';
 }
 function renderRegua(){
   const R=RG.resumo||{}, fila=RG.fila||[], ult=RG.ultimos||[];
@@ -1256,12 +1220,13 @@ function renderRegua(){
 
   h+=`<div id="optbox"></div>`;
   h+=`<div class="rgstat">
-    <div class="rgs ${R.hoje?'hot':''}"><div class="n">${R.hoje||0}</div><div class="l">Para enviar hoje</div></div>
-    <div class="rgs"><div class="n">${R.proximos7||0}</div><div class="l">Próximos 7 dias</div></div>
-    <div class="rgs ${R.bloqueados?'blk':''}"><div class="n">${R.bloqueados||0}</div><div class="l">Bloqueados</div></div>
-    <div class="rgs"><div class="n">${R.enviados_30d||0}</div><div class="l">Enviados em 30 dias</div></div>
-    <div class="rgs"><div class="n">${R.clientes_na_regua||0}</div><div class="l">Clientes na régua</div></div>
+    <button class="rgs ${R.hoje?'hot':''} ${RGF==='hoje'?'sel':''}" onclick="setRgf('hoje')"><div class="n">${R.hoje||0}</div><div class="l">Para enviar hoje</div></button>
+    <button class="rgs ${RGF==='prox'?'sel':''}" onclick="setRgf('prox')"><div class="n">${R.proximos7||0}</div><div class="l">Próximos 7 dias</div></button>
+    <button class="rgs ${R.bloqueados?'blk':''} ${RGF==='bloq'?'sel':''}" onclick="setRgf('bloq')"><div class="n">${R.bloqueados||0}</div><div class="l">Bloqueados</div></button>
+    <button class="rgs ${RGF==='env'?'sel':''}" onclick="setRgf('env')"><div class="n">${R.enviados_30d||0}</div><div class="l">Enviados em 30 dias</div></button>
+    <button class="rgs ${RGF==='todos'?'sel':''}" onclick="setRgf('todos')"><div class="n">${R.clientes_na_regua||0}</div><div class="l">Clientes na régua</div></button>
   </div>`;
+  if(RGF) h+=listaRgf();
 
   if(hoje.length){
     h+=`<div class="sec"><h3>Para enviar hoje</h3>`+hoje.map(f=>linhaRegua(f,true)).join('')+`</div>`;
