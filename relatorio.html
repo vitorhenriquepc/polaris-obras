@@ -31,6 +31,8 @@ linear-gradient(180deg,rgba(4,20,31,.35) 0%,rgba(4,20,31,.55) 45%,rgba(4,20,31,.
 max-width:920px;width:100%;margin:0 auto;padding:34px 26px 46px}
 .hero .top{display:flex;justify-content:center}
 .hero .top img{height:44px;filter:drop-shadow(0 4px 18px rgba(0,0,0,.4))}
+.hero .top .lgB{display:none}
+@media print{.hero .top .lgW{display:none}.hero .top .lgB{display:block;filter:none}}
 .hero .mid{margin:auto 0;text-align:center;padding:60px 0 30px}
 .hero .kicker{font-size:11px;font-weight:700;letter-spacing:5px;color:var(--gold);text-transform:uppercase}
 .hero h1{font-size:clamp(34px,7vw,58px);font-weight:800;line-height:1.06;margin:16px 0 0;letter-spacing:-.5px}
@@ -174,13 +176,31 @@ box-shadow:0 14px 36px rgba(4,20,31,.35);transition:transform .2s}
 .center{max-width:920px;margin:0 auto;text-align:center;padding:110px 30px;color:var(--mut)}
 
 @media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   .acoes,.scroll,.lb{display:none!important}
-  .hero{min-height:auto;padding-bottom:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .hero .bg{display:none}
-  .hero .veil{background:var(--navy)}
-  section{padding:34px 0;page-break-inside:avoid}
-  .grid .ph:hover{transform:none;box-shadow:none}
   body{background:#fff}
+
+  /* capa em papel: fundo claro e texto escuro, para ler e para imprimir sem gastar tinta */
+  .hero{min-height:auto;padding-bottom:0;background:#fff;color:var(--ink)}
+  .hero .bg{display:none}
+  .hero .veil{display:none}
+  .hero .in{padding:18px 0 22px}
+  .hero .top img{filter:none}
+  .hero h1{color:var(--ink)}
+  .hero .kicker{color:var(--gold)}
+  .hero .meta{border-top:1px solid var(--line)}
+  .hero .meta .k{color:var(--mut)}
+  .hero .meta .v{color:var(--ink)}
+  .hero .meta .v.gold{color:#B8860B}
+
+  /* rodapé escuro também vira claro no papel */
+  footer{background:#fff;color:var(--ink);border-top:1px solid var(--line);padding:30px 22px}
+  footer .site b{color:var(--ink)}
+  .selo{background:#fff;color:var(--ink);border:1.5px solid var(--navy)}
+
+  section{padding:26px 0;page-break-inside:avoid}
+  .grid .ph:hover{transform:none;box-shadow:none}
+  .grid .ph{break-inside:avoid}
 }
 </style>
 </head>
@@ -193,6 +213,7 @@ var SUPABASE_KEY='sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx';
 var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 var SLUG=new URLSearchParams(location.search).get('id');
 var LOGO_BRANCA='https://obras.polarisenergiasolar.com/logo.png';
+var LOGO_ESCURA='https://obras.polarisenergiasolar.com/logo-escura.png';
 var D=null, GAL=[], gi=0;
 
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -218,7 +239,8 @@ function render(){
     +(capa?'<div class="bg" style="background-image:url(\''+esc(capa)+'\')"></div>':'')
     +'<div class="veil"></div>'
     +'<div class="in">'
-    +'<div class="top"><img src="'+LOGO_BRANCA+'" onerror="this.style.display=\'none\'"></div>'
+    +'<div class="top"><img class="lgW" src="'+LOGO_BRANCA+'" onerror="this.style.display=\'none\'">'
+      +'<img class="lgB" src="'+LOGO_ESCURA+'" onerror="this.style.display=\'none\'"></div>'
     +'<div class="mid">'
     +'<div class="kicker">'+((o.trilha==='eletroposto')?'Relatório de Implantação':'Relatório de Instalação')+'</div>'
     +'<h1>'+esc(o.cliente)+'</h1>'
