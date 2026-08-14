@@ -340,6 +340,12 @@ font-size:12px;font-weight:700;color:#e07070}
 .chip.trava{border-color:rgba(224,112,112,.5)}
 .chip.trava .n{color:#e07070}
 .travasel{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.ktrv{margin-top:6px;font-size:10.5px;font-weight:800;color:#d99a3a;
+background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.32);
+border-radius:6px;padding:3px 7px;display:inline-block}
+.ktrv.crit{color:#e07070;background:rgba(224,112,112,.14);border-color:rgba(224,112,112,.45)}
+.kcard.trv{border-left:3px solid rgba(245,166,35,.6)}
+.kcard.trvcrit{border-left:3px solid #e07070;background:rgba(224,112,112,.05)}
 .kcpfl{margin-top:6px;font-size:10.5px;font-weight:800;color:#58b868;
 background:rgba(88,184,104,.12);border:1px solid rgba(88,184,104,.3);
 border-radius:6px;padding:3px 7px;display:inline-block}
@@ -648,6 +654,7 @@ if(sel){
 }
 let arr=OBRAS.slice().filter(o=>passaDias(o,filtroDias)).filter(o=>(o.trilha||'padrao')===KTR).filter(o=>!filtroCat||(o.categoria||'residencial')===filtroCat);
 if(busca) arr=arr.filter(o=> (o.cliente||'').toLowerCase().includes(busca) || (o.contrato||'').includes(busca));
+if(filtroTrava) arr=arr.filter(o=>o.trava);
 const el=document.getElementById('list');
 el.className='kb'; el.style.display='flex';
 let h='';
@@ -662,13 +669,14 @@ if(!obs.length) h+='<div class="kempty">—</div>';
 obs.forEach(function(o){
 const d=diasObra(o);
 const late=(d!=null&&d>60&&n<8), warn=(d!=null&&d>30&&d<=60&&n<8);
-h+='<div class="kcard '+(n===8?'fim':(late?'late':''))+'" draggable="true" data-id="'+o.id+'" ondragstart="kStart(event,this)" ondragend="kEnd(this)">'
+h+='<div class="kcard '+(n===8?'fim':(late?'late':''))+(o.trava?(travaCritica(o)?' trvcrit':' trv'):'')+'" draggable="true" data-id="'+o.id+'" ondragstart="kStart(event,this)" ondragend="kEnd(this)">'
  +'<div class="kn">'+esc(o.cliente)+'</div>'
  +'<div class="km">'+(o.contrato?'<span>#'+esc(o.contrato)+'</span>':'')
  +(o.potencia_kwp?'<span>'+esc(String(o.potencia_kwp).replace('.',','))+' kWp</span>':'')
  +(d!=null&&n<8?'<span class="kdias '+(late?'late':(warn?'warn':''))+'">'+d+'d</span>':'')
  +(o.data_instalacao?'<span>📅 '+o.data_instalacao.split('-').reverse().slice(0,2).join('/')+'</span>':'')
  +(o.aceite_em?'<span>✍️</span>':'')+'</div>'
+ +tarjaTravaK(o)
  +(o.cpfl_prazo_em?'<div class="kcpfl'+(cpflVenceu(o)?' venceu':'')+'">⚡ Vistoria CPFL até '+fmtD(o.cpfl_prazo_em)+(cpflVenceu(o)?' · venceu':'')+'</div>':'')
  +'<div class="kacts">'
  +'<button onclick="event.stopPropagation();enviarWA(\''+o.id+'\')" title="Mensagem ao cliente">💬</button>'
@@ -722,6 +730,13 @@ async function previaCpfl(){
   if(r.error||!r.data){ box.innerHTML='<span class="mut">não foi possível calcular</span>'; return; }
   box.innerHTML=prazoHtml({cpfl_prazo_em:r.data});
   if(acao) acao.innerHTML='<div class="okAviso" style="color:#F5A623">📣 Ao salvar, o cliente é avisado no grupo automaticamente.</div>';
+}
+function tarjaTravaK(o){
+  if(!o.trava) return '';
+  const t=travaInfo(o.trava); if(!t) return '';
+  const d=diasTravada(o), crit=travaCritica(o);
+  return '<div class="ktrv'+(crit?' crit':'')+'">'+(t.icone||'⏸')+' '+
+    esc(t.nome.replace('Aguardando ',''))+(d!=null?' · '+d+'d':'')+(crit?' ⚠️':'')+'</div>';
 }
 function cpflVenceu(o){
   if(!o.cpfl_prazo_em) return false;
