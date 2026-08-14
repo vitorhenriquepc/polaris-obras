@@ -340,6 +340,11 @@ font-size:12px;font-weight:700;color:#e07070}
 .chip.trava{border-color:rgba(224,112,112,.5)}
 .chip.trava .n{color:#e07070}
 .travasel{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.kcpfl{margin-top:6px;font-size:10.5px;font-weight:800;color:#58b868;
+background:rgba(88,184,104,.12);border:1px solid rgba(88,184,104,.3);
+border-radius:6px;padding:3px 7px;display:inline-block}
+.kcpfl.venceu{color:#e07070;background:rgba(224,112,112,.12);border-color:rgba(224,112,112,.35)}
+.kacts .bvist{color:#F5A623!important;border-color:rgba(245,166,35,.4)!important}
 .cpflbox{display:flex;align-items:center;font-size:12.5px;font-weight:700;color:#58b868;
 padding:0 4px;line-height:1.35}
 .cpflbox .mut{color:#8fa6b8;font-weight:600;font-size:11.5px}
@@ -664,10 +669,12 @@ h+='<div class="kcard '+(n===8?'fim':(late?'late':''))+'" draggable="true" data-
  +(d!=null&&n<8?'<span class="kdias '+(late?'late':(warn?'warn':''))+'">'+d+'d</span>':'')
  +(o.data_instalacao?'<span>📅 '+o.data_instalacao.split('-').reverse().slice(0,2).join('/')+'</span>':'')
  +(o.aceite_em?'<span>✍️</span>':'')+'</div>'
+ +(o.cpfl_prazo_em?'<div class="kcpfl'+(cpflVenceu(o)?' venceu':'')+'">⚡ Vistoria CPFL até '+fmtD(o.cpfl_prazo_em)+(cpflVenceu(o)?' · venceu':'')+'</div>':'')
  +'<div class="kacts">'
  +'<button onclick="event.stopPropagation();enviarWA(\''+o.id+'\')" title="Mensagem ao cliente">💬</button>'
  +(o.whatsapp_grupo_id?'<button onclick="event.stopPropagation();notificarGrupo(\''+o.id+'\')" title="Avisar no grupo">📣</button>':'')
  +'<button onclick="event.stopPropagation();abrirRelatorio(\''+o.id+'\')" title="Relatório">📄</button>'
++((o.etapa_numero>=7&&!o.cpfl_solicitado_em&&o.whatsapp_grupo_id)?'<button class="bvist" onclick="event.stopPropagation();vistoriaHoje(\''+o.id+'\')" title="Marcar vistoria da CPFL como solicitada hoje">⚡</button>':'')
 +((o.etapa_numero>=8&&!o.nps_enviado_em)?'<button onclick="event.stopPropagation();pedirAvaliacao(\''+o.id+'\')" title="Pesquisa de satisfação">⭐</button>':'')
 +((IPTU_ATIVO&&o.etapa_numero>=8&&!o.iptu_avisado_em&&(CIDIPTU[o.cidade]||{}).tem_programa==='sim')?'<button onclick="event.stopPropagation();avisarIPTU(\''+o.id+'\')" title="IPTU Sustentável">🏛️</button>':'')
  +'<button onclick="event.stopPropagation();copiarLinkInst(\''+o.id+'\')" title="Link do instalador">🔧</button>'
@@ -716,6 +723,29 @@ async function previaCpfl(){
   box.innerHTML=prazoHtml({cpfl_prazo_em:r.data});
   if(acao) acao.innerHTML='<div class="okAviso" style="color:#F5A623">📣 Ao salvar, o cliente é avisado no grupo automaticamente.</div>';
 }
+function cpflVenceu(o){
+  if(!o.cpfl_prazo_em) return false;
+  const p=parseDate(o.cpfl_prazo_em); if(!p) return false;
+  return diffDays(new Date(),p) < 0;
+}
+// botão ⚡ no card: usa a data de hoje, calcula o prazo e avisa o cliente
+async function vistoriaHoje(id){
+  const o=getObra(id); if(!o) return;
+  const hoje=new Date().toISOString().slice(0,10);
+  const r=await sb.rpc('soma_dias_uteis',{p_inicio:hoje,p_dias:5});
+  if(r.error||!r.data){ toast('Não consegui calcular o prazo'); return; }
+  const prazo=r.data;
+  const sem=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+  const p=parseDate(prazo);
+  if(!confirm('Vistoria da CPFL de '+o.cliente+' solicitada hoje?\n\n'+
+    'Prazo: até '+fmtD(prazo)+(p?' ('+sem[p.getDay()]+')':'')+'\n'+
+    'O cliente será avisado no grupo agora.')) return;
+  const up=await sb.from('obras').update({cpfl_solicitado_em:hoje}).eq('id',id);
+  if(up.error){ toast('Erro ao salvar: '+up.error.message); return; }
+  await avisarCpfl(id);
+  await loadObras();
+}
+
 // dispara sozinho depois que a obra é salva com a data da CPFL
 async function avisarCpfl(id){
   const t=await sb.rpc('cpfl_texto',{p_obra:id});
