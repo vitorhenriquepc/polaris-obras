@@ -340,6 +340,15 @@ font-size:12px;font-weight:700;color:#e07070}
 .chip.trava{border-color:rgba(224,112,112,.5)}
 .chip.trava .n{color:#e07070}
 .travasel{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.cpflbox{display:flex;align-items:center;font-size:12.5px;font-weight:700;color:#58b868;
+padding:0 4px;line-height:1.35}
+.cpflbox .mut{color:#8fa6b8;font-weight:600;font-size:11.5px}
+.btnAviso{width:100%;margin-top:8px;background:rgba(88,184,104,.12);border:1px solid #3B8B3B;
+color:#58b868;border-radius:9px;padding:10px;font-family:inherit;font-size:12.5px;
+font-weight:800;cursor:pointer}
+.btnAviso:hover{background:rgba(88,184,104,.2)}
+.btnAviso:disabled{opacity:.5;cursor:default}
+.okAviso{margin-top:8px;font-size:12px;color:#58b868;font-weight:700;text-align:center}
 .tbtn{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:#8fa6b8;
 border-radius:8px;padding:7px 11px;font-family:inherit;font-size:11.5px;font-weight:800;cursor:pointer}
 .tbtn.on{border-color:#e07070;color:#e07070;background:rgba(224,112,112,.12)}
@@ -689,6 +698,58 @@ if(!o||o.etapa_numero===n) return;
 await mudarEtapa(id,n);
 }
 let travaEdit=null;
+function fmtD(d){ if(!d) return ''; try{ const x=new Date(d);
+  return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0'); }catch(e){ return ''; } }
+function prazoHtml(o){
+  if(!o.cpfl_prazo_em) return '';
+  const p=parseDate(o.cpfl_prazo_em);
+  const dias=p?diffDays(new Date(),p):null;
+  const sem=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+  const txt='até <b>'+fmtD(o.cpfl_prazo_em)+'</b>'+(p?' ('+sem[p.getDay()]+')':'');
+  if(dias!=null && dias<0) return '<span style="color:#e07070">prazo venceu há '+Math.abs(dias)+' dia(s)</span>';
+  return '<span>⚡ '+txt+'</span>';
+}
+async function previaCpfl(){
+  const v=document.getElementById('f_cpfl').value;
+  const box=document.getElementById('cpflPrazo');
+  const acao=document.getElementById('cpflAcao');
+  if(!v){ box.innerHTML='<span class="mut">Preencha a data e o prazo é calculado em 5 dias úteis.</span>';
+          if(acao) acao.innerHTML=''; return; }
+  box.innerHTML='<span class="mut">calculando...</span>';
+  const r=await sb.rpc('soma_dias_uteis',{p_inicio:v,p_dias:5});
+  if(r.error||!r.data){ box.innerHTML='<span class="mut">não foi possível calcular</span>'; return; }
+  box.innerHTML=prazoHtml({cpfl_prazo_em:r.data});
+  if(acao) acao.innerHTML='<div class="okAviso" style="color:#8fa6b8">Salve a obra para liberar o aviso ao cliente.</div>';
+}
+async function avisarCpfl(id){
+  const btn=document.querySelector('.btnAviso'); if(btn){btn.disabled=true;btn.textContent='Preparando...';}
+  const t=await sb.rpc('cpfl_texto',{p_obra:id});
+  if(t.error||!t.data||t.data.erro){
+    alert('Não foi possível: '+((t.data&&t.data.erro)||t.error.message));
+    if(btn){btn.disabled=false;btn.textContent='📣 Avisar o cliente no grupo';} return;
+  }
+  const d=t.data;
+  if(!confirm('Enviar esta mensagem no grupo de '+d.cliente+'?\n\n'+'—'.repeat(28)+'\n'+d.texto+'\n'+'—'.repeat(28))){
+    if(btn){btn.disabled=false;btn.textContent='📣 Avisar o cliente no grupo';} return;
+  }
+  if(btn) btn.textContent='Enviando...';
+  const { data:sess } = await sb.auth.getSession();
+  const r=await fetch(SUPABASE_URL+'/functions/v1/notificar-grupo',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+sess.session.access_token},
+    body:JSON.stringify({grupo_id:d.grupo, message:d.texto})
+  });
+  const res=await r.json().catch(()=>({}));
+  if(!r.ok||res.error){
+    alert('Erro ao enviar: '+(res.error||r.status));
+    if(btn){btn.disabled=false;btn.textContent='📣 Avisar o cliente no grupo';} return;
+  }
+  await sb.rpc('cpfl_marcar_avisado',{p_obra:id});
+  const acao=document.getElementById('cpflAcao');
+  if(acao) acao.innerHTML='<div class="okAviso">✅ Cliente avisado agora</div>';
+  toast('Aviso enviado no grupo de '+d.cliente);
+  await loadObras();
+}
 function travaBotoes(o){
   travaEdit = o.trava||'';
   let h=`<button type="button" class="tbtn livre ${!travaEdit?'on':''}" onclick="setTravaEdit('')">✅ Nada travando</button>`;
@@ -1150,6 +1211,13 @@ ov.innerHTML=`<div class="modal">
 <div class="travasel" id="travaSel">${travaBotoes(o)}</div>
 <input id="f_travaobs" value="${esc(o.trava_obs||'')}" placeholder="Observação (opcional): protocolo, nome do contato..." style="margin-top:7px">
 </div>
+<div class="fld"><label>Vistoria da CPFL solicitada em</label>
+<div class="grid2" style="gap:8px">
+<input id="f_cpfl" type="date" value="${o.cpfl_solicitado_em||''}" onchange="previaCpfl()">
+<div id="cpflPrazo" class="cpflbox">${o.cpfl_prazo_em?prazoHtml(o):'<span class="mut">Preencha a data e o prazo é calculado em 5 dias úteis.</span>'}</div>
+</div>
+<div id="cpflAcao">${o.cpfl_solicitado_em&&!o.cpfl_avisado_em?'<button type="button" class="btnAviso" onclick="avisarCpfl(\''+o.id+'\')">📣 Avisar o cliente no grupo</button>':(o.cpfl_avisado_em?'<div class="okAviso">✅ Cliente já avisado em '+fmtD(o.cpfl_avisado_em)+'</div>':'')}</div>
+</div>
 <div class="grid2">
 <div class="fld"><label>Distância até a obra (km)</label><input id="f_km" type="number" inputmode="decimal" step="0.1" value="${o.distancia_km!=null?o.distancia_km:''}" placeholder="35"></div>
 </div>
@@ -1221,6 +1289,7 @@ observacoes:document.getElementById('f_obs').value.trim()||null,
 vendedor_id:document.getElementById('f_vend').value||null,
 origem_lead:document.getElementById('f_org').value||null,
 trava:travaEdit||null,
+cpfl_solicitado_em:document.getElementById('f_cpfl').value||null,
 trava_obs:travaEdit?(document.getElementById('f_travaobs').value||null):null,
 distancia_km:parseFloat(document.getElementById('f_km').value)||null,
 data_instalacao:document.getElementById('f_dti').value||null,
