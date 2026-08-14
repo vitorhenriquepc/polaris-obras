@@ -343,11 +343,6 @@ font-size:12px;font-weight:700;color:#e07070}
 .cpflbox{display:flex;align-items:center;font-size:12.5px;font-weight:700;color:#58b868;
 padding:0 4px;line-height:1.35}
 .cpflbox .mut{color:#8fa6b8;font-weight:600;font-size:11.5px}
-.btnAviso{width:100%;margin-top:8px;background:rgba(88,184,104,.12);border:1px solid #3B8B3B;
-color:#58b868;border-radius:9px;padding:10px;font-family:inherit;font-size:12.5px;
-font-weight:800;cursor:pointer}
-.btnAviso:hover{background:rgba(88,184,104,.2)}
-.btnAviso:disabled{opacity:.5;cursor:default}
 .okAviso{margin-top:8px;font-size:12px;color:#58b868;font-weight:700;text-align:center}
 .tbtn{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:#8fa6b8;
 border-radius:8px;padding:7px 11px;font-family:inherit;font-size:11.5px;font-weight:800;cursor:pointer}
@@ -697,7 +692,7 @@ const o=getObra(id);
 if(!o||o.etapa_numero===n) return;
 await mudarEtapa(id,n);
 }
-let travaEdit=null;
+let travaEdit=null, CPFL_ANTES=null;
 function fmtD(d){ if(!d) return ''; try{ const x=new Date(d);
   return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0'); }catch(e){ return ''; } }
 function prazoHtml(o){
@@ -719,39 +714,33 @@ async function previaCpfl(){
   const r=await sb.rpc('soma_dias_uteis',{p_inicio:v,p_dias:5});
   if(r.error||!r.data){ box.innerHTML='<span class="mut">não foi possível calcular</span>'; return; }
   box.innerHTML=prazoHtml({cpfl_prazo_em:r.data});
-  if(acao) acao.innerHTML='<div class="okAviso" style="color:#8fa6b8">Salve a obra para liberar o aviso ao cliente.</div>';
+  if(acao) acao.innerHTML='<div class="okAviso" style="color:#F5A623">📣 Ao salvar, o cliente é avisado no grupo automaticamente.</div>';
 }
+// dispara sozinho depois que a obra é salva com a data da CPFL
 async function avisarCpfl(id){
-  const btn=document.querySelector('.btnAviso'); if(btn){btn.disabled=true;btn.textContent='Preparando...';}
   const t=await sb.rpc('cpfl_texto',{p_obra:id});
   if(t.error||!t.data||t.data.erro){
-    alert('Não foi possível: '+((t.data&&t.data.erro)||t.error.message));
-    if(btn){btn.disabled=false;btn.textContent='📣 Avisar o cliente no grupo';} return;
+    toast('CPFL: '+((t.data&&t.data.erro)||'não foi possível montar o aviso'));
+    return false;
   }
   const d=t.data;
-  if(!confirm('Enviar esta mensagem no grupo de '+d.cliente+'?\n\n'+'—'.repeat(28)+'\n'+d.texto+'\n'+'—'.repeat(28))){
-    if(btn){btn.disabled=false;btn.textContent='📣 Avisar o cliente no grupo';} return;
-  }
-  if(btn) btn.textContent='Enviando...';
-  const { data:sess } = await sb.auth.getSession();
-  const r=await fetch(SUPABASE_URL+'/functions/v1/notificar-grupo',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+sess.session.access_token},
-    body:JSON.stringify({grupo_id:d.grupo, message:d.texto})
-  });
-  const res=await r.json().catch(()=>({}));
-  if(!r.ok||res.error){
-    alert('Erro ao enviar: '+(res.error||r.status));
-    if(btn){btn.disabled=false;btn.textContent='📣 Avisar o cliente no grupo';} return;
-  }
+  try{
+    const { data:sess } = await sb.auth.getSession();
+    const r=await fetch(SUPABASE_URL+'/functions/v1/notificar-grupo',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+sess.session.access_token},
+      body:JSON.stringify({grupo_id:d.grupo, message:d.texto})
+    });
+    const res=await r.json().catch(()=>({}));
+    if(!r.ok||res.error){ toast('CPFL: erro ao avisar — '+(res.error||r.status)); return false; }
+  }catch(e){ toast('CPFL: falha de conexão ao avisar'); return false; }
   await sb.rpc('cpfl_marcar_avisado',{p_obra:id});
-  const acao=document.getElementById('cpflAcao');
-  if(acao) acao.innerHTML='<div class="okAviso">✅ Cliente avisado agora</div>';
-  toast('Aviso enviado no grupo de '+d.cliente);
-  await loadObras();
+  toast('📣 '+d.cliente+' avisado no grupo — vistoria até '+fmtD(d.prazo));
+  return true;
 }
 function travaBotoes(o){
   travaEdit = o.trava||'';
+  CPFL_ANTES = o.cpfl_solicitado_em||null;
   let h=`<button type="button" class="tbtn livre ${!travaEdit?'on':''}" onclick="setTravaEdit('')">✅ Nada travando</button>`;
   for(const t of TRAVAS){
     h+=`<button type="button" class="tbtn ${travaEdit===t.codigo?'on':''}" onclick="setTravaEdit('${t.codigo}')">${t.icone||''} ${esc(t.nome.replace('Aguardando ',''))}</button>`;
@@ -1216,7 +1205,7 @@ ov.innerHTML=`<div class="modal">
 <input id="f_cpfl" type="date" value="${o.cpfl_solicitado_em||''}" onchange="previaCpfl()">
 <div id="cpflPrazo" class="cpflbox">${o.cpfl_prazo_em?prazoHtml(o):'<span class="mut">Preencha a data e o prazo é calculado em 5 dias úteis.</span>'}</div>
 </div>
-<div id="cpflAcao">${o.cpfl_solicitado_em&&!o.cpfl_avisado_em?'<button type="button" class="btnAviso" onclick="avisarCpfl(\''+o.id+'\')">📣 Avisar o cliente no grupo</button>':(o.cpfl_avisado_em?'<div class="okAviso">✅ Cliente já avisado em '+fmtD(o.cpfl_avisado_em)+'</div>':'')}</div>
+<div id="cpflAcao">${o.cpfl_avisado_em?'<div class="okAviso">✅ Cliente avisado no grupo em '+fmtD(o.cpfl_avisado_em)+'</div>':(o.cpfl_solicitado_em?'<div class="okAviso" style="color:#8fa6b8">Salve para avisar o cliente no grupo.</div>':'')}</div>
 </div>
 <div class="grid2">
 <div class="fld"><label>Distância até a obra (km)</label><input id="f_km" type="number" inputmode="decimal" step="0.1" value="${o.distancia_km!=null?o.distancia_km:''}" placeholder="35"></div>
@@ -1315,6 +1304,15 @@ rec.slug = await slugUnico(slugify(cli));
 ({ error } = await sb.from('obras').insert(rec));
 }
 if(error){ toast('Erro: '+error.message); document.getElementById('f_save').textContent='Salvar'; return; }
+
+// CPFL: se a data foi preenchida ou mudou nesta gravação, avisa o cliente sozinho
+if(id){
+  const cpflNovo = document.getElementById('f_cpfl') ? (document.getElementById('f_cpfl').value||null) : null;
+  if(cpflNovo && cpflNovo !== CPFL_ANTES){
+    document.getElementById('f_save').textContent='Avisando o cliente...';
+    await avisarCpfl(id);
+  }
+}
 document.getElementById('ovForm').remove();
 toast(id?'Obra salva ✓':'Obra criada ✓');
 const dtiDepois = rec.data_instalacao || null;
