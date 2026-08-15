@@ -337,6 +337,8 @@ font-size:12px;font-weight:700;color:#e07070}
 .tarja.crit{background:rgba(224,112,112,.20);border-color:#e07070}
 .tarja .d{margin-left:auto;font-size:11px;font-weight:800;white-space:nowrap}
 .tarja .obs{color:#8fa6b8;font-weight:600}
+.chip.mais{border-style:dashed;opacity:.75}
+.chip.mais.on{opacity:1;border-style:solid;border-color:var(--gold)}
 .chip.relx{border-color:rgba(224,112,112,.5)}
 .chip.relx .n{color:#e07070}
 .chip.orig{border-color:rgba(88,184,104,.35)}
@@ -500,6 +502,7 @@ root.innerHTML = `
 </div>
 <div class="wrap">
 <div class="stats" id="stats"></div>
+<div class="stats" id="statsExtra" style="display:none"></div>
 <div class="dchips" id="dchips"></div>
 <div class="dchips" id="cchips"></div>
 <div class="toolbar">
@@ -670,22 +673,43 @@ const cont={}; OBRAS.forEach(o=> cont[o.etapa_numero]=(cont[o.etapa_numero]||0)+
 let h=`<div class="chip total ${filtroEtapa===null?'on':''}" onclick="setFiltro(null)"><div class="n">${OBRAS.length}</div><div class="l">Total</div></div>`;
 const trv=OBRAS.filter(o=>o.trava), crt=trv.filter(travaCritica);
 if(trv.length) h+=`<div class="chip trava ${filtroTrava?'on':''}" onclick="setFiltroTrava()"><div class="n">${trv.length}</div><div class="l">⏸ Travadas${crt.length?' · '+crt.length+' ⚠️':''}</div></div>`;
-const ORIG_IC={trafego:'📣',indicacao:'🤝',retomada:'♻️',ativa:'📞',network:'🌐'};
-const ORIG_CURTO={trafego:'Tráfego',indicacao:'Indicação',retomada:'Retomada',ativa:'Prospecção',network:'Network'};
-ORIGENS.forEach(function(x){
-  const q=OBRAS.filter(o=>o.origem_lead===x.codigo).length;
-  if(q) h+=`<div class="chip orig ${filtroOrigem===x.codigo?'on':''}" onclick="setFiltroOrigem('${x.codigo}')"><div class="n">${q}</div><div class="l">${ORIG_IC[x.codigo]||'•'} ${ORIG_CURTO[x.codigo]||esc(x.nome)}</div></div>`;
-});
 const relP=OBRAS.filter(relPendente).length;
 if(relP) h+=`<div class="chip relx ${filtroRel?'on':''}" onclick="setFiltroRel()"><div class="n">${relP}</div><div class="l">📋 Relatório pendente</div></div>`;
 const semO=OBRAS.filter(o=>!o.origem_lead).length;
-if(semO) h+=`<div class="chip semorig ${filtroOrigem==='__sem'?'on':''}" onclick="setFiltroOrigem('__sem')"><div class="n">${semO}</div><div class="l">Sem origem</div></div>`;
 for(let n=8;n>=0;n--){ if(!cont[n]) continue; const e=ET[n]||{nome:'Etapa '+n,icone:''};
 h+=`<div class="chip ${filtroEtapa===n?'on':''}" onclick="setFiltro(${n})"><div class="n">${cont[n]}</div><div class="l">${e.icone||''} ${esc((e.nome||'').replace('!',''))}</div></div>`; }
+if(true){
+  h+=`<div class="chip mais ${MAISF?'on':''}" onclick="toggleFiltros()"><div class="n">${MAISF?'✕':'⋯'}</div><div class="l">${MAISF?'Fechar':'Filtros'}</div></div>`;
+}
 document.getElementById('stats').innerHTML=h;
+
+// linha extra: origem e categoria, só quando aberta
+const ex=document.getElementById('statsExtra');
+if(ex){
+  if(!MAISF){ ex.innerHTML=''; ex.style.display='none'; }
+  else{
+    ex.style.display='';
+    const IC={trafego:'📣',indicacao:'🤝',retomada:'♻️',ativa:'📞',network:'🌐'};
+    const CT={trafego:'Tráfego',indicacao:'Indicação',retomada:'Retomada',ativa:'Prospecção',network:'Network'};
+    let e2='';
+    ORIGENS.forEach(function(x){
+      const q=OBRAS.filter(o=>o.origem_lead===x.codigo).length;
+      if(q) e2+=`<div class="chip orig ${filtroOrigem===x.codigo?'on':''}" onclick="setFiltroOrigem('${x.codigo}')"><div class="n">${q}</div><div class="l">${IC[x.codigo]||'•'} ${CT[x.codigo]||esc(x.nome)}</div></div>`;
+    });
+    if(semO) e2+=`<div class="chip semorig ${filtroOrigem==='__sem'?'on':''}" onclick="setFiltroOrigem('__sem')"><div class="n">${semO}</div><div class="l">⚠️ Sem origem</div></div>`;
+    ex.innerHTML=e2;
+  }
+}
 }
 function setFiltro(n){ filtroEtapa=(filtroEtapa===n?null:n); filtroTrava=false; filtroOrigem=''; filtroRel=false; renderStats(); renderList(); }
-let filtroTrava=false, filtroOrigem='', filtroRel=false;
+let filtroTrava=false, filtroOrigem='', filtroRel=false, MAISF=false;
+function toggleFiltros(){
+  MAISF=!MAISF;
+  if(!MAISF){ filtroOrigem=''; filtroCat=''; }
+  renderStats();
+  if(typeof renderCChips==='function') renderCChips();
+  renderList();
+}
 function setFiltroRel(){
   filtroRel=!filtroRel;
   if(filtroRel){ filtroEtapa=null; filtroTrava=false; filtroOrigem=''; }
@@ -705,7 +729,8 @@ function renderCChips(){
 const el=document.getElementById('cchips'); if(!el) return;
 const usadas={}; OBRAS.forEach(o=>{const k=o.categoria||'residencial'; usadas[k]=(usadas[k]||0)+1;});
 const lista=CATS.filter(x=>usadas[x.codigo]);
-if(lista.length<2){ el.innerHTML=''; return; }
+if(lista.length<2 || !MAISF){ el.innerHTML=''; el.style.display='none'; return; }
+el.style.display='';
 el.innerHTML=lista.map(x=>`<button class="cchip ${filtroCat===x.codigo?'on':''}" onclick="setCat('${x.codigo}')">${x.icone} ${esc(x.nome)} <b>${usadas[x.codigo]}</b></button>`).join('');
 }
 function renderDChips(){
