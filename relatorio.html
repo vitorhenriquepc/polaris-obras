@@ -216,6 +216,20 @@ var LOGO_BRANCA='https://obras.polarisenergiasolar.com/logo.png';
 var LOGO_ESCURA='https://obras.polarisenergiasolar.com/logo-escura.png';
 var D=null, GAL=[], gi=0;
 
+function tituloRel(o){
+  if(o.trilha==='manutencao'){
+    var t=(o.tipo_manutencao==='corretiva')?'Relatório de Manutenção Corretiva'
+        :(o.tipo_manutencao==='diagnostico')?'Laudo de Avaliação Técnica'
+        :'Relatório de Manutenção Preventiva';
+    return t;
+  }
+  return (o.trilha==='eletroposto')?'Relatório de Implantação':'Relatório de Instalação';
+}
+function servicoNome(o){
+  return (o.tipo_manutencao==='corretiva')?'Manutenção corretiva'
+       :(o.tipo_manutencao==='diagnostico')?'Avaliação técnica'
+       :'Manutenção preventiva';
+}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function dataBR(s){if(!s)return null;var d=new Date(s.length<=10?s+'T12:00:00':s);return isNaN(d)?null:d.toLocaleDateString('pt-BR');}
 
@@ -242,7 +256,7 @@ function render(){
     +'<div class="top"><img class="lgW" src="'+LOGO_BRANCA+'" onerror="this.style.display=\'none\'">'
       +'<img class="lgB" src="'+LOGO_ESCURA+'" onerror="this.style.display=\'none\'"></div>'
     +'<div class="mid">'
-    +'<div class="kicker">'+((o.trilha==='eletroposto')?'Relatório de Implantação':'Relatório de Instalação')+'</div>'
+    +'<div class="kicker">'+tituloRel(o)+'</div>'
     +'<h1>'+esc(o.cliente)+'</h1>'
     +'<div class="rule"></div>'
     +'</div>'
@@ -255,11 +269,20 @@ function render(){
     +'</div><div class="scroll">▾</div></div>';
 
   /* USINA */
-  h+='<div class="wrap"><section class="rv"><div class="shead"><div class="n">01 — Ficha Técnica</div><h2>'+((o.trilha==='eletroposto')?'O seu eletroposto':'A sua usina')+'</h2><div class="hl"></div></div>'
+  const _man = (o.trilha==='manutencao');
+  h+='<div class="wrap"><section class="rv"><div class="shead"><div class="n">01 — Ficha Técnica</div><h2>'+(_man?'O atendimento':((o.trilha==='eletroposto')?'O seu eletroposto':'A sua usina'))+'</h2><div class="hl"></div></div>'
     +'<div class="stats">'
-    +'<div class="stat"><div class="k">Potência do sistema</div><div class="v">'+(o.potencia_kwp?String(o.potencia_kwp).replace('.',',')+' <small>kWp</small>':'—')+'</div></div>'
-    +'<div class="stat"><div class="k">Módulos fotovoltaicos</div><div class="v">'+(o.qtd_modulos?o.qtd_modulos+' <small>unidades</small>':'—')+'</div>'+(o.modelo_modulo?'<div class="s">'+esc(o.modelo_modulo)+'</div>':'')+'</div>'
-    +'<div class="stat"><div class="k">Inversor</div><div class="v" style="font-size:18px">'+esc(o.inversor_descricao||'—')+'</div></div>'
+    +(_man
+      ? '<div class="stat"><div class="k">Tipo de serviço</div><div class="v" style="font-size:20px">'+esc(servicoNome(o))+'</div></div>'
+      : '<div class="stat"><div class="k">Potência do sistema</div><div class="v">'+(o.potencia_kwp?String(o.potencia_kwp).replace('.',',')+' <small>kWp</small>':'—')+'</div></div>')
+    +(_man
+      ? '<div class="stat"><div class="k">Sistema</div><div class="v" style="font-size:18px">'+
+        (o.potencia_kwp?String(o.potencia_kwp).replace('.',',')+' kWp':'—')+'</div>'+
+        (o.qtd_modulos?'<div class="s">'+o.qtd_modulos+' módulos</div>':'')+'</div>'
+      : '<div class="stat"><div class="k">Módulos fotovoltaicos</div><div class="v">'+(o.qtd_modulos?o.qtd_modulos+' <small>unidades</small>':'—')+'</div>'+(o.modelo_modulo?'<div class="s">'+esc(o.modelo_modulo)+'</div>':'')+'</div>')
+    +(_man
+      ? '<div class="stat"><div class="k">Data do atendimento</div><div class="v" style="font-size:18px">'+(dataBR(o.data_instalacao)||'—')+'</div></div>'
+      : '<div class="stat"><div class="k">Inversor</div><div class="v" style="font-size:18px">'+esc(o.inversor_descricao||'—')+'</div></div>')
     +'<div class="stat"><div class="k">Equipe de campo</div><div class="v" style="font-size:18px">'+esc(o.instalador||'Polaris')+'</div>'+(dataBR(o.data_conclusao)?'<div class="s">Ativação em '+dataBR(o.data_conclusao)+'</div>':'')+'</div>'
     +'</div></section>';
 
