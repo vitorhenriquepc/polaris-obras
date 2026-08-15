@@ -514,7 +514,7 @@ document.getElementById('bAgenda').onclick = ()=> abrirAgendas();
 document.getElementById('busca').addEventListener('input', e=>{ busca=e.target.value.toLowerCase(); renderList(); });
 
 setView(VIEW);
-await loadEtapas(); await loadTravas();
+await loadEtapas(); await loadTravas(); await loadOrigens();
 await loadEquipe();
 await loadObras();
 subscribeRealtime();
@@ -542,6 +542,11 @@ function ramoNome(cod){ const r=RAMOS.find(x=>x.codigo===cod); return r?r.nome:'
 function iptuDaObra(o){ return o.cidade ? (CIDIPTU[o.cidade]||null) : null; }
 function trilhaNome(cod){ const t=TRILHAS.find(x=>x.codigo===cod); return t?(t.icone||'')+' '+t.nome:''; }
 
+let ORIGENS=[];
+async function loadOrigens(){
+  const r=await sb.from('origens_lead').select('codigo,nome,ordem').eq('ativo',true).order('ordem');
+  ORIGENS=r.data||[];
+}
 let TRAVAS=[];
 async function loadTravas(){
   const r=await sb.from('travas_tipos').select('*').eq('ativo',true).order('ordem');
@@ -565,10 +570,11 @@ const cont={}; OBRAS.forEach(o=> cont[o.etapa_numero]=(cont[o.etapa_numero]||0)+
 let h=`<div class="chip total ${filtroEtapa===null?'on':''}" onclick="setFiltro(null)"><div class="n">${OBRAS.length}</div><div class="l">Total</div></div>`;
 const trv=OBRAS.filter(o=>o.trava), crt=trv.filter(travaCritica);
 if(trv.length) h+=`<div class="chip trava ${filtroTrava?'on':''}" onclick="setFiltroTrava()"><div class="n">${trv.length}</div><div class="l">⏸ Travadas${crt.length?' · '+crt.length+' ⚠️':''}</div></div>`;
-const ORIG_LBL={trafego:'📣 Tráfego',indicacao:'🤝 Indicação',retomada:'♻️ Retomada',ativa:'📞 Prospecção',network:'🌐 Network'};
-Object.keys(ORIG_LBL).forEach(function(k){
-  const q=OBRAS.filter(o=>o.origem_lead===k).length;
-  if(q) h+=`<div class="chip orig ${filtroOrigem===k?'on':''}" onclick="setFiltroOrigem('${k}')"><div class="n">${q}</div><div class="l">${ORIG_LBL[k]}</div></div>`;
+const ORIG_IC={trafego:'📣',indicacao:'🤝',retomada:'♻️',ativa:'📞',network:'🌐'};
+const ORIG_CURTO={trafego:'Tráfego',indicacao:'Indicação',retomada:'Retomada',ativa:'Prospecção',network:'Network'};
+ORIGENS.forEach(function(x){
+  const q=OBRAS.filter(o=>o.origem_lead===x.codigo).length;
+  if(q) h+=`<div class="chip orig ${filtroOrigem===x.codigo?'on':''}" onclick="setFiltroOrigem('${x.codigo}')"><div class="n">${q}</div><div class="l">${ORIG_IC[x.codigo]||'•'} ${ORIG_CURTO[x.codigo]||esc(x.nome)}</div></div>`;
 });
 const semO=OBRAS.filter(o=>!o.origem_lead).length;
 if(semO) h+=`<div class="chip semorig ${filtroOrigem==='__sem'?'on':''}" onclick="setFiltroOrigem('__sem')"><div class="n">${semO}</div><div class="l">Sem origem</div></div>`;
@@ -1243,8 +1249,7 @@ const trOpts=TRILHAS.map(t=>`<option value="${t.codigo}" ${t.codigo===_tr?'selec
 const catOpts=CATS.map(x=>`<option value="${x.codigo}" ${x.codigo===(o.categoria||'residencial')?'selected':''}>${x.icone||''} ${esc(x.nome)}</option>`).join('');
 const ramoOpts='<option value="">— selecione —</option>'+RAMOS.map(x=>`<option value="${x.codigo}" ${x.codigo===o.ramo?'selected':''}>${esc(x.nome)}</option>`).join('');
 const instOpts='<option value="">— Instalador —</option>'+EQUIPE.filter(p=>p.papel==='Instalador'&&p.ativo!==false).map(p=>`<option value="${p.id}" ${p.id===o.instalador_id?'selected':''}>${esc(p.nome)}</option>`).join('');
-const ORIG=[['trafego','Tráfego pago'],['indicacao','Indicação'],['retomada','Retomada de base'],['ativa','Prospecção ativa']];
-const origOpts='<option value="">— Como chegou? —</option>'+ORIG.map(x=>`<option value="${x[0]}" ${x[0]===o.origem_lead?'selected':''}>${x[1]}</option>`).join('');
+const origOpts='<option value="">— Como chegou? —</option>'+ORIGENS.map(x=>`<option value="${x.codigo}" ${x.codigo===o.origem_lead?'selected':''}>${esc(x.nome)}</option>`).join('');
 const vendOpts='<option value="">— Vendedor —</option>'+EQUIPE.filter(p=>(p.papel==='Vendedor'||p.vende)&&p.ativo!==false).map(p=>`<option value="${p.id}" ${p.id===o.vendedor_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 ov.innerHTML=`<div class="modal">
 <h2>${novo?'Nova obra':'Editar obra'}</h2>
