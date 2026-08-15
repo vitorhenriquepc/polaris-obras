@@ -147,10 +147,57 @@ async function boot(){
   var rh=await sb.rpc('get_horarios_resposta');
   HR=(rh&&rh.data)||null;
   var r=await sb.rpc('get_metricas',{p_ini:iv.ini,p_fim:iv.fim});
+  var nq=await sb.rpc('get_nota_instaladores',{p_dias:180});
+  NOTAS={}; (nq.data||[]).forEach(function(x){NOTAS[x.instalador]={nota:x.nota,obras:x.obras};});
+  var nd=await sb.rpc('get_notas_detalhe',{p_dias:180});
+  DETALHE=nd.data||null;
   if(r.error||!r.data){document.getElementById('app').innerHTML='<div class="center"><span class="i">🔒</span><b>Acesso restrito ao administrador.</b></div>';return;}
   render(r.data);
 }
 
+var NOTAS={}, DETALHE=null;
+function blocoQualidade(){
+  var D=DETALHE;
+  if(!D || !n(D.obras)) return '';
+  var etapas=D.por_etapa||[], ap=D.apontamentos||[];
+  var g=Number(D.geral||0);
+  var cor = g>=9?'var(--green-l)':(g>=7?'var(--gold)':'#e07070');
+
+  var h='<h2>🔧 Qualidade da execução <small>últimos 6 meses</small></h2><div class="card">';
+  h+='<div class="kpis" style="margin-bottom:14px">'+
+     '<div class="kpi"><div class="v" style="color:'+cor+'">'+g.toFixed(1)+'</div><div class="l">Nota geral</div></div>'+
+     '<div class="kpi"><div class="v">'+n(D.obras)+'</div><div class="l">Obras avaliadas</div></div>'+
+     '<div class="kpi"><div class="v">'+etapas.length+'</div><div class="l">Etapas medidas</div></div>'+
+     '</div>';
+
+  if(etapas.length){
+    h+='<table><tr><th>Etapa</th><th class="num">Nota</th><th class="num">Avaliações</th></tr>';
+    etapas.forEach(function(e){
+      var c = e.nota>=9?'var(--green-l)':(e.nota>=7?'var(--gold)':'#e07070');
+      h+='<tr><td>'+esc(e.etapa)+'</td>'+
+         '<td class="num"><b style="color:'+c+'">'+Number(e.nota).toFixed(1)+'</b></td>'+
+         '<td class="num">'+e.qtd+'</td></tr>';
+    });
+    h+='</table>';
+    h+='<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Ordenado da pior para a melhor — o topo é onde vale agir.</div>';
+  }
+
+  if(ap.length){
+    h+='<div style="margin-top:16px;font-size:11px;font-weight:800;letter-spacing:1px;'+
+       'text-transform:uppercase;color:var(--muted)">O que foi apontado</div>';
+    ap.forEach(function(a){
+      h+='<div style="border-left:3px solid #e07070;background:rgba(224,112,112,.06);'+
+        'border-radius:0 8px 8px 0;padding:9px 12px;margin-top:8px">'+
+        '<div style="font-size:12.5px;font-weight:800">'+esc(a.cliente)+' · '+esc(a.etapa)+
+        ' <span style="color:#e07070">'+a.nota+'/10</span></div>'+
+        '<div style="font-size:12.5px;color:var(--muted);margin-top:3px">'+esc(a.observacao)+'</div>'+
+        '<div style="font-size:10.5px;color:var(--muted);margin-top:4px">'+String(a.quando).split('-').reverse().join('/')+
+        ' · <a href="relatorio.html?id='+esc(a.slug)+'" target="_blank" style="color:var(--gold)">ver relatório</a></div>'+
+        '</div>';
+    });
+  }
+  return h+'</div>';
+}
 function render(M){
   var C=M.carteira||{}, A=M.periodo_atual||{}, P=M.periodo_anterior||{};
   var lbl=(PERIODOS.find(function(p){return p[0]===PER})||['',''])[1];
@@ -309,12 +356,17 @@ function render(M){
 
   /* EQUIPE */
   h+='<div class="grid2">';
+  h+=blocoQualidade();
   h+='<div><h2>👷 Por instalador <small>no período</small></h2><div class="card">';
   var pi=M.por_instalador||[];
   if(!pi.length) h+='<div class="vazio">Nenhuma instalação no período.</div>';
   else{
-    h+='<table><tr><th>Instalador</th><th class="num">Obras</th><th class="num">kWp</th><th class="num">Termos</th></tr>';
-    pi.forEach(function(p){h+='<tr><td><b>'+esc(p.nome)+'</b></td><td class="num">'+p.obras+'</td><td class="num">'+n(p.kwp)+'</td><td class="num">'+p.termos+'</td></tr>';});
+    h+='<table><tr><th>Instalador</th><th class="num">Obras</th><th class="num">kWp</th><th class="num">Termos</th><th class="num">Nota</th></tr>';
+    pi.forEach(function(p){
+      var q=NOTAS[p.nome];
+      var cor = !q ? 'var(--muted)' : (q.nota>=9?'var(--green-l)':(q.nota>=7?'var(--gold)':'#e07070'));
+      var txt = q ? ('<b style="color:'+cor+'">'+Number(q.nota).toFixed(1)+'</b><br><span style="font-size:10px;color:var(--muted)">'+q.obras+' aval.</span>') : '<span style="color:var(--muted)">—</span>';
+      h+='<tr><td><b>'+esc(p.nome)+'</b></td><td class="num">'+p.obras+'</td><td class="num">'+n(p.kwp)+'</td><td class="num">'+p.termos+'</td><td class="num">'+txt+'</td></tr>';});
     h+='</table>';
   }
   h+='</div></div>';
