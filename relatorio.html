@@ -311,9 +311,10 @@ function render(){
       +'<div class="apSec"><div class="ah"><div class="ic">⚠️</div><h3>Apontamentos da equipe técnica</h3></div>'
       +'<div class="nota">Durante a execução, nossa equipe identificou e registrou as condições abaixo, <b>já existentes no local</b> antes ou durante a instalação. Este registro é feito para transparência e para que você possa avaliar eventuais manutenções no imóvel.</div>';
     AP.forEach(function(a){
-      var mids=fotos.filter(function(f){return f.apontamento_id===a.id});
+      var mids=(a.id==null)?[]:fotos.filter(function(f){return f.apontamento_id && f.apontamento_id===a.id});
       h+='<div class="apCard"><div class="tx">'+esc(a.descricao)+'</div>'
-        +'<div class="dt">Registrado em '+new Date(a.criado_em).toLocaleDateString('pt-BR')+'</div>';
+        +(a.criado_em && !isNaN(new Date(a.criado_em))
+            ? '<div class="dt">Registrado em '+new Date(a.criado_em).toLocaleDateString('pt-BR')+'</div>' : '');
       if(mids.length){
         h+='<div class="grid">';
         mids.forEach(function(f){ h+=midiaHtml(f,'Apontamento técnico'); });
@@ -325,12 +326,14 @@ function render(){
   }
 
   /* TERMO */
-  h+='<section class="rv"><div class="shead"><div class="n">0'+(AP.length?4:3)+' — Formalização</div><h2>Termo de conclusão</h2><div class="hl"></div></div>'
+  h+='<section class="rv"><div class="shead"><div class="n">0'+(AP.length?4:3)+' — Formalização</div><h2>'+(_man?'Termo de execução':'Termo de conclusão')+'</h2><div class="hl"></div></div>'
     +'<div class="certWrap">';
   if(o.aceite_em){
-    h+='<div class="selo"><span class="dot">●</span> Obra concluída e aceita</div>'
-      +'<div class="tx">"Declaro que recebi e aceitei o projeto de energia fotovoltaica concluído, conforme os termos do contrato firmado com a Polaris Energia Solar, em conformidade com os requisitos técnicos e normativos aplicáveis. Estou satisfeito com o trabalho realizado."</div>'
-      +'<div class="assin">'
+    h+='<div class="selo"><span class="dot">●</span> '+(_man?'Serviço concluído e aceito':'Obra concluída e aceita')+'</div>'
+      +'<div class="tx">"'+(_man
+        ? 'Declaro que o serviço de '+servicoNome(o).toLowerCase()+' foi executado em meu sistema fotovoltaico pela Polaris Energia Solar, que acompanhei a conclusão dos trabalhos e recebi o laudo técnico com os apontamentos identificados. Estou ciente das recomendações registradas neste relatório."'
+        : 'Declaro que recebi e aceitei o projeto de energia fotovoltaica concluído, conforme os termos do contrato firmado com a Polaris Energia Solar, em conformidade com os requisitos técnicos e normativos aplicáveis. Estou satisfeito com o trabalho realizado."')+'</div>'
+      '<div class="assin">'
       +(o.aceite_assinatura?'<img src="'+esc(o.aceite_assinatura)+'" alt="Assinatura">':'')
       +'<div class="linha"></div>'
       +'<div class="nm">'+esc(o.aceite_nome)+'</div>'
