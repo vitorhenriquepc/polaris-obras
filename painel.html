@@ -337,6 +337,8 @@ font-size:12px;font-weight:700;color:#e07070}
 .tarja.crit{background:rgba(224,112,112,.20);border-color:#e07070}
 .tarja .d{margin-left:auto;font-size:11px;font-weight:800;white-space:nowrap}
 .tarja .obs{color:#8fa6b8;font-weight:600}
+.chip.relx{border-color:rgba(224,112,112,.5)}
+.chip.relx .n{color:#e07070}
 .chip.orig{border-color:rgba(88,184,104,.35)}
 .chip.orig .n{color:#58b868}
 .chip.semorig{border-color:rgba(245,166,35,.45)}
@@ -344,6 +346,11 @@ font-size:12px;font-weight:700;color:#e07070}
 .chip.trava{border-color:rgba(224,112,112,.5)}
 .chip.trava .n{color:#e07070}
 .travasel{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.krel{margin-top:6px;font-size:10.5px;font-weight:800;color:#e07070;
+background:rgba(224,112,112,.12);border:1px solid rgba(224,112,112,.35);
+border-radius:6px;padding:3px 7px;display:inline-block}
+.krel.ok{color:#58b868;background:rgba(88,184,104,.10);border-color:rgba(88,184,104,.28)}
+.kcard.relpend{box-shadow:inset 3px 0 0 #e07070}
 .ktrv{margin-top:6px;font-size:10.5px;font-weight:800;color:#d99a3a;
 background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.32);
 border-radius:6px;padding:3px 7px;display:inline-block}
@@ -514,7 +521,7 @@ document.getElementById('bAgenda').onclick = ()=> abrirAgendas();
 document.getElementById('busca').addEventListener('input', e=>{ busca=e.target.value.toLowerCase(); renderList(); });
 
 setView(VIEW);
-await loadEtapas(); await loadTravas(); await loadOrigens();
+await loadEtapas(); await loadTravas(); await loadOrigens(); await loadRel();
 await loadEquipe();
 await loadObras();
 subscribeRealtime();
@@ -542,6 +549,27 @@ function ramoNome(cod){ const r=RAMOS.find(x=>x.codigo===cod); return r?r.nome:'
 function iptuDaObra(o){ return o.cidade ? (CIDIPTU[o.cidade]||null) : null; }
 function trilhaNome(cod){ const t=TRILHAS.find(x=>x.codigo===cod); return t?(t.icone||'')+' '+t.nome:''; }
 
+let REL={};
+async function loadRel(){
+  const r=await sb.rpc('get_status_relatorio');
+  REL={};
+  (r.data||[]).forEach(function(x){ REL[x.obra_id]=x; });
+}
+function relStatus(o){
+  const x=REL[o.id];
+  if(!x || o.etapa_numero<7) return null;
+  const completo = x.feitos>=x.obrig, ok = completo && x.assinado;
+  return { obrig:x.obrig, feitos:x.feitos, assinado:x.assinado, completo:completo, ok:ok };
+}
+function relPendente(o){ const r=relStatus(o); return !!(r && !r.ok); }
+function tarjaRel(o){
+  const r=relStatus(o); if(!r) return '';
+  if(r.ok) return '<div class="krel ok">📋 Relatório completo e assinado</div>';
+  const partes=[];
+  if(!r.completo) partes.push(r.feitos+'/'+r.obrig+' itens');
+  if(!r.assinado) partes.push('sem assinatura');
+  return '<div class="krel">📋 '+partes.join(' · ')+'</div>';
+}
 let ORIGENS=[];
 async function loadOrigens(){
   const r=await sb.from('origens_lead').select('codigo,nome,ordem').eq('ativo',true).order('ordem');
@@ -576,20 +604,27 @@ ORIGENS.forEach(function(x){
   const q=OBRAS.filter(o=>o.origem_lead===x.codigo).length;
   if(q) h+=`<div class="chip orig ${filtroOrigem===x.codigo?'on':''}" onclick="setFiltroOrigem('${x.codigo}')"><div class="n">${q}</div><div class="l">${ORIG_IC[x.codigo]||'•'} ${ORIG_CURTO[x.codigo]||esc(x.nome)}</div></div>`;
 });
+const relP=OBRAS.filter(relPendente).length;
+if(relP) h+=`<div class="chip relx ${filtroRel?'on':''}" onclick="setFiltroRel()"><div class="n">${relP}</div><div class="l">📋 Relatório pendente</div></div>`;
 const semO=OBRAS.filter(o=>!o.origem_lead).length;
 if(semO) h+=`<div class="chip semorig ${filtroOrigem==='__sem'?'on':''}" onclick="setFiltroOrigem('__sem')"><div class="n">${semO}</div><div class="l">Sem origem</div></div>`;
 for(let n=8;n>=0;n--){ if(!cont[n]) continue; const e=ET[n]||{nome:'Etapa '+n,icone:''};
 h+=`<div class="chip ${filtroEtapa===n?'on':''}" onclick="setFiltro(${n})"><div class="n">${cont[n]}</div><div class="l">${e.icone||''} ${esc((e.nome||'').replace('!',''))}</div></div>`; }
 document.getElementById('stats').innerHTML=h;
 }
-function setFiltro(n){ filtroEtapa=(filtroEtapa===n?null:n); filtroTrava=false; filtroOrigem=''; renderStats(); renderList(); }
-let filtroTrava=false, filtroOrigem='';
-function setFiltroOrigem(k){
-  filtroOrigem=(filtroOrigem===k?'':k);
-  if(filtroOrigem){ filtroEtapa=null; filtroTrava=false; }
+function setFiltro(n){ filtroEtapa=(filtroEtapa===n?null:n); filtroTrava=false; filtroOrigem=''; filtroRel=false; renderStats(); renderList(); }
+let filtroTrava=false, filtroOrigem='', filtroRel=false;
+function setFiltroRel(){
+  filtroRel=!filtroRel;
+  if(filtroRel){ filtroEtapa=null; filtroTrava=false; filtroOrigem=''; }
   renderStats(); renderList();
 }
-function setFiltroTrava(){ filtroTrava=!filtroTrava; if(filtroTrava){filtroEtapa=null;filtroOrigem='';} renderStats(); renderList(); }
+function setFiltroOrigem(k){
+  filtroOrigem=(filtroOrigem===k?'':k);
+  if(filtroOrigem){ filtroEtapa=null; filtroTrava=false; filtroRel=false; }
+  renderStats(); renderList();
+}
+function setFiltroTrava(){ filtroTrava=!filtroTrava; if(filtroTrava){filtroEtapa=null;filtroOrigem='';filtroRel=false;} renderStats(); renderList(); }
 let filtroDias=null;
 const DFILTROS=[{k:null,l:'Todos os prazos'},{k:7,l:'⏱️ Até 7 dias'},{k:30,l:'📅 +30 dias'},{k:60,l:'🚨 +60 dias'}];
 let filtroCat='';
@@ -647,6 +682,7 @@ let arr=OBRAS.slice().filter(o=>passaDias(o,filtroDias)).filter(o=>!filtroCat||(
 if(filtroEtapa!==null) arr=arr.filter(o=>o.etapa_numero===filtroEtapa);
 if(filtroTrava) arr=arr.filter(o=>o.trava);
 if(filtroOrigem) arr=arr.filter(o=> filtroOrigem==='__sem' ? !o.origem_lead : o.origem_lead===filtroOrigem);
+if(filtroRel) arr=arr.filter(relPendente);
 if(busca) arr=arr.filter(o=> (o.cliente||'').toLowerCase().includes(busca) || (o.contrato||'').includes(busca));
 // ordena: não finalizadas primeiro, depois por etapa desc, depois nome
 arr.sort((a,b)=>{
@@ -679,6 +715,7 @@ let arr=OBRAS.slice().filter(o=>passaDias(o,filtroDias)).filter(o=>(o.trilha||'p
 if(busca) arr=arr.filter(o=> (o.cliente||'').toLowerCase().includes(busca) || (o.contrato||'').includes(busca));
 if(filtroTrava) arr=arr.filter(o=>o.trava);
 if(filtroOrigem) arr=arr.filter(o=> filtroOrigem==='__sem' ? !o.origem_lead : o.origem_lead===filtroOrigem);
+if(filtroRel) arr=arr.filter(relPendente);
 const el=document.getElementById('list');
 el.className='kb'; el.style.display='flex';
 let h='';
@@ -693,7 +730,7 @@ if(!obs.length) h+='<div class="kempty">—</div>';
 obs.forEach(function(o){
 const d=diasObra(o);
 const late=(d!=null&&d>60&&n<8), warn=(d!=null&&d>30&&d<=60&&n<8);
-h+='<div class="kcard '+(n===8?'fim':(late?'late':''))+(o.trava?(travaCritica(o)?' trvcrit':' trv'):'')+'" draggable="true" data-id="'+o.id+'" ondragstart="kStart(event,this)" ondragend="kEnd(this)">'
+h+='<div class="kcard '+(n===8?'fim':(late?'late':''))+(o.trava?(travaCritica(o)?' trvcrit':' trv'):'')+(relPendente(o)?' relpend':'')+'" draggable="true" data-id="'+o.id+'" ondragstart="kStart(event,this)" ondragend="kEnd(this)">'
  +'<div class="kn">'+esc(o.cliente)+'</div>'
  +'<div class="km">'+(o.contrato?'<span>#'+esc(o.contrato)+'</span>':'')
  +(o.potencia_kwp?'<span>'+esc(String(o.potencia_kwp).replace('.',','))+' kWp</span>':'')
@@ -701,6 +738,7 @@ h+='<div class="kcard '+(n===8?'fim':(late?'late':''))+(o.trava?(travaCritica(o)
  +(o.data_instalacao?'<span>📅 '+o.data_instalacao.split('-').reverse().slice(0,2).join('/')+'</span>':'')
  +(o.aceite_em?'<span>✍️</span>':'')+'</div>'
  +tarjaTravaK(o)
+ +tarjaRel(o)
  +((o.cpfl_prazo_em&&o.etapa_numero<8)?'<div class="kcpfl'+(cpflVenceu(o)?' venceu':'')+'">⚡ Vistoria CPFL até '+fmtD(o.cpfl_prazo_em)+(cpflVenceu(o)?' · venceu':'')+'</div>':'')
  +'<div class="kacts">'
  +'<button onclick="event.stopPropagation();enviarWA(\''+o.id+'\')" title="Mensagem ao cliente">💬</button>'
