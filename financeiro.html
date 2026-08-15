@@ -269,7 +269,7 @@ let DRE=null, OBRAS=null, FLUXO=null, DESEMP=null, CONTAS=[], PARAMS=[], ORIGENS
 let FILA=null, EDIT=null, FILA_TODAS=false, RESUMO=null, ABRIR=null, ATALHO=null, VERCONTAS=false;
 let FNAT='', DRILL=null, EQUIPE=[], PARC=[];
 let CALC={mod:8,estr:'Cerâmico',km:0,res:null}, ESTRUTURAS=[], KITS=[];
-let DESV=null, VERDESV=false;
+let DESV=null, VERDESV=false, PROV_DESDE=null;
 function fnat(v,l){return '<button class="stb'+(FNAT===v?' on':'')+'" onclick="FNAT=\''+v+'\';render()">'+l+'</button>';}
 
 document.getElementById('ver').textContent='v'+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
@@ -329,6 +329,8 @@ async function boot(){
   PARAMS=pr.data||[];
   const og=await sb.from('origens_lead').select('*').eq('ativo',true).order('ordem');
   ORIGENS=og.data||[];
+  const cfg=await sb.from('config').select('valor').eq('chave','provisao_posvenda_desde').maybeSingle();
+  PROV_DESDE=(cfg.data&&cfg.data.valor)||null;
   const te=await sb.from('tabela_estrutura').select('*').order('ordem');
   ESTRUTURAS=te.data||[];
   const tk=await sb.from('tabela_kits').select('*').order('qtd_modulos');
@@ -717,6 +719,10 @@ function renderFin(){
       'oninput="recalcFin()" placeholder="0,00"></div>';
   }
   h+='</div><div id="calcBox"></div>';
+  const _fe=O.data_fechamento;
+  if(PROV_DESDE && (!_fe || _fe < PROV_DESDE))
+    h+='<div class="dica">📌 Contrato fechado antes de '+dataBR(PROV_DESDE)+
+       ' — preço sem os 2% de provisão. O campo fica em branco de propósito.</div>';
   if(EDIT.sugereOper)
     h+='<div class="dica">💡 Custo operacional sugerido: '+n(O.qtd_modulos)+' módulos × '+
        moeda2(PARAMS[0].custo_operacional_placa)+' = <b>'+moeda2(EDIT.sugereOper)+'</b>. Pode alterar.</div>';
@@ -891,8 +897,11 @@ function sugerirFin(){
   const mods=n(EDIT.obra.qtd_modulos);
   if(mods>0&&gv('e_custo_operacional')==null)
     document.getElementById('e_custo_operacional').value=(mods*n(par.custo_operacional_placa)).toFixed(2);
-  if(gv('e_provisao_posvenda')==null&&n(par.provisao_posvenda_pct)>0)
+  const fech=EDIT.obra.data_fechamento;
+  const provOk = PROV_DESDE && fech && fech >= PROV_DESDE;
+  if(provOk && gv('e_provisao_posvenda')==null && n(par.provisao_posvenda_pct)>0){
     document.getElementById('e_provisao_posvenda').value=(p*n(par.provisao_posvenda_pct)).toFixed(2);
+  }
   recalcFin();
   toast('Valores sugeridos pela vigência de '+dataBR(par.vigencia_inicio));
 }
