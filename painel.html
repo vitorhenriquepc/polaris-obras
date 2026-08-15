@@ -337,6 +337,10 @@ font-size:12px;font-weight:700;color:#e07070}
 .tarja.crit{background:rgba(224,112,112,.20);border-color:#e07070}
 .tarja .d{margin-left:auto;font-size:11px;font-weight:800;white-space:nowrap}
 .tarja .obs{color:#8fa6b8;font-weight:600}
+.chip.orig{border-color:rgba(88,184,104,.35)}
+.chip.orig .n{color:#58b868}
+.chip.semorig{border-color:rgba(245,166,35,.45)}
+.chip.semorig .n{color:#F5A623}
 .chip.trava{border-color:rgba(224,112,112,.5)}
 .chip.trava .n{color:#e07070}
 .travasel{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
@@ -561,13 +565,25 @@ const cont={}; OBRAS.forEach(o=> cont[o.etapa_numero]=(cont[o.etapa_numero]||0)+
 let h=`<div class="chip total ${filtroEtapa===null?'on':''}" onclick="setFiltro(null)"><div class="n">${OBRAS.length}</div><div class="l">Total</div></div>`;
 const trv=OBRAS.filter(o=>o.trava), crt=trv.filter(travaCritica);
 if(trv.length) h+=`<div class="chip trava ${filtroTrava?'on':''}" onclick="setFiltroTrava()"><div class="n">${trv.length}</div><div class="l">⏸ Travadas${crt.length?' · '+crt.length+' ⚠️':''}</div></div>`;
+const ORIG_LBL={trafego:'📣 Tráfego',indicacao:'🤝 Indicação',retomada:'♻️ Retomada',ativa:'📞 Prospecção',network:'🌐 Network'};
+Object.keys(ORIG_LBL).forEach(function(k){
+  const q=OBRAS.filter(o=>o.origem_lead===k).length;
+  if(q) h+=`<div class="chip orig ${filtroOrigem===k?'on':''}" onclick="setFiltroOrigem('${k}')"><div class="n">${q}</div><div class="l">${ORIG_LBL[k]}</div></div>`;
+});
+const semO=OBRAS.filter(o=>!o.origem_lead).length;
+if(semO) h+=`<div class="chip semorig ${filtroOrigem==='__sem'?'on':''}" onclick="setFiltroOrigem('__sem')"><div class="n">${semO}</div><div class="l">Sem origem</div></div>`;
 for(let n=8;n>=0;n--){ if(!cont[n]) continue; const e=ET[n]||{nome:'Etapa '+n,icone:''};
 h+=`<div class="chip ${filtroEtapa===n?'on':''}" onclick="setFiltro(${n})"><div class="n">${cont[n]}</div><div class="l">${e.icone||''} ${esc((e.nome||'').replace('!',''))}</div></div>`; }
 document.getElementById('stats').innerHTML=h;
 }
-function setFiltro(n){ filtroEtapa=(filtroEtapa===n?null:n); filtroTrava=false; renderStats(); renderList(); }
-let filtroTrava=false;
-function setFiltroTrava(){ filtroTrava=!filtroTrava; if(filtroTrava) filtroEtapa=null; renderStats(); renderList(); }
+function setFiltro(n){ filtroEtapa=(filtroEtapa===n?null:n); filtroTrava=false; filtroOrigem=''; renderStats(); renderList(); }
+let filtroTrava=false, filtroOrigem='';
+function setFiltroOrigem(k){
+  filtroOrigem=(filtroOrigem===k?'':k);
+  if(filtroOrigem){ filtroEtapa=null; filtroTrava=false; }
+  renderStats(); renderList();
+}
+function setFiltroTrava(){ filtroTrava=!filtroTrava; if(filtroTrava){filtroEtapa=null;filtroOrigem='';} renderStats(); renderList(); }
 let filtroDias=null;
 const DFILTROS=[{k:null,l:'Todos os prazos'},{k:7,l:'⏱️ Até 7 dias'},{k:30,l:'📅 +30 dias'},{k:60,l:'🚨 +60 dias'}];
 let filtroCat='';
@@ -624,6 +640,7 @@ if(VIEW==='kanban') return renderKanban();
 let arr=OBRAS.slice().filter(o=>passaDias(o,filtroDias)).filter(o=>!filtroCat||(o.categoria||'residencial')===filtroCat);
 if(filtroEtapa!==null) arr=arr.filter(o=>o.etapa_numero===filtroEtapa);
 if(filtroTrava) arr=arr.filter(o=>o.trava);
+if(filtroOrigem) arr=arr.filter(o=> filtroOrigem==='__sem' ? !o.origem_lead : o.origem_lead===filtroOrigem);
 if(busca) arr=arr.filter(o=> (o.cliente||'').toLowerCase().includes(busca) || (o.contrato||'').includes(busca));
 // ordena: não finalizadas primeiro, depois por etapa desc, depois nome
 arr.sort((a,b)=>{
@@ -655,6 +672,7 @@ if(sel){
 let arr=OBRAS.slice().filter(o=>passaDias(o,filtroDias)).filter(o=>(o.trilha||'padrao')===KTR).filter(o=>!filtroCat||(o.categoria||'residencial')===filtroCat);
 if(busca) arr=arr.filter(o=> (o.cliente||'').toLowerCase().includes(busca) || (o.contrato||'').includes(busca));
 if(filtroTrava) arr=arr.filter(o=>o.trava);
+if(filtroOrigem) arr=arr.filter(o=> filtroOrigem==='__sem' ? !o.origem_lead : o.origem_lead===filtroOrigem);
 const el=document.getElementById('list');
 el.className='kb'; el.style.display='flex';
 let h='';
