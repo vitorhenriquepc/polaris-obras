@@ -662,7 +662,8 @@ const CAMPOS=[
   ['frete','Frete',0],
   ['imposto_valor','Imposto',0],
   ['comissao_valor','Comissão',0],
-  ['custo_operacional','Custo operacional',0]
+  ['custo_operacional','Custo operacional',0],
+  ['provisao_posvenda','Provisão pós-venda',0]
 ];
 async function abrirFin(id){
   const ov=document.getElementById('ov'), d=document.getElementById('dw');
@@ -864,12 +865,14 @@ function recalcFin(){
   const diretos=['valor_kit','material_ca','material_eletrico','cabo','instalacao','deslocamento','art','seguro','frete'];
   for(let i=0;i<diretos.length;i++) dir+=n(gv('e_'+diretos[i]));
   const imp=n(gv('e_imposto_valor')), com=n(gv('e_comissao_valor')), op=n(gv('e_custo_operacional'));
-  const mc=p-dir-imp-com-op;
+  const prv=n(gv('e_provisao_posvenda'));
+  const mc=p-dir-imp-com-op-prv;
   const rat=n(DRE&&DRE.rateio&&DRE.rateio.por_obra);
   const ml=mc-rat;
   if(document.getElementById('prevBox')&&EDIT&&EDIT.fin&&EDIT.fin.previsto_total!=null) setTimeout(renderPrevisto,0);
   box.innerHTML='<div class="resumoCalc">'+
     lr('Preço',p)+lr('Custos diretos',-dir)+lr('Imposto + comissão + operacional',-(imp+com+op))+
+    (prv>0?lr('Provisão de pós-venda',-prv):'')+
     '<div class="r tot"><span>Margem de contribuição</span><span style="color:'+
       (mc>=0?'var(--green-l)':'var(--red)')+'">'+moeda2(mc)+(p>0?' · '+pct(mc/p):'')+'</span></div>'+
     (rat>0?('<div class="r"><span>Rateio do mês (por obra)</span><span>'+moeda2(-rat)+'</span></div>'+
@@ -888,6 +891,8 @@ function sugerirFin(){
   const mods=n(EDIT.obra.qtd_modulos);
   if(mods>0&&gv('e_custo_operacional')==null)
     document.getElementById('e_custo_operacional').value=(mods*n(par.custo_operacional_placa)).toFixed(2);
+  if(gv('e_provisao_posvenda')==null&&n(par.provisao_posvenda_pct)>0)
+    document.getElementById('e_provisao_posvenda').value=(p*n(par.provisao_posvenda_pct)).toFixed(2);
   recalcFin();
   toast('Valores sugeridos pela vigência de '+dataBR(par.vigencia_inicio));
 }
