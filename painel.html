@@ -1377,6 +1377,39 @@ window.open(`https://wa.me/${fone}`,'_blank');
 
 /* ---------- formulário (nova / editar) ---------- */
 let FORM_ID=null;
+function calcDias(){
+  const el=document.getElementById('difDias'); if(!el) return;
+  const i=document.getElementById('f_dti').value, f=(document.getElementById('f_dfim')||{}).value;
+  if(!i||!f){ el.textContent=''; return; }
+  const d=Math.round((new Date(f)-new Date(i))/864e5)+1;
+  el.textContent = d>1 ? '· '+d+' dias' : (d===1?'· 1 dia':'· data inválida');
+}
+function buscarCadastrado(){
+  const termo=prompt('Nome ou contrato do cliente já cadastrado:');
+  if(!termo) return;
+  const t=termo.toLowerCase().trim();
+  const achados=OBRAS.filter(o=>(o.cliente||'').toLowerCase().includes(t)||(o.contrato||'').includes(t));
+  if(!achados.length){ toast('Nenhum cadastro encontrado'); return; }
+  let esc2=(x)=>String(x||'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const lista=achados.slice(0,8).map((o,i)=>
+    (i+1)+'. '+o.cliente+(o.contrato?' · #'+o.contrato:'')+
+    (o.potencia_kwp?' · '+String(o.potencia_kwp).replace('.',',')+' kWp':'')+
+    ' · '+trilhaNome(o.trilha||'padrao')).join('\n');
+  const n=prompt('Qual deles?\n\n'+lista+'\n\nDigite o número:');
+  const idx=parseInt(n,10)-1;
+  if(isNaN(idx)||!achados[idx]) return;
+  const c=achados[idx];
+  const set=(id,v)=>{const e=document.getElementById(id); if(e&&v!=null&&v!=='') e.value=v;};
+  set('f_cli',c.cliente); set('f_tel',c.telefone); set('f_end',c.endereco);
+  set('f_pot',c.potencia_kwp!=null?String(c.potencia_kwp).replace('.',','):'');
+  set('f_qtm',c.qtd_modulos); set('f_grp',c.whatsapp_grupo_id);
+  set('f_km',c.distancia_km); set('f_cidade',c.cidade);
+  set('f_mdm',c.modelo_modulo); set('f_inv',c.inversor_descricao);
+  const sel=(id,v)=>{const e=document.getElementById(id); if(e&&v) e.value=v;};
+  sel('f_org',c.origem_lead); sel('f_est',c.tipo_telhado);
+  sel('f_vend',c.vendedor_id); sel('f_cat',c.categoria); sel('f_inst',c.instalador_id);
+  toast('Dados de '+c.cliente+' copiados ✓');
+}
 function openForm(id, focoFone, trilhaNova){
 const o = id ? getObra(id) : (trilhaNova?{trilha:trilhaNova, etapa_numero:0}:{});
 const novo = !id;
@@ -1395,7 +1428,7 @@ ov.innerHTML=`<div class="modal">
 <h2>${novo?'Nova obra':'Editar obra'}</h2>
 <button class="act act-gh" style="margin:-4px 0 12px" onclick="importarProposta()">📎 Importar proposta (PDF)</button>
 <input type="file" id="f_pdf" accept="application/pdf" style="display:none" onchange="lerProposta(this)">
-<div class="fld"><label>Cliente *</label><input id="f_cli" value="${esc(o.cliente||'')}" placeholder="Nome do cliente"></div>
+<div class="fld"><label>Cliente * <button type="button" class="tbtn" style="margin-left:6px;padding:3px 9px;font-size:10.5px" onclick="buscarCadastrado()">👥 Puxar cadastro</button></label><input id="f_cli" value="${esc(o.cliente||'')}" placeholder="Nome do cliente"></div>
 <div class="grid2">
 <div class="fld"><label>WhatsApp (DDD+número)</label><input id="f_tel" value="${esc(o.telefone||'')}" placeholder="18996906474"></div>
 <div class="fld"><label>Contrato</label><input id="f_con" value="${esc(o.contrato||'')}" placeholder="4147"></div>
@@ -1466,7 +1499,10 @@ ${o.trilha==='manutencao'?`
 </div>
 <div class="fld"><label>Inversor(es)</label><input id="f_inv" value="${esc(o.inversor_descricao||'')}" placeholder="2x Huawei 6kW"></div>
 <div class="grid2">
-<div class="fld"><label>${o.trilha==='manutencao'?'Data do atendimento (agenda) 📣':'Data instalação (agenda)'}</label><input id="f_dti" type="date" value="${o.data_instalacao||''}"></div>
+<div class="fld"><label>${o.trilha==='manutencao'?'Início do atendimento 📣':'Data instalação (agenda)'}</label><input id="f_dti" type="date" value="${o.data_instalacao||''}" onchange="calcDias()"></div>
+<div class="fld"><label>Término previsto <span id="difDias" style="color:#8fa6b8;font-weight:600"></span></label>
+<input id="f_dfim" type="date" value="${o.data_fim||''}" onchange="calcDias()">
+<div style="font-size:10.5px;color:#8fa6b8;margin-top:4px">Deixe vazio se for de um dia só.</div></div>
 <div class="fld"><label>Instalador</label><select id="f_inst">${instOpts}</select></div>
 </div>
 <div class="grid2">
@@ -1513,6 +1549,7 @@ cpfl_solicitado_em:document.getElementById('f_cpfl').value||null,
 trava_obs:travaEdit?(document.getElementById('f_travaobs').value||null):null,
 distancia_km:parseFloat(document.getElementById('f_km').value)||null,
 data_instalacao:document.getElementById('f_dti').value||null,
+data_fim:(document.getElementById('f_dfim')||{}).value||null,
 instalador_id:document.getElementById('f_inst').value||null,
 qtd_modulos:parseInt(document.getElementById('f_qtm').value,10)||null,
 modelo_modulo:document.getElementById('f_mdm').value.trim()||null,
