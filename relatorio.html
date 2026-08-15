@@ -202,6 +202,27 @@ box-shadow:0 14px 36px rgba(4,20,31,.35);transition:transform .2s}
   .grid .ph:hover{transform:none;box-shadow:none}
   .grid .ph{break-inside:avoid}
 }
+.avalia{margin-top:14px;padding:13px 15px;background:#fbfbf8;border:1px solid var(--line);
+border-radius:12px;display:none}
+.avalia.on{display:block}
+.avalia .lb{font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;
+color:var(--mut);margin-bottom:8px}
+.stars{display:flex;gap:4px;align-items:center}
+.st{width:38px;height:38px;border:1.5px solid var(--line);background:#fff;border-radius:10px;
+cursor:pointer;font-size:19px;line-height:1;display:flex;align-items:center;justify-content:center;
+padding:0;transition:.12s}
+.st:hover{border-color:var(--gold)}
+.st.on{background:#FFF8E6;border-color:var(--gold)}
+.stars .nt{margin-left:10px;font-size:13px;font-weight:800;color:var(--ink)}
+.stars .nt.baixa{color:#B04A4A}
+.avalia textarea{width:100%;margin-top:9px;border:1.5px solid var(--line);border-radius:9px;
+padding:9px 11px;font-family:inherit;font-size:13px;resize:vertical;min-height:52px;display:none}
+.avalia textarea.on{display:block}
+.avalia .ok{font-size:11.5px;color:var(--green);font-weight:700;margin-top:7px;display:none}
+.avalia .ok.on{display:block}
+.notaSelo{display:inline-flex;align-items:center;gap:7px;background:#FFF8E6;
+border:1.5px solid var(--gold);border-radius:30px;padding:6px 15px;font-size:13px;
+font-weight:800;color:#8a6400;margin-top:10px}
 </style>
 </head>
 <body>
@@ -212,6 +233,7 @@ var SUPABASE_URL='https://dakubhcgohiwzyqiegqf.supabase.co';
 var SUPABASE_KEY='sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx';
 var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 var SLUG=new URLSearchParams(location.search).get('id');
+var OBRA_ID=null;
 var LOGO_BRANCA='https://obras.polarisenergiasolar.com/logo.png';
 var LOGO_ESCURA='https://obras.polarisenergiasolar.com/logo-escura.png';
 var D=null, GAL=[], gi=0;
@@ -237,7 +259,17 @@ async function boot(){
   if(!SLUG){document.getElementById('root').innerHTML='<div class="center">🔗 Link incompleto.</div>';return;}
   var r=await sb.rpc('get_relatorio_publico',{p_slug:SLUG});
   if(r.error||!r.data){document.getElementById('root').innerHTML='<div class="center">🔒 Relatório não encontrado.</div>';return;}
-  D=r.data; render();
+  D=r.data;
+  OBRA_ID=(D.obra&&D.obra.id)||null;
+  try{
+    var sess=await sb.auth.getSession();
+    if(sess.data.session && OBRA_ID){
+      var av=await sb.rpc('get_avaliacoes',{p_obra:OBRA_ID});
+      if(av.data){ AVAL.pode=!!av.data.pode_avaliar; AVAL.itens=av.data.itens||{}; }
+    }
+  }catch(e){}
+  render();
+  atualizaSelo();
   try{var s=await sb.auth.getSession();if(s.data.session){var b=document.getElementById('bZap');if(b)b.style.display='flex';}}catch(e){}
 }
 
@@ -299,7 +331,7 @@ function render(){
     fts.forEach(function(f){
       h+=midiaHtml(f,it.titulo);
     });
-    h+='</div></div>';
+    h+='</div>'+blocoAvalia(it)+'</div>';
   });
   if(!teve) h+='<div class="pend">📷 As fotos da instalação serão anexadas pela nossa equipe de campo.</div>';
   h+='</section>';
@@ -330,6 +362,7 @@ function render(){
     +'<div class="certWrap">';
   if(o.aceite_em){
     h+='<div class="selo"><span class="dot">●</span> '+(_man?'Serviço concluído e aceito':'Obra concluída e aceita')+'</div>'
+      +'<div class="notaSelo" id="seloNota" style="display:none"></div>'
       +'<div class="tx">"'+(_man
         ? 'Declaro que o serviço de '+servicoNome(o).toLowerCase()+' foi executado em meu sistema fotovoltaico pela Polaris Energia Solar, que acompanhei a conclusão dos trabalhos e recebi o laudo técnico com os apontamentos identificados. Estou ciente das recomendações registradas neste relatório."'
         : 'Declaro que recebi e aceitei o projeto de energia fotovoltaica concluído, conforme os termos do contrato firmado com a Polaris Energia Solar, em conformidade com os requisitos técnicos e normativos aplicáveis. Estou satisfeito com o trabalho realizado."')+'</div>'
@@ -379,6 +412,54 @@ function render(){
   document.querySelectorAll('.rv').forEach(function(el){io.observe(el)});
 }
 
+var AVAL={pode:false,itens:{}};
+function blocoAvalia(it){
+  if(!AVAL.pode) return '';
+  var a=AVAL.itens[it.id]||{}, e=Number(a.estrelas||0);
+  var h='<div class="avalia on" id="av'+it.id+'"><div class="lb">Como ficou esta etapa?</div><div class="stars">';
+  for(var k=1;k<=5;k++)
+    h+='<button type="button" class="st'+(k<=e?' on':'')+'" data-k="'+k+'" '+
+       'onclick="setNota('+it.id+','+k+')">★</button>';
+  h+='<span class="nt'+(e&&e<=3?' baixa':'')+'" id="nt'+it.id+'">'+(e?(e*2)+'/10':'')+'</span></div>'+
+    '<textarea id="ob'+it.id+'" class="'+(e&&e<=3?'on':'')+'" placeholder="O que faltou nesta etapa? (aparece no seu painel)" '+
+    'onblur="salvaNota('+it.id+')">'+esc(a.obs||'')+'</textarea>'+
+    '<div class="ok" id="ok'+it.id+'">✓ salvo</div></div>';
+  return h;
+}
+function setNota(itemId,k){
+  var box=document.getElementById('av'+itemId); if(!box) return;
+  box.querySelectorAll('.st').forEach(function(b){
+    b.classList.toggle('on', Number(b.dataset.k)<=k);
+  });
+  var nt=document.getElementById('nt'+itemId);
+  nt.textContent=(k*2)+'/10';
+  nt.classList.toggle('baixa', k<=3);
+  var ta=document.getElementById('ob'+itemId);
+  if(k<=3){ ta.classList.add('on'); ta.focus(); } else { ta.classList.remove('on'); }
+  AVAL.itens[itemId]=AVAL.itens[itemId]||{};
+  AVAL.itens[itemId].estrelas=k;
+  salvaNota(itemId);
+}
+async function salvaNota(itemId){
+  var a=AVAL.itens[itemId]; if(!a||!a.estrelas) return;
+  var ta=document.getElementById('ob'+itemId);
+  var obs=ta?ta.value:'';
+  a.obs=obs;
+  var r=await sb.rpc('avaliar_item',{p_obra:OBRA_ID,p_item:itemId,
+    p_estrelas:a.estrelas,p_obs:obs||null});
+  if(r.error||(r.data&&r.data.erro)) return;
+  var ok=document.getElementById('ok'+itemId);
+  if(ok){ ok.classList.add('on'); setTimeout(function(){ok.classList.remove('on');},1600); }
+  atualizaSelo();
+}
+function atualizaSelo(){
+  var vals=Object.values(AVAL.itens).map(function(x){return Number(x.estrelas||0);}).filter(Boolean);
+  var el=document.getElementById('seloNota'); if(!el) return;
+  if(!vals.length){ el.style.display='none'; return; }
+  var media=vals.reduce(function(a,b){return a+b;},0)/vals.length*2;
+  el.style.display='inline-flex';
+  el.innerHTML='⭐ <b>'+media.toFixed(1)+'</b> · '+vals.length+' etapa'+(vals.length>1?'s':'')+' avaliada'+(vals.length>1?'s':'');
+}
 function midiaHtml(f,cap){
   if(f.tipo==='video'){
     return '<div class="ph vid" onclick="window.open(\''+esc(f.url)+'\',\'_blank\')">'
