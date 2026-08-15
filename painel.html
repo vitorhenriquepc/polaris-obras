@@ -346,6 +346,10 @@ font-size:12px;font-weight:700;color:#e07070}
 .chip.trava{border-color:rgba(224,112,112,.5)}
 .chip.trava .n{color:#e07070}
 .travasel{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.kman{margin-top:6px;margin-right:4px;font-size:10.5px;font-weight:800;color:#8fa6b8;
+background:rgba(143,166,184,.12);border:1px solid rgba(143,166,184,.28);
+border-radius:6px;padding:3px 7px;display:inline-block}
+.kman.ext{color:#d99a3a;background:rgba(245,166,35,.12);border-color:rgba(245,166,35,.3)}
 .krel{margin-top:6px;font-size:10.5px;font-weight:800;color:#e07070;
 background:rgba(224,112,112,.12);border:1px solid rgba(224,112,112,.35);
 border-radius:6px;padding:3px 7px;display:inline-block}
@@ -557,10 +561,20 @@ async function loadRel(){
 }
 function relStatus(o){
   const x=REL[o.id];
-  // só obras ainda em andamento — depois de ativa, não polui mais o painel
-  if(!x || o.etapa_numero<6 || o.etapa_numero>=8) return null;
+  if(!x) return null;
+  // janela onde o relatório é cobrado, por trilha
+  if(o.trilha==='manutencao'){ if(o.etapa_numero<2 || o.etapa_numero>=4) return null; }
+  else if(o.etapa_numero<6 || o.etapa_numero>=8) return null;
   const completo = x.feitos>=x.obrig, ok = completo && x.assinado;
   return { obrig:x.obrig, feitos:x.feitos, assinado:x.assinado, completo:completo, ok:ok };
+}
+const TIPO_MAN={preventiva:['🛡️','Preventiva'],corretiva:['🔧','Corretiva'],diagnostico:['🔎','Diagnóstico']};
+function tarjaMan(o){
+  const t=TIPO_MAN[o.tipo_manutencao];
+  let h='';
+  if(t) h+='<div class="kman">'+t[0]+' '+t[1]+'</div>';
+  if(o.cliente_externo) h+='<div class="kman ext">🏳️ Cliente de outra empresa</div>';
+  return h;
 }
 function relPendente(o){ const r=relStatus(o); return !!(r && !r.ok); }
 function tarjaRel(o){
@@ -720,7 +734,10 @@ if(filtroRel) arr=arr.filter(relPendente);
 const el=document.getElementById('list');
 el.className='kb'; el.style.display='flex';
 let h='';
-for(let n=0;n<=8;n++){
+const etp=etapasDe(KTR)||{};
+const nums=Object.keys(etp).map(Number).filter(x=>!isNaN(x));
+const nEt=nums.length?Math.max.apply(null,nums):8;
+for(let n=0;n<=nEt;n++){
 if(filtroEtapa!==null && filtroEtapa!==n) continue;
 const e=etapasDe(KTR)[n]||{nome:'Etapa '+n,icone:''};
 const obs=arr.filter(o=>o.etapa_numero===n).sort((a,b)=>{const da=diasObra(a),db=diasObra(b);return (db==null?-1:db)-(da==null?-1:da);});
@@ -730,22 +747,23 @@ h+='<div class="kcol '+(n===8?'fim':'')+'" data-etapa="'+n+'" ondragover="kOver(
 if(!obs.length) h+='<div class="kempty">—</div>';
 obs.forEach(function(o){
 const d=diasObra(o);
-const late=(d!=null&&d>60&&n<8), warn=(d!=null&&d>30&&d<=60&&n<8);
-h+='<div class="kcard '+(n===8?'fim':(late?'late':''))+(o.trava?(travaCritica(o)?' trvcrit':' trv'):'')+(relPendente(o)?' relpend':'')+'" draggable="true" data-id="'+o.id+'" ondragstart="kStart(event,this)" ondragend="kEnd(this)">'
+const late=(d!=null&&d>60&&n<nEt), warn=(d!=null&&d>30&&d<=60&&n<nEt);
+h+='<div class="kcard '+(n===nEt?'fim':(late?'late':''))+(o.trava?(travaCritica(o)?' trvcrit':' trv'):'')+(relPendente(o)?' relpend':'')+'" draggable="true" data-id="'+o.id+'" ondragstart="kStart(event,this)" ondragend="kEnd(this)">'
  +'<div class="kn">'+esc(o.cliente)+'</div>'
  +'<div class="km">'+(o.contrato?'<span>#'+esc(o.contrato)+'</span>':'')
  +(o.potencia_kwp?'<span>'+esc(String(o.potencia_kwp).replace('.',','))+' kWp</span>':'')
- +(d!=null&&n<8?'<span class="kdias '+(late?'late':(warn?'warn':''))+'">'+d+'d</span>':'')
+ +(d!=null&&n<nEt?'<span class="kdias '+(late?'late':(warn?'warn':''))+'">'+d+'d</span>':'')
  +(o.data_instalacao?'<span>📅 '+o.data_instalacao.split('-').reverse().slice(0,2).join('/')+'</span>':'')
  +(o.aceite_em?'<span>✍️</span>':'')+'</div>'
  +tarjaTravaK(o)
  +tarjaRel(o)
+ +(o.trilha==='manutencao'?tarjaMan(o):'')
  +((o.cpfl_prazo_em&&o.etapa_numero<8)?'<div class="kcpfl'+(cpflVenceu(o)?' venceu':'')+'">⚡ Vistoria CPFL até '+fmtD(o.cpfl_prazo_em)+(cpflVenceu(o)?' · venceu':'')+'</div>':'')
  +'<div class="kacts">'
  +'<button onclick="event.stopPropagation();enviarWA(\''+o.id+'\')" title="Mensagem ao cliente">💬</button>'
  +(o.whatsapp_grupo_id?'<button onclick="event.stopPropagation();notificarGrupo(\''+o.id+'\')" title="Avisar no grupo">📣</button>':'')
  +'<button onclick="event.stopPropagation();abrirRelatorio(\''+o.id+'\')" title="Relatório">📄</button>'
-+((o.etapa_numero===7&&!o.cpfl_solicitado_em&&o.whatsapp_grupo_id)?'<button class="bvist" onclick="event.stopPropagation();vistoriaHoje(\''+o.id+'\')" title="Marcar vistoria da CPFL como solicitada hoje">⚡</button>':'')
++((o.trilha!=='manutencao'&&o.etapa_numero===7&&!o.cpfl_solicitado_em&&o.whatsapp_grupo_id)?'<button class="bvist" onclick="event.stopPropagation();vistoriaHoje(\''+o.id+'\')" title="Marcar vistoria da CPFL como solicitada hoje">⚡</button>':'')
 +((o.etapa_numero>=8&&!o.nps_enviado_em)?'<button onclick="event.stopPropagation();pedirAvaliacao(\''+o.id+'\')" title="Pesquisa de satisfação">⭐</button>':'')
 +((IPTU_ATIVO&&o.etapa_numero>=8&&!o.iptu_avisado_em&&(CIDIPTU[o.cidade]||{}).tem_programa==='sim')?'<button onclick="event.stopPropagation();avisarIPTU(\''+o.id+'\')" title="IPTU Sustentável">🏛️</button>':'')
  +'<button onclick="event.stopPropagation();copiarLinkInst(\''+o.id+'\')" title="Link do instalador">🔧</button>'
@@ -1303,6 +1321,22 @@ ov.innerHTML=`<div class="modal">
 <div class="fld"><label>Potência (kWp)</label><input id="f_pot" value="${o.potencia_kwp!=null?String(o.potencia_kwp).replace('.',','):''}" placeholder="8,54"></div>
 <div class="fld"><label>Origem do lead</label><select id="f_org">${origOpts}</select></div>
 </div>
+${o.trilha==='manutencao'?`
+<div class="grid2">
+<div class="fld"><label>Tipo de manutenção</label><select id="f_tipoman">
+<option value="">— Escolha —</option>
+<option value="preventiva" ${o.tipo_manutencao==='preventiva'?'selected':''}>🛡️ Preventiva (plano ou anual)</option>
+<option value="corretiva" ${o.tipo_manutencao==='corretiva'?'selected':''}>🔧 Corretiva (deu problema)</option>
+<option value="diagnostico" ${o.tipo_manutencao==='diagnostico'?'selected':''}>🔎 Diagnóstico / avaliação</option>
+</select></div>
+<div class="fld"><label>De quem é o cliente?</label><select id="f_ext">
+<option value="0" ${!o.cliente_externo?'selected':''}>Cliente Polaris</option>
+<option value="1" ${o.cliente_externo?'selected':''}>Cliente de outra empresa</option>
+</select></div>
+</div>
+<div class="fld"><label>Quem instalou o sistema (se foi outra empresa)</label>
+<input id="f_sisorig" value="${esc(o.sistema_origem||'')}" placeholder="Nome da empresa, ou 'não sabe'"></div>
+`:''}
 <div class="fld"><label>O que está travando esta obra?</label>
 <div class="travasel" id="travaSel">${travaBotoes(o)}</div>
 <input id="f_travaobs" value="${esc(o.trava_obs||'')}" placeholder="Observação (opcional): protocolo, nome do contato..." style="margin-top:7px">
@@ -1384,6 +1418,9 @@ data_conclusao:document.getElementById('f_dtc').value||null,
 observacoes:document.getElementById('f_obs').value.trim()||null,
 vendedor_id:document.getElementById('f_vend').value||null,
 origem_lead:document.getElementById('f_org').value||null,
+tipo_manutencao:(document.getElementById('f_tipoman')||{}).value||null,
+cliente_externo:((document.getElementById('f_ext')||{}).value==='1'),
+sistema_origem:(document.getElementById('f_sisorig')||{}).value||null,
 trava:travaEdit||null,
 cpfl_solicitado_em:document.getElementById('f_cpfl').value||null,
 trava_obs:travaEdit?(document.getElementById('f_travaobs').value||null):null,
