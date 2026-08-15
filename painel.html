@@ -511,6 +511,7 @@ root.innerHTML = `
 <button class="btn-equipe" id="bAgenda" title="Links de agenda das equipes">📅</button>
 <button class="btn-equipe" id="bEquipe" title="Gerenciar equipe">👥</button>
 <button class="btn-new" id="bNew">+ Nova obra</button>
+<button class="btn-new" id="bNewMan" style="background:#2C5F7C;border-color:#2C5F7C">🔧 Manutenção</button>
 </div>
 <div class="list" id="list"><div class="spinner"></div></div>
 </div>`;
@@ -520,6 +521,8 @@ aplicarTema(temaAtual());
 document.getElementById('bUsers').onclick = ()=> location.href='usuarios.html';
 sb.rpc('is_admin').then(r=>{ if(r.data){ document.getElementById('bUsers').style.display=''; const bm=document.getElementById('bMet'); bm.style.display=''; bm.onclick=()=>location.href='metricas.html'; } });
 document.getElementById('bNew').onclick = ()=> openForm(null);
+const _bm=document.getElementById('bNewMan');
+if(_bm) _bm.onclick = ()=> openForm(null, false, 'manutencao');
 document.getElementById('bEquipe').onclick = ()=> openEquipe();
 document.getElementById('bAgenda').onclick = ()=> abrirAgendas();
 document.getElementById('busca').addEventListener('input', e=>{ busca=e.target.value.toLowerCase(); renderList(); });
@@ -773,7 +776,8 @@ function setTrilha(t){ KTR=t; try{localStorage.setItem('polaris-kb-trilha',t)}ca
 function renderKanban(){
 const sel=document.getElementById('selTrilha');
 if(sel){
-  const usadas=TRILHAS.filter(t=>OBRAS.some(o=>(o.trilha||'padrao')===t.codigo));
+  // mostra a trilha se já tem obra, ou se é a que está selecionada agora
+  const usadas=TRILHAS.filter(t=>OBRAS.some(o=>(o.trilha||'padrao')===t.codigo) || t.codigo===KTR);
   if(usadas.length>1){
     sel.style.display='';
     if(!usadas.some(t=>t.codigo===KTR)) KTR=usadas[0].codigo;
@@ -1373,8 +1377,8 @@ window.open(`https://wa.me/${fone}`,'_blank');
 
 /* ---------- formulário (nova / editar) ---------- */
 let FORM_ID=null;
-function openForm(id, focoFone){
-const o = id ? getObra(id) : {};
+function openForm(id, focoFone, trilhaNova){
+const o = id ? getObra(id) : (trilhaNova?{trilha:trilhaNova, etapa_numero:0}:{});
 const novo = !id;
 FORM_ID = id || null;
 const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovForm';
