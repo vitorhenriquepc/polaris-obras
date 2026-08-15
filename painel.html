@@ -525,7 +525,7 @@ document.getElementById('bAgenda').onclick = ()=> abrirAgendas();
 document.getElementById('busca').addEventListener('input', e=>{ busca=e.target.value.toLowerCase(); renderList(); });
 
 setView(VIEW);
-await loadEtapas(); await loadTravas(); await loadOrigens(); await loadRel();
+await loadEtapas(); await loadTravas(); await loadOrigens(); await loadRel(); await loadPlanos();
 await loadEquipe();
 await loadObras();
 subscribeRealtime();
@@ -569,6 +569,60 @@ function relStatus(o){
   return { obrig:x.obrig, feitos:x.feitos, assinado:x.assinado, completo:completo, ok:ok };
 }
 const TIPO_MAN={preventiva:['🛡️','Preventiva'],corretiva:['🔧','Corretiva'],diagnostico:['🔎','Diagnóstico']};
+let PLANOS=[];
+async function loadPlanos(){
+  const r=await sb.from('planos').select('codigo,nome,preco_anual,preco_mensal,nivel').eq('ativo',true).order('ordem');
+  PLANOS=r.data||[];
+}
+async function carregarPlano(obraId){
+  const box=document.getElementById('planoBox'); if(!box||!obraId) return;
+  const r=await sb.from('plano_contratos').select('*').eq('obra_id',obraId).eq('status','ativo')
+    .order('fim',{ascending:false}).limit(1).maybeSingle();
+  const c=r.data;
+  if(c){
+    const dias=Math.round((new Date(c.fim)-new Date())/864e5);
+    const p=PLANOS.find(x=>x.codigo===c.plano_codigo);
+    const cor = dias<0?'#e07070':(dias<=30?'#F5A623':'#58b868');
+    box.innerHTML='<div style="border:1px solid '+cor+';border-radius:9px;padding:10px 12px;font-size:12.5px">'+
+      '<b style="color:'+cor+'">'+esc(p?p.nome:c.plano_codigo)+'</b><br>'+
+      '<span style="color:#8fa6b8;font-weight:600">'+fmtD(c.inicio)+' a '+fmtD(c.fim)+' · '+
+      (dias<0?('venceu há '+Math.abs(dias)+' dias'):(dias+' dias restantes'))+
+      (c.valor?' · '+Number(c.valor).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):'')+'</span>'+
+      '<button type="button" class="tbtn" style="margin-top:8px" onclick="encerrarPlano(\''+c.id+'\')">Encerrar plano</button></div>';
+  } else {
+    let ops='<option value="">— Sem plano —</option>';
+    PLANOS.forEach(p=>{ ops+='<option value="'+esc(p.codigo)+'">'+esc(p.nome)+'</option>'; });
+    box.innerHTML='<div class="grid2" style="gap:8px">'+
+      '<select id="p_cod">'+ops+'</select>'+
+      '<select id="p_meses"><option value="12">12 meses</option><option value="6">6 meses</option>'+
+      '<option value="24">24 meses</option><option value="36">36 meses</option></select></div>'+
+      '<div class="grid2" style="gap:8px;margin-top:7px">'+
+      '<input id="p_inicio" type="date" value="'+new Date().toISOString().slice(0,10)+'">'+
+      '<input id="p_valor" type="number" step="0.01" inputmode="decimal" placeholder="Valor (R$)"></div>'+
+      '<button type="button" class="tbtn" style="margin-top:8px;width:100%" onclick="salvarPlano(\''+obraId+'\')">Vincular plano</button>';
+  }
+}
+async function salvarPlano(obraId){
+  const cod=document.getElementById('p_cod').value;
+  if(!cod){ toast('Escolha o plano'); return; }
+  const r=await sb.from('plano_contratos').insert({
+    obra_id:obraId, plano_codigo:cod,
+    inicio:document.getElementById('p_inicio').value,
+    meses:parseInt(document.getElementById('p_meses').value,10),
+    valor:parseFloat(document.getElementById('p_valor').value)||null,
+    forma:'anual'
+  });
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  toast('Plano vinculado ✓');
+  carregarPlano(obraId);
+}
+async function encerrarPlano(id){
+  if(!confirm('Encerrar este plano? Ele para de gerar avisos de vencimento.')) return;
+  const r=await sb.from('plano_contratos').update({status:'encerrado'}).eq('id',id);
+  if(r.error){ toast('Erro'); return; }
+  toast('Plano encerrado');
+  if(FORM_ID) carregarPlano(FORM_ID);
+}
 function tarjaMan(o){
   const t=TIPO_MAN[o.tipo_manutencao];
   let h='';
@@ -1296,12 +1350,15 @@ window.open(`https://wa.me/${fone}`,'_blank');
 }
 
 /* ---------- formulário (nova / editar) ---------- */
+let FORM_ID=null;
 function openForm(id, focoFone){
 const o = id ? getObra(id) : {};
 const novo = !id;
+FORM_ID = id || null;
 const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovForm';
 const _tr=o.trilha||'padrao'; const _etf=etapasDe(_tr);
-const etOpts=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===(o.etapa_numero??1)?'selected':''}>${n} - ${(_etf[n]?.nome||'').replace('!','')}</option>`).join('');
+const _nums=Object.keys(_etf).map(Number).filter(x=>!isNaN(x)).sort((a,b)=>a-b);
+const etOpts=(_nums.length?_nums:[0,1,2,3,4,5,6,7,8]).map(n=>`<option value="${n}" ${n===(o.etapa_numero??1)?'selected':''}>${n} - ${(_etf[n]?.nome||'').replace('!','')}</option>`).join('');
 const trOpts=TRILHAS.map(t=>`<option value="${t.codigo}" ${t.codigo===_tr?'selected':''}>${t.icone||''} ${esc(t.nome)}</option>`).join('');
 const catOpts=CATS.map(x=>`<option value="${x.codigo}" ${x.codigo===(o.categoria||'residencial')?'selected':''}>${x.icone||''} ${esc(x.nome)}</option>`).join('');
 const ramoOpts='<option value="">— selecione —</option>'+RAMOS.map(x=>`<option value="${x.codigo}" ${x.codigo===o.ramo?'selected':''}>${esc(x.nome)}</option>`).join('');
@@ -1349,6 +1406,9 @@ ${o.trilha==='manutencao'?`
 <div id="cpflAcao">${o.cpfl_avisado_em?'<div class="okAviso">✅ Cliente avisado no grupo em '+fmtD(o.cpfl_avisado_em)+'</div>':(o.cpfl_solicitado_em?'<div class="okAviso" style="color:#8fa6b8">Salve para avisar o cliente no grupo.</div>':'')}</div>
 </div>
 <div class="grid2">
+<div class="fld"><label>Plano de acompanhamento</label>
+<div id="planoBox">${o.id?'<div class="mut" style="font-size:11.5px;color:#8fa6b8">Carregando...</div>':'<div class="mut" style="font-size:11.5px;color:#8fa6b8">Salve a obra primeiro para vincular um plano.</div>'}</div>
+</div>
 <div class="fld"><label>Distância até a obra (km)</label><input id="f_km" type="number" inputmode="decimal" step="0.1" value="${o.distancia_km!=null?o.distancia_km:''}" placeholder="35"></div>
 </div>
 <div class="grid2">
@@ -1398,6 +1458,7 @@ ${o.trilha==='manutencao'?`
 document.body.appendChild(ov);
 ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
 if(focoFone) setTimeout(()=>document.getElementById('f_tel').focus(),50);
+if(id) setTimeout(()=>carregarPlano(id),60);
 window._dtiAntes = o.data_instalacao || null;
 window._instAntes = o.instalador_id || null;
 if(id) sb.rpc('is_admin').then(r=>{ const rd=document.getElementById('rowDel'); if(r.data&&rd) rd.style.display=''; });
