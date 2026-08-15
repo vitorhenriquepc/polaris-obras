@@ -557,7 +557,8 @@ async function loadRel(){
 }
 function relStatus(o){
   const x=REL[o.id];
-  if(!x || o.etapa_numero<7) return null;
+  // só obras ainda em andamento — depois de ativa, não polui mais o painel
+  if(!x || o.etapa_numero<6 || o.etapa_numero>=8) return null;
   const completo = x.feitos>=x.obrig, ok = completo && x.assinado;
   return { obrig:x.obrig, feitos:x.feitos, assinado:x.assinado, completo:completo, ok:ok };
 }
