@@ -151,11 +151,59 @@ async function boot(){
   NOTAS={}; (nq.data||[]).forEach(function(x){NOTAS[x.instalador]={nota:x.nota,obras:x.obras};});
   var nd=await sb.rpc('get_notas_detalhe',{p_dias:180});
   DETALHE=nd.data||null;
+  var og=await sb.rpc('get_metricas_origem',{p_ini:iv.ini,p_fim:iv.fim});
+  ORIG=og.data||null;
   if(r.error||!r.data){document.getElementById('app').innerHTML='<div class="center"><span class="i">🔒</span><b>Acesso restrito ao administrador.</b></div>';return;}
   render(r.data);
 }
 
-var NOTAS={}, DETALHE=null;
+var NOTAS={}, DETALHE=null, ORIG=null;
+function moeda(v){
+  var x=Number(v)||0;
+  if(Math.abs(x)>=1000) return 'R$ '+(x/1000).toFixed(1).replace('.',',')+'k';
+  return 'R$ '+x.toFixed(0);
+}
+function blocoOrigem(){
+  if(!ORIG || !n(ORIG.total)) return '';
+  var os=ORIG.origens||[], cs=ORIG.categorias||[];
+  var IC={trafego:'📣',indicacao:'🤝',retomada:'♻️',ativa:'📞',network:'🌐'};
+  var h='<h2>🎯 De onde vêm os clientes <small>no período</small></h2><div class="card">';
+
+  // barra de participação
+  var cores={indicacao:'#58b868',trafego:'#5a8fc4',network:'#c9a04a',ativa:'#a878c4',retomada:'#8fa6b8'};
+  h+='<div style="display:flex;height:14px;border-radius:8px;overflow:hidden;margin-bottom:14px">';
+  os.forEach(function(o){
+    h+='<div style="width:'+n(o.share)+'%;background:'+(cores[o.codigo]||'#8fa6b8')+'" title="'+esc(o.origem)+'"></div>';
+  });
+  h+='</div>';
+
+  h+='<table><tr><th>Origem</th><th class="num">Obras</th><th class="num">Share</th>'+
+     '<th class="num">Faturado</th><th class="num">Ticket</th><th class="num">Margem</th></tr>';
+  os.forEach(function(o){
+    var c=cores[o.codigo]||'#8fa6b8';
+    h+='<tr><td><b style="color:'+c+'">'+(IC[o.codigo]||'•')+' '+esc(o.origem)+'</b></td>'+
+      '<td class="num">'+o.obras+'</td>'+
+      '<td class="num">'+n(o.share).toFixed(0)+'%</td>'+
+      '<td class="num">'+moeda(o.faturado)+'</td>'+
+      '<td class="num">'+moeda(o.ticket)+'</td>'+
+      '<td class="num"><b>'+(n(o.mc_pct)*100).toFixed(1)+'%</b></td></tr>';
+  });
+  h+='</table>';
+  h+='<div style="font-size:11.5px;color:var(--muted);margin-top:8px">'+
+     'Margem é a contribuição depois de material, instalação, imposto e comissão — antes do custo fixo.</div>';
+
+  if(cs.length>1){
+    h+='<div style="margin-top:18px;font-size:11px;font-weight:800;letter-spacing:1px;'+
+       'text-transform:uppercase;color:var(--muted)">Por tipo de cliente</div>';
+    h+='<table style="margin-top:8px"><tr><th>Categoria</th><th class="num">Obras</th><th class="num">Faturado</th></tr>';
+    cs.forEach(function(c){
+      h+='<tr><td>'+esc(c.categoria)+'</td><td class="num">'+c.qtd+'</td>'+
+         '<td class="num">'+moeda(c.faturado)+'</td></tr>';
+    });
+    h+='</table>';
+  }
+  return h+'</div>';
+}
 function blocoQualidade(){
   var D=DETALHE;
   if(!D || !n(D.obras)) return '';
@@ -356,6 +404,7 @@ function render(M){
 
   /* EQUIPE */
   h+='<div class="grid2">';
+  h+=blocoOrigem();
   h+=blocoQualidade();
   h+='<div><h2>👷 Por instalador <small>no período</small></h2><div class="card">';
   var pi=M.por_instalador||[];
