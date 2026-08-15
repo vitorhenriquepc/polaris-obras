@@ -842,7 +842,7 @@ const o=getObra(id);
 if(!o||o.etapa_numero===n) return;
 await mudarEtapa(id,n);
 }
-let travaEdit=null, CPFL_ANTES=null;
+let travaEdit=null, CPFL_ANTES=null, DTI_ANTES=null;
 function fmtD(d){ if(!d) return ''; try{ const x=new Date(d);
   return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0'); }catch(e){ return ''; } }
 function prazoHtml(o){
@@ -896,6 +896,27 @@ async function vistoriaHoje(id){
   await loadObras();
 }
 
+async function avisarAgendamento(id){
+  const t=await sb.rpc('agendamento_texto',{p_obra:id});
+  if(t.error||!t.data||t.data.erro){
+    toast('Agendamento: '+((t.data&&t.data.erro)||'não foi possível avisar'));
+    return false;
+  }
+  const d=t.data;
+  try{
+    const { data:sess } = await sb.auth.getSession();
+    const r=await fetch(SUPABASE_URL+'/functions/v1/notificar-grupo',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+sess.session.access_token},
+      body:JSON.stringify({grupo_id:d.destino, message:d.texto})
+    });
+    const res=await r.json().catch(()=>({}));
+    if(!r.ok||res.error){ toast('Agendamento: erro ao avisar — '+(res.error||r.status)); return false; }
+  }catch(e){ toast('Agendamento: falha de conexão'); return false; }
+  toast('📣 '+d.cliente+' avisado do agendamento');
+  return true;
+}
+
 // dispara sozinho depois que a obra é salva com a data da CPFL
 async function avisarCpfl(id){
   const t=await sb.rpc('cpfl_texto',{p_obra:id});
@@ -921,6 +942,7 @@ async function avisarCpfl(id){
 function travaBotoes(o){
   travaEdit = o.trava||'';
   CPFL_ANTES = o.cpfl_solicitado_em||null;
+  DTI_ANTES = o.data_instalacao||null;
   let h=`<button type="button" class="tbtn livre ${!travaEdit?'on':''}" onclick="setTravaEdit('')">✅ Nada travando</button>`;
   for(const t of TRAVAS){
     h+=`<button type="button" class="tbtn ${travaEdit===t.codigo?'on':''}" onclick="setTravaEdit('${t.codigo}')">${t.icone||''} ${esc(t.nome.replace('Aguardando ',''))}</button>`;
@@ -1440,7 +1462,7 @@ ${o.trilha==='manutencao'?`
 </div>
 <div class="fld"><label>Inversor(es)</label><input id="f_inv" value="${esc(o.inversor_descricao||'')}" placeholder="2x Huawei 6kW"></div>
 <div class="grid2">
-<div class="fld"><label>Data instalação (agenda)</label><input id="f_dti" type="date" value="${o.data_instalacao||''}"></div>
+<div class="fld"><label>${o.trilha==='manutencao'?'Data do atendimento (agenda) 📣':'Data instalação (agenda)'}</label><input id="f_dti" type="date" value="${o.data_instalacao||''}"></div>
 <div class="fld"><label>Instalador</label><select id="f_inst">${instOpts}</select></div>
 </div>
 <div class="grid2">
@@ -1510,6 +1532,14 @@ rec.slug = await slugUnico(slugify(cli));
 }
 if(error){ toast('Erro: '+error.message); document.getElementById('f_save').textContent='Salvar'; return; }
 
+// Manutenção: agendou ou remarcou -> confirma com o cliente
+if(id && rec.trilha==='manutencao'){
+  const dNovo = document.getElementById('f_dti').value||null;
+  if(dNovo && dNovo !== DTI_ANTES){
+    document.getElementById('f_save').textContent='Avisando o cliente...';
+    await avisarAgendamento(id);
+  }
+}
 // CPFL: se a data foi preenchida ou mudou nesta gravação, avisa o cliente sozinho
 if(id){
   const cpflNovo = document.getElementById('f_cpfl') ? (document.getElementById('f_cpfl').value||null) : null;
