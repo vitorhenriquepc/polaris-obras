@@ -677,12 +677,12 @@ h+='<div class="kcard '+(n===8?'fim':(late?'late':''))+(o.trava?(travaCritica(o)
  +(o.data_instalacao?'<span>📅 '+o.data_instalacao.split('-').reverse().slice(0,2).join('/')+'</span>':'')
  +(o.aceite_em?'<span>✍️</span>':'')+'</div>'
  +tarjaTravaK(o)
- +(o.cpfl_prazo_em?'<div class="kcpfl'+(cpflVenceu(o)?' venceu':'')+'">⚡ Vistoria CPFL até '+fmtD(o.cpfl_prazo_em)+(cpflVenceu(o)?' · venceu':'')+'</div>':'')
+ +((o.cpfl_prazo_em&&o.etapa_numero<8)?'<div class="kcpfl'+(cpflVenceu(o)?' venceu':'')+'">⚡ Vistoria CPFL até '+fmtD(o.cpfl_prazo_em)+(cpflVenceu(o)?' · venceu':'')+'</div>':'')
  +'<div class="kacts">'
  +'<button onclick="event.stopPropagation();enviarWA(\''+o.id+'\')" title="Mensagem ao cliente">💬</button>'
  +(o.whatsapp_grupo_id?'<button onclick="event.stopPropagation();notificarGrupo(\''+o.id+'\')" title="Avisar no grupo">📣</button>':'')
  +'<button onclick="event.stopPropagation();abrirRelatorio(\''+o.id+'\')" title="Relatório">📄</button>'
-+((o.etapa_numero>=7&&!o.cpfl_solicitado_em&&o.whatsapp_grupo_id)?'<button class="bvist" onclick="event.stopPropagation();vistoriaHoje(\''+o.id+'\')" title="Marcar vistoria da CPFL como solicitada hoje">⚡</button>':'')
++((o.etapa_numero===7&&!o.cpfl_solicitado_em&&o.whatsapp_grupo_id)?'<button class="bvist" onclick="event.stopPropagation();vistoriaHoje(\''+o.id+'\')" title="Marcar vistoria da CPFL como solicitada hoje">⚡</button>':'')
 +((o.etapa_numero>=8&&!o.nps_enviado_em)?'<button onclick="event.stopPropagation();pedirAvaliacao(\''+o.id+'\')" title="Pesquisa de satisfação">⭐</button>':'')
 +((IPTU_ATIVO&&o.etapa_numero>=8&&!o.iptu_avisado_em&&(CIDIPTU[o.cidade]||{}).tem_programa==='sim')?'<button onclick="event.stopPropagation();avisarIPTU(\''+o.id+'\')" title="IPTU Sustentável">🏛️</button>':'')
  +'<button onclick="event.stopPropagation();copiarLinkInst(\''+o.id+'\')" title="Link do instalador">🔧</button>'
@@ -1245,9 +1245,9 @@ ov.innerHTML=`<div class="modal">
 <div class="travasel" id="travaSel">${travaBotoes(o)}</div>
 <input id="f_travaobs" value="${esc(o.trava_obs||'')}" placeholder="Observação (opcional): protocolo, nome do contato..." style="margin-top:7px">
 </div>
-<div class="fld"><label>Vistoria da CPFL solicitada em</label>
+<div class="fld" ${o.etapa_numero>=8?'style="opacity:.55"':''}><label>Vistoria da CPFL solicitada em ${o.etapa_numero>=8?'<span style="color:#58b868;font-weight:700">· sistema já ativo</span>':''}</label>
 <div class="grid2" style="gap:8px">
-<input id="f_cpfl" type="date" value="${o.cpfl_solicitado_em||''}" onchange="previaCpfl()">
+<input id="f_cpfl" type="date" value="${o.cpfl_solicitado_em||''}" onchange="previaCpfl()" ${o.etapa_numero>=8?'disabled':''}>
 <div id="cpflPrazo" class="cpflbox">${o.cpfl_prazo_em?prazoHtml(o):'<span class="mut">Preencha a data e o prazo é calculado em 5 dias úteis.</span>'}</div>
 </div>
 <div id="cpflAcao">${o.cpfl_avisado_em?'<div class="okAviso">✅ Cliente avisado no grupo em '+fmtD(o.cpfl_avisado_em)+'</div>':(o.cpfl_solicitado_em?'<div class="okAviso" style="color:#8fa6b8">Salve para avisar o cliente no grupo.</div>':'')}</div>
