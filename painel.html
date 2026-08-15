@@ -900,7 +900,7 @@ async function vistoriaHoje(id){
   await loadObras();
 }
 
-async function avisarAgendamento(id){
+async function avisarAgendamentoManutencao(id){
   const t=await sb.rpc('agendamento_texto',{p_obra:id});
   if(t.error||!t.data||t.data.erro){
     toast('Agendamento: '+((t.data&&t.data.erro)||'não foi possível avisar'));
@@ -1578,7 +1578,7 @@ if(id && rec.trilha==='manutencao'){
   const dNovo = document.getElementById('f_dti').value||null;
   if(dNovo && dNovo !== DTI_ANTES){
     document.getElementById('f_save').textContent='Avisando o cliente...';
-    await avisarAgendamento(id);
+    await avisarAgendamentoManutencao(id);
   }
 }
 // CPFL: se a data foi preenchida ou mudou nesta gravação, avisa o cliente sozinho
