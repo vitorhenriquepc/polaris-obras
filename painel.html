@@ -525,7 +525,6 @@ root.innerHTML = `
 <button class="btn-equipe" id="bAgenda" title="Links de agenda das equipes">📅</button>
 <button class="btn-equipe" id="bEquipe" title="Gerenciar equipe">👥</button>
 <button class="btn-new" id="bNew">+ Nova obra</button>
-<button class="btn-new" id="bNewMan" style="background:#2C5F7C;border-color:#2C5F7C">🔧 Manutenção</button>
 </div>
 <div class="list" id="list"><div class="spinner"></div></div>
 </div>`;
@@ -535,8 +534,7 @@ aplicarTema(temaAtual());
 document.getElementById('bUsers').onclick = ()=> location.href='usuarios.html';
 sb.rpc('is_admin').then(r=>{ if(r.data){ document.getElementById('bUsers').style.display=''; const bm=document.getElementById('bMet'); bm.style.display=''; bm.onclick=()=>location.href='metricas.html'; } });
 document.getElementById('bNew').onclick = ()=> openForm(null);
-const _bm=document.getElementById('bNewMan');
-if(_bm) _bm.onclick = ()=> openForm(null, false, 'manutencao');
+
 document.getElementById('bEquipe').onclick = ()=> openEquipe();
 document.getElementById('bAgenda').onclick = ()=> abrirAgendas();
 document.getElementById('busca').addEventListener('input', e=>{ busca=e.target.value.toLowerCase(); renderList(); });
@@ -1524,7 +1522,9 @@ function buscarCadastrado(){
   toast('Dados de '+c.cliente+' copiados ✓');
 }
 function openForm(id, focoFone, trilhaNova){
-const o = id ? getObra(id) : (trilhaNova?{trilha:trilhaNova, etapa_numero:0}:{});
+// obra nova nasce na trilha que está aberta no kanban
+const _tn = trilhaNova || (VIEW==='kanban' ? KTR : 'padrao');
+const o = id ? getObra(id) : {trilha:_tn, etapa_numero:(_tn==='manutencao'?0:1)};
 const novo = !id;
 FORM_ID = id || null;
 const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovForm';
