@@ -347,6 +347,17 @@ font-size:12px;font-weight:700;color:#e07070}
 .chip.semorig .n{color:#F5A623}
 .chip.trava{border-color:rgba(224,112,112,.5)}
 .chip.trava .n{color:#e07070}
+.bloco{border:1px solid rgba(255,255,255,.10);border-radius:11px;margin:11px 0;overflow:hidden}
+.bloco>summary{list-style:none;cursor:pointer;padding:11px 13px;display:flex;align-items:center;
+gap:9px;font-size:13px;font-weight:800;color:#c9d6e2;background:rgba(255,255,255,.03)}
+.bloco>summary::-webkit-details-marker{display:none}
+.bloco>summary:hover{background:rgba(255,255,255,.06)}
+.bloco>summary .seta{margin-left:auto;font-size:10px;color:#8fa6b8;transition:.15s}
+.bloco[open]>summary .seta{transform:rotate(90deg)}
+.bloco>summary .qt{font-size:10.5px;font-weight:700;color:#8fa6b8;
+background:rgba(255,255,255,.07);border-radius:20px;padding:2px 8px}
+.bloco>summary .pt{width:7px;height:7px;border-radius:50%;background:#58b868;flex-shrink:0}
+.blocoIn{padding:6px 13px 13px}
 .travasel{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .kman{margin-top:6px;margin-right:4px;font-size:10.5px;font-weight:800;color:#8fa6b8;
 background:rgba(143,166,184,.12);border:1px solid rgba(143,166,184,.28);
@@ -831,7 +842,7 @@ if(!obs.length) h+='<div class="kempty">—</div>';
 obs.forEach(function(o){
 const d=diasObra(o);
 const late=(d!=null&&d>60&&n<nEt), warn=(d!=null&&d>30&&d<=60&&n<nEt);
-h+='<div class="kcard '+(n===nEt?'fim':(late?'late':''))+(o.trava?(travaCritica(o)?' trvcrit':' trv'):'')+(relPendente(o)?' relpend':'')+'" draggable="true" data-id="'+o.id+'" ondragstart="kStart(event,this)" ondragend="kEnd(this)">'
+h+='<div class="kcard '+(n===nEt?'fim':(late?'late':''))+(o.trava?(travaCritica(o)?' trvcrit':' trv'):'')+(relPendente(o)?' relpend':'')+'" draggable="true" style="cursor:pointer" onclick="if(!window.__arr&&!event.target.closest(\'button,a\'))openForm(\''+o.id+'\')" data-id="'+o.id+'" ondragstart="kStart(event,this)" ondragend="kEnd(this)">'
  +'<div class="kn">'+esc(o.cliente)+'</div>'
  +'<div class="km">'+(o.contrato?'<span>#'+esc(o.contrato)+'</span>':'')
  +(o.potencia_kwp?'<span>'+esc(String(o.potencia_kwp).replace('.',','))+' kWp</span>':'')
@@ -858,8 +869,8 @@ h+='</div>';
 el.innerHTML=h;
 }
 let kDragId=null;
-function kStart(ev,el){kDragId=el.dataset.id;el.classList.add('drag');ev.dataTransfer.effectAllowed='move';try{ev.dataTransfer.setData('text/plain',kDragId)}catch(_){}}
-function kEnd(el){el.classList.remove('drag');document.querySelectorAll('.kcol.over').forEach(c=>c.classList.remove('over'));}
+function kStart(ev,el){window.__arr=true;kDragId=el.dataset.id;el.classList.add('drag');ev.dataTransfer.effectAllowed='move';try{ev.dataTransfer.setData('text/plain',kDragId)}catch(_){}}
+function kEnd(el){setTimeout(function(){window.__arr=false;},150);el.classList.remove('drag');document.querySelectorAll('.kcol.over').forEach(c=>c.classList.remove('over'));}
 function kOver(ev,col){ev.preventDefault();col.classList.add('over');}
 function kLeave(col){col.classList.remove('over');}
 async function kDrop(ev,col){
@@ -1011,7 +1022,7 @@ metaBits.push('atualizado '+diasAtras(o.atualizado_em));
 if(o.observacoes) metaBits.push('📝 '+esc(o.observacoes));
 const _et=etapasDe(o.trilha);
 const opts=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===o.etapa_numero?'selected':''}>${(_et[n]?.icone||'')} ${n} - ${esc((_et[n]?.nome||'').replace('!',''))}</option>`).join('');
-return `<div class="obra" data-id="${o.id}">
+return `<div class="obra" data-id="${o.id}" style="cursor:pointer" onclick="if(!event.target.closest('.act,button,a'))openForm('${o.id}')">
 <div class="top">
 <div>
 <div class="nm">${esc(o.cliente)}</div>
@@ -1539,6 +1550,15 @@ ov.innerHTML=`<div class="modal">
 <div class="fld"><label>Potência (kWp)</label><input id="f_pot" value="${o.potencia_kwp!=null?String(o.potencia_kwp).replace('.',','):''}" placeholder="8,54"></div>
 <div class="fld"><label>Origem do lead</label><select id="f_org">${origOpts}</select></div>
 </div>
+<div class="grid2">
+<div class="fld"><label>Etapa</label><select id="f_et">${etOpts}</select></div>
+<div class="fld"><label>Data fechamento</label><input id="f_dtf" type="date" value="${o.data_fechamento||''}"></div>
+</div>
+<div class="grid2">
+<div class="fld"><label>Data conclusão</label><input id="f_dtc" type="date" value="${o.data_conclusao||''}"></div>
+<div class="fld"><label>Observações</label><input id="f_obs" value="${esc(o.observacoes||'')}" placeholder="opcional"></div>
+</div>
+<div class="grid2">
 ${o.trilha==='manutencao'?`
 <div class="grid2">
 <div class="fld"><label>Tipo de manutenção</label><select id="f_tipoman">
@@ -1566,21 +1586,27 @@ ${o.trilha==='manutencao'?`
 </div>
 <div id="cpflAcao">${o.cpfl_avisado_em?'<div class="okAviso">✅ Cliente avisado no grupo em '+fmtD(o.cpfl_avisado_em)+'</div>':(o.cpfl_solicitado_em?'<div class="okAviso" style="color:#8fa6b8">Salve para avisar o cliente no grupo.</div>':'')}</div>
 </div>
+<details class="bloco" ${o.data_instalacao?'open':''}>
+<summary>📅 Agenda e equipe ${o.data_instalacao||o.instalador_id?'<span class="pt"></span>':''}<span class="qt">5 campos</span><span class="seta">▶</span></summary>
+<div class="blocoIn">
 <div class="grid2">
-<div class="fld"><label>Plano de acompanhamento</label>
-<div id="planoBox">${o.id?'<div class="mut" style="font-size:11.5px;color:#8fa6b8">Carregando...</div>':'<div class="mut" style="font-size:11.5px;color:#8fa6b8">Salve a obra primeiro para vincular um plano.</div>'}</div>
-</div>
-<div class="fld"><label>Distância até a obra (km)</label><input id="f_km" type="number" inputmode="decimal" step="0.1" value="${o.distancia_km!=null?o.distancia_km:''}" placeholder="35"></div>
-</div>
-<div class="grid2">
-<div class="fld"><label>Etapa</label><select id="f_et">${etOpts}</select></div>
-<div class="fld"><label>Data fechamento</label><input id="f_dtf" type="date" value="${o.data_fechamento||''}"></div>
-</div>
-<div class="grid2">
-<div class="fld"><label>Data conclusão</label><input id="f_dtc" type="date" value="${o.data_conclusao||''}"></div>
-<div class="fld"><label>Observações</label><input id="f_obs" value="${esc(o.observacoes||'')}" placeholder="opcional"></div>
+<div class="fld"><label>${o.trilha==='manutencao'?'Início do atendimento 📣':'Data instalação (agenda)'}</label><input id="f_dti" type="date" value="${o.data_instalacao||''}" onchange="calcDias()"></div>
+<div class="fld"><label>Término previsto <span id="difDias" style="color:#8fa6b8;font-weight:600"></span></label>
+<input id="f_dfim" type="date" value="${o.data_fim||''}" onchange="calcDias()">
+<div style="font-size:10.5px;color:#8fa6b8;margin-top:4px">Deixe vazio se for de um dia só.</div></div>
+<div class="fld"><label>Instalador</label><select id="f_inst">${instOpts}</select></div>
 </div>
 <div class="grid2">
+<div class="fld"><label>Vendedor</label><select id="f_vend">${vendOpts}</select></div>
+<div class="fld"><label>ID do grupo WhatsApp</label><input id="f_grp" value="${esc(o.whatsapp_grupo_id||'')}" placeholder="cole se o grupo já existe"></div>
+</div>
+<div class="row">
+<button class="cancel" onclick="document.getElementById('ovForm').remove()">Cancelar</button>
+
+</div></details>
+<details class="bloco">
+<summary>📍 Local e projeto ${o.cidade||o.endereco||o.tipo_telhado?'<span class="pt"></span>':''}<span class="qt">7 campos</span><span class="seta">▶</span></summary>
+<div class="blocoIn">
 <div class="fld"><label>Tipo de projeto</label><select id="f_trilha" onchange="trocarTrilha(this.value)">${trOpts}</select></div>
 <div class="row">
 <div class="fld"><label>Categoria</label><select id="f_cat" onchange="trocarCat(this.value)">${catOpts}</select></div>
@@ -1595,24 +1621,29 @@ ${o.trilha==='manutencao'?`
 </div></div>
 </div>
 <div class="fld"><label>Endereço da obra</label><input id="f_end" value="${esc(o.endereco||'')}" placeholder="Rua, número, bairro, cidade - SP"></div>
+
+</div></details>
+<details class="bloco">
+<summary>⚙️ Dados técnicos ${o.qtd_modulos||o.modelo_modulo||o.inversor_descricao?'<span class="pt"></span>':''}<span class="qt">3 campos</span><span class="seta">▶</span></summary>
+<div class="blocoIn">
 <div class="grid2">
 <div class="fld"><label>Qtd. módulos</label><input id="f_qtm" value="${o.qtd_modulos||''}" placeholder="28"></div>
 <div class="fld"><label>Modelo do módulo</label><input id="f_mdm" value="${esc(o.modelo_modulo||'')}" placeholder="ERA RC66HD 620W"></div>
 </div>
 <div class="fld"><label>Inversor(es)</label><input id="f_inv" value="${esc(o.inversor_descricao||'')}" placeholder="2x Huawei 6kW"></div>
+
+</div></details>
+<details class="bloco">
+<summary>💚 Plano e distância ${o.distancia_km?'<span class="pt"></span>':''}<span class="qt">2 campos</span><span class="seta">▶</span></summary>
+<div class="blocoIn">
 <div class="grid2">
-<div class="fld"><label>${o.trilha==='manutencao'?'Início do atendimento 📣':'Data instalação (agenda)'}</label><input id="f_dti" type="date" value="${o.data_instalacao||''}" onchange="calcDias()"></div>
-<div class="fld"><label>Término previsto <span id="difDias" style="color:#8fa6b8;font-weight:600"></span></label>
-<input id="f_dfim" type="date" value="${o.data_fim||''}" onchange="calcDias()">
-<div style="font-size:10.5px;color:#8fa6b8;margin-top:4px">Deixe vazio se for de um dia só.</div></div>
-<div class="fld"><label>Instalador</label><select id="f_inst">${instOpts}</select></div>
+<div class="fld"><label>Plano de acompanhamento</label>
+<div id="planoBox">${o.id?'<div class="mut" style="font-size:11.5px;color:#8fa6b8">Carregando...</div>':'<div class="mut" style="font-size:11.5px;color:#8fa6b8">Salve a obra primeiro para vincular um plano.</div>'}</div>
 </div>
-<div class="grid2">
-<div class="fld"><label>Vendedor</label><select id="f_vend">${vendOpts}</select></div>
-<div class="fld"><label>ID do grupo WhatsApp</label><input id="f_grp" value="${esc(o.whatsapp_grupo_id||'')}" placeholder="cole se o grupo já existe"></div>
+<div class="fld"><label>Distância até a obra (km)</label><input id="f_km" type="number" inputmode="decimal" step="0.1" value="${o.distancia_km!=null?o.distancia_km:''}" placeholder="35"></div>
 </div>
-<div class="row">
-<button class="cancel" onclick="document.getElementById('ovForm').remove()">Cancelar</button>
+
+</div></details>
 <button class="save" id="f_save">${novo?'Criar obra':'Salvar'}</button>
 </div>
 <div class="row" id="rowDel" style="display:none">
