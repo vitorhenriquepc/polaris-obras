@@ -429,8 +429,31 @@ var AVAL={pode:false,itens:{}}, VID=0;
 function tocarVideo(box,url){
   if(box.dataset.on) return;
   box.dataset.on='1';
-  box.innerHTML='<video src="'+url+'" controls autoplay playsinline preload="auto" '
+  box.innerHTML='<video id="vp'+box.id+'" src="'+url+'" controls autoplay playsinline preload="auto" '
     +'style="width:100%;height:100%;object-fit:cover;background:#000"></video>';
+  var v=box.querySelector('video');
+  // Alguns celulares gravam em HEVC: o áudio toca, a imagem fica preta.
+  // Se o vídeo não reportar largura, oferece abrir no player do aparelho.
+  function semImagem(){
+    if(box.dataset.aviso) return;
+    box.dataset.aviso='1';
+    try{ v.pause(); }catch(e){}
+    box.innerHTML='<div class="vcapa" style="padding:16px;text-align:center">'
+      +'<div style="font-size:26px">📼</div>'
+      +'<div style="font-size:12.5px;font-weight:800;color:#e8c07a;line-height:1.45">'
+      +'Este navegador não consegue exibir<br>a imagem deste vídeo</div>'
+      +'<a href="'+url+'" target="_blank" rel="noopener" '
+      +'style="background:var(--gold);color:#0B2437;text-decoration:none;font-weight:800;'
+      +'font-size:12.5px;border-radius:9px;padding:9px 16px;margin-top:4px">Abrir no aparelho</a>'
+      +'<div style="font-size:10.5px;color:#8fa6b8">O arquivo está salvo e íntegro</div></div>';
+  }
+  v.addEventListener('loadeddata', function(){
+    if(!v.videoWidth || !v.videoHeight) semImagem();
+  });
+  v.addEventListener('error', semImagem);
+  setTimeout(function(){
+    if(v.readyState>=2 && (!v.videoWidth || !v.videoHeight)) semImagem();
+  }, 3500);
 }
 function blocoAvalia(it){
   if(!AVAL.pode) return '';
