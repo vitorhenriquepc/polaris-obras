@@ -223,6 +223,14 @@ padding:9px 11px;font-family:inherit;font-size:13px;resize:vertical;min-height:5
 .notaSelo{display:inline-flex;align-items:center;gap:7px;background:#FFF8E6;
 border:1.5px solid var(--gold);border-radius:30px;padding:6px 15px;font-size:13px;
 font-weight:800;color:#8a6400;margin-top:10px}
+.ph.vid{position:relative;background:#0d1b26;cursor:pointer}
+.vcapa{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+justify-content:center;gap:9px;background:linear-gradient(135deg,#12283a,#0a1622)}
+.vcapa .vplay{position:static;width:52px;height:52px;border-radius:50%;
+background:rgba(245,166,35,.92);color:#0B2437;display:flex;align-items:center;
+justify-content:center;font-size:21px;padding-left:3px}
+.vcapa .vtxt{font-size:12px;font-weight:700;color:#9DB2C4;letter-spacing:.3px}
+.ph.vid:hover .vcapa .vplay{transform:scale(1.06)}
 </style>
 </head>
 <body>
@@ -412,7 +420,13 @@ function render(){
   document.querySelectorAll('.rv').forEach(function(el){io.observe(el)});
 }
 
-var AVAL={pode:false,itens:{}};
+var AVAL={pode:false,itens:{}}, VID=0;
+function tocarVideo(box,url){
+  if(box.dataset.on) return;
+  box.dataset.on='1';
+  box.innerHTML='<video src="'+url+'" controls autoplay playsinline preload="auto" '
+    +'style="width:100%;height:100%;object-fit:cover;background:#000"></video>';
+}
 function blocoAvalia(it){
   if(!AVAL.pode) return '';
   var a=AVAL.itens[it.id]||{}, e=Number(a.estrelas||0);
@@ -462,9 +476,11 @@ function atualizaSelo(){
 }
 function midiaHtml(f,cap){
   if(f.tipo==='video'){
-    return '<div class="ph vid" onclick="window.open(\''+esc(f.url)+'\',\'_blank\')">'
-      +'<span class="vbadge">VÍDEO</span><video src="'+esc(f.url)+'" preload="metadata" muted playsinline></video>'
-      +'<div class="vplay">▶</div></div>';
+    // vídeo de obra costuma ter dezenas de MB: não pré-carrega, abre sob demanda
+    return '<div class="ph vid" id="v'+(++VID)+'" onclick="tocarVideo(this,\''+esc(f.url)+'\')">'
+      +'<span class="vbadge">VÍDEO</span>'
+      +'<div class="vcapa"><div class="vplay">▶</div>'
+      +'<div class="vtxt">Toque para assistir</div></div></div>';
   }
   var idx=GAL.length; GAL.push({url:f.url,cap:cap||''});
   return '<div class="ph" onclick="abrirLb('+idx+')"><img src="'+esc(f.url)+'" loading="lazy" alt="'+esc(cap||'')+'"></div>';
