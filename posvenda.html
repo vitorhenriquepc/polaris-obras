@@ -692,18 +692,28 @@ async function confirmarGoogle(v){
   var r=await sb.rpc('marcar_avaliou_google',{p_voucher:v});
   if(r.error||(r.data&&r.data.erro)){toast('Erro: '+((r.data&&r.data.erro)||r.error.message));return;}
   toast('Avaliação confirmada');
-  var b=BRINDES.find(function(x){return x.voucher===v;});
-  if(b) b.avaliou_google_em=new Date().toISOString();
-  document.getElementById('brbox').innerHTML=renderBrindes();
+  await recarregarTudo();
 }
 async function entregarBrinde(v){
   if(!confirm('Confirmar a entrega do brinde '+v+'?'))return;
   var r=await sb.rpc('marcar_brinde_entregue',{p_voucher:v});
   if(r.error||(r.data&&r.data.erro)){toast('Erro: '+((r.data&&r.data.erro)||r.error.message));return;}
   toast('Brinde entregue');
-  var b=BRINDES.find(function(x){return x.voucher===v;});
-  if(b) b.entregue_em=new Date().toISOString();
-  document.getElementById('brbox').innerHTML=renderBrindes();
+  await recarregarTudo();
+}
+// Recarrega tudo e redesenha a visão aberta.
+// Antes, cada ação atualizava só um cache e o resto ficava velho.
+async function recarregarTudo(){
+  try{
+    const [a,b]=await Promise.all([
+      sb.rpc('get_posvenda_lista'),
+      sb.rpc('get_kanban_posvenda')
+    ]);
+    if(a && a.data) DADOS=a.data;
+    if(b && b.data) KB=b.data;
+  }catch(e){}
+  TRAJ=null; TCEL=null; BRINDES=[]; RG=null;   // força releitura das outras abas
+  render();
 }
 function setVisao(v){VISAO=v;try{localStorage.setItem('polaris-pv-visao',v)}catch(e){}render();}
 function renderJornada(){
@@ -1048,9 +1058,8 @@ async function tratar(id,obraId){
   const r=await sb.rpc('marcar_resposta_lida',{p_id:id});
   if(r.error||(r.data&&r.data.erro)){toast('Não foi possível marcar');return;}
   toast('Marcada como tratada ✓');
+  await recarregarTudo();
   await abrirFicha(obraId);
-  const nova=await sb.rpc('get_posvenda_lista');
-  if(nova.data){DADOS=nova.data;}
 }
 
 
@@ -1081,6 +1090,7 @@ async function salvarAniversario(id){
   const r=await sb.rpc('definir_aniversario',{p_obra:id,p_dia:d,p_mes:m});
   if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
   toast('Aniversário salvo ✓');
+  await recarregarTudo();
   await abrirFicha(id);
 }
 async function limparAniversario(id){
@@ -1088,6 +1098,7 @@ async function limparAniversario(id){
   const r=await sb.rpc('definir_aniversario',{p_obra:id,p_dia:null,p_mes:null});
   if(r.error){ toast('Erro'); return; }
   toast('Data removida');
+  await recarregarTudo();
   await abrirFicha(id);
 }
 function formNPS(id, notaAtual){
@@ -1133,9 +1144,8 @@ async function salvarNPS(id){
   });
   if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
   toast('Registro salvo ✓');
+  await recarregarTudo();
   await abrirFicha(id);
-  const nova=await sb.rpc('get_posvenda_lista'); if(nova.data) DADOS=nova.data;
-  const k=await sb.rpc('get_kanban_posvenda'); if(k.data) KB=k.data;
 }
 
 function formGeracao(id){
@@ -1359,7 +1369,7 @@ async function ligarRegua(v){
   const r=await sb.from('config').update({valor:v?'1':'0'}).eq('chave','regua_ativa');
   if(r.error){ toast('Erro ao salvar'); return; }
   toast(v?'Régua ativada ✅':'Régua pausada');
-  carregarRegua();
+  await recarregarTudo();
 }
 async function previaRegua(id){
   const el=document.getElementById('pv'+id);
@@ -1375,20 +1385,20 @@ async function enviarRegua(id, cliente){
   const r=await sb.functions.invoke('regua-disparo',{body:{contato_id:id}});
   if(r.error||(r.data&&r.data.error)){ toast('Erro: '+((r.data&&r.data.error)||r.error.message)); return; }
   toast('Enviado ✓');
-  carregarRegua();
+  await recarregarTudo();
 }
 async function adiarRegua(id){
   const r=await sb.rpc('regua_adiar',{p_id:id,p_dias:7});
   if(r.error||(r.data&&r.data.erro)){ toast((r.data&&r.data.erro)||'Erro ao adiar'); return; }
   toast('Adiado por 7 dias');
-  carregarRegua();
+  await recarregarTudo();
 }
 async function cancelarRegua(id){
   if(!confirm('Cancelar este contato?\n\nEle não será enviado a este cliente.')) return;
   const r=await sb.rpc('regua_cancelar',{p_id:id});
   if(r.error){ toast('Erro'); return; }
   toast('Contato cancelado');
-  carregarRegua();
+  await recarregarTudo();
 }
 
 
