@@ -450,10 +450,32 @@ function thumbHtml(f){
   return '<div class="thumb"><img src="'+esc(f.url)+'" loading="lazy"><button class="x" onclick="delFoto('+f.id+')">✕</button></div>';
 }
 function pickVideo(id){var el=document.getElementById('vid'+id); if(el) el.click();}
+function testarVideo(file){
+  return new Promise(function(res){
+    var url=URL.createObjectURL(file);
+    var v=document.createElement('video');
+    var fim=false;
+    function acaba(ok){ if(fim)return; fim=true; URL.revokeObjectURL(url); res(ok); }
+    v.preload='metadata'; v.muted=true; v.playsInline=true;
+    v.onloadeddata=function(){ acaba(!!(v.videoWidth && v.videoHeight)); };
+    v.onerror=function(){ acaba(false); };
+    setTimeout(function(){ acaba(!!(v.videoWidth && v.videoHeight)); }, 4000);
+    v.src=url;
+  });
+}
 async function uploadVideo(itemId,inp,apId){
   var file=inp.files[0]; inp.value=''; if(!file)return;
   if(!file.type.startsWith('video/')){toast('Selecione um arquivo de vídeo.');return;}
   if(file.size>60*1024*1024){toast('Vídeo muito grande (máx 60MB). Grave um clipe mais curto.');return;}
+  // Testa se o vídeo abre no navegador. iPhone grava em HEVC por padrão,
+  // e esse formato fica sem imagem no relatório (só o áudio toca).
+  var compat = await testarVideo(file);
+  if(!compat){
+    if(!confirm('⚠️ Este vídeo pode não abrir no relatório.\n\n'
+      +'Provavelmente foi gravado em HEVC. Para resolver de vez, no iPhone:\n'
+      +'Ajustes › Câmera › Formatos › "Mais Compatível".\n\n'
+      +'Enviar mesmo assim?')) return;
+  }
   var alvo=document.getElementById(apId?('apth'+apId):('th'+itemId));
   if(!alvo){toast('Erro ao localizar o item.');return;}
   var ph=document.createElement('div');ph.className='thumb up';
