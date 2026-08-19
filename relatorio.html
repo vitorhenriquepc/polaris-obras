@@ -236,10 +236,48 @@ background:rgba(245,166,35,.92);color:#0B2437;display:flex;align-items:center;
 justify-content:center;font-size:21px;padding-left:3px}
 .vcapa .vtxt{font-size:12px;font-weight:700;color:#9DB2C4;letter-spacing:.3px}
 .ph.vid:hover .vcapa .vplay{transform:scale(1.06)}
+.edbar{position:fixed;left:14px;bottom:14px;z-index:60;background:var(--navy);color:#fff;
+border:none;border-radius:30px;padding:11px 18px;font-family:inherit;font-size:13px;
+font-weight:800;cursor:pointer;box-shadow:0 6px 22px rgba(0,0,0,.28);display:none;gap:7px;align-items:center}
+.edbar.on{display:inline-flex}
+.edov{position:fixed;inset:0;background:rgba(8,20,30,.72);z-index:70;display:none;
+align-items:flex-end;justify-content:center;padding:0}
+.edov.on{display:flex}
+.edbox{background:#fff;width:100%;max-width:660px;max-height:92vh;overflow-y:auto;
+border-radius:18px 18px 0 0;padding:0 0 20px}
+@media(min-width:700px){.edov{align-items:center}.edbox{border-radius:18px}}
+.edhd{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);
+padding:16px 20px;display:flex;align-items:center;gap:10px;z-index:2}
+.edhd b{font-size:16px;font-weight:800;flex:1}
+.edhd button{background:#eef3f7;border:none;border-radius:9px;width:32px;height:32px;
+font-size:15px;cursor:pointer;font-family:inherit;color:#4a6076}
+.edin{padding:14px 20px}
+.edit{border:1.5px solid var(--line);border-radius:12px;padding:12px 13px;margin-bottom:10px;background:#fff}
+.edit.off{opacity:.5;background:#fafafa}
+.edit .l1{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.edit .num{font-size:11px;font-weight:800;color:var(--mut);min-width:20px}
+.edit .arq{font-size:10.5px;font-weight:700;color:var(--mut);background:#eef3f7;
+border-radius:20px;padding:2px 8px;white-space:nowrap}
+.edit .mv{margin-left:auto;display:flex;gap:4px}
+.edit .mv button,.edit .tg{background:#eef3f7;border:none;border-radius:7px;width:28px;height:28px;
+font-size:12px;cursor:pointer;font-family:inherit;color:#4a6076}
+.edit .tg.on{background:#dff0e2;color:#2d7a3f}
+.edit input{width:100%;border:1.5px solid var(--line);border-radius:9px;padding:8px 11px;
+font-family:inherit;font-size:13.5px;margin-bottom:6px;color:var(--ink)}
+.edit input.d{font-size:12px;color:#4a6076}
+.edit input::placeholder{color:#a8b6c2}
+.edsv{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);
+padding:13px 20px;display:flex;gap:9px}
+.edsv button{flex:1;border:none;border-radius:11px;padding:13px;font-family:inherit;
+font-size:14px;font-weight:800;cursor:pointer}
+.edsv .ok{background:var(--navy);color:#fff}
+.edsv .no{background:#eef3f7;color:#4a6076;flex:0 0 110px}
 </style>
 </head>
 <body>
 <div id="root"><div class="center">⏳ Preparando seu relatório...</div></div>
+<button class="edbar" id="edBtn" onclick="abrirEditor()">✏️ Editar seções</button>
+<div class="edov" id="edOv"><div class="edbox" id="edBox"></div></div>
 
 <script>
 var SUPABASE_URL='https://dakubhcgohiwzyqiegqf.supabase.co';
@@ -278,7 +316,10 @@ async function boot(){
     var sess=await sb.auth.getSession();
     if(sess.data.session && OBRA_ID){
       var av=await sb.rpc('get_avaliacoes',{p_obra:OBRA_ID});
-      if(av.data){ AVAL.pode=!!av.data.pode_avaliar; AVAL.itens=av.data.itens||{}; }
+      if(av.data){
+        AVAL.pode=!!av.data.pode_avaliar; AVAL.itens=av.data.itens||{};
+        if(AVAL.pode){ var eb=document.getElementById('edBtn'); if(eb) eb.classList.add('on'); }
+      }
     }
   }catch(e){}
   render();
@@ -425,7 +466,69 @@ function render(){
   document.querySelectorAll('.rv').forEach(function(el){io.observe(el)});
 }
 
-var AVAL={pode:false,itens:{}}, VID=0;
+var AVAL={pode:false,itens:{}}, VID=0, SEC=[];
+
+async function abrirEditor(){
+  var box=document.getElementById('edBox');
+  document.getElementById('edOv').classList.add('on');
+  box.innerHTML='<div class="edin"><div class="center">Carregando...</div></div>';
+  var r=await sb.rpc('get_secoes_relatorio',{p_obra:OBRA_ID});
+  if(r.error||!r.data){ box.innerHTML='<div class="edin">Não foi possível carregar.</div>'; return; }
+  SEC=r.data.map(function(x,i){ return {
+    id:x.id, padrao:x.titulo_padrao, dpadrao:x.descricao_padrao,
+    titulo:x.titulo||'', descricao:x.descricao||'',
+    oculto:!!x.oculto, arquivos:Number(x.arquivos||0)
+  };});
+  desenhaEditor();
+}
+function fecharEditor(){ document.getElementById('edOv').classList.remove('on'); }
+
+function desenhaEditor(){
+  var h='<div class="edhd"><b>Seções do relatório</b>'
+    +'<button onclick="fecharEditor()">✕</button></div><div class="edin">';
+  var pos=0;
+  SEC.forEach(function(x,i){
+    if(!x.oculto) pos++;
+    h+='<div class="edit'+(x.oculto?' off':'')+'">'
+      +'<div class="l1">'
+      +'<span class="num">'+(x.oculto?'—':String(pos).padStart(2,'0'))+'</span>'
+      +'<button class="tg'+(x.oculto?'':' on')+'" onclick="alternar('+i+')" '
+      +'title="'+(x.oculto?'Mostrar':'Ocultar')+'">'+(x.oculto?'🚫':'👁')+'</button>'
+      +'<span class="arq">'+(x.arquivos?x.arquivos+(x.arquivos>1?' arquivos':' arquivo'):'vazia')+'</span>'
+      +'<span class="mv">'
+      +'<button onclick="mover('+i+',-1)" '+(i===0?'disabled':'')+'>↑</button>'
+      +'<button onclick="mover('+i+',1)" '+(i===SEC.length-1?'disabled':'')+'>↓</button>'
+      +'</span></div>'
+      +'<input value="'+esc(x.titulo)+'" placeholder="'+esc(x.padrao)+'" '
+      +'oninput="SEC['+i+'].titulo=this.value">'
+      +'<input class="d" value="'+esc(x.descricao)+'" placeholder="'+esc(x.dpadrao||'')+'" '
+      +'oninput="SEC['+i+'].descricao=this.value">'
+      +'</div>';
+  });
+  h+='<div style="font-size:12px;color:var(--mut);line-height:1.5;margin-top:4px">'
+    +'Deixe em branco para usar o texto padrão. Seções ocultas não aparecem para o cliente, '
+    +'mas as fotos continuam salvas.</div></div>'
+    +'<div class="edsv"><button class="no" onclick="fecharEditor()">Cancelar</button>'
+    +'<button class="ok" id="edOk" onclick="salvarSecoes()">Salvar</button></div>';
+  document.getElementById('edBox').innerHTML=h;
+}
+function alternar(i){ SEC[i].oculto=!SEC[i].oculto; desenhaEditor(); }
+function mover(i,d){
+  var j=i+d; if(j<0||j>=SEC.length) return;
+  var t=SEC[i]; SEC[i]=SEC[j]; SEC[j]=t; desenhaEditor();
+}
+async function salvarSecoes(){
+  var b=document.getElementById('edOk'); b.disabled=true; b.textContent='Salvando...';
+  var payload=SEC.map(function(x,i){ return {
+    item_id:x.id, titulo:x.titulo||null, descricao:x.descricao||null,
+    oculto:!!x.oculto, ordem:i+1 }; });
+  var r=await sb.rpc('salvar_secoes_relatorio',{p_obra:OBRA_ID, p_itens:payload});
+  if(r.error||(r.data&&r.data.erro)){
+    alert('Erro: '+((r.data&&r.data.erro)||r.error.message));
+    b.disabled=false; b.textContent='Salvar'; return;
+  }
+  location.reload();
+}
 function tocarVideo(box,url){
   if(box.dataset.on) return;
   box.dataset.on='1';
