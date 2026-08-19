@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Início · Polaris</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+--navy:#011D2E; --green:#3B8B3B; --green-l:#58b868; --gold:#F5A623; --red:#e07070;
+--bg:#0a1622; --card:#0f2233; --card2:#13293c;
+--border:#1d3850; --txt:#eaf2f8; --muted:#8fa6b8;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--txt);font-family:Manrope,system-ui,sans-serif;
+padding:0 0 40px;line-height:1.5}
+.wrap{max-width:640px;margin:0 auto;padding:0 16px}
+
+header{padding:20px 0 14px}
+.hi{font-size:23px;font-weight:800;letter-spacing:-.4px}
+.hoje{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:3px}
+
+nav{display:flex;gap:7px;margin:16px 0 20px;overflow-x:auto;padding-bottom:2px}
+nav a{flex-shrink:0;background:var(--card);border:1px solid var(--border);color:var(--muted);
+border-radius:11px;padding:9px 15px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}
+nav a:hover{border-color:var(--gold);color:var(--txt)}
+nav a.on{background:var(--card2);border-color:var(--gold);color:var(--txt)}
+
+.hero{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:19px 20px;margin-bottom:9px}
+.hero .lb{font-size:10.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+.hero .big{font-size:31px;font-weight:800;margin-top:7px;line-height:1;letter-spacing:-1px}
+.hero .sub{font-size:13px;color:var(--muted);font-weight:600;margin-top:6px}
+.hero.alerta{border-color:rgba(245,166,35,.45)}
+.aviso{display:flex;gap:8px;align-items:flex-start;background:rgba(245,166,35,.10);
+border:1px solid rgba(245,166,35,.30);border-radius:11px;padding:11px 13px;margin-top:12px;
+font-size:12.5px;line-height:1.5;color:#e8c07a}
+.aviso b{color:var(--gold)}
+
+.sec{margin:22px 0 9px;font-size:10.5px;font-weight:800;letter-spacing:1.3px;
+text-transform:uppercase;color:var(--muted)}
+
+.item{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);
+border-radius:13px;padding:14px 15px;margin-bottom:8px;width:100%;text-align:left;
+font-family:inherit;color:var(--txt);cursor:pointer;transition:.14s;min-height:56px}
+.item:hover{border-color:var(--gold);transform:translateX(2px)}
+.item .ic{font-size:20px;flex-shrink:0;width:24px;text-align:center}
+.item .cn{flex:1;min-width:0}
+.item .cn b{display:block;font-size:14.5px;font-weight:700;line-height:1.3}
+.item .cn span{display:block;font-size:12px;color:var(--muted);font-weight:600;margin-top:2px}
+.item .ar{color:var(--muted);font-size:17px;flex-shrink:0}
+.item.crit{border-left:3px solid var(--red)}
+.item.crit .cn b{color:#f0a0a0}
+.item.warn{border-left:3px solid var(--gold)}
+
+.zen{background:var(--card);border:1px solid rgba(88,184,104,.30);border-radius:14px;
+padding:26px 20px;text-align:center;margin-top:8px}
+.zen .em{font-size:34px}
+.zen b{display:block;font-size:16px;font-weight:800;margin-top:9px}
+.zen span{display:block;font-size:13px;color:var(--muted);margin-top:5px}
+
+.load{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px}
+.spin{width:26px;height:26px;border:2.5px solid var(--border);border-top-color:var(--gold);
+border-radius:50%;animation:g .8s linear infinite;margin:0 auto 12px}
+@keyframes g{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head>
+<body>
+<div class="wrap"><div id="app"><div class="load"><div class="spin"></div>Carregando...</div></div></div>
+
+<script>
+const SB=supabase.createClient("https://dakubhcgohiwzyqiegqf.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRha3ViaGNnb2hpd3p5cWllZ3FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMjExMTIsImV4cCI6MjA5Nzc5NzExMn0.Vdgp6B0TBVOSz-NT5vka9jXCdIT0iNhu1dbmvhLbWQ0");
+const el=document.getElementById('app');
+const n=v=>{const x=Number(v);return isNaN(x)?0:x;};
+const esc=s=>String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+const brl=v=>'R$ '+n(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+
+function item(icone,titulo,sub,destino,classe){
+  return '<button class="item '+(classe||'')+'" onclick="location.href=\''+destino+'\'">'
+    +'<span class="ic">'+icone+'</span>'
+    +'<span class="cn"><b>'+titulo+'</b>'+(sub?'<span>'+sub+'</span>':'')+'</span>'
+    +'<span class="ar">›</span></button>';
+}
+function plural(q,s,p){ return q+' '+(q===1?s:p); }
+
+function nav(atual){
+  const abas=[['inicio.html','🏠 Início'],['painel.html','🏗️ Obras'],
+              ['posvenda.html','💚 Pós-venda'],['financeiro.html','💰 Financeiro'],
+              ['metricas.html','📊 Métricas']];
+  return '<nav>'+abas.map(a=>'<a href="'+a[0]+'" class="'+(a[0]===atual?'on':'')+'">'+a[1]+'</a>').join('')+'</nav>';
+}
+
+function saudacao(){
+  const h=new Date().getHours();
+  return h<12?'Bom dia':(h<18?'Boa tarde':'Boa noite');
+}
+function dataHoje(){
+  return new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+}
+
+function render(D){
+  const nivel=D.nivel||'vendedor';
+  const primeiro=(D.nome||'').split(' ')[0];
+  let h='<header><div class="hi">'+saudacao()+(primeiro?', '+esc(primeiro):'')+'.</div>'
+       +'<div class="hoje">'+dataHoje()+'</div></header>'+nav('inicio.html');
+
+  const M=D.mes||{}, inc=D.meses_incompletos||[];
+  const trav=(D.travadas||[]).filter(t=>t.critica);
+  const travTodas=D.travadas||[];
+  const rel=(D.relatorios||[]).filter(r=>n(r.feitos)<n(r.obrig)||!r.assinado);
+  const pend=[];
+
+  // ===== HERO por perfil =====
+  if(nivel==='admin'||nivel==='financeiro'){
+    const incompleto=n(M.manuais)===0 && n(M.receita)>0;
+    h+='<div class="hero'+(incompleto?' alerta':'')+'">'
+      +'<div class="lb">'+esc(M.label||'')+'</div>'
+      +'<div class="big">'+brl(M.receita)+'</div>'
+      +'<div class="sub">'+plural(n(M.obras),'obra entregue','obras entregues')
+      +' · '+brl(M.estrutura)+' de estrutura</div>';
+    if(incompleto){
+      h+='<div class="aviso"><span>⚠️</span><span><b>Resultado não confiável.</b> '
+        +'Nenhuma despesa lançada neste mês — o lucro aparece maior do que é.</span></div>';
+    }
+    h+='</div>';
+  } else {
+    const hoje=n(D.regua_hoje);
+    h+='<div class="hero'+(hoje?' alerta':'')+'">'
+      +'<div class="lb">Hoje</div>'
+      +'<div class="big">'+(hoje?hoje:'✓')+'</div>'
+      +'<div class="sub">'+(hoje?plural(hoje,'mensagem para enviar','mensagens para enviar')
+        :'Nada para enviar na régua')+'</div></div>';
+  }
+
+  // ===== PENDÊNCIAS por perfil =====
+  if(nivel==='admin'){
+    trav.forEach(t=>pend.push(item(t.icone||'⏸', esc(t.cliente),
+      esc(t.motivo)+' · há '+plural(n(t.dias),'dia','dias'),'painel.html','crit')));
+    if(n(D.a_lancar)) pend.push(item('🏗️',plural(n(D.a_lancar),'obra aguardando lançamento','obras aguardando lançamento'),
+      'Sem isso o resultado do mês fica incompleto','financeiro.html','warn'));
+    if(n(D.respostas)) pend.push(item('💬',plural(n(D.respostas),'resposta de cliente','respostas de cliente'),
+      'Sem tratar no pós-venda','posvenda.html'));
+    if(inc.length) pend.push(item('📅',plural(inc.length,'mês sem despesa','meses sem despesa'),
+      inc.map(x=>x.mes).join(' · '),'financeiro.html','warn'));
+    rel.forEach(r=>pend.push(item('📋','Relatório incompleto — '+esc(r.cliente),
+      n(r.feitos)+'/'+n(r.obrig)+' itens'+(r.assinado?'':' · sem assinatura'),'painel.html')));
+
+  } else if(nivel==='financeiro'){
+    if(inc.length) pend.push(item('📅',plural(inc.length,'mês para lançar','meses para lançar'),
+      inc.map(x=>x.mes).join(' · '),'financeiro.html','warn'));
+    if(n(D.a_lancar)) pend.push(item('🏗️',plural(n(D.a_lancar),'obra aguardando lançamento','obras aguardando lançamento'),
+      'Preço, custos e parcelas','financeiro.html','warn'));
+    const pa=D.parcelas_atrasadas||{};
+    if(n(pa.qtd)) pend.push(item('⚠️',plural(n(pa.qtd),'parcela atrasada','parcelas atrasadas'),
+      brl(pa.valor)+' a receber','financeiro.html','crit'));
+
+  } else {
+    if(n(D.respostas)) pend.push(item('💬',plural(n(D.respostas),'resposta de cliente','respostas de cliente'),
+      'Aguardando tratamento','posvenda.html','warn'));
+    if(n(D.brindes)) pend.push(item('🥤',plural(n(D.brindes),'brinde para entregar','brindes para entregar'),
+      'Confira a avaliação no Google antes','posvenda.html'));
+    rel.forEach(r=>pend.push(item('📋','Relatório incompleto — '+esc(r.cliente),
+      n(r.feitos)+'/'+n(r.obrig)+' itens'+(r.assinado?'':' · sem assinatura'),'painel.html')));
+    if(n(D.aniversarios)) pend.push(item('🎂',plural(n(D.aniversarios),'aniversário esta semana','aniversários esta semana'),
+      'O sistema envia sozinho às 9h','posvenda.html'));
+  }
+
+  if(pend.length){
+    h+='<div class="sec">'+(nivel==='admin'?'Precisa de você':'Para hoje')+'</div>'+pend.join('');
+  } else {
+    h+='<div class="zen"><div class="em">☀️</div><b>Nada pendente por aqui.</b>'
+      +'<span>Tudo em dia. Bom trabalho.</span></div>';
+  }
+
+  // ===== EM ANDAMENTO =====
+  const ag=D.agenda||[];
+  const outros=[];
+  if(ag.length) outros.push(item('📅',plural(ag.length,'serviço nos próximos 7 dias','serviços nos próximos 7 dias'),
+    ag.slice(0,2).map(a=>esc(a.cliente)+(n(a.dias)===0?' hoje':(n(a.dias)===1?' amanhã':' em '+n(a.dias)+'d'))).join(' · '),
+    'painel.html'));
+  if(travTodas.length>trav.length) outros.push(item('⏸',
+    plural(travTodas.length-trav.length,'obra travada','obras travadas'),'Ainda dentro do prazo','painel.html'));
+  if(n(D.planos_vencendo)) outros.push(item('💚',
+    plural(n(D.planos_vencendo),'plano vence em 60 dias','planos vencem em 60 dias'),
+    'O cliente é avisado automaticamente','posvenda.html'));
+
+  if(outros.length) h+='<div class="sec">Em andamento</div>'+outros.join('');
+
+  el.innerHTML=h;
+}
+
+(async function(){
+  const s=await SB.auth.getSession();
+  if(!s.data.session){ location.href='painel.html'; return; }
+  const r=await SB.rpc('get_inicio');
+  if(r.error||!r.data){
+    el.innerHTML='<div class="load">Não foi possível carregar.<br><br>'
+      +'<a href="painel.html" style="color:var(--gold)">Ir para as obras</a></div>';
+    return;
+  }
+  render(r.data);
+})();
+</script>
+</body></html>
