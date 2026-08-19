@@ -1266,8 +1266,14 @@ await loadObras();
 function trocarCat(v){ const f=document.getElementById('fldRamo'); if(f) f.style.display=(v==='comercial')?'':'none'; }
 function trocarTrilha(tr){
 const sel=document.getElementById('f_et'); if(!sel) return;
-const m=etapasDe(tr), atual=parseInt(sel.value,10)||0;
-sel.innerHTML=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===atual?'selected':''}>${n} - ${((m[n]||{}).nome||'').replace('!','')}</option>`).join('');
+const m=etapasDe(tr);
+// só as etapas que existem nesta trilha
+const nums=Object.keys(m).map(Number).filter(x=>!isNaN(x)).sort((a,b)=>a-b);
+const lista=nums.length?nums:[0,1,2,3,4,5,6,7,8];
+let atual=parseInt(sel.value,10); if(isNaN(atual)) atual=lista[0];
+// se a etapa atual não existe na trilha nova, cai na mais próxima válida
+if(lista.indexOf(atual)<0) atual=lista.reduce((a,b)=>Math.abs(b-atual)<Math.abs(a-atual)?b:a, lista[0]);
+sel.innerHTML=lista.map(n=>`<option value="${n}" ${n===atual?'selected':''}>${n} - ${((m[n]||{}).nome||'').replace('!','')}</option>`).join('');
 }
 function dataBRs(iso){ if(!iso) return ''; const p=String(iso).split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 function fichaTexto(o){
