@@ -1206,8 +1206,8 @@ while((mv=reV.exec(flat))!==null) vals.push({t:mv[1], v:parseFloat(mv[1].replace
 if(vals.length){ vals.sort((a,b)=>b.v-a.v); if(vals[0].v>=1000) valorProp=vals[0].t; }
 
 if(valorProp){
-  const ob=document.getElementById('f_obs');
-  if(ob && !/Proposta:/.test(ob.value)) ob.value=(ob.value?ob.value+' · ':'')+'Proposta: R$ '+valorProp;
+  const fv=document.getElementById('f_valor');
+  if(fv && !fv.value){ fv.value=valorProp.replace(/\./g,'').replace(',','.'); n++; }
 }
 toast(n?('📎 '+n+' campo(s) importados'+(valorProp?' · proposta R$ '+valorProp:'')+' — confira antes de salvar!'):'Não achei os dados no PDF — preencha manualmente');
 }catch(e){toast('Erro ao ler PDF: '+e.message);}
@@ -1521,7 +1521,7 @@ function buscarCadastrado(){
   set('f_cli',c.cliente); set('f_tel',c.telefone); set('f_end',c.endereco);
   set('f_pot',c.potencia_kwp!=null?String(c.potencia_kwp).replace('.',','):'');
   set('f_qtm',c.qtd_modulos); set('f_grp',c.whatsapp_grupo_id);
-  set('f_km',c.distancia_km); set('f_cidade',c.cidade);
+  set('f_km',c.distancia_km); set('f_cidade',c.cidade); set('f_valor',c.valor_projeto);
   set('f_mdm',c.modelo_modulo); set('f_inv',c.inversor_descricao);
   const sel=(id,v)=>{const e=document.getElementById(id); if(e&&v) e.value=v;};
   sel('f_org',c.origem_lead); sel('f_est',c.tipo_telhado);
@@ -1674,6 +1674,7 @@ data_conclusao:document.getElementById('f_dtc').value||null,
 observacoes:document.getElementById('f_obs').value.trim()||null,
 vendedor_id:document.getElementById('f_vend').value||null,
 origem_lead:document.getElementById('f_org').value||null,
+valor_projeto:parseFloat((document.getElementById('f_valor')||{}).value)||null,
 tipo_manutencao:(document.getElementById('f_tipoman')||{}).value||null,
 cliente_externo:((document.getElementById('f_ext')||{}).value==='1'),
 sistema_origem:(document.getElementById('f_sisorig')||{}).value||null,
