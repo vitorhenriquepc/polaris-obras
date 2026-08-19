@@ -1219,7 +1219,7 @@ if(conf!=='EXCLUIR'){ toast('Exclusão cancelada'); return; }
 toast('Excluindo obra...');
 const r=await sb.functions.invoke('deletar-obra',{body:{obra_id:id}});
 if(r.error||(r.data&&r.data.error)){ toast('Erro: '+((r.data&&r.data.error)||r.error.message)); return; }
-const ov=document.getElementById('ovForm'); if(ov) ov.remove();
+fecharForm();
 toast('Obra excluída ✓');
 await loadObras();
 }
@@ -1488,6 +1488,13 @@ window.open(`https://wa.me/${fone}`,'_blank');
 
 /* ---------- formulário (nova / editar) ---------- */
 let FORM_ID=null;
+function fecharForm(){
+  const ov=document.getElementById('ovForm');
+  if(ov) ov.remove();
+  document.removeEventListener('keydown', escFecha);
+  FORM_ID=null;
+}
+function escFecha(e){ if(e.key==='Escape') fecharForm(); }
 function calcDias(){
   const el=document.getElementById('difDias'); if(!el) return;
   const i=document.getElementById('f_dti').value, f=(document.getElementById('f_dfim')||{}).value;
@@ -1528,6 +1535,8 @@ const o = id ? getObra(id) : {trilha:_tn, etapa_numero:(_tn==='manutencao'?0:1)}
 const novo = !id;
 FORM_ID = id || null;
 const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovForm';
+ov.addEventListener('click', function(ev){ if(ev.target===ov) fecharForm(); });
+document.addEventListener('keydown', escFecha);
 const _tr=o.trilha||'padrao'; const _etf=etapasDe(_tr);
 const _nums=Object.keys(_etf).map(Number).filter(x=>!isNaN(x)).sort((a,b)=>a-b);
 const etOpts=(_nums.length?_nums:[0,1,2,3,4,5,6,7,8]).map(n=>`<option value="${n}" ${n===(o.etapa_numero??1)?'selected':''}>${n} - ${(_etf[n]?.nome||'').replace('!','')}</option>`).join('');
@@ -1538,7 +1547,12 @@ const instOpts='<option value="">— Instalador —</option>'+EQUIPE.filter(p=>p
 const origOpts='<option value="">— Como chegou? —</option>'+ORIGENS.map(x=>`<option value="${x.codigo}" ${x.codigo===o.origem_lead?'selected':''}>${esc(x.nome)}</option>`).join('');
 const vendOpts='<option value="">— Vendedor —</option>'+EQUIPE.filter(p=>(p.papel==='Vendedor'||p.vende)&&p.ativo!==false).map(p=>`<option value="${p.id}" ${p.id===o.vendedor_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 ov.innerHTML=`<div class="modal">
-<h2>${novo?'Nova obra':'Editar obra'}</h2>
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+<button type="button" onclick="fecharForm()" title="Voltar (Esc)"
+ style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#c9d6e2;
+ width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;flex-shrink:0;font-family:inherit">←</button>
+<h2 style="margin:0">${novo?'Nova obra':'Editar obra'}</h2>
+</div>
 <button class="act act-gh" style="margin:-4px 0 12px" onclick="importarProposta()">📎 Importar proposta (PDF)</button>
 <input type="file" id="f_pdf" accept="application/pdf" style="display:none" onchange="lerProposta(this)">
 <div class="fld"><label>Cliente * <button type="button" class="tbtn" style="margin-left:6px;padding:3px 9px;font-size:10.5px" onclick="buscarCadastrado()">👥 Puxar cadastro</button></label><input id="f_cli" value="${esc(o.cliente||'')}" placeholder="Nome do cliente"></div>
@@ -1547,18 +1561,14 @@ ov.innerHTML=`<div class="modal">
 <div class="fld"><label>Contrato</label><input id="f_con" value="${esc(o.contrato||'')}" placeholder="4147"></div>
 </div>
 <div class="grid2">
+<div class="fld"><label>Valor do projeto (R$)</label><input id="f_valor" type="number" step="0.01" inputmode="decimal" value="${o.valor_projeto!=null?o.valor_projeto:''}" placeholder="13000,00"></div>
 <div class="fld"><label>Potência (kWp)</label><input id="f_pot" value="${o.potencia_kwp!=null?String(o.potencia_kwp).replace('.',','):''}" placeholder="8,54"></div>
+</div>
+<div class="grid2">
+<div class="fld"><label>Vendedor</label><select id="f_vend">${vendOpts}</select></div>
 <div class="fld"><label>Origem do lead</label><select id="f_org">${origOpts}</select></div>
 </div>
-<div class="grid2">
 <div class="fld"><label>Etapa</label><select id="f_et">${etOpts}</select></div>
-<div class="fld"><label>Data fechamento</label><input id="f_dtf" type="date" value="${o.data_fechamento||''}"></div>
-</div>
-<div class="grid2">
-<div class="fld"><label>Data conclusão</label><input id="f_dtc" type="date" value="${o.data_conclusao||''}"></div>
-<div class="fld"><label>Observações</label><input id="f_obs" value="${esc(o.observacoes||'')}" placeholder="opcional"></div>
-</div>
-<div class="grid2">
 ${o.trilha==='manutencao'?`
 <div class="grid2">
 <div class="fld"><label>Tipo de manutenção</label><select id="f_tipoman">
@@ -1586,42 +1596,42 @@ ${o.trilha==='manutencao'?`
 </div>
 <div id="cpflAcao">${o.cpfl_avisado_em?'<div class="okAviso">✅ Cliente avisado no grupo em '+fmtD(o.cpfl_avisado_em)+'</div>':(o.cpfl_solicitado_em?'<div class="okAviso" style="color:#8fa6b8">Salve para avisar o cliente no grupo.</div>':'')}</div>
 </div>
+<div class="fld"><label>Observações</label><input id="f_obs" value="${esc(o.observacoes||'')}" placeholder="opcional"></div>
 <details class="bloco" ${o.data_instalacao?'open':''}>
-<summary>📅 Agenda e equipe ${o.data_instalacao||o.instalador_id?'<span class="pt"></span>':''}<span class="qt">5 campos</span><span class="seta">▶</span></summary>
+<summary>📅 Agenda e equipe ${o.data_instalacao||o.instalador_id?'<span class="pt"></span>':''}<span class="qt">6 campos</span><span class="seta">▶</span></summary>
 <div class="blocoIn">
 <div class="grid2">
 <div class="fld"><label>${o.trilha==='manutencao'?'Início do atendimento 📣':'Data instalação (agenda)'}</label><input id="f_dti" type="date" value="${o.data_instalacao||''}" onchange="calcDias()"></div>
 <div class="fld"><label>Término previsto <span id="difDias" style="color:#8fa6b8;font-weight:600"></span></label>
 <input id="f_dfim" type="date" value="${o.data_fim||''}" onchange="calcDias()">
 <div style="font-size:10.5px;color:#8fa6b8;margin-top:4px">Deixe vazio se for de um dia só.</div></div>
+</div>
 <div class="fld"><label>Instalador</label><select id="f_inst">${instOpts}</select></div>
-</div>
 <div class="grid2">
-<div class="fld"><label>Vendedor</label><select id="f_vend">${vendOpts}</select></div>
-<div class="fld"><label>ID do grupo WhatsApp</label><input id="f_grp" value="${esc(o.whatsapp_grupo_id||'')}" placeholder="cole se o grupo já existe"></div>
+<div class="fld"><label>Data fechamento</label><input id="f_dtf" type="date" value="${o.data_fechamento||''}"></div>
+<div class="fld"><label>Data conclusão</label><input id="f_dtc" type="date" value="${o.data_conclusao||''}"></div>
 </div>
-<div class="row">
-<button class="cancel" onclick="document.getElementById('ovForm').remove()">Cancelar</button>
-
+<div class="fld"><label>ID do grupo WhatsApp</label><input id="f_grp" value="${esc(o.whatsapp_grupo_id||'')}" placeholder="cole se o grupo já existe"></div>
 </div></details>
 <details class="bloco">
-<summary>📍 Local e projeto ${o.cidade||o.endereco||o.tipo_telhado?'<span class="pt"></span>':''}<span class="qt">7 campos</span><span class="seta">▶</span></summary>
+<summary>📍 Local e projeto ${o.cidade||o.endereco||o.tipo_telhado?'<span class="pt"></span>':''}<span class="qt">8 campos</span><span class="seta">▶</span></summary>
 <div class="blocoIn">
 <div class="fld"><label>Tipo de projeto</label><select id="f_trilha" onchange="trocarTrilha(this.value)">${trOpts}</select></div>
-<div class="row">
+<div class="grid2">
 <div class="fld"><label>Categoria</label><select id="f_cat" onchange="trocarCat(this.value)">${catOpts}</select></div>
 <div class="fld" id="fldRamo" style="${(o.categoria==='comercial')?'':'display:none'}"><label>Ramo</label><select id="f_ramo">${ramoOpts}</select></div>
 </div>
 <div class="fld"><label>Cidade</label><input id="f_cidade" list="lstCidades" value="${esc(o.cidade||'')}" placeholder="Araçatuba">
 <datalist id="lstCidades">${Object.keys(CIDIPTU).map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div>
+<div class="grid2">
 <div class="fld"><label>Tipo de telhado</label><select id="f_tel2">${['','Cerâmico','Metálico','Fibrocimento','Laje','Solo','Outro'].map(t=>`<option value="${t}" ${t===(o.tipo_telhado||'')?'selected':''}>${t||'— Telhado —'}</option>`).join('')}</select></div>
+<div class="fld"><label>Distância até a obra (km)</label><input id="f_km" type="number" inputmode="decimal" step="0.1" value="${o.distancia_km!=null?o.distancia_km:''}" placeholder="35"></div>
+</div>
+<div class="fld"><label>Endereço da obra</label><input id="f_end" value="${esc(o.endereco||'')}" placeholder="Rua, número, bairro, cidade - SP"></div>
 <div class="fld"><label>Incluso no serviço</label><div style="display:flex;gap:14px;padding:11px 2px">
 <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--txt);cursor:pointer"><input type="checkbox" id="f_est" ${o.tem_estrutura?'checked':''} style="width:16px;height:16px"> Estrutura</label>
 <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--txt);cursor:pointer"><input type="checkbox" id="f_cab" ${o.tem_cabo?'checked':''} style="width:16px;height:16px"> Cabo</label>
 </div></div>
-</div>
-<div class="fld"><label>Endereço da obra</label><input id="f_end" value="${esc(o.endereco||'')}" placeholder="Rua, número, bairro, cidade - SP"></div>
-
 </div></details>
 <details class="bloco">
 <summary>⚙️ Dados técnicos ${o.qtd_modulos||o.modelo_modulo||o.inversor_descricao?'<span class="pt"></span>':''}<span class="qt">3 campos</span><span class="seta">▶</span></summary>
@@ -1631,19 +1641,9 @@ ${o.trilha==='manutencao'?`
 <div class="fld"><label>Modelo do módulo</label><input id="f_mdm" value="${esc(o.modelo_modulo||'')}" placeholder="ERA RC66HD 620W"></div>
 </div>
 <div class="fld"><label>Inversor(es)</label><input id="f_inv" value="${esc(o.inversor_descricao||'')}" placeholder="2x Huawei 6kW"></div>
-
 </div></details>
-<details class="bloco">
-<summary>💚 Plano e distância ${o.distancia_km?'<span class="pt"></span>':''}<span class="qt">2 campos</span><span class="seta">▶</span></summary>
-<div class="blocoIn">
-<div class="grid2">
-<div class="fld"><label>Plano de acompanhamento</label>
-<div id="planoBox">${o.id?'<div class="mut" style="font-size:11.5px;color:#8fa6b8">Carregando...</div>':'<div class="mut" style="font-size:11.5px;color:#8fa6b8">Salve a obra primeiro para vincular um plano.</div>'}</div>
-</div>
-<div class="fld"><label>Distância até a obra (km)</label><input id="f_km" type="number" inputmode="decimal" step="0.1" value="${o.distancia_km!=null?o.distancia_km:''}" placeholder="35"></div>
-</div>
-
-</div></details>
+<div class="row">
+<button class="cancel" onclick="fecharForm()">Cancelar</button>
 <button class="save" id="f_save">${novo?'Criar obra':'Salvar'}</button>
 </div>
 <div class="row" id="rowDel" style="display:none">
@@ -1722,7 +1722,7 @@ if(id){
     await avisarCpfl(id);
   }
 }
-document.getElementById('ovForm').remove();
+fecharForm();
 toast(id?'Obra salva ✓':'Obra criada ✓');
 const dtiDepois = rec.data_instalacao || null;
 const dtiAntes = window._dtiAntes || null;
