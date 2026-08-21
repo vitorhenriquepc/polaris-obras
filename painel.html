@@ -856,7 +856,7 @@ h+='<div class="kcard '+(n===nEt?'fim':(late?'late':''))+(o.trava?(travaCritica(
  +'<button onclick="event.stopPropagation();enviarWA(\''+o.id+'\')" title="Mensagem ao cliente">💬</button>'
  +(o.whatsapp_grupo_id?'<button onclick="event.stopPropagation();notificarGrupo(\''+o.id+'\')" title="Avisar no grupo">📣</button>':'')
  +'<button onclick="event.stopPropagation();abrirRelatorio(\''+o.id+'\')" title="Relatório">📄</button>'
-+((o.trilha!=='manutencao'&&o.etapa_numero===7&&!o.cpfl_solicitado_em&&o.whatsapp_grupo_id)?'<button class="bvist" onclick="event.stopPropagation();vistoriaHoje(\''+o.id+'\')" title="Marcar vistoria da CPFL como solicitada hoje">⚡</button>':'')
+
 +((o.etapa_numero>=8&&!o.nps_enviado_em)?'<button onclick="event.stopPropagation();pedirAvaliacao(\''+o.id+'\')" title="Pesquisa de satisfação">⭐</button>':'')
 +((IPTU_ATIVO&&o.etapa_numero>=8&&!o.iptu_avisado_em&&(CIDIPTU[o.cidade]||{}).tem_programa==='sim')?'<button onclick="event.stopPropagation();avisarIPTU(\''+o.id+'\')" title="IPTU Sustentável">🏛️</button>':'')
  +'<button onclick="event.stopPropagation();copiarLinkInst(\''+o.id+'\')" title="Link do instalador">🔧</button>'
@@ -917,45 +917,6 @@ function cpflVenceu(o){
   const p=parseDate(o.cpfl_prazo_em); if(!p) return false;
   return diffDays(new Date(),p) < 0;
 }
-// botão ⚡ no card: usa a data de hoje, calcula o prazo e avisa o cliente
-async function vistoriaHoje(id){
-  const o=getObra(id); if(!o) return;
-  const hoje=new Date().toISOString().slice(0,10);
-  const r=await sb.rpc('soma_dias_uteis',{p_inicio:hoje,p_dias:5});
-  if(r.error||!r.data){ toast('Não consegui calcular o prazo'); return; }
-  const prazo=r.data;
-  const sem=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
-  const p=parseDate(prazo);
-  if(!confirm('Vistoria da CPFL de '+o.cliente+' solicitada hoje?\n\n'+
-    'Prazo: até '+fmtD(prazo)+(p?' ('+sem[p.getDay()]+')':'')+'\n'+
-    'O cliente será avisado no grupo agora.')) return;
-  const up=await sb.from('obras').update({cpfl_solicitado_em:hoje}).eq('id',id);
-  if(up.error){ toast('Erro ao salvar: '+up.error.message); return; }
-  await avisarCpfl(id);
-  await loadObras();
-}
-
-async function avisarAgendamentoManutencao(id){
-  const t=await sb.rpc('agendamento_texto',{p_obra:id});
-  if(t.error||!t.data||t.data.erro){
-    toast('Agendamento: '+((t.data&&t.data.erro)||'não foi possível avisar'));
-    return false;
-  }
-  const d=t.data;
-  try{
-    const { data:sess } = await sb.auth.getSession();
-    const r=await fetch(SUPABASE_URL+'/functions/v1/notificar-grupo',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+sess.session.access_token},
-      body:JSON.stringify({grupo_id:d.destino, message:d.texto})
-    });
-    const res=await r.json().catch(()=>({}));
-    if(!r.ok||res.error){ toast('Agendamento: erro ao avisar — '+(res.error||r.status)); return false; }
-  }catch(e){ toast('Agendamento: falha de conexão'); return false; }
-  toast('📣 '+d.cliente+' avisado do agendamento');
-  return true;
-}
-
 // dispara sozinho depois que a obra é salva com a data da CPFL
 async function avisarCpfl(id){
   const t=await sb.rpc('cpfl_texto',{p_obra:id});
@@ -1056,12 +1017,22 @@ const o=getObra(id);
 const mudou = n!==o.etapa_numero;
 const patch={etapa_numero:n};
 if(n===8){ if(!o.data_conclusao) patch.data_conclusao=new Date().toISOString().slice(0,10); }
+// Vistoria e Conexão: registra a solicitação e calcula o prazo real da CPFL
+let prazoCpfl=null;
+if(mudou && n===7 && (o.trilha||'padrao')!=='manutencao'){
+  const hoje=new Date().toISOString().slice(0,10);
+  if(!o.cpfl_solicitado_em) patch.cpfl_solicitado_em=hoje;
+  try{
+    const rp=await sb.rpc('soma_dias_uteis',{p_inicio:patch.cpfl_solicitado_em||o.cpfl_solicitado_em,p_dias:5});
+    if(!rp.error && rp.data) prazoCpfl=rp.data;
+  }catch(e){}
+}
 const { error } = await sb.from('obras').update(patch).eq('id',id);
 if(error){ toast('Erro ao salvar'); return; }
 // 📣 Notificação automática no grupo do cliente
 if(mudou && o.whatsapp_grupo_id){
 toast('Etapa atualizada ✓ Avisando o grupo... 📣');
-const oNovo=Object.assign({},o,patch);
+const oNovo=Object.assign({},o,patch,{_prazoCpfl:prazoCpfl});
 sb.functions.invoke('notificar-grupo',{body:{grupo_id:o.whatsapp_grupo_id,message:buildWA(oNovo)}})
 .then(r=>{
 if(r.error||(r.data&&r.data.error)) toast('⚠️ Etapa salva, mas o aviso no grupo falhou — use o 📣 pra reenviar');
@@ -1468,6 +1439,26 @@ return `☀️ *${o.cliente}*, temos uma ótima notícia!\n\nSeu sistema solar f
 if(dias!==null && antes===0)
 return `☀️ *${o.cliente}*, seu sistema foi *ativado* no prazo! ✅\n\nEntregamos em exatamente *${dias} dias*, dentro do prazo contratual.\n\nSeu sistema já está gerando energia limpa. 🌱\n\n*Equipe Polaris Energia Solar* ☀️`;
 return `☀️ *${o.cliente}*, seu sistema solar foi *ativado*! Parabéns! 🚀\n\nSeu sistema já está gerando energia limpa e reduzindo sua conta. 🌱\n\n*Equipe Polaris Energia Solar* ☀️`;
+}
+// Vistoria e Conexão: mensagem única, com a data calculada e o que o cliente precisa fazer
+if(o.etapa_numero===7 && !_elet && (o.trilha||'padrao')!=='manutencao'){
+  const pz=o._prazoCpfl||o.cpfl_prazo_em;
+  const sem=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+  const pd=pz?parseDate(pz):null;
+  let m=`☀️ *${o.cliente}*, boa notícia!\n\n`
+    +`Sua instalação foi concluída e já solicitamos a *vistoria da CPFL*.\n\n`;
+  if(pz){
+    m+=`A concessionária tem até *5 dias úteis* para fazer a inspeção e a troca do medidor `
+      +`— o que deve acontecer até *${fmtD(pz)}*${pd?' ('+sem[pd.getDay()]+')':''}.\n\n`;
+  } else {
+    m+=`A concessionária tem até *5 dias úteis* para fazer a inspeção e a troca do medidor.\n\n`;
+  }
+  m+=`Não precisa fazer nada. Só é importante que alguém esteja no local para dar acesso `
+    +`ao padrão, e que o portão esteja destrancado se o medidor ficar dentro.\n\n`
+    +`Assim que o medidor for trocado, seu sistema é ligado e começa a gerar. 💚\n\n`
+    +`Acompanhe sua obra aqui:\n${CLIENT_BASE_URL}?id=${o.slug}\n\n`
+    +`*Equipe Polaris Energia Solar* ☀️`;
+  return m;
 }
 let msg=`Olá *${o.cliente}*! 👋\n\n`;
 if(e.mensagem_wa) msg+=e.mensagem_wa+'\n\n';
