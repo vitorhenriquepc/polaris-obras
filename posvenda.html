@@ -270,6 +270,44 @@ border-radius:11px;padding:10px 13px;margin-bottom:12px;font-size:13px;flex-wrap
 color:var(--muted);border-radius:8px;padding:6px 11px;font-family:inherit;font-size:11.5px;
 font-weight:800;cursor:pointer;white-space:nowrap}
 .fbar button:hover{border-color:var(--gold);color:var(--gold)}
+.plnav{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap}
+.plnav button{background:var(--card);border:1px solid var(--border);color:var(--muted);
+border-radius:10px;padding:9px 14px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.plnav button.on{background:var(--card2);border-color:var(--gold);color:var(--txt)}
+.plpot{background:linear-gradient(135deg,var(--card2),var(--card));border:1px solid var(--gold);
+border-radius:14px;padding:18px;margin:12px 0}
+.plpot .lb{font-size:10.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+.plpot .big{font-size:30px;font-weight:800;color:var(--gold);margin-top:7px;line-height:1;letter-spacing:-1px}
+.plpot .big small{font-size:14px;color:var(--muted);font-weight:700}
+.plpot .sb{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.45}
+.plpot .cen{display:flex;gap:9px;margin-top:14px}
+.plpot .cen div{flex:1;background:rgba(0,0,0,.18);border-radius:10px;padding:10px;text-align:center}
+.plpot .cen div.mid{border:1px solid var(--gold)}
+.plpot .cen b{display:block;font-size:15px;font-weight:800}
+.plpot .cen span{display:block;font-size:10.5px;color:var(--muted);margin-top:3px}
+.ondag{display:flex;gap:7px;align-items:flex-end;margin-top:11px;min-height:130px}
+.ob{flex:1;text-align:center;display:flex;flex-direction:column;justify-content:flex-end}
+.ob .bar{background:linear-gradient(180deg,var(--gold),rgba(245,166,35,.35));border-radius:6px 6px 0 0;min-height:8px}
+.ob .q{font-size:15px;font-weight:800;margin-top:6px}
+.ob .m{font-size:10.5px;color:var(--muted);font-weight:700}
+.ob .v{font-size:9.5px;color:var(--green-l);font-weight:700;margin-top:2px}
+.pltbl{width:100%;border-collapse:collapse;font-size:13px;margin-top:9px}
+.pltbl th{text-align:left;color:var(--muted);font-size:10.5px;text-transform:uppercase;
+letter-spacing:.8px;padding-bottom:6px;font-weight:800}
+.pltbl th.num,.pltbl td.num{text-align:right}
+.pltbl td{padding:7px 0;border-top:1px solid var(--border);color:var(--muted)}
+.pltbl td.num{color:var(--txt)}
+.plfora{display:grid;grid-template-columns:2fr 1fr;gap:9px;margin-top:11px}
+@media(max-width:600px){.plfora{grid-template-columns:1fr}}
+.plfora .fl label{display:block;font-size:11px;font-weight:800;color:var(--muted);
+text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.plfora input{width:100%;background:var(--card);border:1px solid var(--border);color:var(--txt);
+border-radius:10px;padding:11px;font-family:inherit;font-size:14px}
+.plnota{background:var(--card);border-left:3px solid var(--green);border-radius:0 11px 11px 0;
+padding:13px 15px;margin-top:9px}
+.plnota p{font-size:12.5px;color:var(--muted);line-height:1.6;margin:0 0 7px}
+.plnota p:last-child{margin:0}
+.plnota b{color:var(--txt)}
 .plgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
 @media(max-width:700px){.plgrid{grid-template-columns:1fr}}
 .plcard{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:15px 14px}
@@ -662,11 +700,12 @@ function render(){
 function n(v){var x=Number(v);return isNaN(x)?0:x;}
 
 /* ---------- PLANOS DE MANUTENÇÃO ---------- */
-let PLN=null, PLSEL=null;
+let PLN=null, PLSEL=null, PAI=null, PLABA='painel';
 
 async function carregarPlanos(){
   const box=document.getElementById('plbox'); if(!box) return;
-  const r=await sb.rpc('get_planos_envio');
+  const [r,pp]=await Promise.all([sb.rpc('get_planos_envio'), sb.rpc('get_painel_planos')]);
+  PAI=pp&&pp.data?pp.data:null;
   if(r.error||!r.data){ box.innerHTML='<div class="vazio">Não foi possível carregar os planos.</div>'; return; }
   PLN=r.data;
   box.innerHTML=renderPlanos();
@@ -724,7 +763,180 @@ function textoPlano(cliente, mods){
   return t;
 }
 
+function setPlaba(v){ PLABA=v; document.getElementById('plbox').innerHTML=renderPlanos(); }
+
 function renderPlanos(){
+  const P=PLN.planos||[], C=PLN.clientes||[];
+  let nav='<div class="plnav">'
+    +'<button class="'+(PLABA==='painel'?'on':'')+'" onclick="setPlaba(\'painel\')">📊 Acompanhamento</button>'
+    +'<button class="'+(PLABA==='envio'?'on':'')+'" onclick="setPlaba(\'envio\')">📤 Enviar proposta</button>'
+    +'<button class="'+(PLABA==='fora'?'on':'')+'" onclick="setPlaba(\'fora\')">🏳️ Cliente de fora</button>'
+    +'</div>';
+  if(PLABA==='painel') return nav+renderPainelPlanos();
+  if(PLABA==='fora') return nav+renderForaPlanos();
+  return nav+renderEnvioPlanos();
+}
+
+function renderPainelPlanos(){
+  if(!PAI) return '<div class="vazio">Não foi possível carregar o painel.</div>';
+  const R=PAI.resumo||{}, PT=PAI.potencial||{}, onda=PAI.onda||[], portes=PAI.portes||[];
+  const L=PAI.lista||[];
+
+  let h='<div class="rgstat">'
+   +'<div class="rgs"><div class="n">'+n(R.contratos)+'</div><div class="l">Contratos ativos</div></div>'
+   +'<div class="rgs"><div class="n" style="color:var(--gold)">'+n(R.cortesias)+'</div><div class="l">Em cortesia</div></div>'
+   +'<div class="rgs"><div class="n" style="color:var(--green-l)">'+n(R.pagos)+'</div><div class="l">Pagantes</div></div>'
+   +'<div class="rgs"><div class="n">'+moedaBR(R.mrr)+'</div><div class="l">Receita mensal</div></div>'
+   +'</div>';
+
+  // o potencial, que é o número que interessa
+  h+='<div class="plpot">'
+   +'<div class="lb">Potencial da carteira</div>'
+   +'<div class="big">'+moedaBR(PT.total_anual)+'<small>/ano</small></div>'
+   +'<div class="sb">se os '+n(R.cortesias)+' clientes em cortesia assinarem o Completo do porte deles</div>'
+   +'<div class="cen">'
+   +'<div><b>'+moedaBR(PT.c20)+'</b><span>convertendo 20%</span></div>'
+   +'<div class="mid"><b>'+moedaBR(PT.c30)+'</b><span>convertendo 30%</span></div>'
+   +'<div><b>'+moedaBR(PT.c50)+'</b><span>convertendo 50%</span></div>'
+   +'</div></div>';
+
+  // a onda de vencimentos
+  if(onda.length){
+    const maxC=Math.max.apply(null,onda.map(function(x){return n(x.contratos);}));
+    h+='<div class="sec"><h3>🌊 Onda de vencimentos</h3>'
+     +'<div class="dica">Quando a cortesia de 1 ano termina. É a janela para converter.</div>'
+     +'<div class="ondag">';
+    onda.forEach(function(o){
+      const alt=Math.round(n(o.contratos)/maxC*100);
+      h+='<div class="ob"><div class="bar" style="height:'+Math.max(alt,8)+'%"></div>'
+        +'<div class="q">'+n(o.contratos)+'</div>'
+        +'<div class="m">'+esc(o.mes)+'</div>'
+        +'<div class="v">'+moedaBR(o.potencial)+'</div></div>';
+    });
+    h+='</div></div>';
+  }
+
+  // por porte
+  if(portes.length){
+    h+='<div class="sec"><h3>📐 Por porte do sistema</h3><table class="pltbl">'
+     +'<tr><th>Porte</th><th class="num">Clientes</th><th class="num">Anual</th><th class="num">Potencial</th></tr>';
+    portes.forEach(function(p){
+      h+='<tr><td>'+esc(p.porte)+'</td><td class="num">'+n(p.clientes)+'</td>'
+        +'<td class="num">'+moedaBR(p.anual)+'</td>'
+        +'<td class="num"><b>'+moedaBR(p.potencial)+'</b></td></tr>';
+    });
+    h+='</table></div>';
+  }
+
+  // quem vence primeiro
+  const prox=L.slice(0,12);
+  h+='<div class="sec"><h3>⏳ Vencem primeiro</h3>';
+  prox.forEach(function(c){
+    const d=n(c.dias);
+    const cor = d<0?'#e07070':(d<=60?'var(--gold)':'var(--muted)');
+    h+='<div class="chkline" onclick="irEnviar(\''+c.obra_id+'\')">'
+      +'<div class="cn"><b>'+esc(c.cliente)+'</b>'
+      +'<span>'+(c.modulos||'?')+' módulos · vence '+dataBR(c.fim)
+      +' · <span style="color:'+cor+'">'+(d<0?'venceu':'em '+d+' dias')+'</span></span></div>'
+      +'<span style="font-size:12px;font-weight:800;color:var(--green-l)">'+moedaBR(c.completo_anual)+'</span>'
+      +'<span style="color:var(--muted)">›</span></div>';
+  });
+  h+='</div>';
+  return h;
+}
+
+function irEnviar(id){ PLSEL=id; PLABA='envio';
+  document.getElementById('plbox').innerHTML=renderPlanos();
+  setTimeout(function(){ const s=document.getElementById('plCli'); if(s){s.value=id; previaPlano();} },50);
+}
+
+
+/* ---------- CLIENTE DE FORA (sistema órfão) ---------- */
+function textoFora(nome, mods){
+  const P=PLN.planos||[];
+  const ess=P.find(function(p){return p.codigo==='essencial';});
+  const atv=P.find(function(p){return p.codigo==='ativo';});
+  const cmp=planoCompletoPara(mods);
+  const pn=(nome||'').trim().split(' ')[0];
+  const pnc=pn?pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase():'';
+
+  let t='☀️ *'+(pnc||'Olá')+', quem cuida do seu sistema solar hoje?*\n\n';
+  t+='Muita gente instalou energia solar e ficou sem assistência — ou porque a empresa '
+   +'fechou, ou porque simplesmente ninguém mais apareceu depois da instalação.\n\n';
+  t+='Se esse é o seu caso, a *Polaris* assume o acompanhamento do seu sistema, '
+   +'mesmo que a instalação tenha sido feita por outra empresa.\n\n';
+  t+='━━━━━━━━━━━━━━━\n\n';
+  t+='*Por que isso importa*\n\n';
+  t+='O manual do inversor é claro: a garantia *não cobre falhas causadas por falta '
+   +'de manutenção*. Sem laudo técnico, o fabricante pode recusar a cobertura — '
+   +'e a troca de um inversor custa milhares de reais.\n\n';
+  t+='Além disso, um sistema sem acompanhamento perde geração aos poucos, e o dono '
+   +'só percebe quando a conta de luz sobe.\n\n';
+  t+='━━━━━━━━━━━━━━━\n\n';
+  t+='*Começamos com uma avaliação técnica*\n\n';
+  t+='Antes de qualquer plano, fazemos uma visita para conferir o estado real do seu sistema:\n'
+   +'• Leitura e diagnóstico do inversor\n'
+   +'• Inspeção da fixação e da estrutura\n'
+   +'• Conferência do quadro elétrico e do DPS\n'
+   +'• Medição de tensão e corrente por string\n'
+   +'• *Laudo com fotos e apontamentos*\n\n';
+  t+='Se houver algo a corrigir, você recebe o orçamento sem compromisso.\n\n';
+  t+='━━━━━━━━━━━━━━━\n\n';
+  t+='*Depois, o acompanhamento contínuo*\n\n';
+  t+='🥉 *Essencial* — '+moedaBR(ess.mensal)+'/mês\n'
+   +'Monitoramento, alerta se o sistema parar e suporte por WhatsApp\n\n';
+  t+='🥈 *Ativo* — '+moedaBR(atv.mensal)+'/mês\n'
+   +'Tudo do Essencial + análise da conta de luz e '+Number(atv.desconto)+'% de desconto em serviços\n\n';
+  t+='🥇 *Completo* — a partir de '+moedaBR(cmp.mensal)+'/mês\n'
+   +'Tudo do Ativo + *visita técnica anual*, limpeza, inspeção e *laudo assinado*\n\n';
+  t+='━━━━━━━━━━━━━━━\n\n';
+  t+='Somos de Araçatuba, com *mais de 400 sistemas instalados* na região. '
+   +'Qualquer dúvida, é só chamar aqui. 💚\n\n*Equipe Polaris Energia Solar* ☀️';
+  return t;
+}
+
+function renderForaPlanos(){
+  let h='<div class="sec"><h3>🏳️ Proposta para cliente de outra empresa</h3>'
+   +'<div class="dica">Para sistemas que ficaram sem assistência. A abordagem é diferente: '
+   +'começa pela avaliação técnica, não pelo plano.</div>';
+
+  h+='<div class="plfora">'
+   +'<div class="fl"><label>Nome do cliente</label>'
+   +'<input id="foNome" placeholder="Ex.: Maria" oninput="previaFora()"></div>'
+   +'<div class="fl"><label>Módulos (se souber)</label>'
+   +'<input id="foMods" type="number" inputmode="numeric" placeholder="8" oninput="previaFora()"></div>'
+   +'</div>';
+  h+='<div id="foPrev"></div></div>';
+
+  h+='<div class="sec"><h3>💡 Por que esse mercado importa</h3>'
+   +'<div class="plnota">'
+   +'<p>Sistemas instalados há 5 a 10 anos estão envelhecendo, e muitas das empresas '
+   +'que os instalaram fecharam. O dono não tem para quem ligar.</p>'
+   +'<p>Esse cliente <b>já tem sistema</b>, <b>já teve problema</b> e <b>não tem fornecedor</b>. '
+   +'É lead qualificado — e costuma virar venda de upgrade ou ampliação depois.</p>'
+   +'<p><b>A avaliação técnica é a porta de entrada.</b> Ela paga a visita, gera o laudo '
+   +'e mostra na prática o que o plano resolve.</p>'
+   +'</div></div>';
+  return h;
+}
+
+function previaFora(){
+  const el=document.getElementById('foPrev'); if(!el) return;
+  const nome=(document.getElementById('foNome')||{}).value||'';
+  const mods=(document.getElementById('foMods')||{}).value||8;
+  const txt=textoFora(nome,mods);
+  el.innerHTML='<pre class="plmsg" style="margin-top:11px">'+esc(txt)+'</pre>'
+    +'<div class="plbtns"><button class="stb" onclick="copiarFora()">📋 Copiar mensagem</button></div>';
+}
+function copiarFora(){
+  const nome=(document.getElementById('foNome')||{}).value||'';
+  const mods=(document.getElementById('foMods')||{}).value||8;
+  const t=textoFora(nome,mods);
+  if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ toast('Mensagem copiada ✓'); });
+  else toast('Selecione o texto e copie');
+}
+
+function renderEnvioPlanos(){
   const P=PLN.planos||[], C=PLN.clientes||[];
   const ess=P.find(p=>p.codigo==='essencial'), atv=P.find(p=>p.codigo==='ativo');
   const comp=P.filter(p=>p.nivel===3);
