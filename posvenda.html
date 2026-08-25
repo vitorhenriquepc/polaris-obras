@@ -657,8 +657,9 @@ function render(){
   }
   let arr=cl.slice();
   if(FILTRO==='pendentes') arr=arr.filter(c=>c.pendentes>0);
-  if(FILTRO==='sem_nps') arr=arr.filter(c=>c.nps==null);
-  if(FILTRO==='sem_aniv') arr=arr.filter(c=>!c.nascimento_dia);
+  // NPS e aniversário só fazem sentido depois da ativação
+  if(FILTRO==='sem_nps') arr=arr.filter(c=>c.ativo && c.nps==null);
+  if(FILTRO==='sem_aniv') arr=arr.filter(c=>c.ativo && !c.nascimento_dia);
   if(FILTRO==='indicacao') arr=arr.filter(c=>c.pendentes>0);
   if(BUSCA){const b=BUSCA.toLowerCase();
     arr=arr.filter(c=>(c.cliente||'').toLowerCase().includes(b)||(c.contrato||'').includes(b));}
@@ -684,7 +685,8 @@ function render(){
         <div class="meta">${bits.join('<span style="opacity:.4">·</span>')}</div>
         <div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">
         ${c.pendentes?`<span class="tag gold">💬 ${c.pendentes} para tratar</span>`:''}
-        ${!c.nascimento_dia?`<span class="tag">🎂 sem aniversário</span>`:''}
+        ${(c.ativo && !c.nascimento_dia)?`<span class="tag">🎂 sem aniversário</span>`:''}
+        ${!c.ativo?`<span class="tag" style="border-color:rgba(143,166,184,.4);color:var(--muted)">🏗️ em obra</span>`:''}
         </div>
       </button>`;
     }).join('')+'</div>';
