@@ -535,7 +535,7 @@ const SB_KEY='sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const LOGO_D='https://obras.polarisenergiasolar.com/logo.png', LOGO_L='https://obras.polarisenergiasolar.com/logo-claro.png';
 let DADOS=null, FILTRO='', BUSCA='';
-let VISAO='jornada', KB=null, TRAJ=null, TCEL=null, BRINDES=[];
+let VISAO='jornada', KB=null, BRINDES=[];
 try{VISAO=localStorage.getItem('polaris-pv-visao')||'jornada'}catch(e){}
 
 function tema(t){document.documentElement.setAttribute('data-theme',t);
@@ -616,7 +616,6 @@ function render(){
   h+=`<div class="tools">
     <div class="vtabs">
       <button class="vtab ${VISAO==='jornada'?'on':''}" onclick="setVisao('jornada')">🗺️ Jornada</button>
-      <button class="vtab ${VISAO==='traj'?'on':''}" onclick="setVisao('traj')">🛤️ Trajetória</button>
       <button class="vtab ${VISAO==='lista'?'on':''}" onclick="setVisao('lista')">☰ Lista</button>
       <button class="vtab ${VISAO==='regua'?'on':''}" onclick="setVisao('regua')">📅 Régua</button>
       <button class="vtab ${VISAO==='indic'?'on':''}" onclick="setVisao('indic')">🎁 Indicações</button>
@@ -649,11 +648,6 @@ function render(){
   if(VISAO==='brindes'){
     document.getElementById('app').innerHTML=h+'<div id="brbox"><div class="center"><div class="spin"></div>Carregando brindes...</div></div>';
     carregarBrindes();
-    return;
-  }
-  if(VISAO==='traj'){
-    document.getElementById('app').innerHTML=h+'<div id="trjbox"><div class="center"><div class="spin"></div>Montando a trajetória...</div></div>';
-    carregarTraj();
     return;
   }
   if(VISAO==='jornada'){
@@ -1120,7 +1114,7 @@ async function recarregarTudo(){
     if(a && a.data) DADOS=a.data;
     if(b && b.data) KB=b.data;
   }catch(e){}
-  TRAJ=null; TCEL=null; BRINDES=[]; RG=null;   // força releitura das outras abas
+  BRINDES=[]; RG=null;   // força releitura das outras abas
   render();
 }
 function setVisao(v){VISAO=v;try{localStorage.setItem('polaris-pv-visao',v)}catch(e){}render();}
@@ -1154,120 +1148,6 @@ function renderJornada(){
       }).join(''):'<div class="kvazio">nenhum cliente</div>'}
     </div>`;
   }).join('')+'</div>';
-}
-async function carregarTraj(){
-  const box=document.getElementById('trjbox'); if(!box) return;
-  if(!TRAJ){
-    const r=await sb.rpc('get_trajetoria_posvenda');
-    if(r.error||!r.data){box.innerHTML='<div class="vazio">Não foi possível montar a trajetória.</div>';return;}
-    TRAJ=r.data;
-  }
-  box.innerHTML=renderTraj();
-}
-const TRJ_EST={
-  enviado:   {cls:'ok', ic:'✓',  nm:'Enviado'},
-  programado:{cls:'pg', ic:'●',  nm:'Programado'},
-  bloqueado: {cls:'bl', ic:'🔒', nm:'Bloqueado'},
-  cancelado: {cls:'cn', ic:'✕',  nm:'Cancelado'},
-  nao_gerado:{cls:'',   ic:'○',  nm:'Não gerado'}
-};
-function renderTraj(){
-  const M=TRAJ.marcos||[], RM=TRAJ.resumo_marcos||[], T=TRAJ.totais||{};
-  let cls=TRAJ.clientes||[];
-  const b=(BUSCA||'').toLowerCase();
-  if(b) cls=cls.filter(function(c){return (c.cliente||'').toLowerCase().indexOf(b)>=0;});
-
-  var h='<div class="rgstat">'+
-    '<div class="b"><div class="n">'+(T.clientes||0)+'</div><div class="l">Clientes na régua</div></div>'+
-    '<div class="b"><div class="n" style="color:var(--green-l)">'+(T.enviado||0)+'</div><div class="l">Contatos enviados</div></div>'+
-    '<div class="b"><div class="n" style="color:var(--gold)">'+(T.programado||0)+'</div><div class="l">Programados</div></div>'+
-    '<div class="b"><div class="n" style="color:#e07070">'+((T.bloqueado||0)+(T.cancelado||0))+'</div><div class="l">Travados ou perdidos</div></div>'+
-  '</div>';
-
-  h+='<div class="trjres"><div class="dica" style="margin:0 0 8px">Toque em qualquer número para ver quais clientes estão nele.</div>'+
-     '<table><thead><tr><th>Marco</th><th class="num">✓ Env.</th>'+
-     '<th class="num">● Prog.</th><th class="num">🔒 Bloq.</th><th class="num">✕ Canc.</th></tr></thead><tbody>';
-  for(var i=0;i<RM.length;i++){
-    var r=RM[i];
-    h+='<tr><td>'+(r.icone||'')+' D+'+r.dia+' · '+esc(r.nome)+'</td>'+
-      td(r.enviado,'e',r.codigo,'enviado')+td(r.programado,'p',r.codigo,'programado')+
-      td(r.bloqueado,'b',r.codigo,'bloqueado')+td(r.cancelado,'c',r.codigo,'cancelado')+'</tr>';
-  }
-  h+='</tbody></table></div>';
-  if(TCEL) h+=blocoCelula();
-
-  if(!cls.length) return h+'<div class="vazio">Nenhum cliente encontrado.</div>';
-  h+='<div class="trjwrap">';
-  for(var j=0;j<cls.length;j++) h+=cardTraj(cls[j],M);
-  h+='</div>';
-  return h;
-}
-function td(v,k,cod,est){
-  v=Number(v||0);
-  if(!v) return '<td class="num z">—</td>';
-  var on=(TCEL && TCEL.cod===cod && TCEL.est===est);
-  return '<td class="num" style="cursor:pointer" onclick="setCel(\''+cod+'\',\''+est+'\')">'+
-    '<span class="pill '+k+'"'+(on?' style="outline:2px solid var(--gold)"':'')+'>'+v+'</span></td>';
-}
-function setCel(cod,est){
-  if(TCEL && TCEL.cod===cod && TCEL.est===est) TCEL=null;
-  else TCEL={cod:cod,est:est};
-  var box=document.getElementById('trjbox'); if(box) box.innerHTML=renderTraj();
-}
-function blocoCelula(){
-  var M=TRAJ.marcos||[], cls=TRAJ.clientes||[];
-  var marco=M.find(function(m){return m.codigo===TCEL.cod;}) || {nome:TCEL.cod};
-  var rot={enviado:'já receberam',programado:'estão programados',
-           bloqueado:'estão bloqueados',cancelado:'foram cancelados'};
-  var alvo=[];
-  for(var i=0;i<cls.length;i++){
-    var mk=(cls[i].marcos||[]).find(function(x){return x.codigo===TCEL.cod;});
-    if(mk && mk.estado===TCEL.est) alvo.push({c:cls[i],m:mk});
-  }
-  var h='<div class="trjres" style="border-color:var(--gold)">'+
-    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'+
-    '<b style="font-size:14px">'+(marco.icone||'')+' '+esc(marco.nome)+' — '+alvo.length+' '+
-    esc(rot[TCEL.est]||TCEL.est)+'</b>'+
-    '<button class="stb" style="margin-left:auto" onclick="TCEL=null;document.getElementById(\'trjbox\').innerHTML=renderTraj()">✕</button></div>';
-  if(!alvo.length) h+='<div class="dica">Nenhum cliente aqui.</div>';
-  for(var j=0;j<alvo.length;j++){
-    var a=alvo[j];
-    var leg='';
-    if(a.m.enviado_em) leg=quando(a.m.enviado_em);
-    else if(a.m.programada) leg='previsto '+dataBR(a.m.programada);
-    if(a.m.motivo) leg=(leg?leg+' · ':'')+a.m.motivo;
-    h+='<div class="chkline" onclick="abrirFicha(\''+a.c.id+'\')">'+
-      '<div class="cn"><b>'+esc(a.c.cliente)+'</b><span>'+
-      (a.c.dias!=null?a.c.dias+' dias':'sem ativação')+(leg?' · '+esc(leg):'')+'</span></div>'+
-      '<span style="color:var(--muted);font-size:15px">›</span></div>';
-  }
-  return h+'</div>';
-}
-function cardTraj(c,M){
-  var mp={}; var mk=c.marcos||[];
-  for(var i=0;i<mk.length;i++) mp[mk[i].codigo]=mk[i];
-  var h='<button class="trjcli" onclick="abrirFicha(\''+c.id+'\')"><div class="top">'+
-    '<div class="nm">'+esc(c.cliente)+'</div>'+
-    '<div class="dd">'+(c.dias!=null?c.dias+' dias':'sem ativação')+'</div></div>'+
-    '<div class="trilha2">';
-  for(var k=0;k<M.length;k++){
-    var m=M[k], e=mp[m.codigo]||{estado:'nao_gerado'};
-    var cfg=TRJ_EST[e.estado]||TRJ_EST.nao_gerado;
-    var leg='';
-    if(e.estado==='enviado'&&e.enviado_em) leg=quando(e.enviado_em);
-    else if(e.estado==='programado'&&e.programada) leg=dataBR(e.programada);
-    else if(e.motivo) leg=e.motivo;
-    h+='<div class="mrc '+cfg.cls+'" title="'+esc(m.nome+' — '+cfg.nm+(leg?' · '+leg:''))+'">'+
-      '<div class="bo">'+cfg.ic+'</div>'+
-      '<div class="dia">'+(m.dia>0?'D+'+m.dia:'—')+'</div>'+
-      '<div class="mt">'+esc(leg||'')+'</div></div>';
-  }
-  h+='</div><div class="trjflags">'+
-    (c.optin?'<span class="tag green">opt-in</span>':'<span class="tag red">sem opt-in</span>')+
-    (c.indicou?'<span class="tag gold">já indicou</span>':'')+
-    (c.tem_geracao?'<span class="tag">geração ok</span>':'<span class="tag">sem geração</span>')+
-    '</div></button>';
-  return h;
 }
 const FILTRO_ROT={
   pendentes:'Com resposta para tratar',
