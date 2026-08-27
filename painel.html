@@ -1017,6 +1017,12 @@ const o=getObra(id);
 const mudou = n!==o.etapa_numero;
 const patch={etapa_numero:n};
 if(n===8){ if(!o.data_conclusao) patch.data_conclusao=new Date().toISOString().slice(0,10); }
+// Avisa quando o cliente ainda não confirmou o relatório
+if(mudou && n===7 && (o.trilha||'padrao')!=='manutencao' && !o.aceite_em){
+  if(!confirm('⚠️ '+o.cliente+' ainda não confirmou o relatório da instalação.\n\n'
+    +'O aceite é o que mostra que o cliente conferiu as fotos antes da vistoria.\n\n'
+    +'Avançar mesmo assim?')) return;
+}
 // Vistoria e Conexão: registra a solicitação e calcula o prazo real da CPFL
 let prazoCpfl=null;
 if(mudou && n===7 && (o.trilha||'padrao')!=='manutencao'){
@@ -1446,6 +1452,14 @@ return `☀️ *${o.cliente}*, temos uma ótima notícia!\n\nSeu sistema solar f
 if(dias!==null && antes===0)
 return `☀️ *${o.cliente}*, seu sistema foi *ativado* no prazo! ✅\n\nEntregamos em exatamente *${dias} dias*, dentro do prazo contratual.\n\nSeu sistema já está gerando energia limpa. 🌱\n\n*Equipe Polaris Energia Solar* ☀️` + blocoRelatorio(o) + ``;
 return `☀️ *${o.cliente}*, seu sistema solar foi *ativado*! Parabéns! 🚀\n\nSeu sistema já está gerando energia limpa e reduzindo sua conta. 🌱\n\n*Equipe Polaris Energia Solar* ☀️` + blocoRelatorio(o) + ``;
+}
+// Execução concluída: relatório pronto e pedido de confirmação antes da vistoria
+if(o.etapa_numero===6 && !_elet && (o.trilha||'padrao')!=='manutencao'){
+  return `🔧 *${o.cliente}*, sua instalação foi concluída!\n\n`
+    + `Os painéis e o inversor já estão montados e testados. 🙌`
+    + blocoRelatorio(o)
+    + `\n\n*Assim que você confirmar, solicitamos a vistoria da CPFL* — que é o último passo `
+    + `antes do seu sistema começar a gerar. ⚡\n\n*Equipe Polaris Energia Solar* ☀️`;
 }
 // Vistoria e Conexão: mensagem única, com a data calculada e o que o cliente precisa fazer
 if(o.etapa_numero===7 && !_elet && (o.trilha||'padrao')!=='manutencao'){
