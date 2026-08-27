@@ -851,7 +851,7 @@ h+='<div class="kcard '+(n===nEt?'fim':(late?'late':''))+(o.trava?(travaCritica(
  +tarjaTravaK(o)
  +tarjaRel(o)
  +(o.trilha==='manutencao'?tarjaMan(o):'')
- +((o.cpfl_prazo_em&&o.etapa_numero<8)?'<div class="kcpfl'+(cpflVenceu(o)?' venceu':'')+'">⚡ Vistoria CPFL até '+fmtD(o.cpfl_prazo_em)+(cpflVenceu(o)?' · venceu':'')+'</div>':'')
+ +((o.cpfl_prazo_em&&o.etapa_numero<8)?'<div class="kcpfl'+(cpflVenceu(o)?' venceu':'')+'">⚡ Vistoria até '+fmtD(o.cpfl_prazo_em)+(cpflVenceu(o)?' · venceu':'')+'</div>':'')
  +'<div class="kacts">'
  +'<button onclick="event.stopPropagation();enviarWA(\''+o.id+'\')" title="Mensagem ao cliente">💬</button>'
  +(o.whatsapp_grupo_id?'<button onclick="event.stopPropagation();notificarGrupo(\''+o.id+'\')" title="Avisar no grupo">📣</button>':'')
@@ -1427,6 +1427,11 @@ navigator.clipboard.writeText(url).then(()=>toast('Link copiado ✓')).catch(()=
 }
 
 /* ---------- mensagem de WhatsApp ---------- */
+// Nome da concessionária: usa o da obra; se não tiver, o termo genérico
+function nomeConc(o){
+  const c=(o.concessionaria||'').trim();
+  return c || 'concessionária de energia';
+}
 // Trecho do relatório com pedido de confirmação — o aceite passa a ser o "OK" no grupo
 function blocoRelatorio(o){
   return `\n\n📄 *Seu relatório de instalação está pronto*\n`
@@ -1458,7 +1463,7 @@ if(o.etapa_numero===6 && !_elet && (o.trilha||'padrao')!=='manutencao'){
   return `🔧 *${o.cliente}*, sua instalação foi concluída!\n\n`
     + `Os painéis e o inversor já estão montados e testados. 🙌`
     + blocoRelatorio(o)
-    + `\n\n*Assim que você confirmar, solicitamos a vistoria da CPFL* — que é o último passo `
+    + `\n\n*Assim que você confirmar, solicitamos a vistoria da ${nomeConc(o)}* — que é o último passo `
     + `antes do seu sistema começar a gerar. ⚡\n\n*Equipe Polaris Energia Solar* ☀️`;
 }
 // Vistoria e Conexão: mensagem única, com a data calculada e o que o cliente precisa fazer
@@ -1467,7 +1472,7 @@ if(o.etapa_numero===7 && !_elet && (o.trilha||'padrao')!=='manutencao'){
   const sem=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
   const pd=pz?parseDate(pz):null;
   let m=`☀️ *${o.cliente}*, boa notícia!\n\n`
-    +`Sua instalação foi concluída e já solicitamos a *vistoria da CPFL*.\n\n`;
+    +`Sua instalação foi concluída e já solicitamos a *vistoria da ${nomeConc(o)}*.\n\n`;
   if(pz){
     m+=`A concessionária tem até *5 dias úteis* para fazer a inspeção e a troca do medidor `
       +`— o que deve acontecer até *${fmtD(pz)}*${pd?' ('+sem[pd.getDay()]+')':''}.\n\n`;
@@ -1541,6 +1546,7 @@ function buscarCadastrado(){
   set('f_pot',c.potencia_kwp!=null?String(c.potencia_kwp).replace('.',','):'');
   set('f_qtm',c.qtd_modulos); set('f_grp',c.whatsapp_grupo_id);
   set('f_km',c.distancia_km); set('f_cidade',c.cidade); set('f_valor',c.valor_projeto);
+  set('f_conc',c.concessionaria);
   set('f_mdm',c.modelo_modulo); set('f_inv',c.inversor_descricao);
   const sel=(id,v)=>{const e=document.getElementById(id); if(e&&v) e.value=v;};
   sel('f_org',c.origem_lead); sel('f_est',c.tipo_telhado);
@@ -1608,7 +1614,7 @@ ${o.trilha==='manutencao'?`
 <div class="travasel" id="travaSel">${travaBotoes(o)}</div>
 <input id="f_travaobs" value="${esc(o.trava_obs||'')}" placeholder="Observação (opcional): protocolo, nome do contato..." style="margin-top:7px">
 </div>
-<div class="fld" ${o.etapa_numero>=8?'style="opacity:.55"':''}><label>Vistoria da CPFL solicitada em ${o.etapa_numero>=8?'<span style="color:#58b868;font-weight:700">· sistema já ativo</span>':''}</label>
+<div class="fld" ${o.etapa_numero>=8?'style="opacity:.55"':''}><label>Vistoria da concessionária solicitada em ${o.etapa_numero>=8?'<span style="color:#58b868;font-weight:700">· sistema já ativo</span>':''}</label>
 <div class="grid2" style="gap:8px">
 <input id="f_cpfl" type="date" value="${o.cpfl_solicitado_em||''}" onchange="previaCpfl()" ${o.etapa_numero>=8?'disabled':''}>
 <div id="cpflPrazo" class="cpflbox">${o.cpfl_prazo_em?prazoHtml(o):'<span class="mut">Preencha a data e o prazo é calculado em 5 dias úteis.</span>'}</div>
@@ -1646,6 +1652,13 @@ ${o.trilha==='manutencao'?`
 <div class="fld"><label>Tipo de telhado</label><select id="f_tel2">${['','Cerâmico','Metálico','Fibrocimento','Laje','Solo','Outro'].map(t=>`<option value="${t}" ${t===(o.tipo_telhado||'')?'selected':''}>${t||'— Telhado —'}</option>`).join('')}</select></div>
 <div class="fld"><label>Distância até a obra (km)</label><input id="f_km" type="number" inputmode="decimal" step="0.1" value="${o.distancia_km!=null?o.distancia_km:''}" placeholder="35"></div>
 </div>
+<div class="fld"><label>Concessionária de energia</label>
+<input id="f_conc" list="listaConc" value="${esc(o.concessionaria||'')}" placeholder="CPFL">
+<datalist id="listaConc">
+<option value="CPFL"><option value="Elektro"><option value="Energisa"><option value="EDP">
+<option value="Enel"><option value="CEMIG"><option value="Copel"><option value="RGE">
+<option value="Neoenergia"><option value="Equatorial"><option value="Light"><option value="Celesc">
+</datalist></div>
 <div class="fld"><label>Endereço da obra</label><input id="f_end" value="${esc(o.endereco||'')}" placeholder="Rua, número, bairro, cidade - SP"></div>
 <div class="fld"><label>Incluso no serviço</label><div style="display:flex;gap:14px;padding:11px 2px">
 <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--txt);cursor:pointer"><input type="checkbox" id="f_est" ${o.tem_estrutura?'checked':''} style="width:16px;height:16px"> Estrutura</label>
@@ -1693,6 +1706,7 @@ data_conclusao:document.getElementById('f_dtc').value||null,
 observacoes:document.getElementById('f_obs').value.trim()||null,
 vendedor_id:document.getElementById('f_vend').value||null,
 origem_lead:document.getElementById('f_org').value||null,
+concessionaria:(document.getElementById('f_conc')||{}).value||null,
 valor_projeto:parseFloat((document.getElementById('f_valor')||{}).value)||null,
 tipo_manutencao:(document.getElementById('f_tipoman')||{}).value||null,
 cliente_externo:((document.getElementById('f_ext')||{}).value==='1'),
