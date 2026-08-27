@@ -199,6 +199,17 @@ font-size:12px;font-weight:800;flex-shrink:0}
 .chk .cn span{font-size:11px;color:var(--muted);font-weight:700}
 /* ---- Fila e drawer ---- */
 .fila{background:var(--card);border:1px solid var(--gold);border-radius:14px;padding:14px;margin-bottom:14px}
+.fbusca{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--txt);
+border-radius:11px;padding:11px 13px;font-family:inherit;font-size:14px;margin:4px 0 9px}
+.fbusca::placeholder{color:var(--muted)}
+.ffiltros{display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap}
+.ffiltros button{background:var(--card2);border:1px solid var(--border);color:var(--muted);
+border-radius:20px;padding:6px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.ffiltros button.on{border-color:var(--gold);color:var(--txt);background:rgba(245,166,35,.10)}
+.ffiltros button b{color:var(--txt);margin-left:3px}
+.ftrilha{display:inline-block;font-size:10px;font-weight:800;color:var(--gold);
+background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.3);border-radius:5px;
+padding:1px 6px;margin-left:6px;vertical-align:middle}
 .fila h3{font-size:11px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;
 color:var(--gold);margin-bottom:10px}
 .fitem{display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--border);
@@ -268,6 +279,21 @@ const LOGO_L='https://obras.polarisenergiasolar.com/logo-claro.png';
 let ABA='dre', INI=null, FIM=null, RATEIO='obra';
 let DRE=null, OBRAS=null, FLUXO=null, DESEMP=null, CONTAS=[], PARAMS=[], ORIGENS=[];
 let FILA=null, EDIT=null, FILA_TODAS=false, RESUMO=null, ABRIR=null, ATALHO=null, VERCONTAS=false;
+let FILA_F='todas', FILA_Q='';
+// redesenha só a fila, para o campo de busca não perder o foco a cada tecla
+function redesenhaFila(){
+  const el=document.querySelector('.fila');
+  if(!el){ render(); return; }
+  const inp=el.querySelector('#filaQ');
+  const pos=inp?inp.selectionStart:null;
+  const tmp=document.createElement('div');
+  tmp.innerHTML=blocoFila();
+  const sub=tmp.firstElementChild;
+  if(!sub){ render(); return; }
+  el.replaceWith(sub);
+  const novo=document.getElementById('filaQ');
+  if(novo){ novo.focus(); if(pos!=null) novo.setSelectionRange(pos,pos); }
+}
 let FNAT='', DRILL=null, EQUIPE=[], PARC=[];
 let CALC={mod:8,estr:'Cerâmico',km:0,res:null}, ESTRUTURAS=[], KITS=[];
 let DESV=null, VERDESV=false, PROV_DESDE=null;
@@ -570,23 +596,52 @@ function blocoFila(){
   if(!it.length) return '';
   const rot={atrasado:'⚠️ Já ativada, ainda não lançada',parcial:'Falta o custo do kit',
              aberto:'Em obra — ainda não tem custo fechado'};
-  let h='<div class="fila"><h3>📋 Ainda não lançadas — '+it.length+'</h3>'+
-    '<div class="dica" style="margin:0 0 10px">Estas obras <b>não entram no Resumo do mês</b>. '+
-    'O sistema abre o registro quando o contrato fecha; o lançamento é feito aqui.</div>';
+  // filtros: por situação e por texto
+  const nAnd=it.filter(x=>x.situacao==='aberto').length;
+  const nCon=it.filter(x=>x.situacao!=='aberto').length;
+  let arr=it.slice();
+  if(FILA_F==='andamento') arr=arr.filter(x=>x.situacao==='aberto');
+  else if(FILA_F==='concluida') arr=arr.filter(x=>x.situacao!=='aberto');
+  if(FILA_Q){
+    const q=FILA_Q.toLowerCase();
+    arr=arr.filter(x=>(x.cliente||'').toLowerCase().includes(q)
+                    || String(x.contrato||'').includes(q));
+  }
 
-  const mostra=FILA_TODAS?it:it.slice(0,8);
+  let h='<div class="fila"><h3>📋 Ainda não lançadas — '+it.length+'</h3>';
+
+  h+='<input class="fbusca" id="filaQ" value="'+esc(FILA_Q)+'" placeholder="🔍 Buscar por nome do cliente ou contrato..." '+
+     'oninput="FILA_Q=this.value;redesenhaFila()">';
+
+  h+='<div class="ffiltros">'+
+     '<button class="'+(FILA_F==='todas'?'on':'')+'" onclick="FILA_F=\'todas\';render()">Todas <b>'+it.length+'</b></button>'+
+     '<button class="'+(FILA_F==='andamento'?'on':'')+'" onclick="FILA_F=\'andamento\';render()">🏗️ Em obra <b>'+nAnd+'</b></button>'+
+     '<button class="'+(FILA_F==='concluida'?'on':'')+'" onclick="FILA_F=\'concluida\';render()">✅ Concluídas <b>'+nCon+'</b></button>'+
+     '</div>';
+
+  h+='<div class="dica" style="margin:0 0 10px">Dá para lançar mesmo com a obra em andamento — '+
+     'os valores podem ser ajustados depois.</div>';
+
+  if(!arr.length){
+    return h+'<div class="vazio" style="padding:20px"><b>Nada encontrado com esse filtro.</b></div></div>';
+  }
+
+  const mostra=FILA_TODAS?arr:arr.slice(0,8);
   for(let i=0;i<mostra.length;i++){
     const o=mostra[i];
-    h+='<div class="fitem '+esc(o.situacao)+'"><div class="cn"><b>'+esc(o.cliente)+'</b>'+
+    const tri = (o.trilha && o.trilha!=='padrao')
+      ? '<span class="ftrilha">'+esc(o.trilha_icone||'')+' '+esc(o.trilha_nome||o.trilha)+'</span>' : '';
+    h+='<div class="fitem '+esc(o.situacao)+'"><div class="cn"><b>'+esc(o.cliente)+'</b>'+tri+
       '<span>'+(o.contrato?'#'+esc(o.contrato)+' · ':'')+
-      (o.kwp?n(o.kwp).toFixed(2)+' kWp · ':'')+esc(rot[o.situacao]||o.situacao)+'</span></div>'+
+      (o.kwp?n(o.kwp).toFixed(2)+' kWp · ':'')+esc(rot[o.situacao]||o.situacao)+
+      (o.valor_projeto?' · proposta '+moeda(o.valor_projeto):'')+'</span></div>'+
       '<div class="acts">'+
       '<button class="bmini go" onclick="abrirFin(\''+o.id+'\')">Lançar</button>'+
       '<button class="bmini" onclick="dispensarFin(\''+o.id+'\')" title="Tirar da fila">✕</button>'+
       '</div></div>';
   }
-  if(it.length>8) h+='<button class="bmini" style="width:100%;margin-top:6px" onclick="FILA_TODAS=!FILA_TODAS;render()">'+
-    (FILA_TODAS?'Mostrar menos':'Ver todas as '+it.length)+'</button>';
+  if(arr.length>8) h+='<button class="bmini" style="width:100%;margin-top:6px" onclick="FILA_TODAS=!FILA_TODAS;render()">'+
+    (FILA_TODAS?'Mostrar menos':'Ver todas as '+arr.length)+'</button>';
   return h+'</div>';
 }
 
