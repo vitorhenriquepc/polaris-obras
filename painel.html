@@ -1421,6 +1421,13 @@ navigator.clipboard.writeText(url).then(()=>toast('Link copiado ✓')).catch(()=
 }
 
 /* ---------- mensagem de WhatsApp ---------- */
+// Trecho do relatório com pedido de confirmação — o aceite passa a ser o "OK" no grupo
+function blocoRelatorio(o){
+  return `\n\n📄 *Seu relatório de instalação está pronto*\n`
+    + `${location.origin}/relatorio.html?id=${o.slug}\n\n`
+    + `Dá uma olhada com calma nas fotos e nos dados do seu sistema. `
+    + `Se estiver tudo certo, *responda OK aqui no grupo* — assim registramos que você conferiu e aprovou. ✅`;
+}
 function buildWA(o){
 const e=etOf(o);
 const _elet=(o.trilha==='eletroposto');
@@ -1431,14 +1438,14 @@ if(dF&&dC){ dias=diffDays(dF,dC); antes=PRAZO_CONTRATUAL-dias; }
 if(_elet){
 let m=`⚡ *${o.cliente}*, seu eletroposto está *em operação*! 🚀\n\nO ponto de recarga já está ativo, credenciado nos aplicativos e gerando a própria energia pelo carport solar. 🌱`;
 if(dias!==null) m+=`\n\n📊 Prazo previsto: 45 a 60 dias\n✅ Entregamos em: *${dias} dias*`;
-m+=`\n\nMonitoramento 24/7 e pós-venda Polaris ativos a partir de agora.\n\n*Equipe Polaris Energia Solar* ☀️`;
+m+=blocoRelatorio(o)+`\n\nMonitoramento 24/7 e pós-venda Polaris ativos a partir de agora.\n\n*Equipe Polaris Energia Solar* ☀️`;
 return m;
 }
 if(dias!==null && antes>0)
-return `☀️ *${o.cliente}*, temos uma ótima notícia!\n\nSeu sistema solar foi *ativado* — e com muito orgulho: entregamos sua obra *${antes} dias antes* do prazo contratual! 🚀\n\n📊 Prazo contratual: ${PRAZO_CONTRATUAL} dias\n✅ Entregamos em: *${dias} dias*\n\nSeu sistema já está gerando energia limpa e reduzindo sua conta. 🌱\n\n*Equipe Polaris Energia Solar* ☀️`;
+return `☀️ *${o.cliente}*, temos uma ótima notícia!\n\nSeu sistema solar foi *ativado* — e com muito orgulho: entregamos sua obra *${antes} dias antes* do prazo contratual! 🚀\n\n📊 Prazo contratual: ${PRAZO_CONTRATUAL} dias\n✅ Entregamos em: *${dias} dias*\n\nSeu sistema já está gerando energia limpa e reduzindo sua conta. 🌱\n\n*Equipe Polaris Energia Solar* ☀️` + blocoRelatorio(o) + ``;
 if(dias!==null && antes===0)
-return `☀️ *${o.cliente}*, seu sistema foi *ativado* no prazo! ✅\n\nEntregamos em exatamente *${dias} dias*, dentro do prazo contratual.\n\nSeu sistema já está gerando energia limpa. 🌱\n\n*Equipe Polaris Energia Solar* ☀️`;
-return `☀️ *${o.cliente}*, seu sistema solar foi *ativado*! Parabéns! 🚀\n\nSeu sistema já está gerando energia limpa e reduzindo sua conta. 🌱\n\n*Equipe Polaris Energia Solar* ☀️`;
+return `☀️ *${o.cliente}*, seu sistema foi *ativado* no prazo! ✅\n\nEntregamos em exatamente *${dias} dias*, dentro do prazo contratual.\n\nSeu sistema já está gerando energia limpa. 🌱\n\n*Equipe Polaris Energia Solar* ☀️` + blocoRelatorio(o) + ``;
+return `☀️ *${o.cliente}*, seu sistema solar foi *ativado*! Parabéns! 🚀\n\nSeu sistema já está gerando energia limpa e reduzindo sua conta. 🌱\n\n*Equipe Polaris Energia Solar* ☀️` + blocoRelatorio(o) + ``;
 }
 // Vistoria e Conexão: mensagem única, com a data calculada e o que o cliente precisa fazer
 if(o.etapa_numero===7 && !_elet && (o.trilha||'padrao')!=='manutencao'){
