@@ -733,7 +733,7 @@ async function abrirFin(id){
   d.innerHTML='<div class="center"><div class="spin"></div>Abrindo...</div>';
   ov.classList.add('on');
   const r=await sb.from('obra_financeiro').select('*').eq('obra_id',id).maybeSingle();
-  const o=await sb.from('obras').select('id,cliente,contrato,potencia_kwp,qtd_modulos,data_fechamento,data_instalacao,data_conclusao,origem_lead,vendedor_id,tipo_telhado,distancia_km').eq('id',id).maybeSingle();
+  const o=await sb.from('obras').select('id,cliente,contrato,potencia_kwp,qtd_modulos,data_fechamento,data_instalacao,data_conclusao,origem_lead,vendedor_id,tipo_telhado,distancia_km,trilha,tipo_manutencao,valor_projeto').eq('id',id).maybeSingle();
   const pp=await sb.from('obra_parcelas').select('*').eq('obra_id',id).order('numero');
   if(r.error||o.error||!o.data){d.innerHTML='<div class="center">Não foi possível abrir.</div>';return;}
   let campos=[];
@@ -777,7 +777,10 @@ function renderFin(){
 
   // campos vêm da configuração da trilha da obra
   const cfg = (EDIT.campos && EDIT.campos.length) ? EDIT.campos : null;
-  const tri = O.trilha_nome ? (esc(O.trilha_icone||'')+' '+esc(O.trilha_nome)) : '';
+  const _tn={padrao:['☀️','Sistema Fotovoltaico'],eletroposto:['🚗','Carport + Eletroposto'],
+             manutencao:['🔧','Manutenção e O&M']};
+  const _t=_tn[O.trilha||'padrao'];
+  const tri = (O.trilha && O.trilha!=='padrao' && _t) ? (_t[0]+' '+_t[1]) : '';
   h+='<div class="reg"><h3>Preço e custos'+(tri?' <span class="thead">'+tri+'</span>':'')+'</h3>';
 
   h+='<div class="lin">'+
