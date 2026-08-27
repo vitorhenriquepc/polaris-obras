@@ -199,6 +199,11 @@ font-size:12px;font-weight:800;flex-shrink:0}
 .chk .cn span{font-size:11px;color:var(--muted);font-weight:700}
 /* ---- Fila e drawer ---- */
 .fila{background:var(--card);border:1px solid var(--gold);border-radius:14px;padding:14px;margin-bottom:14px}
+.subt{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+color:var(--muted);margin:14px 0 7px}
+.thead{font-size:11px;font-weight:800;color:var(--gold);background:rgba(245,166,35,.12);
+border:1px solid rgba(245,166,35,.3);border-radius:5px;padding:2px 7px;margin-left:7px;vertical-align:middle}
+.cpd{display:block;font-size:10.5px;color:var(--muted);margin-top:3px;line-height:1.3}
 .fbusca{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--txt);
 border-radius:11px;padding:11px 13px;font-family:inherit;font-size:14px;margin:4px 0 9px}
 .fbusca::placeholder{color:var(--muted)}
@@ -731,7 +736,12 @@ async function abrirFin(id){
   const o=await sb.from('obras').select('id,cliente,contrato,potencia_kwp,qtd_modulos,data_fechamento,data_instalacao,data_conclusao,origem_lead,vendedor_id,tipo_telhado,distancia_km').eq('id',id).maybeSingle();
   const pp=await sb.from('obra_parcelas').select('*').eq('obra_id',id).order('numero');
   if(r.error||o.error||!o.data){d.innerHTML='<div class="center">Não foi possível abrir.</div>';return;}
-  EDIT={fin:r.data||{obra_id:id}, obra:o.data};
+  let campos=[];
+  try{
+    const cf=await sb.rpc('get_campos_fin',{p_trilha:(o.data&&o.data.trilha)||'padrao'});
+    if(cf && cf.data) campos=cf.data;
+  }catch(e){}
+  EDIT={fin:r.data||{obra_id:id}, obra:o.data, campos:campos};
   PARC=(pp.data||[]).map(function(x){return {numero:x.numero,valor:x.valor,
     vencimento:x.vencimento,recebida:x.recebida};});
   const F0=EDIT.fin;
@@ -765,16 +775,52 @@ function renderFin(){
   h+='</select></div></div>'+
      '<div class="dica">Os dois gravam direto na obra — não precisa ir no painel.</div></div>';
 
-  h+='<div class="reg"><h3>Preço e custos</h3><div class="lin">';
-  for(let i=0;i<CAMPOS.length;i++){
-    const c=CAMPOS[i];
-    let val = (F[c[0]]!=null?F[c[0]]:'');
-    if(c[0]==='custo_operacional' && val==='' && EDIT.sugereOper) val=EDIT.sugereOper.toFixed(2);
-    h+='<div class="cp"><label>'+esc(c[1])+(c[2]?' *':'')+'</label>'+
-      '<input type="number" step="0.01" inputmode="decimal" id="e_'+c[0]+'" value="'+val+'" '+
-      'oninput="recalcFin()" placeholder="0,00"></div>';
+  // campos vêm da configuração da trilha da obra
+  const cfg = (EDIT.campos && EDIT.campos.length) ? EDIT.campos : null;
+  const tri = O.trilha_nome ? (esc(O.trilha_icone||'')+' '+esc(O.trilha_nome)) : '';
+  h+='<div class="reg"><h3>Preço e custos'+(tri?' <span class="thead">'+tri+'</span>':'')+'</h3>';
+
+  h+='<div class="lin">'+
+     '<div class="cp"><label>Preço negociado *</label>'+
+     '<input type="number" step="0.01" inputmode="decimal" id="e_preco_negociado" '+
+     'value="'+(F.preco_negociado!=null?F.preco_negociado:'')+'" oninput="recalcFin()" placeholder="0,00"></div>'+
+     '<div class="cp"><label>Imposto</label>'+
+     '<input type="number" step="0.01" inputmode="decimal" id="e_imposto_valor" '+
+     'value="'+(F.imposto_valor!=null?F.imposto_valor:'')+'" oninput="recalcFin()" placeholder="0,00"></div>'+
+     '<div class="cp"><label>Comissão</label>'+
+     '<input type="number" step="0.01" inputmode="decimal" id="e_comissao_valor" '+
+     'value="'+(F.comissao_valor!=null?F.comissao_valor:'')+'" oninput="recalcFin()" placeholder="0,00"></div>'+
+     '</div>';
+
+  if(cfg){
+    let grupoAtual='';
+    cfg.forEach(function(c,i){
+      if(c.grupo!==grupoAtual){
+        if(grupoAtual) h+='</div>';
+        grupoAtual=c.grupo;
+        h+='<div class="subt">'+(c.grupo==='material'?'📦 Material':'🔧 Serviços e outros')+'</div><div class="lin">';
+      }
+      let val=(F[c.campo]!=null?F[c.campo]:'');
+      if(c.campo==='custo_operacional' && val==='' && EDIT.sugereOper) val=EDIT.sugereOper.toFixed(2);
+      h+='<div class="cp"><label>'+esc(c.rotulo)+'</label>'+
+        '<input type="number" step="0.01" inputmode="decimal" id="e_'+c.campo+'" value="'+val+'" '+
+        'oninput="recalcFin()" placeholder="0,00">'+
+        (c.dica?'<span class="cpd">'+esc(c.dica)+'</span>':'')+'</div>';
+    });
+    if(grupoAtual) h+='</div>';
+  } else {
+    h+='<div class="lin">';
+    for(let i=1;i<CAMPOS.length;i++){
+      const c=CAMPOS[i];
+      if(['imposto_valor','comissao_valor'].indexOf(c[0])>=0) continue;
+      let val=(F[c[0]]!=null?F[c[0]]:'');
+      h+='<div class="cp"><label>'+esc(c[1])+'</label>'+
+        '<input type="number" step="0.01" inputmode="decimal" id="e_'+c[0]+'" value="'+val+'" '+
+        'oninput="recalcFin()" placeholder="0,00"></div>';
+    }
+    h+='</div>';
   }
-  h+='</div><div id="calcBox"></div>';
+  h+='<div id="calcBox"></div>';
   const _fe=O.data_fechamento;
   if(PROV_DESDE && (!_fe || _fe < PROV_DESDE))
     h+='<div class="dica">📌 Contrato fechado antes de '+dataBR(PROV_DESDE)+
@@ -924,7 +970,8 @@ function recalcFin(){
   const box=document.getElementById('calcBox'); if(!box) return;
   const p=n(gv('e_preco_negociado'));
   let dir=0;
-  const diretos=['valor_kit','material_ca','material_eletrico','cabo','instalacao','deslocamento','art','seguro','frete'];
+  const diretos=['valor_kit','material_ca','material_eletrico','cabo','instalacao','deslocamento',
+                 'art','seguro','frete','estrutura_carport','carregador','obra_civil','pecas'];
   for(let i=0;i<diretos.length;i++) dir+=n(gv('e_'+diretos[i]));
   const imp=n(gv('e_imposto_valor')), com=n(gv('e_comissao_valor')), op=n(gv('e_custo_operacional'));
   const prv=n(gv('e_provisao_posvenda'));
@@ -964,7 +1011,14 @@ function sugerirFin(){
 async function salvarFin(){
   const b=document.getElementById('bFin'); b.disabled=true; b.textContent='Salvando...';
   const payload={obra_id:EDIT.obra.id, atualizado_em:new Date().toISOString()};
-  for(let i=0;i<CAMPOS.length;i++) payload[CAMPOS[i][0]]=gv('e_'+CAMPOS[i][0]);
+  // grava tudo que existe na tela: os fixos e os da trilha
+  const todos=['preco_negociado','imposto_valor','comissao_valor',
+    'valor_kit','material_ca','material_eletrico','cabo','instalacao','deslocamento',
+    'art','seguro','frete','custo_operacional','provisao_posvenda',
+    'estrutura_carport','carregador','obra_civil','pecas'];
+  todos.forEach(function(c){
+    if(document.getElementById('e_'+c)) payload[c]=gv('e_'+c);
+  });
   const recT=PARC.filter(function(p){return p.recebida;}).length;
   payload.status_pagamento = PARC.length===0 ? 'aberto'
                            : (recT===PARC.length ? 'quitado' : 'parcelado');
