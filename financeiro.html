@@ -121,11 +121,20 @@ letter-spacing:.5px;padding:10px;border-bottom:1px solid var(--border);font-weig
 .reg h3{font-size:11px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;
 color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}
 .reg h3::after{content:'';flex:1;height:1px;background:var(--border)}
-.lin{display:flex;gap:9px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px}
-.cp{flex:1;min-width:120px}
+.lin{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 14px;margin-bottom:12px;align-items:start}
+@media(max-width:700px){.lin{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.lin{grid-template-columns:1fr}}
+/* cada campo é uma coluna própria: rótulo em cima, input no meio, dica embaixo.
+   O input fica sempre na mesma altura, mesmo com rótulo de duas linhas. */
+.cp{display:flex;flex-direction:column;min-width:0}
+.cp input,.cp select{width:100%}
+.cp .cpd{margin-top:4px;min-height:14px}
 .cp.w2{flex:2;min-width:180px}
 label{display:block;font-size:10px;color:var(--muted);font-weight:800;
 text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+/* rótulo com altura fixa para dois campos vizinhos alinharem o input */
+.cp label{min-height:24px;line-height:1.3;display:flex;align-items:flex-end;margin-bottom:5px}
+.cp input{margin-top:0}
 input,select,textarea{width:100%;background:var(--card2);border:1px solid var(--border);
 color:var(--txt);border-radius:9px;padding:10px;font-family:inherit;font-size:14px;outline:none}
 input:focus,select:focus,textarea:focus{border-color:var(--gold)}
