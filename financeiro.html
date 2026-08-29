@@ -277,6 +277,29 @@ letter-spacing:.6px;font-weight:800;margin-bottom:2px}
 .brc.alerta b{color:var(--gold)}
 .aviso{background:rgba(245,166,35,.10);border:1px solid rgba(245,166,35,.35);
 border-radius:9px;padding:9px 12px;font-size:12px;color:var(--txt);margin:7px 0}
+.mrow.gravado{opacity:.5}
+.mrow.pronto{background:rgba(88,184,104,.07)}
+.tag-ok{font-size:10.5px;color:#58b868;font-weight:700}
+.clsbox{grid-column:1/-1;background:var(--card2);border:1px solid var(--gold);
+border-radius:10px;padding:11px;margin:7px 0 3px}
+.clstabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.clstabs button{background:var(--card);border:1px solid var(--border);color:var(--muted);
+border-radius:18px;padding:6px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.clstabs button.on{border-color:var(--gold);color:var(--txt);background:rgba(245,166,35,.12)}
+.ratlin{display:grid;grid-template-columns:1fr 1fr 110px 34px;gap:6px;margin-bottom:6px;align-items:center}
+@media(max-width:640px){.ratlin{grid-template-columns:1fr 1fr;gap:5px}}
+.ratfoot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.ratfoot .ok{font-size:12px;color:#58b868;font-weight:700}
+.ratfoot .falta{font-size:12px;color:var(--gold);font-weight:700}
+.gravarbar{display:flex;justify-content:space-between;align-items:center;gap:12px;
+background:var(--card2);border:1px solid var(--border);border-radius:12px;
+padding:13px 15px;margin-top:14px;flex-wrap:wrap}
+.gbtx{font-size:13px;color:var(--txt)}
+.gbtx b{font-size:17px;color:var(--gold)}
+.gbtx span{color:var(--muted);font-size:12px}
+.bgrande{background:#2d7a3e;border:none;color:#fff;border-radius:10px;padding:11px 20px;
+font-family:inherit;font-size:14px;font-weight:800;cursor:pointer}
+.bgrande.off{background:var(--card);color:var(--muted);cursor:not-allowed}
 .mlist{border:1px solid var(--border);border-radius:11px;overflow:hidden}
 .mrow{display:grid;grid-template-columns:70px 1fr 110px 120px;gap:9px;padding:9px 11px;
 border-bottom:1px solid var(--border);align-items:center;font-size:12px}
@@ -1675,8 +1698,12 @@ async function conferirEDesenhar(){
     const r=await sb.rpc('classificar_lote',{p_itens:memos});
     cls=r.data||[];
   }catch(e){ cls=[]; }
-  BMOV.forEach(function(m,i){ m.cls = cls[i] || {classificacao:'indefinido',automatico:false}; });
-
+  BMOV.forEach(function(m,i){
+    m.cls = cls[i] || {classificacao:'indefinido',automatico:false};
+    if(m.cls.automatico && m.cls.classificacao==='transferencia') m.modo='transf';
+    else if(m.cls.automatico && m.cls.conta){ m.modo='fixo'; m.conta=m.cls.conta; }
+  });
+  await carregaAuxBanco();
   desenhaBanco(conta);
 }
 
@@ -1722,21 +1749,172 @@ function desenhaBanco(conta){
     const c=(m.cls&&m.cls.classificacao)||'indefinido';
     const rot={transferencia:'🔄 Transferência',custo_fixo:'📌 Custo fixo',
                receber:'💰 Recebimento',fatura_cartao:'💳 Fatura',indefinido:'❓ Definir'};
-    h+='<div class="mrow '+c+'">'+
+    const idx=BMOV.indexOf(m);
+    const pronto=prontoPraLancar(m);
+    h+='<div class="mrow '+c+(m.gravado?' gravado':'')+(pronto?' pronto':'')+'">'+
        '<div class="md">'+fmtD(m.data)+'</div>'+
        '<div class="mm">'+esc(m.memo.slice(0,60))+
          (m.cls&&m.cls.motivo?'<span class="mmot">'+esc(m.cls.motivo)+'</span>':'')+'</div>'+
        '<div class="mv '+(m.valor<0?'neg':'pos')+'">'+moeda(m.valor)+'</div>'+
-       '<div class="mc">'+(rot[c]||c)+'</div>'+
+       '<div class="mc">'+
+         (m.gravado ? '<span class="tag-ok">✅ lançado</span>'
+          : '<button class="bmini'+(pronto?' go':'')+'" onclick="abrirClass('+idx+')">'+
+            (pronto?'✔ '+(rot[c]||c):'Classificar')+'</button>')+
        '</div>';
+    if(BSEL===idx && !m.gravado) h+=painelClass(m,idx);
+    h+='</div>';
   });
   if(lista.length>120) h+='<div class="dica">Mostrando 120 de '+lista.length+'.</div>';
   h+='</div>';
 
-  h+='<div class="dica" style="margin-top:12px">Esta é a <b>conferência</b>. '+
-     'Nada foi gravado ainda — a gravação e a classificação item a item entram no próximo passo.</div>';
+  const nPronto=BMOV.filter(function(x){ return prontoPraLancar(x)&&!x.gravado; }).length;
+  const nFalta=BMOV.filter(function(x){ return !prontoPraLancar(x)&&!x.gravado; }).length;
+  h+='<div class="gravarbar">'+
+     '<div class="gbtx"><b>'+nPronto+'</b> pronto(s) para lançar'+
+     (nFalta?' · <span>'+nFalta+' aguardando você classificar</span>':'')+'</div>'+
+     '<button class="bgrande'+(nPronto?'':' off')+'" '+(nPronto?'':'disabled ')+
+     'onclick="gravarExtrato()">Lançar '+nPronto+' no sistema</button></div>';
+  h+='<div class="dica">Só é gravado o que estiver classificado. O resto continua aqui para você resolver depois.</div>';
 
   box.innerHTML=h;
+}
+
+
+// ---- classificação item a item na própria tela ----
+let BCONTASDRE=[], BOBRAS=[], BSEL=null;
+
+async function carregaAuxBanco(){
+  if(BCONTASDRE.length) return;
+  const [c,o]=await Promise.all([
+    sb.from('dre_plano_contas').select('codigo,nome,tipo').eq('nivel',3).order('codigo'),
+    sb.from('obras').select('id,cliente,contrato').order('cliente')
+  ]);
+  BCONTASDRE=(c.data||[]).filter(function(x){ return x.tipo!=='receita'; });
+  BOBRAS=o.data||[];
+}
+
+function abrirClass(i){
+  BSEL = (BSEL===i ? null : i);
+  desenhaBanco();
+  if(BSEL!==null) setTimeout(function(){
+    const el=document.getElementById('cls'+BSEL);
+    if(el) el.scrollIntoView({block:'center',behavior:'smooth'});
+  },40);
+}
+
+function painelClass(m,i){
+  let h='<div class="clsbox" id="cls'+i+'">';
+  h+='<div class="clstabs">'+
+     '<button class="'+(m.modo==='fixo'?'on':'')+'" onclick="setModo('+i+',\'fixo\')">📌 Custo fixo</button>'+
+     '<button class="'+(m.modo==='obra'?'on':'')+'" onclick="setModo('+i+',\'obra\')">🏗️ Obra</button>'+
+     '<button class="'+(m.modo==='transf'?'on':'')+'" onclick="setModo('+i+',\'transf\')">🔄 Transferência</button>'+
+     '</div>';
+
+  if(m.modo==='fixo'){
+    h+='<div class="lin"><div class="cp"><label>Conta</label>'+
+       '<select onchange="BMOV['+i+'].conta=this.value;BMOV['+i+'].cls={classificacao:\'custo_fixo\',automatico:false};desenhaBanco()">'+
+       '<option value="">— escolha —</option>'+
+       BCONTASDRE.map(function(c){
+         return '<option value="'+c.codigo+'"'+(m.conta===c.codigo?' selected':'')+'>'+esc(c.nome)+'</option>';
+       }).join('')+'</select></div></div>';
+  }
+  else if(m.modo==='obra'){
+    const linhas = m.rateio && m.rateio.length ? m.rateio : [{obra:'',conta:'',valor:Math.abs(m.valor)}];
+    if(!m.rateio) BMOV[i].rateio=linhas;
+    let soma=0;
+    linhas.forEach(function(r,j){
+      soma += Number(r.valor)||0;
+      h+='<div class="ratlin">'+
+         '<select onchange="BMOV['+i+'].rateio['+j+'].obra=this.value;desenhaBanco()">'+
+         '<option value="">— qual obra? —</option>'+
+         BOBRAS.map(function(o){
+           return '<option value="'+o.id+'"'+(r.obra===o.id?' selected':'')+'>'+
+             esc(o.cliente)+(o.contrato?' · #'+esc(o.contrato):'')+'</option>';
+         }).join('')+'</select>'+
+         '<select onchange="BMOV['+i+'].rateio['+j+'].conta=this.value;desenhaBanco()">'+
+         '<option value="">— conta —</option>'+
+         BCONTASDRE.filter(function(c){ return c.codigo.indexOf('03.')===0; }).map(function(c){
+           return '<option value="'+c.codigo+'"'+(r.conta===c.codigo?' selected':'')+'>'+esc(c.nome)+'</option>';
+         }).join('')+'</select>'+
+         '<input type="number" step="0.01" value="'+r.valor+'" '+
+         'oninput="BMOV['+i+'].rateio['+j+'].valor=parseFloat(this.value)||0;desenhaBanco()">'+
+         (linhas.length>1?'<button class="bmini" onclick="BMOV['+i+'].rateio.splice('+j+',1);desenhaBanco()">✕</button>':'<span></span>')+
+         '</div>';
+    });
+    const falta = +(Math.abs(m.valor)-soma).toFixed(2);
+    h+='<div class="ratfoot">'+
+       '<button class="bmini" onclick="BMOV['+i+'].rateio.push({obra:\'\',conta:\'\',valor:'+
+       Math.max(0,falta)+'});desenhaBanco()">+ dividir em outra obra</button>'+
+       '<span class="'+(Math.abs(falta)<0.02?'ok':'falta')+'">'+
+       (Math.abs(falta)<0.02 ? '✅ fecha com '+moeda(Math.abs(m.valor))
+                             : 'faltam '+moeda(falta)+' de '+moeda(Math.abs(m.valor)))+'</span>'+
+       '</div>';
+    if(!m.cls || m.cls.classificacao!=='custo_obra') BMOV[i].cls={classificacao:'custo_obra',automatico:false};
+  }
+  else if(m.modo==='transf'){
+    h+='<div class="dica">Marcado como movimentação entre contas — não entra no resultado.</div>';
+    BMOV[i].cls={classificacao:'transferencia',automatico:false,motivo:'Marcado por você'};
+  }
+  h+='</div>';
+  return h;
+}
+
+function setModo(i,modo){
+  BMOV[i].modo=modo;
+  if(modo!=='obra') BMOV[i].rateio=null;
+  if(modo!=='fixo') BMOV[i].conta=null;
+  desenhaBanco();
+}
+
+function prontoPraLancar(m){
+  if(!m.modo && !(m.cls&&m.cls.automatico)) return false;
+  if(m.modo==='transf' || (m.cls&&m.cls.classificacao==='transferencia')) return true;
+  if(m.modo==='fixo') return !!m.conta;
+  if(m.modo==='obra'){
+    if(!m.rateio||!m.rateio.length) return false;
+    const soma=m.rateio.reduce(function(a,r){return a+(Number(r.valor)||0)},0);
+    return m.rateio.every(function(r){return r.obra&&r.conta&&r.valor>0})
+        && Math.abs(soma-Math.abs(m.valor))<0.02;
+  }
+  return !!(m.cls&&m.cls.automatico&&m.cls.conta);
+}
+
+async function gravarExtrato(){
+  const conta=BCONTAS.find(function(c){
+    return BINFO && BINFO.conta && String(BINFO.conta).replace('-','').indexOf(c.numero.replace('-',''))>=0;
+  }) || BCONTAS.find(function(c){ return c.formato_ofx===(BINFO&&BINFO.formato); });
+  if(!conta){ alert('Esta conta bancária não está cadastrada. Não dá para gravar.'); return; }
+
+  const prontos=BMOV.filter(prontoPraLancar);
+  if(!prontos.length){ alert('Nenhum lançamento pronto para gravar.'); return; }
+  if(!confirm('Gravar '+prontos.length+' lançamento(s)?\n\nOs demais continuam pendentes para você classificar depois.')) return;
+
+  const itens=prontos.map(function(m){
+    const base={fitid:m.fitid,data:m.data,valor:m.valor,memo:m.memo,tipo:m.tipo};
+    if(m.modo==='transf'||(m.cls&&m.cls.classificacao==='transferencia'))
+      return Object.assign(base,{classificacao:'transferencia'});
+    if(m.modo==='obra')
+      return Object.assign(base,{classificacao:'custo_obra',rateio:m.rateio});
+    if(m.modo==='fixo')
+      return Object.assign(base,{classificacao:'custo_fixo',conta:m.conta});
+    return Object.assign(base,{classificacao:m.cls.classificacao,conta:m.cls.conta});
+  });
+
+  const box=document.getElementById('bres');
+  const antes=box.innerHTML;
+  box.innerHTML='<div class="center"><div class="spin"></div>Gravando...</div>';
+  const r=await sb.rpc('lancar_do_extrato',{p_itens:itens,p_conta:conta.id});
+  if(r.error){ box.innerHTML=antes; alert('Erro ao gravar: '+r.error.message); return; }
+  const d=r.data||{};
+  let msg='✅ '+(d.lancamentos||0)+' lançamento(s) criado(s).';
+  if(d.transferencias) msg+='\n🔄 '+d.transferencias+' transferência(s) registrada(s) fora do resultado.';
+  if(d.ja_existiam) msg+='\n↩️ '+d.ja_existiam+' já tinham sido importados antes.';
+  if(d.erros) msg+='\n⚠️ '+d.erros+' com problema: '+(d.detalhes||[]).join('; ');
+  alert(msg);
+  // marca os gravados e redesenha
+  prontos.forEach(function(m){ m.gravado=true; });
+  desenhaBanco();
+  carregar();
 }
 
 </script>
