@@ -277,6 +277,20 @@ letter-spacing:.6px;font-weight:800;margin-bottom:2px}
 .brc.alerta b{color:var(--gold)}
 .aviso{background:rgba(245,166,35,.10);border:1px solid rgba(245,166,35,.35);
 border-radius:9px;padding:9px 12px;font-size:12px;color:var(--txt);margin:7px 0}
+.extcard{display:flex;justify-content:space-between;align-items:center;gap:10px;
+background:var(--card2);border:1px solid var(--border);border-radius:11px;
+padding:11px 14px;margin-bottom:7px;cursor:pointer}
+.extcard:hover{border-color:var(--gold)}
+.extcard.tem{border-color:var(--gold)}
+.ecn b{display:block;font-size:13.5px;color:var(--txt)}
+.ecn span{font-size:11px;color:var(--muted)}
+.ecs{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+.ecs .ok{font-size:11.5px;color:#58b868;font-weight:700}
+.ecs .pend{font-size:11.5px;color:var(--gold);font-weight:800}
+.mdup{display:block;font-size:10.5px;color:var(--gold);margin-top:1px;font-weight:600}
+.dupbox{background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.4);
+border-radius:8px;padding:8px 11px;font-size:11.5px;color:var(--txt);margin-top:9px}
+.clsfoot{margin-top:9px;display:flex;justify-content:flex-end}
 .mrow.gravado{opacity:.5}
 .mrow.pronto{background:rgba(88,184,104,.07)}
 .tag-ok{font-size:10.5px;color:#58b868;font-weight:700}
@@ -313,8 +327,18 @@ border-bottom:1px solid var(--border);align-items:center;font-size:12px}
 .mv.neg{color:#e07070}.mv.pos{color:#58b868}
 .mc{font-size:10.5px;color:var(--muted);text-align:right}
 @media(max-width:640px){
-  .mrow{grid-template-columns:1fr auto;grid-template-areas:'m v' 'd c';gap:3px}
-  .md{grid-area:d}.mm{grid-area:m}.mv{grid-area:v}.mc{grid-area:c;text-align:left}
+  .mrow{grid-template-columns:1fr auto;grid-template-areas:'m v' 'd c';gap:4px;padding:11px}
+  .md{grid-area:d}.mm{grid-area:m;font-size:12.5px}.mv{grid-area:v;font-size:13px}
+  .mc{grid-area:c;text-align:right}
+  .mc .bmini{padding:7px 13px;font-size:12px}
+  .clsbox{grid-column:1/-1}
+  .clstabs button{flex:1;min-width:0;padding:9px 6px;font-size:11.5px}
+  .gravarbar{flex-direction:column;align-items:stretch;text-align:center}
+  .bgrande{width:100%;padding:13px}
+  .ratlin>*{min-width:0}
+  .ratlin select,.ratlin input{font-size:12.5px;padding:9px}
+  .extcard{flex-direction:column;align-items:flex-start;gap:6px}
+  .ecs{justify-content:flex-start}
 }
 </style>
 </head>
@@ -483,7 +507,10 @@ function render(){
   h+='</div>';
   document.getElementById('app').innerHTML=h;
 }
-function irAba(a){ABA=a;render();window.scrollTo(0,0);}
+function irAba(a){
+  ABA=a; render(); window.scrollTo(0,0);
+  if(a==='banco') carregaBanco().then(function(){ render(); });
+}
 
 function blocoPeriodo(){
   return '<div class="periodo">'+
@@ -1628,14 +1655,16 @@ function lerOFX(texto, nomeArquivo) {
   };
 }
 
-let BCONTAS=[], BMOV=[], BINFO=null, BFILTRO='todos', BCARTOES=[];
+let BCONTAS=[], BMOV=[], BINFO=null, BFILTRO='todos', BCARTOES=[], BRESUMO=[], BIMPORT=null;
 
 async function carregaBanco(){
-  const [c,k]=await Promise.all([
+  const [c,k,p]=await Promise.all([
     sb.from('contas_bancarias').select('*').eq('ativa',true).order('banco'),
-    sb.from('cartoes').select('*').eq('ativo',true).order('apelido')
+    sb.from('cartoes').select('*').eq('ativo',true).order('apelido'),
+    sb.rpc('get_extrato_pendentes',{p_conta:null})
   ]);
   BCONTAS=c.data||[]; BCARTOES=k.data||[];
+  BRESUMO=(p.data&&p.data.contas)||[];
 }
 
 function viewBanco(){
@@ -1646,7 +1675,24 @@ function viewBanco(){
     '<div class="dzi">📄</div><b>Clique ou arraste o arquivo OFX</b>'+
     '<span>Nada é gravado até você conferir</span></div>'+
     '<input type="file" id="ofxIn" accept=".ofx,.OFX" style="display:none" onchange="lerArquivo(this.files[0])">'+
-    '<div id="bres"></div></div>';
+    '</div>';
+
+  if(BRESUMO && BRESUMO.length){
+    h+='<div class="reg"><h3>📂 Extratos já enviados</h3>'+
+       '<div class="dica">Clique para continuar de onde parou.</div>';
+    BRESUMO.forEach(function(c){
+      const pend=c.pendentes||0;
+      h+='<div class="extcard'+(pend?' tem':'')+'" onclick="recarregaPendentes(\''+c.conta_id+'\')">'+
+         '<div class="ecn"><b>'+esc(c.apelido||c.banco)+'</b>'+
+         '<span>'+fmtD(c.periodo_ini)+' a '+fmtD(c.periodo_fim)+'</span></div>'+
+         '<div class="ecs">'+
+           '<span class="ok">'+(c.conciliados||0)+' lançados</span>'+
+           (pend?'<span class="pend">'+pend+' pendentes</span>':'<span class="ok">✅ tudo pronto</span>')+
+         '</div></div>';
+    });
+    h+='</div>';
+  }
+  h+='<div id="bres"></div>';
 
   if(BCONTAS.length){
     h+='<div class="reg"><h3>Contas cadastradas</h3><div class="lin">';
@@ -1692,19 +1738,51 @@ async function conferirEDesenhar(){
   if(!conta) conta=BCONTAS.find(function(c){ return c.formato_ofx===BINFO.formato; });
 
   // classifica em lote no banco
-  const memos=BMOV.map(function(m){ return {memo:m.memo, valor:m.valor}; });
-  let cls=[];
-  try{
-    const r=await sb.rpc('classificar_lote',{p_itens:memos});
-    cls=r.data||[];
-  }catch(e){ cls=[]; }
-  BMOV.forEach(function(m,i){
-    m.cls = cls[i] || {classificacao:'indefinido',automatico:false};
-    if(m.cls.automatico && m.cls.classificacao==='transferencia') m.modo='transf';
-    else if(m.cls.automatico && m.cls.conta){ m.modo='fixo'; m.conta=m.cls.conta; }
-  });
+  if(!conta){
+    box.innerHTML='<div class="aviso"><b>Esta conta não está cadastrada.</b><br>'+
+      'Banco: '+esc(BINFO.banco||BINFO.formato)+' · conta '+esc(BINFO.conta||'?')+'</div>';
+    return;
+  }
+  // grava tudo já, para não perder o trabalho se ela sair da tela
+  box.innerHTML='<div class="center"><div class="spin"></div>Salvando '+BMOV.length+' lançamentos...</div>';
+  const imp=await sb.rpc('importar_extrato',{
+    p_itens: BMOV.map(function(m){
+      return {fitid:m.fitid,data:m.data,valor:m.valor,memo:m.memo,tipo:m.tipo};
+    }), p_conta: conta.id});
+  if(imp.error){ box.innerHTML='<div class="aviso">Erro ao salvar: '+esc(imp.error.message)+'</div>'; return; }
+  BIMPORT = imp.data||{};
   await carregaAuxBanco();
-  desenhaBanco(conta);
+  await recarregaPendentes(conta.id);
+}
+
+// Lê do banco o que está pendente — é isso que permite parar e voltar depois
+async function recarregaPendentes(contaId){
+  const box=document.getElementById('bres');
+  if(box) box.innerHTML='<div class="center"><div class="spin"></div>Carregando...</div>';
+  const r=await sb.rpc('get_extrato_pendentes',{p_conta:contaId||null});
+  if(r.error){ if(box) box.innerHTML='<div class="aviso">'+esc(r.error.message)+'</div>'; return; }
+  const d=r.data||{contas:[],itens:[]};
+  BRESUMO=d.contas||[];
+  BMOV=(d.itens||[]).map(function(x){
+    const m={id:x.id,fitid:x.fitid,data:x.data,valor:Number(x.valor),memo:x.memo||'',
+             duplicata:x.duplicata||null,conta_id:x.conta_id,banco:x.banco};
+    m.cls={classificacao:x.classificacao||'indefinido',automatico:false};
+    return m;
+  });
+  // reclassifica para trazer as sugestões
+  if(BMOV.length){
+    try{
+      const c=await sb.rpc('classificar_lote',{p_itens:BMOV.map(function(m){return {memo:m.memo,valor:m.valor}})});
+      (c.data||[]).forEach(function(cl,i){
+        if(!BMOV[i]) return;
+        BMOV[i].cls=cl;
+        if(cl.automatico && cl.classificacao==='transferencia') BMOV[i].modo='transf';
+        else if(cl.automatico && cl.conta){ BMOV[i].modo='fixo'; BMOV[i].conta=cl.conta; }
+      });
+    }catch(e){}
+  }
+  await carregaAuxBanco();
+  desenhaBanco();
 }
 
 function desenhaBanco(conta){
@@ -1716,17 +1794,39 @@ function desenhaBanco(conta){
   });
   const auto=BMOV.filter(function(m){ return m.cls&&m.cls.automatico; }).length;
 
-  let h='<div class="binfo">'+
-    '<div class="bi"><span>Banco</span><b>'+esc(BINFO.banco||BINFO.formato.toUpperCase())+'</b></div>'+
-    '<div class="bi"><span>Conta</span><b>'+esc(BINFO.conta||'—')+'</b></div>'+
-    '<div class="bi"><span>Período</span><b>'+fmtD(BINFO.periodo.inicio)+' a '+fmtD(BINFO.periodo.fim)+'</b></div>'+
-    '<div class="bi"><span>Lançamentos</span><b>'+BINFO.total+'</b></div>'+
-    '</div>';
+  let h='';
+  // BINFO só existe logo após subir um arquivo; ao retomar pendentes ele é nulo
+  if(BINFO){
+    h+='<div class="binfo">'+
+      '<div class="bi"><span>Banco</span><b>'+esc(BINFO.banco||(BINFO.formato||'').toUpperCase())+'</b></div>'+
+      '<div class="bi"><span>Conta</span><b>'+esc(BINFO.conta||'—')+'</b></div>'+
+      '<div class="bi"><span>Período</span><b>'+fmtD(BINFO.periodo&&BINFO.periodo.inicio)+
+        ' a '+fmtD(BINFO.periodo&&BINFO.periodo.fim)+'</b></div>'+
+      '<div class="bi"><span>Lançamentos</span><b>'+(BINFO.total||BMOV.length)+'</b></div>'+
+      '</div>';
+  } else if(BMOV.length){
+    const bco=BMOV[0].banco||'';
+    const dts=BMOV.map(function(m){return m.data}).sort();
+    h+='<div class="binfo">'+
+      '<div class="bi"><span>Banco</span><b>'+esc(bco)+'</b></div>'+
+      '<div class="bi"><span>Situação</span><b>continuando</b></div>'+
+      '<div class="bi"><span>Período</span><b>'+fmtD(dts[0])+' a '+fmtD(dts[dts.length-1])+'</b></div>'+
+      '<div class="bi"><span>Pendentes</span><b>'+BMOV.length+'</b></div>'+
+      '</div>';
+  }
 
-  if(!conta) h+='<div class="aviso">⚠️ Esta conta não está cadastrada. '+
-    'Os lançamentos podem ser conferidos, mas não serão gravados até cadastrar.</div>';
-
-  (BINFO.avisos||[]).forEach(function(a){ h+='<div class="aviso">⚠️ '+esc(a)+'</div>'; });
+  ((BINFO&&BINFO.avisos)||[]).forEach(function(a){ h+='<div class="aviso">⚠️ '+esc(a)+'</div>'; });
+  if(BIMPORT){
+    let t='';
+    if(BIMPORT.novos) t+='✅ '+BIMPORT.novos+' lançamento(s) salvos. ';
+    if(BIMPORT.ja_existiam) t+='↩️ '+BIMPORT.ja_existiam+' já tinham sido importados. ';
+    if(BIMPORT.possiveis_duplicatas) t+='⚠️ '+BIMPORT.possiveis_duplicatas+' podem já estar lançados.';
+    if(t) h+='<div class="aviso">'+t+'</div>';
+  }
+  if(!BMOV.length){
+    return h+'<div class="vazio" style="padding:22px"><b>✅ Tudo classificado!</b><br>'+
+      'Nenhum lançamento pendente nesta conta.</div>';
+  }
 
   h+='<div class="bresumo">'+
     '<div class="brc"><b>'+auto+'</b><span>já classificados</span></div>'+
@@ -1754,7 +1854,9 @@ function desenhaBanco(conta){
     h+='<div class="mrow '+c+(m.gravado?' gravado':'')+(pronto?' pronto':'')+'">'+
        '<div class="md">'+fmtD(m.data)+'</div>'+
        '<div class="mm">'+esc(m.memo.slice(0,60))+
-         (m.cls&&m.cls.motivo?'<span class="mmot">'+esc(m.cls.motivo)+'</span>':'')+'</div>'+
+         (m.duplicata?'<span class="mdup">⚠️ já lançado em '+fmtD(m.duplicata.data)+
+            ' como "'+esc(String(m.duplicata.descricao||'').slice(0,34))+'"</span>':'')+
+         (m.cls&&m.cls.motivo&&!m.duplicata?'<span class="mmot">'+esc(m.cls.motivo)+'</span>':'')+'</div>'+
        '<div class="mv '+(m.valor<0?'neg':'pos')+'">'+moeda(m.valor)+'</div>'+
        '<div class="mc">'+
          (m.gravado ? '<span class="tag-ok">✅ lançado</span>'
@@ -1855,10 +1957,24 @@ function painelClass(m,i){
     h+='<div class="dica">Marcado como movimentação entre contas — não entra no resultado.</div>';
     BMOV[i].cls={classificacao:'transferencia',automatico:false,motivo:'Marcado por você'};
   }
+  if(m.duplicata){
+    h+='<div class="dupbox">⚠️ <b>Este valor já foi lançado</b> em '+fmtD(m.duplicata.data)+
+       ' como "'+esc(m.duplicata.descricao||'')+'". Se for o mesmo, use <b>Descartar</b> '+
+       'para não duplicar.</div>';
+  }
+  h+='<div class="clsfoot"><button class="bmini" onclick="descartar('+i+')">🗑 Descartar</button></div>';
   h+='</div>';
   return h;
 }
 
+async function descartar(i){
+  const m=BMOV[i];
+  if(!confirm('Descartar este lançamento?\n\n"'+m.memo+'"\n\nEle sai da lista e não entra no resultado.')) return;
+  const r=await sb.rpc('descartar_movimento',{p_id:m.id,p_motivo:'descartado'});
+  if(r.error){ alert('Erro: '+r.error.message); return; }
+  BSEL=null;
+  await recarregaPendentes(m.conta_id);
+}
 function setModo(i,modo){
   BMOV[i].modo=modo;
   if(modo!=='obra') BMOV[i].rateio=null;
@@ -1880,17 +1996,12 @@ function prontoPraLancar(m){
 }
 
 async function gravarExtrato(){
-  const conta=BCONTAS.find(function(c){
-    return BINFO && BINFO.conta && String(BINFO.conta).replace('-','').indexOf(c.numero.replace('-',''))>=0;
-  }) || BCONTAS.find(function(c){ return c.formato_ofx===(BINFO&&BINFO.formato); });
-  if(!conta){ alert('Esta conta bancária não está cadastrada. Não dá para gravar.'); return; }
-
-  const prontos=BMOV.filter(prontoPraLancar);
+  const prontos=BMOV.filter(function(m){ return prontoPraLancar(m)&&!m.gravado; });
   if(!prontos.length){ alert('Nenhum lançamento pronto para gravar.'); return; }
   if(!confirm('Gravar '+prontos.length+' lançamento(s)?\n\nOs demais continuam pendentes para você classificar depois.')) return;
 
   const itens=prontos.map(function(m){
-    const base={fitid:m.fitid,data:m.data,valor:m.valor,memo:m.memo,tipo:m.tipo};
+    const base={id:m.id};
     if(m.modo==='transf'||(m.cls&&m.cls.classificacao==='transferencia'))
       return Object.assign(base,{classificacao:'transferencia'});
     if(m.modo==='obra')
@@ -1903,7 +2014,7 @@ async function gravarExtrato(){
   const box=document.getElementById('bres');
   const antes=box.innerHTML;
   box.innerHTML='<div class="center"><div class="spin"></div>Gravando...</div>';
-  const r=await sb.rpc('lancar_do_extrato',{p_itens:itens,p_conta:conta.id});
+  const r=await sb.rpc('lancar_movimentos',{p_itens:itens});
   if(r.error){ box.innerHTML=antes; alert('Erro ao gravar: '+r.error.message); return; }
   const d=r.data||{};
   let msg='✅ '+(d.lancamentos||0)+' lançamento(s) criado(s).';
@@ -1911,9 +2022,8 @@ async function gravarExtrato(){
   if(d.ja_existiam) msg+='\n↩️ '+d.ja_existiam+' já tinham sido importados antes.';
   if(d.erros) msg+='\n⚠️ '+d.erros+' com problema: '+(d.detalhes||[]).join('; ');
   alert(msg);
-  // marca os gravados e redesenha
-  prontos.forEach(function(m){ m.gravado=true; });
-  desenhaBanco();
+  const cid = BMOV.length ? BMOV[0].conta_id : null;
+  await recarregaPendentes(cid);
   carregar();
 }
 
