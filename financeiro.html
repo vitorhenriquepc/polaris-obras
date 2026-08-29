@@ -256,6 +256,43 @@ color:var(--muted);width:30px;height:30px;border-radius:9px;cursor:pointer;font-
 .resumoCalc .r{display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;padding:4px 0}
 .resumoCalc .r.tot{border-top:1px solid var(--border);margin-top:5px;padding-top:8px;font-size:14px;font-weight:800}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.dropz{border:2px dashed var(--border);border-radius:14px;padding:26px 18px;text-align:center;
+cursor:pointer;transition:.15s;margin:10px 0}
+.dropz:hover{border-color:var(--gold);background:rgba(245,166,35,.05)}
+.dropz .dzi{font-size:30px;margin-bottom:7px}
+.dropz b{display:block;font-size:14px;color:var(--txt);margin-bottom:3px}
+.dropz span{font-size:11.5px;color:var(--muted)}
+.binfo{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+@media(max-width:640px){.binfo{grid-template-columns:repeat(2,1fr)}}
+.bi{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:9px 11px}
+.bi span{display:block;font-size:9.5px;color:var(--muted);text-transform:uppercase;
+letter-spacing:.6px;font-weight:800;margin-bottom:2px}
+.bi b{font-size:13px;color:var(--txt)}
+.bresumo{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
+.brc{background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:12px;text-align:center}
+.brc b{display:block;font-size:22px;color:var(--txt);font-weight:800}
+.brc span{font-size:10.5px;color:var(--muted)}
+.brc.alerta{border-color:var(--gold)}
+.brc.alerta b{color:var(--gold)}
+.aviso{background:rgba(245,166,35,.10);border:1px solid rgba(245,166,35,.35);
+border-radius:9px;padding:9px 12px;font-size:12px;color:var(--txt);margin:7px 0}
+.mlist{border:1px solid var(--border);border-radius:11px;overflow:hidden}
+.mrow{display:grid;grid-template-columns:70px 1fr 110px 120px;gap:9px;padding:9px 11px;
+border-bottom:1px solid var(--border);align-items:center;font-size:12px}
+.mrow:last-child{border-bottom:none}
+.mrow.transferencia{opacity:.62}
+.mrow.indefinido{background:rgba(245,166,35,.06)}
+.md{color:var(--muted);font-size:11px}
+.mm{color:var(--txt);overflow:hidden}
+.mmot{display:block;font-size:10px;color:var(--muted);margin-top:1px}
+.mv{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.mv.neg{color:#e07070}.mv.pos{color:#58b868}
+.mc{font-size:10.5px;color:var(--muted);text-align:right}
+@media(max-width:640px){
+  .mrow{grid-template-columns:1fr auto;grid-template-areas:'m v' 'd c';gap:3px}
+  .md{grid-area:d}.mm{grid-area:m}.mv{grid-area:v}.mc{grid-area:c;text-align:left}
+}
 </style>
 </head>
 <body>
@@ -405,7 +442,7 @@ function render(){
   let h='<div class="subtabs">';
   const abas=[['dre','📊 Resumo do mês'],['obras','🏗️ Obra a obra'],['fluxo','💵 Fluxo de caixa'],
               ['desemp','📈 Desempenho'],['calc','🧮 Calculadora'],['lancar','✏️ Lançar'],
-              ['param','⚙️ Parâmetros']];
+              ['banco','🏦 Extrato'],['param','⚙️ Parâmetros']];
   for(let i=0;i<abas.length;i++){
     h+='<button class="stb'+(ABA===abas[i][0]?' on':'')+'" onclick="irAba(\''+abas[i][0]+'\')">'+abas[i][1]+'</button>';
   }
@@ -417,6 +454,7 @@ function render(){
   else if(ABA==='fluxo') h+=viewFluxo();
   else if(ABA==='desemp') h+=viewDesemp();
   else if(ABA==='calc') h+=viewCalc();
+  else if(ABA==='banco') h+=viewBanco();
   else if(ABA==='lancar') h+=viewLancar();
   else h+=viewParam();
   h+='</div>';
@@ -1459,6 +1497,248 @@ function viewParam(){
 }
 
 boot();
+
+// ===================== EXTRATO BANCÁRIO =====================
+// Leitor de OFX para os três bancos da Polaris.
+// Cada banco gera o arquivo de um jeito — as diferenças estão tratadas aqui.
+function lerOFX(texto, nomeArquivo) {
+  const av = { erros: [], avisos: [] };
+
+  // 1. Cabeçalho: identifica o banco
+  const pega = (tag, onde) => {
+    const m = (onde || texto).match(new RegExp('<' + tag + '>([^\\r\\n<]*)', 'i'));
+    return m ? m[1].trim() : null;
+  };
+  const org    = pega('ORG');
+  const bankid = pega('BANKID');
+  const acctid = pega('ACCTID');
+
+  // 2. Detecta o formato pelo BANKID, com o nome como reserva
+  let formato = 'padrao';
+  if (bankid === '001' || /BANCO DO BRASIL|\bBB\b/i.test(org || '')) formato = 'bb';
+  else if (bankid === '237' || bankid === '0237' || /BRADESCO/i.test(org || '')) formato = 'bradesco';
+  else if (bankid === '748' || /SICREDI/i.test(org || '')) formato = 'sicredi';
+
+  // 3. Extrai os lançamentos. O BB não fecha as tags, então há dois caminhos.
+  let blocos = texto.match(/<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi);
+  if (!blocos || !blocos.length) {
+    blocos = texto.split(/<STMTTRN>/i).slice(1);
+    if (blocos.length) av.avisos.push('Arquivo sem tags de fechamento — lido pelo modo alternativo.');
+  }
+  if (!blocos || !blocos.length) {
+    av.erros.push('Nenhum lançamento encontrado no arquivo.');
+    return { ok: false, ...av };
+  }
+
+  // 4. Converte o valor. O Bradesco usa vírgula decimal; os outros, ponto.
+  const valorNum = (bruto) => {
+    if (bruto == null) return null;
+    let s = String(bruto).trim();
+    const temVirgula = s.includes(','), temPonto = s.includes('.');
+    if (temVirgula && temPonto) s = s.replace(/\./g, '').replace(',', '.'); // 1.234,56
+    else if (temVirgula) s = s.replace(',', '.');                            // 150,00
+    const n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  };
+
+  const mov = [];
+  const vistos = new Set();
+  let semId = 0, semData = 0;
+
+  for (const b of blocos) {
+    const dt = pega('DTPOSTED', b);
+    const vl = valorNum(pega('TRNAMT', b));
+    let memo = pega('MEMO', b) || pega('NAME', b) || '';
+    let fitid = pega('FITID', b);
+    const tipo = pega('TRNTYPE', b);
+
+    if (!dt) { semData++; continue; }
+    if (vl === null) { semData++; continue; }
+
+    const data = dt.slice(0, 4) + '-' + dt.slice(4, 6) + '-' + dt.slice(6, 8);
+
+    // Sem FITID confiável, monta um id estável a partir do conteúdo
+    if (!fitid || fitid === '0' || fitid.length < 3) {
+      semId++;
+      fitid = 'GER-' + data + '-' + vl.toFixed(2) + '-' + memo.slice(0, 22).replace(/\s+/g, '');
+    }
+    // O Bradesco repete o mesmo FITID em lançamentos diferentes
+    let chave = fitid, n = 1;
+    while (vistos.has(chave)) { chave = fitid + '#' + (++n); }
+    vistos.add(chave);
+
+    memo = memo.replace(/\s+/g, ' ').trim();
+    mov.push({ fitid: chave, data, valor: vl, memo, tipo: tipo || null });
+  }
+
+  if (semData) av.avisos.push(semData + ' lançamento(s) ignorado(s) por falta de data ou valor.');
+  if (semId)   av.avisos.push(semId + ' lançamento(s) sem identificador do banco — gerado a partir do conteúdo.');
+
+  // 5. Período e saldo — cada banco informa de um jeito
+  const ini = pega('DTSTART'), fim = pega('DTEND');
+  const datas = mov.map(m => m.data).sort();
+  let periodoIni = ini ? ini.slice(0,4)+'-'+ini.slice(4,6)+'-'+ini.slice(6,8) : null;
+  let periodoFim = fim ? fim.slice(0,4)+'-'+fim.slice(4,6)+'-'+fim.slice(6,8) : null;
+
+  // O Bradesco declara início = fim = hoje. Nesse caso, usa as datas reais.
+  if (periodoIni && periodoFim && periodoIni === periodoFim && datas.length > 1) {
+    av.avisos.push('O banco não informou o período corretamente — usando as datas dos lançamentos.');
+    periodoIni = datas[0]; periodoFim = datas[datas.length - 1];
+  }
+  if (!periodoIni && datas.length) { periodoIni = datas[0]; periodoFim = datas[datas.length-1]; }
+
+  const saldoBruto = pega('BALAMT');
+  const saldo = valorNum(saldoBruto);
+  const dtasof = pega('DTASOF');
+  if (saldo === 0 && mov.length > 3) av.avisos.push('O banco enviou saldo zerado — não dá para conferir o saldo final.');
+  if (!dtasof || /^0+$/.test(dtasof)) av.avisos.push('Data do saldo ausente ou inválida no arquivo.');
+
+  return {
+    ok: true, formato, banco: org, bankid, conta: acctid,
+    periodo: { inicio: periodoIni, fim: periodoFim },
+    saldo, movimentos: mov, total: mov.length,
+    creditos: mov.filter(m=>m.valor>0).length,
+    debitos: mov.filter(m=>m.valor<0).length,
+    somaCred: +mov.filter(m=>m.valor>0).reduce((s,m)=>s+m.valor,0).toFixed(2),
+    somaDeb:  +mov.filter(m=>m.valor<0).reduce((s,m)=>s+m.valor,0).toFixed(2),
+    ...av
+  };
+}
+
+let BCONTAS=[], BMOV=[], BINFO=null, BFILTRO='todos', BCARTOES=[];
+
+async function carregaBanco(){
+  const [c,k]=await Promise.all([
+    sb.from('contas_bancarias').select('*').eq('ativa',true).order('banco'),
+    sb.from('cartoes').select('*').eq('ativo',true).order('apelido')
+  ]);
+  BCONTAS=c.data||[]; BCARTOES=k.data||[];
+}
+
+function viewBanco(){
+  let h='<div class="reg"><h3>🏦 Importar extrato</h3>'+
+    '<div class="dica">Baixe o extrato em <b>OFX</b> no aplicativo do banco e solte o arquivo aqui. '+
+    'O sistema reconhece Banco do Brasil, Bradesco e Sicredi automaticamente.</div>'+
+    '<div class="dropz" id="dropz" onclick="document.getElementById(\'ofxIn\').click()">'+
+    '<div class="dzi">📄</div><b>Clique ou arraste o arquivo OFX</b>'+
+    '<span>Nada é gravado até você conferir</span></div>'+
+    '<input type="file" id="ofxIn" accept=".ofx,.OFX" style="display:none" onchange="lerArquivo(this.files[0])">'+
+    '<div id="bres"></div></div>';
+
+  if(BCONTAS.length){
+    h+='<div class="reg"><h3>Contas cadastradas</h3><div class="lin">';
+    BCONTAS.forEach(function(c){
+      h+='<div class="cp"><label>'+esc(c.banco)+'</label>'+
+         '<div style="font-size:13px;color:var(--txt)">conta '+esc(c.numero)+'</div></div>';
+    });
+    h+='</div></div>';
+  }
+  return h;
+}
+
+function lerArquivo(file){
+  if(!file) return;
+  const box=document.getElementById('bres');
+  box.innerHTML='<div class="center"><div class="spin"></div>Lendo o arquivo...</div>';
+  const fr=new FileReader();
+  fr.onerror=function(){ box.innerHTML='<div class="aviso">Não consegui ler o arquivo.</div>'; };
+  fr.onload=function(){
+    let txt;
+    try{ txt=new TextDecoder('iso-8859-1').decode(fr.result); }
+    catch(e){ txt=new TextDecoder().decode(fr.result); }
+    let r;
+    try{ r=lerOFX(txt, file.name); }
+    catch(e){ box.innerHTML='<div class="aviso">Erro ao interpretar: '+esc(e.message)+'</div>'; return; }
+    if(!r.ok){ box.innerHTML='<div class="aviso"><b>Não deu para ler este arquivo.</b><br>'+
+      esc((r.erros||[]).join(' ')) +'<br><br>Confira se baixou no formato OFX, não PDF ou Excel.</div>'; return; }
+    BINFO=r; BMOV=r.movimentos;
+    conferirEDesenhar();
+  };
+  fr.readAsArrayBuffer(file);
+}
+
+async function conferirEDesenhar(){
+  const box=document.getElementById('bres');
+  box.innerHTML='<div class="center"><div class="spin"></div>Classificando '+BMOV.length+' lançamentos...</div>';
+
+  // acha a conta pelo número que veio no arquivo
+  let conta=BCONTAS.find(function(c){
+    return c.numero && BINFO.conta && (BINFO.conta.indexOf(c.numero.replace('-',''))>=0
+        || c.numero.replace('-','')===String(BINFO.conta).replace('-',''));
+  });
+  if(!conta) conta=BCONTAS.find(function(c){ return c.formato_ofx===BINFO.formato; });
+
+  // classifica em lote no banco
+  const memos=BMOV.map(function(m){ return {memo:m.memo, valor:m.valor}; });
+  let cls=[];
+  try{
+    const r=await sb.rpc('classificar_lote',{p_itens:memos});
+    cls=r.data||[];
+  }catch(e){ cls=[]; }
+  BMOV.forEach(function(m,i){ m.cls = cls[i] || {classificacao:'indefinido',automatico:false}; });
+
+  desenhaBanco(conta);
+}
+
+function desenhaBanco(conta){
+  const box=document.getElementById('bres');
+  const cont={transferencia:0,custo_fixo:0,receber:0,indefinido:0,fatura_cartao:0};
+  BMOV.forEach(function(m){
+    const c=(m.cls&&m.cls.classificacao)||'indefinido';
+    cont[c]=(cont[c]||0)+1;
+  });
+  const auto=BMOV.filter(function(m){ return m.cls&&m.cls.automatico; }).length;
+
+  let h='<div class="binfo">'+
+    '<div class="bi"><span>Banco</span><b>'+esc(BINFO.banco||BINFO.formato.toUpperCase())+'</b></div>'+
+    '<div class="bi"><span>Conta</span><b>'+esc(BINFO.conta||'—')+'</b></div>'+
+    '<div class="bi"><span>Período</span><b>'+fmtD(BINFO.periodo.inicio)+' a '+fmtD(BINFO.periodo.fim)+'</b></div>'+
+    '<div class="bi"><span>Lançamentos</span><b>'+BINFO.total+'</b></div>'+
+    '</div>';
+
+  if(!conta) h+='<div class="aviso">⚠️ Esta conta não está cadastrada. '+
+    'Os lançamentos podem ser conferidos, mas não serão gravados até cadastrar.</div>';
+
+  (BINFO.avisos||[]).forEach(function(a){ h+='<div class="aviso">⚠️ '+esc(a)+'</div>'; });
+
+  h+='<div class="bresumo">'+
+    '<div class="brc"><b>'+auto+'</b><span>já classificados</span></div>'+
+    '<div class="brc"><b>'+(cont.transferencia||0)+'</b><span>transferências</span></div>'+
+    '<div class="brc alerta"><b>'+(cont.indefinido||0)+'</b><span>para você ver</span></div>'+
+    '</div>';
+
+  h+='<div class="ffiltros" style="margin:12px 0">'+
+     '<button class="'+(BFILTRO==='todos'?'on':'')+'" onclick="BFILTRO=\'todos\';desenhaBanco()">Todos <b>'+BMOV.length+'</b></button>'+
+     '<button class="'+(BFILTRO==='ver'?'on':'')+'" onclick="BFILTRO=\'ver\';desenhaBanco()">Para ver <b>'+(cont.indefinido||0)+'</b></button>'+
+     '<button class="'+(BFILTRO==='transf'?'on':'')+'" onclick="BFILTRO=\'transf\';desenhaBanco()">Transferências <b>'+(cont.transferencia||0)+'</b></button>'+
+     '</div>';
+
+  let lista=BMOV;
+  if(BFILTRO==='ver') lista=BMOV.filter(function(m){ return !(m.cls&&m.cls.automatico); });
+  else if(BFILTRO==='transf') lista=BMOV.filter(function(m){ return m.cls&&m.cls.classificacao==='transferencia'; });
+
+  h+='<div class="mlist">';
+  lista.slice(0,120).forEach(function(m){
+    const c=(m.cls&&m.cls.classificacao)||'indefinido';
+    const rot={transferencia:'🔄 Transferência',custo_fixo:'📌 Custo fixo',
+               receber:'💰 Recebimento',fatura_cartao:'💳 Fatura',indefinido:'❓ Definir'};
+    h+='<div class="mrow '+c+'">'+
+       '<div class="md">'+fmtD(m.data)+'</div>'+
+       '<div class="mm">'+esc(m.memo.slice(0,60))+
+         (m.cls&&m.cls.motivo?'<span class="mmot">'+esc(m.cls.motivo)+'</span>':'')+'</div>'+
+       '<div class="mv '+(m.valor<0?'neg':'pos')+'">'+moeda(m.valor)+'</div>'+
+       '<div class="mc">'+(rot[c]||c)+'</div>'+
+       '</div>';
+  });
+  if(lista.length>120) h+='<div class="dica">Mostrando 120 de '+lista.length+'.</div>';
+  h+='</div>';
+
+  h+='<div class="dica" style="margin-top:12px">Esta é a <b>conferência</b>. '+
+     'Nada foi gravado ainda — a gravação e a classificação item a item entram no próximo passo.</div>';
+
+  box.innerHTML=h;
+}
+
 </script>
 </body>
 </html>
