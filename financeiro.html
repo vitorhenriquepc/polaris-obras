@@ -1895,6 +1895,14 @@ function desenhaBanco(conta){
 }
 
 
+// Data curta para a lista do extrato: 05/08
+function fmtD(d){
+  if(!d) return '—';
+  const p=String(d).split('T')[0].split('-');
+  if(p.length<3) return String(d);
+  return p[2]+'/'+p[1];
+}
+
 // ---- classificação item a item na própria tela ----
 let BCONTASDRE=[], BOBRAS=[], BSEL=null;
 
