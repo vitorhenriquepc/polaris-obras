@@ -725,7 +725,8 @@ function blocoFila(){
      'os valores podem ser ajustados depois.</div>';
 
   if(!arr.length){
-    return h+'<div class="vazio" style="padding:20px"><b>Nada encontrado com esse filtro.</b></div></div>';
+    box.innerHTML = h+'<div class="vazio" style="padding:20px"><b>Nada encontrado com esse filtro.</b></div></div>';
+    return;
   }
 
   const mostra=FILA_TODAS?arr:arr.slice(0,8);
@@ -1824,8 +1825,9 @@ function desenhaBanco(conta){
     if(t) h+='<div class="aviso">'+t+'</div>';
   }
   if(!BMOV.length){
-    return h+'<div class="vazio" style="padding:22px"><b>✅ Tudo classificado!</b><br>'+
+    box.innerHTML = h+'<div class="vazio" style="padding:22px"><b>✅ Tudo classificado!</b><br>'+
       'Nenhum lançamento pendente nesta conta.</div>';
+    return;
   }
 
   h+='<div class="bresumo">'+
