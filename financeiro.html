@@ -329,7 +329,9 @@ border-radius:18px;padding:6px 12px;font-family:inherit;font-size:12px;font-weig
 .tipos button{background:var(--card);border:1px solid var(--border);color:var(--muted);
 border-radius:18px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
 .tipos button.on{border-color:var(--gold);color:var(--txt);background:rgba(245,166,35,.14)}
-.ratlin{display:grid;grid-template-columns:1fr 1fr 110px 34px;gap:6px;margin-bottom:6px;align-items:center}
+.ratlin{display:grid;grid-template-columns:1.3fr 1fr 108px 34px;gap:6px;margin-bottom:6px;align-items:center}
+.ratlin .vlr{text-align:right;font-variant-numeric:tabular-nums}
+.ratlin .obusca::placeholder{color:var(--muted);opacity:.7}
 @media(max-width:640px){.ratlin{grid-template-columns:1fr 1fr;gap:5px}}
 .ratfoot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
 .ratfoot .ok{font-size:12px;color:#58b868;font-weight:700}
@@ -2082,36 +2084,43 @@ function painelClass(m,i){
        }).join('')+'</select></div></div>';
   }
   else if(m.modo==='obra'){
-    const linhas = m.rateio && m.rateio.length ? m.rateio : [{obra:'',conta:'',valor:Math.abs(m.valor)}];
+    const linhas = m.rateio && m.rateio.length ? m.rateio
+                 : [{obra:'',conta:'',valor:Math.abs(m.valor),busca:''}];
     if(!m.rateio) BMOV[i].rateio=linhas;
     let soma=0;
     linhas.forEach(function(r,j){
       soma += Number(r.valor)||0;
+      const semObra = !r.obra;
+      const contas = semObra ? BCONTASDRE : BCONTASOBRA;
       h+='<div class="ratlin">'+
-         '<select onchange="BMOV['+i+'].rateio['+j+'].obra=this.value;desenhaBanco()">'+
-         '<option value="">— qual obra? —</option>'+
-         BOBRAS.map(function(o){
-           return '<option value="'+o.id+'"'+(r.obra===o.id?' selected':'')+'>'+
-             esc(o.cliente)+(o.contrato?' · #'+esc(o.contrato):'')+'</option>';
-         }).join('')+'</select>'+
+         '<input list="lo'+i+'_'+j+'" class="obusca" placeholder="Digite o nome ou contrato" '+
+           'value="'+esc(r.busca||'')+'" '+
+           'oninput="buscaObra('+i+','+j+',this.value)">'+
+         '<datalist id="lo'+i+'_'+j+'">'+
+           '<option value="— sem obra (custo fixo) —">'+
+           BOBRAS.map(function(o){
+             return '<option value="'+esc(o.cliente)+(o.contrato?' · #'+esc(o.contrato):'')+'">';
+           }).join('')+
+         '</datalist>'+
          '<select onchange="BMOV['+i+'].rateio['+j+'].conta=this.value;desenhaBanco()">'+
-         '<option value="">— conta —</option>'+
-         BCONTASOBRA.map(function(c){
+         '<option value="">'+(semObra?'— conta fixa —':'— conta da obra —')+'</option>'+
+         contas.map(function(c){
            return '<option value="'+c.codigo+'"'+(r.conta===c.codigo?' selected':'')+'>'+esc(c.nome)+'</option>';
          }).join('')+'</select>'+
-         '<input type="number" step="0.01" value="'+r.valor+'" '+
-         'oninput="BMOV['+i+'].rateio['+j+'].valor=parseFloat(this.value)||0;desenhaBanco()">'+
-         (linhas.length>1?'<button class="bmini" onclick="BMOV['+i+'].rateio.splice('+j+',1);desenhaBanco()">✕</button>':'<span></span>')+
+         '<input type="text" inputmode="decimal" class="vlr" value="'+(r.valor||'')+'" '+
+           'placeholder="0,00" oninput="mudaValor('+i+','+j+',this.value)">'+
+         (linhas.length>1?'<button class="bmini" onclick="tiraLinha('+i+','+j+')">✕</button>':'<span></span>')+
          '</div>';
     });
     const falta = +(Math.abs(m.valor)-soma).toFixed(2);
     h+='<div class="ratfoot">'+
-       '<button class="bmini" onclick="BMOV['+i+'].rateio.push({obra:\'\',conta:\'\',valor:'+
-       Math.max(0,falta)+'});desenhaBanco()">+ dividir em outra obra</button>'+
-       '<span class="'+(Math.abs(falta)<0.02?'ok':'falta')+'">'+
+       '<button class="bmini" onclick="poeLinha('+i+')">+ dividir em outra linha</button>'+
+       '<span id="rf'+i+'" class="'+(Math.abs(falta)<0.02?'ok':'falta')+'">'+
        (Math.abs(falta)<0.02 ? '✅ fecha com '+moeda(Math.abs(m.valor))
                              : 'faltam '+moeda(falta)+' de '+moeda(Math.abs(m.valor)))+'</span>'+
        '</div>';
+    h+='<div class="dica">Deixe o campo da obra vazio para lançar aquela parte como '+
+       '<b>custo fixo</b> — serve para quando o Pix junta comissão e ajuda de custo.</div>';
     if(!m.cls || m.cls.classificacao!=='custo_obra') BMOV[i].cls={classificacao:'custo_obra',automatico:false};
   }
   else if(m.modo==='transf'){
@@ -2136,6 +2145,57 @@ async function descartar(i){
   BSEL=null;
   await recarregaPendentes(m.conta_id);
 }
+// Casa o que foi digitado com uma obra da lista. Vazio = custo fixo.
+function buscaObra(i,j,txt){
+  const r=BMOV[i].rateio[j];
+  r.busca=txt;
+  const t=String(txt||'').trim().toLowerCase();
+  if(!t || t.indexOf('sem obra')>=0){ r.obra=''; atualizaRateio(i); return; }
+  const achou=BOBRAS.find(function(o){
+    const rot=(o.cliente+(o.contrato?' · #'+o.contrato:'')).toLowerCase();
+    return rot===t;
+  }) || BOBRAS.find(function(o){
+    return o.contrato && t.indexOf(String(o.contrato))>=0;
+  }) || BOBRAS.find(function(o){
+    return o.cliente.toLowerCase().indexOf(t)===0 && t.length>=4;
+  });
+  const antes=r.obra;
+  r.obra = achou ? achou.id : '';
+  // só redesenha quando a obra muda, porque a lista de contas muda junto
+  if(antes!==r.obra) desenhaBanco();
+  else atualizaRateio(i);
+}
+
+// Aceita vírgula e ponto, e NÃO redesenha — senão o campo perde o foco a cada tecla
+function mudaValor(i,j,txt){
+  const n=parseFloat(String(txt||'').replace(/\./g,'').replace(',','.'));
+  BMOV[i].rateio[j].valor = isNaN(n) ? 0 : n;
+  atualizaRateio(i);
+}
+
+function atualizaRateio(i){
+  const m=BMOV[i];
+  if(!m.rateio) return;
+  const soma=m.rateio.reduce(function(a,r){ return a+(Number(r.valor)||0) },0);
+  const falta=+(Math.abs(m.valor)-soma).toFixed(2);
+  const el=document.getElementById('rf'+i);
+  if(el){
+    const ok=Math.abs(falta)<0.02;
+    el.className = ok?'ok':'falta';
+    el.textContent = ok ? '✅ fecha com '+moeda(Math.abs(m.valor))
+                        : 'faltam '+moeda(falta)+' de '+moeda(Math.abs(m.valor));
+  }
+  atualizaBotao();
+}
+
+function poeLinha(i){
+  const m=BMOV[i];
+  const soma=m.rateio.reduce(function(a,r){ return a+(Number(r.valor)||0) },0);
+  m.rateio.push({obra:'',conta:'',valor:Math.max(0,+(Math.abs(m.valor)-soma).toFixed(2)),busca:''});
+  desenhaBanco();
+}
+function tiraLinha(i,j){ BMOV[i].rateio.splice(j,1); desenhaBanco(); }
+
 async function escolheObraReceb(i,obraId){
   BMOV[i].obraReceb = obraId || null;
   BMOV[i].parcelaSel = null;
@@ -2177,7 +2237,8 @@ function prontoPraLancar(m){
   if(m.modo==='obra'){
     if(!m.rateio||!m.rateio.length) return false;
     const soma=m.rateio.reduce(function(a,r){return a+(Number(r.valor)||0)},0);
-    return m.rateio.every(function(r){return r.obra&&r.conta&&r.valor>0})
+    // a obra é opcional: sem obra, a linha vira custo fixo. A conta é sempre obrigatória.
+    return m.rateio.every(function(r){return r.conta&&r.valor>0})
         && Math.abs(soma-Math.abs(m.valor))<0.02;
   }
   return !!(m.cls&&m.cls.automatico&&m.cls.conta);
