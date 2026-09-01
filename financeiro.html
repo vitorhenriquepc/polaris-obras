@@ -318,6 +318,10 @@ border-radius:10px;padding:11px;margin:7px 0 3px}
 .clstabs button{background:var(--card);border:1px solid var(--border);color:var(--muted);
 border-radius:18px;padding:6px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
 .clstabs button.on{border-color:var(--gold);color:var(--txt);background:rgba(245,166,35,.12)}
+.tipos{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}
+.tipos button{background:var(--card);border:1px solid var(--border);color:var(--muted);
+border-radius:18px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.tipos button.on{border-color:var(--gold);color:var(--txt);background:rgba(245,166,35,.14)}
 .ratlin{display:grid;grid-template-columns:1fr 1fr 110px 34px;gap:6px;margin-bottom:6px;align-items:center}
 @media(max-width:640px){.ratlin{grid-template-columns:1fr 1fr;gap:5px}}
 .ratfoot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
@@ -1920,16 +1924,18 @@ function fmtD(d){
 }
 
 // ---- classificação item a item na própria tela ----
-let BCONTASDRE=[], BOBRAS=[], BSEL=null;
+let BCONTASDRE=[], BOBRAS=[], BSEL=null, BTIPOS=[];
 
 async function carregaAuxBanco(){
   if(BCONTASDRE.length) return;
-  const [c,o]=await Promise.all([
+  const [c,o,t]=await Promise.all([
     sb.from('dre_plano_contas').select('codigo,nome,tipo').eq('nivel',3).order('codigo'),
-    sb.from('obras').select('id,cliente,contrato').order('cliente')
+    sb.from('obras').select('id,cliente,contrato').order('cliente'),
+    sb.from('tipos_avulso').select('*').eq('ativo',true).order('ordem')
   ]);
   BCONTASDRE=(c.data||[]).filter(function(x){ return x.tipo!=='receita'; });
   BOBRAS=o.data||[];
+  BTIPOS=t.data||[];
 }
 
 function abrirClass(i){
@@ -1944,7 +1950,8 @@ function abrirClass(i){
 // Mostra o que foi criado a partir de um movimento já lançado
 function painelConferir(m,i){
   const rot={transferencia:'🔄 Transferência entre contas',recebimento:'💰 Recebimento de obra',
-             custo_fixo:'📌 Custo fixo',custo_obra:'🏗️ Custo de obra',fatura_cartao:'💳 Fatura de cartão'};
+             custo_fixo:'📌 Custo fixo',custo_obra:'🏗️ Custo de obra',
+             fatura_cartao:'💳 Fatura de cartão',avulso:'🔧 Serviço avulso'};
   let h='<div class="clsbox conf" id="cls'+i+'">';
   h+='<div class="confh">Lançado como <b>'+(rot[m.classificacao||(m.cls&&m.cls.classificacao)]||'—')+'</b></div>';
 
@@ -1986,15 +1993,37 @@ function painelClass(m,i){
   if(entrada){
     h+='<div class="clstabs">'+
        '<button class="'+(m.modo==='receber'?'on':'')+'" onclick="setModo('+i+',\'receber\')">💰 Recebimento de obra</button>'+
-       '<button class="'+(m.modo==='fixo'?'on':'')+'" onclick="setModo('+i+',\'fixo\')">📈 Outra receita</button>'+
+       '<button class="'+(m.modo==='avulso'?'on':'')+'" onclick="setModo('+i+',\'avulso\')">🔧 Serviço avulso</button>'+
        '<button class="'+(m.modo==='transf'?'on':'')+'" onclick="setModo('+i+',\'transf\')">🔄 Transferência</button>'+
        '</div>';
   } else {
     h+='<div class="clstabs">'+
        '<button class="'+(m.modo==='fixo'?'on':'')+'" onclick="setModo('+i+',\'fixo\')">📌 Custo fixo</button>'+
        '<button class="'+(m.modo==='obra'?'on':'')+'" onclick="setModo('+i+',\'obra\')">🏗️ Obra</button>'+
+       '<button class="'+(m.modo==='avulso'?'on':'')+'" onclick="setModo('+i+',\'avulso\')">🔧 Serviço avulso</button>'+
        '<button class="'+(m.modo==='transf'?'on':'')+'" onclick="setModo('+i+',\'transf\')">🔄 Transferência</button>'+
        '</div>';
+  }
+
+  if(m.modo==='avulso'){
+    h+='<div class="dica">Serviço para quem não tem obra no sistema — cliente antigo, '+
+       'Anexo G, manutenção pontual.</div>';
+    h+='<div class="lin"><div class="cp"><label>Nome do cliente</label>'+
+       '<input id="avc'+i+'" value="'+esc(m.avCliente||'')+'" placeholder="Ex.: Maria das Dores" '+
+       'oninput="BMOV['+i+'].avCliente=this.value;atualizaBotao()"></div></div>';
+    h+='<div class="tipos">';
+    BTIPOS.forEach(function(t){
+      h+='<button class="'+(m.avTipo===t.codigo?'on':'')+'" '+
+         'onclick="BMOV['+i+'].avTipo=\''+t.codigo+'\';desenhaBanco()">'+
+         esc(t.icone||'')+' '+esc(t.nome)+'</button>';
+    });
+    h+='</div>';
+    if(m.avCliente && m.avTipo){
+      const t=BTIPOS.find(function(x){return x.codigo===m.avTipo});
+      h+='<div class="dica">✅ Vai lançar '+moeda(Math.abs(m.valor))+' como <b>'+
+         esc(t?t.nome:'')+'</b> de <b>'+esc(m.avCliente)+'</b>'+
+         (entrada?' (receita)':' (despesa)')+'.</div>';
+    }
   }
 
   if(m.modo==='receber'){
@@ -2101,11 +2130,23 @@ async function escolheObraReceb(i,obraId){
   }catch(e){ BMOV[i].parcelas = []; }
   desenhaBanco();
 }
+// atualiza só o rodapé enquanto digita, para o campo não perder o foco
+function atualizaBotao(){
+  const nP=BMOV.filter(function(x){ return prontoPraLancar(x)&&!x.gravado; }).length;
+  const nF=BMOV.filter(function(x){ return !prontoPraLancar(x)&&!x.gravado; }).length;
+  const bar=document.querySelector('.gravarbar');
+  if(!bar) return;
+  bar.innerHTML='<div class="gbtx"><b>'+nP+'</b> pronto(s) para lançar'+
+    (nF?' · <span>'+nF+' aguardando você classificar</span>':'')+'</div>'+
+    '<button class="bgrande'+(nP?'':' off')+'" '+(nP?'':'disabled ')+
+    'onclick="gravarExtrato()">Lançar '+nP+' no sistema</button>';
+}
 function setModo(i,modo){
   BMOV[i].modo=modo;
   if(modo!=='obra') BMOV[i].rateio=null;
   if(modo!=='fixo') BMOV[i].conta=null;
   if(modo!=='receber'){ BMOV[i].obraReceb=null; BMOV[i].parcelas=undefined; BMOV[i].parcelaSel=null; }
+  if(modo!=='avulso'){ BMOV[i].avCliente=null; BMOV[i].avTipo=null; }
   desenhaBanco();
 }
 
@@ -2113,6 +2154,7 @@ function prontoPraLancar(m){
   if(!m.modo && !(m.cls&&m.cls.automatico)) return false;
   if(m.modo==='transf' || (m.cls&&m.cls.classificacao==='transferencia')) return true;
   if(m.modo==='receber') return !!m.obraReceb;
+  if(m.modo==='avulso') return !!(m.avCliente && String(m.avCliente).trim().length>2 && m.avTipo);
   if(m.modo==='fixo') return !!m.conta;
   if(m.modo==='obra'){
     if(!m.rateio||!m.rateio.length) return false;
@@ -2130,7 +2172,8 @@ async function gravarExtrato(){
 
   // recebimentos vão por outro caminho: dão baixa em parcela, não criam receita
   const recebimentos=prontos.filter(function(m){ return m.modo==='receber'; });
-  const demais=prontos.filter(function(m){ return m.modo!=='receber'; });
+  const avulsos=prontos.filter(function(m){ return m.modo==='avulso'; });
+  const demais=prontos.filter(function(m){ return m.modo!=='receber' && m.modo!=='avulso'; });
 
   const itens=demais.map(function(m){
     const base={id:m.id};
@@ -2164,8 +2207,22 @@ async function gravarExtrato(){
     }catch(e){ erroReceb.push(m.memo.slice(0,26)+': '+e.message); }
   }
 
+  // serviços avulsos
+  let nAv=0, erroAv=[];
+  for(const m of avulsos){
+    try{
+      const ra=await sb.rpc('lancar_avulso',
+        {p_movimento:m.id, p_cliente:m.avCliente, p_tipo:m.avTipo, p_obs:null});
+      if(ra.error) erroAv.push(m.memo.slice(0,24)+': '+ra.error.message);
+      else if(ra.data&&ra.data.ok) nAv++;
+      else erroAv.push(m.memo.slice(0,24)+': '+((ra.data&&ra.data.erro)||'não gravou'));
+    }catch(e){ erroAv.push(m.memo.slice(0,24)+': '+e.message); }
+  }
+
   let msg='';
   if(d.lancamentos) msg+='✅ '+d.lancamentos+' lançamento(s) criado(s).\n';
+  if(nAv) msg+='🔧 '+nAv+' serviço(s) avulso(s) registrado(s).\n';
+  if(erroAv.length) msg+='⚠️ '+erroAv.length+' avulso(s) com problema: '+erroAv.join('; ')+'\n';
   if(nReceb) msg+='💰 '+nReceb+' recebimento(s) baixado(s) na obra.\n';
   if(erroReceb.length) msg+='⚠️ '+erroReceb.length+' recebimento(s) com problema: '+erroReceb.join('; ')+'\n';
   if(!msg) msg='Nada foi gravado.';
