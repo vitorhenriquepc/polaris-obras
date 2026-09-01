@@ -1931,16 +1931,19 @@ function fmtD(d){
 }
 
 // ---- classificação item a item na própria tela ----
-let BCONTASDRE=[], BOBRAS=[], BSEL=null, BTIPOS=[];
+let BCONTASDRE=[], BCONTASOBRA=[], BBLOQ=[], BOBRAS=[], BSEL=null, BTIPOS=[];
 
 async function carregaAuxBanco(){
   if(BCONTASDRE.length) return;
   const [c,o,t]=await Promise.all([
-    sb.from('dre_plano_contas').select('codigo,nome,tipo').eq('nivel',3).order('codigo'),
+    sb.rpc('get_contas_extrato'),
     sb.from('obras').select('id,cliente,contrato').order('cliente'),
     sb.from('tipos_avulso').select('*').eq('ativo',true).order('ordem')
   ]);
-  BCONTASDRE=(c.data||[]).filter(function(x){ return x.tipo!=='receita'; });
+  const cd=c.data||{};
+  BCONTASDRE = cd.fixas || [];      // o que pode ser custo fixo
+  BCONTASOBRA = cd.obra || [];      // o que exige obra
+  BBLOQ = cd.bloqueadas || [];      // o que não pode vir pelo extrato
   BOBRAS=o.data||[];
   BTIPOS=t.data||[];
 }
@@ -2067,6 +2070,10 @@ function painelClass(m,i){
   }
 
   if(m.modo==='fixo'){
+    if(BBLOQ.length){
+      h+='<div class="dica">💡 '+BBLOQ.map(function(b){return esc(b.nome)}).join(', ')+
+         ' não aparece aqui — '+esc(BBLOQ[0].motivo)+'. Use <b>🏗️ Obra</b>.</div>';
+    }
     h+='<div class="lin"><div class="cp"><label>Conta</label>'+
        '<select onchange="BMOV['+i+'].conta=this.value;BMOV['+i+'].cls={classificacao:\'custo_fixo\',automatico:false};desenhaBanco()">'+
        '<option value="">— escolha —</option>'+
@@ -2089,7 +2096,7 @@ function painelClass(m,i){
          }).join('')+'</select>'+
          '<select onchange="BMOV['+i+'].rateio['+j+'].conta=this.value;desenhaBanco()">'+
          '<option value="">— conta —</option>'+
-         BCONTASDRE.filter(function(c){ return c.codigo.indexOf('03.')===0; }).map(function(c){
+         BCONTASOBRA.map(function(c){
            return '<option value="'+c.codigo+'"'+(r.conta===c.codigo?' selected':'')+'>'+esc(c.nome)+'</option>';
          }).join('')+'</select>'+
          '<input type="number" step="0.01" value="'+r.valor+'" '+
