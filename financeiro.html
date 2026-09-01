@@ -318,6 +318,13 @@ border-radius:10px;padding:11px;margin:7px 0 3px}
 .clstabs button{background:var(--card);border:1px solid var(--border);color:var(--muted);
 border-radius:18px;padding:6px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
 .clstabs button.on{border-color:var(--gold);color:var(--txt);background:rgba(245,166,35,.12)}
+.natbox{display:flex;align-items:center;gap:9px;border-radius:9px;padding:9px 12px;margin-bottom:9px}
+.natbox.ent{background:rgba(88,184,104,.13);border:1px solid rgba(88,184,104,.42)}
+.natbox.sai{background:rgba(233,110,110,.11);border:1px solid rgba(233,110,110,.38)}
+.natbox .ni{font-size:17px;line-height:1}
+.natbox .nt{font-size:12.5px;color:var(--txt)}
+.natbox.ent .nt b:first-child{color:#58b868}
+.natbox.sai .nt b:first-child{color:#e96e6e}
 .tipos{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}
 .tipos button{background:var(--card);border:1px solid var(--border);color:var(--muted);
 border-radius:18px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
@@ -2006,6 +2013,11 @@ function painelClass(m,i){
   }
 
   if(m.modo==='avulso'){
+    h+='<div class="natbox '+(entrada?'ent':'sai')+'">'+
+       '<span class="ni">'+(entrada?'💰':'💸')+'</span>'+
+       '<span class="nt"><b>'+(entrada?'Entrou':'Saiu')+' '+moeda(Math.abs(m.valor))+'</b>'+
+       (entrada?' — vai ser lançado como <b>receita</b>'
+               :' — vai ser lançado como <b>despesa</b>')+'</span></div>';
     h+='<div class="dica">Serviço para quem não tem obra no sistema — cliente antigo, '+
        'Anexo G, manutenção pontual.</div>';
     h+='<div class="lin"><div class="cp"><label>Nome do cliente</label>'+
@@ -2020,9 +2032,8 @@ function painelClass(m,i){
     h+='</div>';
     if(m.avCliente && m.avTipo){
       const t=BTIPOS.find(function(x){return x.codigo===m.avTipo});
-      h+='<div class="dica">✅ Vai lançar '+moeda(Math.abs(m.valor))+' como <b>'+
-         esc(t?t.nome:'')+'</b> de <b>'+esc(m.avCliente)+'</b>'+
-         (entrada?' (receita)':' (despesa)')+'.</div>';
+      h+='<div class="dica">✅ <b>'+esc(t?t.nome:'')+'</b> de <b>'+esc(m.avCliente)+'</b>, '+
+         'na conta <b>'+(entrada?'Receita':'Custo')+'</b> do resultado.</div>';
     }
   }
 
