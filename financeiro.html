@@ -1926,12 +1926,50 @@ function abrirClass(i){
 }
 
 function painelClass(m,i){
+  const entrada = m.valor > 0;
   let h='<div class="clsbox" id="cls'+i+'">';
-  h+='<div class="clstabs">'+
-     '<button class="'+(m.modo==='fixo'?'on':'')+'" onclick="setModo('+i+',\'fixo\')">📌 Custo fixo</button>'+
-     '<button class="'+(m.modo==='obra'?'on':'')+'" onclick="setModo('+i+',\'obra\')">🏗️ Obra</button>'+
-     '<button class="'+(m.modo==='transf'?'on':'')+'" onclick="setModo('+i+',\'transf\')">🔄 Transferência</button>'+
-     '</div>';
+  if(entrada){
+    h+='<div class="clstabs">'+
+       '<button class="'+(m.modo==='receber'?'on':'')+'" onclick="setModo('+i+',\'receber\')">💰 Recebimento de obra</button>'+
+       '<button class="'+(m.modo==='fixo'?'on':'')+'" onclick="setModo('+i+',\'fixo\')">📈 Outra receita</button>'+
+       '<button class="'+(m.modo==='transf'?'on':'')+'" onclick="setModo('+i+',\'transf\')">🔄 Transferência</button>'+
+       '</div>';
+  } else {
+    h+='<div class="clstabs">'+
+       '<button class="'+(m.modo==='fixo'?'on':'')+'" onclick="setModo('+i+',\'fixo\')">📌 Custo fixo</button>'+
+       '<button class="'+(m.modo==='obra'?'on':'')+'" onclick="setModo('+i+',\'obra\')">🏗️ Obra</button>'+
+       '<button class="'+(m.modo==='transf'?'on':'')+'" onclick="setModo('+i+',\'transf\')">🔄 Transferência</button>'+
+       '</div>';
+  }
+
+  if(m.modo==='receber'){
+    h+='<div class="lin"><div class="cp"><label>De qual obra é este pagamento?</label>'+
+       '<select onchange="escolheObraReceb('+i+',this.value)">'+
+       '<option value="">— escolha a obra —</option>'+
+       BOBRAS.map(function(o){
+         return '<option value="'+o.id+'"'+(m.obraReceb===o.id?' selected':'')+'>'+
+           esc(o.cliente)+(o.contrato?' · #'+esc(o.contrato):'')+'</option>';
+       }).join('')+'</select></div></div>';
+    if(m.obraReceb){
+      if(m.parcelas===undefined) h+='<div class="dica">Buscando parcelas...</div>';
+      else if(!m.parcelas.length)
+        h+='<div class="dica">Esta obra não tem parcela em aberto. O sistema vai '+
+           '<b>criar uma parcela já recebida</b> de '+moeda(Math.abs(m.valor))+'.</div>';
+      else {
+        const bate=m.parcelas.filter(function(p){ return Math.abs(p.valor-m.valor)<0.02; });
+        h+='<div class="lin"><div class="cp"><label>Baixar qual parcela?</label>'+
+           '<select onchange="BMOV['+i+'].parcelaSel=this.value||null;desenhaBanco()">'+
+           '<option value="">— criar nova parcela recebida —</option>'+
+           m.parcelas.map(function(p){
+             const sug = Math.abs(p.valor-m.valor)<0.02 ? ' ✅' : '';
+             return '<option value="'+p.id+'"'+
+               ((m.parcelaSel==p.id)||(!m.parcelaSel&&bate.length===1&&bate[0].id===p.id)?' selected':'')+'>'+
+               'Parcela '+p.numero+' · '+moeda(p.valor)+' · vence '+fmtD(p.vencimento)+sug+'</option>';
+           }).join('')+'</select></div></div>';
+        if(bate.length) h+='<div class="dica">✅ Encontrei parcela com o mesmo valor — já deixei selecionada.</div>';
+      }
+    }
+  }
 
   if(m.modo==='fixo'){
     h+='<div class="lin"><div class="cp"><label>Conta</label>'+
@@ -1996,16 +2034,30 @@ async function descartar(i){
   BSEL=null;
   await recarregaPendentes(m.conta_id);
 }
+async function escolheObraReceb(i,obraId){
+  BMOV[i].obraReceb = obraId || null;
+  BMOV[i].parcelaSel = null;
+  BMOV[i].parcelas = undefined;
+  desenhaBanco();
+  if(!obraId) return;
+  try{
+    const r=await sb.rpc('parcelas_abertas',{p_obra:obraId});
+    BMOV[i].parcelas = r.data || [];
+  }catch(e){ BMOV[i].parcelas = []; }
+  desenhaBanco();
+}
 function setModo(i,modo){
   BMOV[i].modo=modo;
   if(modo!=='obra') BMOV[i].rateio=null;
   if(modo!=='fixo') BMOV[i].conta=null;
+  if(modo!=='receber'){ BMOV[i].obraReceb=null; BMOV[i].parcelas=undefined; BMOV[i].parcelaSel=null; }
   desenhaBanco();
 }
 
 function prontoPraLancar(m){
   if(!m.modo && !(m.cls&&m.cls.automatico)) return false;
   if(m.modo==='transf' || (m.cls&&m.cls.classificacao==='transferencia')) return true;
+  if(m.modo==='receber') return !!m.obraReceb;
   if(m.modo==='fixo') return !!m.conta;
   if(m.modo==='obra'){
     if(!m.rateio||!m.rateio.length) return false;
@@ -2021,7 +2073,11 @@ async function gravarExtrato(){
   if(!prontos.length){ alert('Nenhum lançamento pronto para gravar.'); return; }
   if(!confirm('Gravar '+prontos.length+' lançamento(s)?\n\nOs demais continuam pendentes para você classificar depois.')) return;
 
-  const itens=prontos.map(function(m){
+  // recebimentos vão por outro caminho: dão baixa em parcela, não criam receita
+  const recebimentos=prontos.filter(function(m){ return m.modo==='receber'; });
+  const demais=prontos.filter(function(m){ return m.modo!=='receber'; });
+
+  const itens=demais.map(function(m){
     const base={id:m.id};
     if(m.modo==='transf'||(m.cls&&m.cls.classificacao==='transferencia'))
       return Object.assign(base,{classificacao:'transferencia'});
@@ -2035,13 +2091,31 @@ async function gravarExtrato(){
   const box=document.getElementById('bres');
   const antes=box.innerHTML;
   box.innerHTML='<div class="center"><div class="spin"></div>Gravando...</div>';
-  const r=await sb.rpc('lancar_movimentos',{p_itens:itens});
-  if(r.error){ box.innerHTML=antes; alert('Erro ao gravar: '+r.error.message); return; }
-  const d=r.data||{};
-  let msg='✅ '+(d.lancamentos||0)+' lançamento(s) criado(s).';
-  if(d.transferencias) msg+='\n🔄 '+d.transferencias+' transferência(s) registrada(s) fora do resultado.';
-  if(d.ja_existiam) msg+='\n↩️ '+d.ja_existiam+' já tinham sido importados antes.';
-  if(d.erros) msg+='\n⚠️ '+d.erros+' com problema: '+(d.detalhes||[]).join('; ');
+  let d={};
+  if(itens.length){
+    const r=await sb.rpc('lancar_movimentos',{p_itens:itens});
+    if(r.error){ box.innerHTML=antes; alert('Erro ao gravar: '+r.error.message); return; }
+    d=r.data||{};
+  }
+  // baixa de parcela, um por vez
+  let nReceb=0, erroReceb=[];
+  for(const m of recebimentos){
+    try{
+      const rr=await sb.rpc('receber_do_extrato',
+        {p_movimento:m.id, p_obra:m.obraReceb, p_parcela:m.parcelaSel?Number(m.parcelaSel):null});
+      if(rr.error) erroReceb.push(m.memo.slice(0,26)+': '+rr.error.message);
+      else if(rr.data&&rr.data.ok) nReceb++;
+      else erroReceb.push(m.memo.slice(0,26)+': '+((rr.data&&rr.data.erro)||'não gravou'));
+    }catch(e){ erroReceb.push(m.memo.slice(0,26)+': '+e.message); }
+  }
+
+  let msg='';
+  if(d.lancamentos) msg+='✅ '+d.lancamentos+' lançamento(s) criado(s).\n';
+  if(nReceb) msg+='💰 '+nReceb+' recebimento(s) baixado(s) na obra.\n';
+  if(erroReceb.length) msg+='⚠️ '+erroReceb.length+' recebimento(s) com problema: '+erroReceb.join('; ')+'\n';
+  if(!msg) msg='Nada foi gravado.';
+  if(d.transferencias) msg+='🔄 '+d.transferencias+' transferência(s) registrada(s) fora do resultado.\n';
+  if(d.erros) msg+='⚠️ '+d.erros+' com problema: '+(d.detalhes||[]).join('; ');
   alert(msg);
   const cid = BMOV.length ? BMOV[0].conta_id : null;
   await recarregaPendentes(cid);
