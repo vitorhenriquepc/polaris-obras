@@ -298,7 +298,18 @@ padding:11px 14px;margin-bottom:7px;cursor:pointer}
 .dupbox{background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.4);
 border-radius:8px;padding:8px 11px;font-size:11.5px;color:var(--txt);margin-top:9px}
 .clsfoot{margin-top:9px;display:flex;justify-content:flex-end}
-.mrow.gravado{opacity:.5}
+.mrow.gravado{opacity:.72}
+.bmini.ok{border-color:rgba(88,184,104,.5);color:#58b868}
+.clsbox.conf{border-color:rgba(88,184,104,.45)}
+.confh{font-size:12.5px;color:var(--muted);margin-bottom:9px}
+.confh b{color:var(--txt)}
+.confl{border:1px solid var(--border);border-radius:9px;overflow:hidden;margin-bottom:8px}
+.confi{display:flex;justify-content:space-between;align-items:center;gap:9px;
+padding:8px 11px;border-bottom:1px solid var(--border);font-size:12.5px}
+.confi:last-child{border-bottom:none}
+.confi b{color:var(--txt)}
+.confi span{display:block;font-size:11px;color:var(--muted);margin-top:1px}
+.confi .cv{font-weight:800;color:var(--txt);white-space:nowrap}
 .mrow.pronto{background:rgba(88,184,104,.07)}
 .tag-ok{font-size:10.5px;color:#58b868;font-weight:700}
 .clsbox{grid-column:1/-1;background:var(--card2);border:1px solid var(--gold);
@@ -1777,19 +1788,21 @@ async function recarregaPendentes(contaId){
   BRESUMO=d.contas||[];
   BMOV=(d.itens||[]).map(function(x){
     const m={id:x.id,fitid:x.fitid,data:x.data,valor:Number(x.valor),memo:x.memo||'',
-             duplicata:x.duplicata||null,conta_id:x.conta_id,banco:x.banco};
+             duplicata:x.duplicata||null,conta_id:x.conta_id,banco:x.banco,
+             gravado:(x.situacao==='conciliado'), destino:x.destino||null};
     m.cls={classificacao:x.classificacao||'indefinido',automatico:false};
     return m;
   });
   // reclassifica para trazer as sugestões
-  if(BMOV.length){
+  const pend=BMOV.filter(function(m){ return !m.gravado; });
+  if(pend.length){
     try{
-      const c=await sb.rpc('classificar_lote',{p_itens:BMOV.map(function(m){return {memo:m.memo,valor:m.valor}})});
+      const c=await sb.rpc('classificar_lote',{p_itens:pend.map(function(m){return {memo:m.memo,valor:m.valor}})});
       (c.data||[]).forEach(function(cl,i){
-        if(!BMOV[i]) return;
-        BMOV[i].cls=cl;
-        if(cl.automatico && cl.classificacao==='transferencia') BMOV[i].modo='transf';
-        else if(cl.automatico && cl.conta){ BMOV[i].modo='fixo'; BMOV[i].conta=cl.conta; }
+        const m=pend[i]; if(!m) return;
+        m.cls=cl;
+        if(cl.automatico && cl.classificacao==='transferencia') m.modo='transf';
+        else if(cl.automatico && cl.conta){ m.modo='fixo'; m.conta=cl.conta; }
       });
     }catch(e){}
   }
@@ -1847,15 +1860,17 @@ function desenhaBanco(conta){
     '<div class="brc alerta"><b>'+(cont.indefinido||0)+'</b><span>para você ver</span></div>'+
     '</div>';
 
+  const nGrav=BMOV.filter(function(m){ return m.gravado; }).length;
+  const nPend=BMOV.length-nGrav;
   h+='<div class="ffiltros" style="margin:12px 0">'+
      '<button class="'+(BFILTRO==='todos'?'on':'')+'" onclick="BFILTRO=\'todos\';desenhaBanco()">Todos <b>'+BMOV.length+'</b></button>'+
-     '<button class="'+(BFILTRO==='ver'?'on':'')+'" onclick="BFILTRO=\'ver\';desenhaBanco()">Para ver <b>'+(cont.indefinido||0)+'</b></button>'+
-     '<button class="'+(BFILTRO==='transf'?'on':'')+'" onclick="BFILTRO=\'transf\';desenhaBanco()">Transferências <b>'+(cont.transferencia||0)+'</b></button>'+
+     '<button class="'+(BFILTRO==='ver'?'on':'')+'" onclick="BFILTRO=\'ver\';desenhaBanco()">A classificar <b>'+nPend+'</b></button>'+
+     '<button class="'+(BFILTRO==='lancado'?'on':'')+'" onclick="BFILTRO=\'lancado\';desenhaBanco()">✅ Lançados <b>'+nGrav+'</b></button>'+
      '</div>';
 
   let lista=BMOV;
-  if(BFILTRO==='ver') lista=BMOV.filter(function(m){ return !(m.cls&&m.cls.automatico); });
-  else if(BFILTRO==='transf') lista=BMOV.filter(function(m){ return m.cls&&m.cls.classificacao==='transferencia'; });
+  if(BFILTRO==='ver') lista=BMOV.filter(function(m){ return !m.gravado; });
+  else if(BFILTRO==='lancado') lista=BMOV.filter(function(m){ return m.gravado; });
 
   h+='<div class="mlist">';
   lista.slice(0,120).forEach(function(m){
@@ -1872,11 +1887,12 @@ function desenhaBanco(conta){
          (m.cls&&m.cls.motivo&&!m.duplicata?'<span class="mmot">'+esc(m.cls.motivo)+'</span>':'')+'</div>'+
        '<div class="mv '+(m.valor<0?'neg':'pos')+'">'+moeda(m.valor)+'</div>'+
        '<div class="mc">'+
-         (m.gravado ? '<span class="tag-ok">✅ lançado</span>'
+         (m.gravado
+          ? '<button class="bmini ok" onclick="abrirClass('+idx+')">✅ lançado</button>'
           : '<button class="bmini'+(pronto?' go':'')+'" onclick="abrirClass('+idx+')">'+
             (pronto?'✔ '+(rot[c]||c):'Classificar')+'</button>')+
        '</div>';
-    if(BSEL===idx && !m.gravado) h+=painelClass(m,idx);
+    if(BSEL===idx) h += m.gravado ? painelConferir(m,idx) : painelClass(m,idx);
     h+='</div>';
   });
   if(lista.length>120) h+='<div class="dica">Mostrando 120 de '+lista.length+'.</div>';
@@ -1923,6 +1939,45 @@ function abrirClass(i){
     const el=document.getElementById('cls'+BSEL);
     if(el) el.scrollIntoView({block:'center',behavior:'smooth'});
   },40);
+}
+
+// Mostra o que foi criado a partir de um movimento já lançado
+function painelConferir(m,i){
+  const rot={transferencia:'🔄 Transferência entre contas',recebimento:'💰 Recebimento de obra',
+             custo_fixo:'📌 Custo fixo',custo_obra:'🏗️ Custo de obra',fatura_cartao:'💳 Fatura de cartão'};
+  let h='<div class="clsbox conf" id="cls'+i+'">';
+  h+='<div class="confh">Lançado como <b>'+(rot[m.classificacao||(m.cls&&m.cls.classificacao)]||'—')+'</b></div>';
+
+  if(m.destino && m.destino.length){
+    h+='<div class="confl">';
+    m.destino.forEach(function(d){
+      h+='<div class="confi"><div>'+
+         (d.obra?'<b>'+esc(d.obra)+'</b>'+(d.contrato?' · #'+esc(d.contrato):''):'<b>—</b>')+
+         (d.conta?'<span>'+esc(d.conta)+'</span>':'')+'</div>'+
+         '<div class="cv">'+moeda(d.valor)+'</div></div>';
+    });
+    h+='</div>';
+    if(m.destino.length>1){
+      const soma=m.destino.reduce(function(a,d){return a+Number(d.valor)},0);
+      h+='<div class="dica">Dividido em '+m.destino.length+' obras · total '+moeda(soma)+'</div>';
+    }
+  } else {
+    h+='<div class="dica">Não gerou lançamento no resultado — é movimentação entre contas.</div>';
+  }
+
+  h+='<div class="clsfoot"><button class="bmini" onclick="desfazer('+i+')">↩ Desfazer e classificar de novo</button></div>';
+  return h+'</div>';
+}
+
+async function desfazer(i){
+  const m=BMOV[i];
+  if(!confirm('Desfazer este lançamento?\n\n"'+m.memo+'"\n\n'+
+    'O que foi criado no resultado será apagado e o item volta para você classificar.')) return;
+  const r=await sb.rpc('desfazer_lancamento',{p_movimento:m.id});
+  if(r.error){ alert('Erro: '+r.error.message); return; }
+  BSEL=null;
+  await recarregaPendentes(m.conta_id);
+  carregar();
 }
 
 function painelClass(m,i){
