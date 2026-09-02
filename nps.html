@@ -139,6 +139,7 @@ var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 var qs=new URLSearchParams(location.search), SLUG=qs.get('id'), TOKEN=qs.get('t');
 var LOGO='https://obras.polarisenergiasolar.com/logo.png', WHATS='5518930852573';
 var GOOGLE_REVIEW='https://g.page/r/CUf-E27VPrELEBM/review';
+function cfgLoja(){return{end:(D&&D.loja_endereco)||'',hor:(D&&D.loja_horario)||''};}
 var D=null, nota=null;
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
@@ -217,7 +218,7 @@ function obrigado(n,jaEra){
               +'<div id="gopts">'+(temV?opcoesHtml(D.brinde)+voucherHtml(D.brinde,D.voucher,D.entregue_em):'')+'</div></div>'
               +'<div class="gbox"><div class="gt">Ajuda a gente com 30 segundos?</div>'
               +'<div class="gs">Sua avaliação no Google ajuda outras famílias a encontrarem energia solar de confiança — e é o que libera a retirada do seu brinde. ⭐</div>'
-              +'<a class="cta gcta" target="_blank" href="'+GOOGLE_REVIEW+'" onclick="marcouIr()">⭐ Avaliar a Polaris no Google</a>'
+              +'<a class="cta gcta" target="_blank" href="'+((D&&D.google_url)||GOOGLE_REVIEW)+'" onclick="marcouIr()">⭐ Avaliar a Polaris no Google</a>'
               +'<div id="gavbox">'+googleStatusHtml()+'</div></div>'
               +'<a class="cta" target="_blank" href="https://wa.me/?text='+txtInd+'">💬 Indicar a Polaris a um amigo</a>'
               +'<a class="cta alt" href="relatorio.html?id='+encodeURIComponent(SLUG)+'">📄 Ver o relatório da minha obra</a>';
@@ -298,7 +299,8 @@ function voucherHtml(brinde,voucher,entregue){
     +'<div class="vd">Brinde escolhido: <b>'+nome+'</b><br>'
     +(entregue
       ? 'Este brinde consta como entregue em '+new Date(entregue).toLocaleDateString('pt-BR')+'. 💚'
-      : 'Apresente este código para a nossa equipe. Guarde a tela ou tire um print. 📸')
+      : ('Retire na nossa loja'+(cfgLoja().end?': <b>'+esc(cfgLoja().end)+'</b>':'')
+         +(cfgLoja().hor?', '+esc(cfgLoja().hor):'')+'.<br>Apresente este código. Guarde a tela ou tire um print. 📸'))
     +'</div></div>';
 }
 
@@ -308,7 +310,7 @@ function abrirGift(){
   if(D && D.voucher) return;   // já escolhido: nada a fazer
   confete();
   document.getElementById('gtt').textContent='Escolha o seu brinde';
-  document.getElementById('gsub').textContent='Selecione abaixo — combinamos a entrega junto com a nossa equipe.';
+  document.getElementById('gsub').textContent='Selecione abaixo — depois é só retirar na nossa loja.';
   var tap=document.getElementById('gtap'); if(tap) tap.style.display='none';
   document.getElementById('gopts').innerHTML=opcoesHtml(null);
 }
@@ -362,9 +364,9 @@ async function declararAvaliei(){
   confete();
   // Agradecimento no grupo
   try{
-    fetch(SUPABASE_URL+'/functions/v1/lembrete-google',{method:'POST',
+    fetch(SUPABASE_URL+'/functions/v1/nps-agradecer',{method:'POST',
       headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
-      body:JSON.stringify({acao:'agradecer',slug:SLUG,token:TOKEN})});
+      body:JSON.stringify({slug:SLUG,token:TOKEN})});
   }catch(e){}
 }
 boot();
