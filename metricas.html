@@ -106,6 +106,7 @@ try{tema(localStorage.getItem('polaris-tema')||'dark')}catch(e){tema('dark')}
 var ETAPAS={}, PER='mes', HR=null;
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function n(v){return v==null?'—':String(v).replace('.',',');}
+function num(v){var x=Number(v);return isFinite(x)?x:0;}
 function iso(d){return d.toISOString().slice(0,10);}
 
 function intervalo(p){
@@ -164,7 +165,7 @@ function moeda(v){
   return 'R$ '+x.toFixed(0);
 }
 function blocoOrigem(){
-  if(!ORIG || !n(ORIG.total)) return '';
+  if(!ORIG || !num(ORIG.total)) return '';
   var os=ORIG.origens||[], cs=ORIG.categorias||[];
   var IC={trafego:'📣',indicacao:'🤝',retomada:'♻️',ativa:'📞',network:'🌐'};
   var h='<h2>🎯 De onde vêm os clientes <small>no período</small></h2><div class="card">';
@@ -173,7 +174,7 @@ function blocoOrigem(){
   var cores={indicacao:'#58b868',trafego:'#5a8fc4',network:'#c9a04a',ativa:'#a878c4',retomada:'#8fa6b8'};
   h+='<div style="display:flex;height:14px;border-radius:8px;overflow:hidden;margin-bottom:14px">';
   os.forEach(function(o){
-    h+='<div style="width:'+n(o.share)+'%;background:'+(cores[o.codigo]||'#8fa6b8')+'" title="'+esc(o.origem)+'"></div>';
+    h+='<div style="width:'+num(o.share)+'%;background:'+(cores[o.codigo]||'#8fa6b8')+'" title="'+esc(o.origem)+'"></div>';
   });
   h+='</div>';
 
@@ -183,10 +184,10 @@ function blocoOrigem(){
     var c=cores[o.codigo]||'#8fa6b8';
     h+='<tr><td><b style="color:'+c+'">'+(IC[o.codigo]||'•')+' '+esc(o.origem)+'</b></td>'+
       '<td class="num">'+o.obras+'</td>'+
-      '<td class="num">'+n(o.share).toFixed(0)+'%</td>'+
+      '<td class="num">'+num(o.share).toFixed(0)+'%</td>'+
       '<td class="num">'+moeda(o.faturado)+'</td>'+
       '<td class="num">'+moeda(o.ticket)+'</td>'+
-      '<td class="num"><b>'+(n(o.mc_pct)*100).toFixed(1)+'%</b></td></tr>';
+      '<td class="num"><b>'+(num(o.mc_pct)*100).toFixed(1).replace('.',',')+'%</b></td></tr>';
   });
   h+='</table>';
   h+='<div style="font-size:11.5px;color:var(--muted);margin-top:8px">'+
@@ -206,7 +207,7 @@ function blocoOrigem(){
 }
 function blocoQualidade(){
   var D=DETALHE;
-  if(!D || !n(D.obras)) return '';
+  if(!D || !num(D.obras)) return '';
   var etapas=D.por_etapa||[], ap=D.apontamentos||[];
   var g=Number(D.geral||0);
   var cor = g>=9?'var(--green-l)':(g>=7?'var(--gold)':'#e07070');
