@@ -282,6 +282,21 @@ function renderChecklist(){
 }
 function pick(id,camera){document.getElementById((camera?'cam':'gal')+id).click();}
 
+/* Print de app protegido sai todo preto. Detecta antes de enviar. */
+function analisaImagem(ctx,w,h){
+  try{
+    var d=ctx.getImageData(0,0,w,h).data, escuros=0, claros=0, n=0;
+    for(var i=0;i<d.length;i+=4*23){
+      var lum=d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114;
+      if(lum<=12)escuros++; else if(lum>=243)claros++;
+      n++;
+    }
+    if(!n) return null;
+    if(escuros/n>0.995) return 'preta';
+    if(claros/n>0.995) return 'branca';
+  }catch(e){ /* se nao der para ler, deixa passar */ }
+  return null;
+}
 function comprimir(file){
   return new Promise(function(res,rej){
     var img=new Image(), url=URL.createObjectURL(file);
@@ -289,8 +304,16 @@ function comprimir(file){
       var MAX=2000, w=img.width, h=img.height;
       if(w>MAX||h>MAX){var k=MAX/Math.max(w,h);w=Math.round(w*k);h=Math.round(h*k);}
       var cv=document.createElement('canvas');cv.width=w;cv.height=h;
-      cv.getContext('2d').drawImage(img,0,0,w,h);
+      var ctx=cv.getContext('2d',{willReadFrequently:true});
+      ctx.drawImage(img,0,0,w,h);
       URL.revokeObjectURL(url);
+      var prob=analisaImagem(ctx,w,h);
+      if(prob){
+        var e=new Error(prob==='preta'
+          ? 'A imagem saiu toda preta. Alguns aplicativos bloqueiam print de tela. Tente fotografar a tela com outro celular.'
+          : 'A imagem saiu toda branca ou estourada. Tente de novo com menos luz direta.');
+        e.imagemVazia=true; rej(e); return;
+      }
       res(cv.toDataURL('image/jpeg',0.87).split(',')[1]);
     };
     img.onerror=rej; img.src=url;
@@ -313,7 +336,7 @@ async function upload(itemId,inp){
       FOTOS.push(j.foto);
       renderChecklist();
       verificarConclusao();
-    }catch(e){toast('Falha na foto: '+e.message);ph.remove();}
+    }catch(e){toast(e.imagemVazia?e.message:('Falha na foto: '+e.message));ph.remove();}
   }
 }
 async function delFoto(fotoId){
@@ -575,7 +598,7 @@ async function uploadAp(apId,inp){
       if(!r.ok||j.error){toast('Erro: '+(j.error||r.status));ph.remove();continue;}
       FOTOS.push(j.foto);
       renderChecklist();
-    }catch(e){toast('Falha na foto: '+e.message);ph.remove();}
+    }catch(e){toast(e.imagemVazia?e.message:('Falha na foto: '+e.message));ph.remove();}
   }
 }
 
