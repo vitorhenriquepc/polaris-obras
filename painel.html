@@ -811,6 +811,104 @@ el.innerHTML = arr.map(cardHtml).join('');
 let KTR='padrao';
 try{KTR=localStorage.getItem('polaris-kb-trilha')||'padrao'}catch(_){}
 function setTrilha(t){ KTR=t; try{localStorage.setItem('polaris-kb-trilha',t)}catch(_){} renderKanban(); }
+/* ===== VISAO POR CLIENTE (acervo) ===== */
+var CLIENTES=null, CLI_ABERTO=null;
+function escC(t){return String(t==null?'':t).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function kwpTxt(v){var n=Number(v)||0;return n.toFixed(2).replace('.',',')+' kWp';}
+function dataTxt(d){ if(!d) return ''; var p=String(d).slice(0,10).split('-'); return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):''; }
+
+async function renderClientes(){
+  var el=document.getElementById('list');
+  el.className='list'; el.style.display='';
+  if(!CLIENTES){
+    el.innerHTML='<div class="spinner"></div>';
+    var r=await sb.rpc('get_clientes_acervo');
+    if(r.error||!r.data){ el.innerHTML='<div class="empty"><span class="i">⚠️</span>Não consegui carregar os clientes.</div>'; return; }
+    CLIENTES=r.data;
+  }
+  var arr=CLIENTES.slice();
+  if(busca) arr=arr.filter(function(c){
+    return (c.nome||'').toLowerCase().includes(busca) || (c.contratos||'').includes(busca);
+  });
+  if(!arr.length){ el.innerHTML='<div class="empty"><span class="i">👤</span>Nenhum cliente encontrado.</div>'; return; }
+  el.innerHTML=arr.map(cardCliente).join('');
+}
+
+function cardCliente(c){
+  var paradas=Number(c.usinas_paradas)||0;
+  var alerta;
+  if(!Number(c.usinas)) alerta='<span class="mut">● sem usina cadastrada</span>';
+  else if(paradas>0) alerta='<span style="color:#e57373;font-weight:800">● '+paradas+' usina'+(paradas>1?'s':'')+' parada'+(paradas>1?'s':'')+'</span>';
+  else alerta='<span style="color:#7bbf7b">● tudo gerando</span>';
+  var linha2=[];
+  if(Number(c.usinas)) linha2.push(c.usinas+' usina'+(Number(c.usinas)>1?'s':''));
+  if(Number(c.kwp_total)) linha2.push(kwpTxt(c.kwp_total));
+  if(c.contratos) linha2.push('contrato '+escC(c.contratos));
+  if(c.nota!=null) linha2.push('nota '+c.nota);
+  var aberto = (CLI_ABERTO===c.id);
+  return '<div class="card" style="cursor:pointer" onclick="toggleCliente(\'' + c.id + '\')">'
+    + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">'
+    +   '<b style="font-size:15px">'+escC(c.nome)+'</b>'
+    +   '<span class="mut" style="font-size:12px">'+escC(c.cidade||'')+'</span>'
+    + '</div>'
+    + '<div class="mut" style="font-size:12.5px;margin-top:4px">'+linha2.join(' · ')+'</div>'
+    + '<div style="font-size:12.5px;margin-top:6px">'+alerta+'</div>'
+    + (aberto ? detalheCliente(c) : '')
+    + '</div>';
+}
+
+function detalheCliente(c){
+  var h='<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px" onclick="event.stopPropagation()">';
+  (c.detalhe||[]).forEach(function(o){
+    h+='<div style="margin-bottom:14px">';
+    h+='<div class="mut" style="font-size:12px;margin-bottom:6px">Contrato '+escC(o.contrato||'sem contrato')
+       +' · '+escC(o.status||'')+(o.concluida?' · '+dataTxt(o.concluida):'')+'</div>';
+    (o.usinas||[]).forEach(function(u){
+      var st=u.status||'sem leitura';
+      var cor = (st==='operando')?'#7bbf7b':((st==='sem leitura')?'#8fa6b8':'#e57373');
+      h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;font-size:13px">'
+        +'<span>'+escC(u.apelido||'Usina')+' <span class="mut" style="font-size:12px">'+kwpTxt(u.kwp)
+        + (u.papel!=='propria' ? ' · '+escC(u.papel) : '') + '</span></span>'
+        +'<span style="color:'+cor+';font-size:12px;white-space:nowrap">'+escC(st)+'</span></div>';
+    });
+    if(!(o.usinas||[]).length) h+='<div class="mut" style="font-size:12.5px;padding:4px 0">Sem usina cadastrada.</div>';
+    h+='<div class="mut" style="font-size:12px;margin-top:8px">Relatórios</div>';
+    (o.relatorios||[]).forEach(function(r){
+      h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;font-size:13px">'
+        +'<span>📄 '+escC(r.titulo)+(r.data?' <span class="mut" style="font-size:12px">'+dataTxt(r.data)+'</span>':'')+'</span>'
+        +(r.url?'<a href="'+escC(r.url)+'" target="_blank" rel="noopener" style="color:var(--gold);font-size:12px">abrir</a>':'<span class="mut" style="font-size:12px">sem link</span>')
+        +'</div>';
+    });
+    if(o.status==='Finalizado'){
+      h+='<div style="padding:4px 0"><a href="relatorio.html?id='+escC(o.slug||'')+'" target="_blank" rel="noopener" style="color:var(--gold);font-size:12.5px">📄 Relatório do sistema</a></div>';
+    }
+    h+='<button onclick="anexarRelatorio(\'' + o.obra_id + '\')" style="margin-top:6px;background:var(--card2);border:1px solid var(--border);color:var(--txt);border-radius:8px;padding:6px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">+ Anexar relatório antigo</button>';
+    h+='</div>';
+  });
+  return h+'</div>';
+}
+
+function toggleCliente(id){ CLI_ABERTO = (CLI_ABERTO===id ? null : id); renderClientes(); }
+
+async function anexarRelatorio(obraId){
+  var titulo=prompt('Nome do relatório (ex: Instalação 2023):');
+  if(titulo===null) return;
+  if(!titulo.trim()){ alert('Preciso de um nome para o relatório.'); return; }
+  var url=prompt('Cole o link do PDF (começando com https://):');
+  if(url===null) return;
+  if(url.trim() && !/^https?:\/\//i.test(url.trim())){ alert('O link precisa começar com http:// ou https://'); return; }
+  var dt=prompt('Data do relatório (dd/mm/aaaa) — pode deixar em branco:');
+  var iso=null;
+  if(dt && dt.trim()){
+    var m=dt.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if(!m){ alert('Data inválida. Use dd/mm/aaaa.'); return; }
+    iso=m[3]+'-'+m[2]+'-'+m[1];
+  }
+  var r=await sb.rpc('salvar_relatorio_link',{p_obra:obraId,p_titulo:titulo.trim(),p_url:url.trim()||null,p_origem:'auvo',p_data:iso});
+  if(r.error || (r.data&&r.data.erro)){ alert('Não deu certo: '+((r.data&&r.data.erro)||r.error.message)); return; }
+  CLIENTES=null; renderClientes();
+}
+
 function renderKanban(){
 const sel=document.getElementById('selTrilha');
 if(sel){
