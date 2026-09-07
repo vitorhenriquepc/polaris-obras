@@ -145,6 +145,7 @@ padding:14px;transition:.15s}
 .badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;
 padding:4px 9px;border-radius:20px;white-space:nowrap}
 .b-stage{background:rgba(245,166,35,.13);color:var(--gold);border:1px solid rgba(245,166,35,.3)}
+.relwrap{display:block;max-width:920px;margin:0 auto}
 .rkpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
 .rkpi{background:var(--card2);border-radius:10px;padding:12px 14px}
 .rk{font-size:12px;color:var(--mut)}
@@ -852,7 +853,7 @@ function rClasse(o){
 
 async function renderRelatorios(){
   var el=document.getElementById('list');
-  el.className='list'; el.style.display='';
+  el.className='relwrap'; el.style.display='block';
   if(!RDADOS){
     el.innerHTML='<div class="spinner"></div>';
     var r=await sb.rpc('get_relatorios_painel');
@@ -893,14 +894,14 @@ function desenhaRel(){
     var nota = !fotos ? 'nenhuma foto'
              : (feitos<obrig ? (obrig-feitos)+(obrig-feitos>1?' itens sem foto':' item sem foto')
              : (!o.assinado ? 'falta assinar' : 'completo e assinado'));
-    h+='<div class="rlin" onclick="abrirRelatorio(\'' + o.obra_id + '\')">'
+    h+='<div class="rlin" onclick="acoesRel(\'' + o.obra_id + '\')">'
       +'<div class="rc"><div class="rnome">'+esc(o.cliente||'')+'</div>'
       +'<div class="rsub">'+(o.contrato?'#'+esc(o.contrato):'')
         +(o.cidade?' · '+esc(o.cidade):'')
         +(Number(o.anexos)?' · '+o.anexos+' anexo'+(o.anexos>1?'s':''):'')+'</div></div>'
       +'<div class="rb"><div class="rbar"><i style="width:'+(fotos?Math.max(pct,3):3)+'%;background:'+cor+'"></i></div>'
       +'<div class="rsub">'+(obrig?feitos+' de '+obrig+' · ':'')+nota+'</div></div>'
-      +'<div class="ra"><button class="act act-gh" onclick="event.stopPropagation();copiarLinkInst(\'' + o.obra_id + '\')">instalador</button></div>'
+      +'<div class="ra"><button class="act act-gh" onclick="event.stopPropagation();anexarRelatorio(\'' + o.obra_id + '\')">anexar PDF</button></div>'
       +'</div>';
   });
   el.innerHTML = h + '</div>';
@@ -1060,7 +1061,8 @@ async function anexarRelatorio(obraId){
   }
   var r=await sb.rpc('salvar_relatorio_link',{p_obra:obraId,p_titulo:titulo.trim(),p_url:url.trim()||null,p_origem:'auvo',p_data:iso});
   if(r.error || (r.data&&r.data.erro)){ alert('Não deu certo: '+((r.data&&r.data.erro)||r.error.message)); return; }
-  CLIENTES=null; renderClientes();
+  CLIENTES=null; RDADOS=null;
+  if(VIEW==='relatorios') renderRelatorios(); else renderClientes();
 }
 
 function renderKanban(){
@@ -1263,6 +1265,30 @@ ${tarjaTrava(o)}
 }
 
 /* ---------- ações ---------- */
+function acoesRel(obraId){
+  var o=(RDADOS||[]).find(function(x){return x.obra_id===obraId;}); if(!o) return;
+  var b=function(fn,txt){ return '<button class="mact" onclick="fecharAcoes();'+fn+'">'+txt+'</button>'; };
+  var feitos=Number(o.feitos)||0, obrig=Number(o.obrig)||0, fotos=Number(o.fotos_total)||0;
+  var resumo = !fotos ? 'Nenhuma foto enviada'
+             : (feitos<obrig ? (obrig-feitos)+' item(ns) sem foto'
+             : (!o.assinado ? 'Completo, falta a assinatura' : 'Completo e assinado'));
+  var w=document.getElementById('acoesModal');
+  if(!w){ w=document.createElement('div'); w.id='acoesModal'; document.body.appendChild(w); }
+  w.className='mwrap';
+  w.innerHTML='<div class="mbox" onclick="event.stopPropagation()">'
+    +'<div class="mtit">'+esc(o.cliente||'')+(o.contrato?' <span>#'+esc(o.contrato)+'</span>':'')+'</div>'
+    +'<div class="rsub" style="margin:-4px 0 4px">'+resumo
+      +(Number(o.anexos)?' · '+o.anexos+' PDF anexado'+(o.anexos>1?'s':''):'')+'</div>'
+    +'<div class="mgrupo">Relatório</div>'
+    + b("abrirRelatorio('"+obraId+"')",'Abrir o relatório do sistema')
+    + b("anexarRelatorio('"+obraId+"')",'Anexar PDF do Auvo')
+    +'<div class="mgrupo">Completar</div>'
+    + b("copiarLinkInst('"+obraId+"')",'Copiar link do instalador')
+    + b("openForm('"+obraId+"')",'Abrir a ficha da obra')
+    +'</div>';
+  w.onclick=fecharAcoes;
+}
+
 function abrirAcoes(id){
   var o=getObra(id); if(!o) return;
   var b=function(fn,txt){ return '<button class="mact" onclick="fecharAcoes();'+fn+'">'+txt+'</button>'; };
