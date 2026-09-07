@@ -839,20 +839,85 @@ el.innerHTML = arr.map(cardHtml).join('');
 let KTR='padrao';
 try{KTR=localStorage.getItem('polaris-kb-trilha')||'padrao'}catch(_){}
 function setTrilha(t){ KTR=t; try{localStorage.setItem('polaris-kb-trilha',t)}catch(_){} renderKanban(); }
-/* ===== RELATORIOS PENDENTES ===== */
-var RFILTRO='pendentes';
-function setRfiltro(f){ RFILTRO=f; renderRelatorios(); }
+/* ===== RELATORIOS ===== */
+var RDADOS=null, RFILTRO='pendentes';
+function setRfiltro(f){ RFILTRO=f; desenhaRel(); }
 
-function relInfo(o){
+function rClasse(o){
+  var fotos=Number(o.fotos_total)||0, feitos=Number(o.feitos)||0, obrig=Number(o.obrig)||0;
+  if(!fotos) return 'semfoto';
+  if(feitos>=obrig && o.assinado) return 'ok';
+  return 'pendentes';
+}
+
+async function renderRelatorios(){
+  var el=document.getElementById('list');
+  el.className='list'; el.style.display='';
+  if(!RDADOS){
+    el.innerHTML='<div class="spinner"></div>';
+    var r=await sb.rpc('get_relatorios_painel');
+    if(r.error||!r.data){ el.innerHTML='<div class="empty">Não consegui carregar os relatórios.</div>'; return; }
+    RDADOS=r.data;
+  }
+  desenhaRel();
+}
+
+function desenhaRel(){
+  var el=document.getElementById('list');
+  var todos=RDADOS||[];
+  var cont={ok:0,pendentes:0,semfoto:0};
+  todos.forEach(function(o){ cont[rClasse(o)]++; });
+  var num=function(rot,valor,cor){
+    return '<div class="rkpi"><div class="rk">'+rot+'</div>'
+      +'<div class="rv"'+(cor?' style="color:'+cor+'"':'')+'>'+valor+'</div></div>';
+  };
+  var h='<div class="rkpis">'
+    + num('Completos',cont.ok,'')
+    + num('Faltando algo',cont.pendentes, cont.pendentes?'#e0a33e':'')
+    + num('Sem foto',cont.semfoto, cont.semfoto?'#e57373':'')
+    + '</div>';
+  var aba=function(f,t){ return '<button class="chip '+(RFILTRO===f?'on':'')+'" onclick="setRfiltro(\'' + f + '\')">'+t+'</button>'; };
+  h+='<div class="tools" style="margin-top:0">'+aba('pendentes','Faltando algo')+aba('semfoto','Sem foto')+aba('ok','Completos')+'</div>';
+
+  var lista=todos.filter(function(o){ return rClasse(o)===RFILTRO; });
+  if(busca) lista=lista.filter(function(o){
+    return (o.cliente||'').toLowerCase().includes(busca)||(o.contrato||'').includes(busca); });
+
+  if(!lista.length){ el.innerHTML=h+'<div class="empty">Nada nesse filtro.</div>'; return; }
+
+  h+='<div class="rtab">';
+  lista.forEach(function(o){
+    var feitos=Number(o.feitos)||0, obrig=Number(o.obrig)||0, fotos=Number(o.fotos_total)||0;
+    var pct = obrig? Math.round(feitos/obrig*100) : 0;
+    var cor = (!fotos)?'#e57373':((feitos>=obrig&&o.assinado)?'#7bbf7b':'#e0a33e');
+    var nota = !fotos ? 'nenhuma foto'
+             : (feitos<obrig ? (obrig-feitos)+(obrig-feitos>1?' itens sem foto':' item sem foto')
+             : (!o.assinado ? 'falta assinar' : 'completo e assinado'));
+    h+='<div class="rlin" onclick="abrirRelatorio(\'' + o.obra_id + '\')">'
+      +'<div class="rc"><div class="rnome">'+esc(o.cliente||'')+'</div>'
+      +'<div class="rsub">'+(o.contrato?'#'+esc(o.contrato):'')
+        +(o.cidade?' · '+esc(o.cidade):'')
+        +(Number(o.anexos)?' · '+o.anexos+' anexo'+(o.anexos>1?'s':''):'')+'</div></div>'
+      +'<div class="rb"><div class="rbar"><i style="width:'+(fotos?Math.max(pct,3):3)+'%;background:'+cor+'"></i></div>'
+      +'<div class="rsub">'+(obrig?feitos+' de '+obrig+' · ':'')+nota+'</div></div>'
+      +'<div class="ra"><button class="act act-gh" onclick="event.stopPropagation();copiarLinkInst(\'' + o.obra_id + '\')">instalador</button></div>'
+      +'</div>';
+  });
+  el.innerHTML = h + '</div>';
+}
+
+/* antigo */
+var RFILTRO_V='pendentes';
+function setRfiltroVelho(f){}
+
+function relInfoVelho(o){
   var x=REL[o.id];
   if(!x) return {obrig:0,feitos:0,assinado:false,tem:false};
   return {obrig:x.obrig||0, feitos:x.feitos||0, assinado:!!x.assinado, tem:true};
 }
 
-function renderRelatorios(){
-  var el=document.getElementById('list');
-  el.className='list'; el.style.display='';
-  var arr=(OBRAS||[]).filter(function(o){ return o.etapa_numero>=6; });
+function renderRelatoriosVelho(){
+  var el={}; var arr=[];
 
   var faltando=[], completos=[], semFoto=[];
   arr.forEach(function(o){
