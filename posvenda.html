@@ -1078,6 +1078,132 @@ async function enviarPlano(){
   }catch(e){ toast('Falha de conexão'); }
 }
 
+/* ===== USINAS EM OPERACAO ===== */
+var USI=null, UFILTRO='';
+function hTxt(h){ if(h==null) return ''; h=Number(h); if(h<24) return 'há '+Math.round(h)+'h'; var d=Math.floor(h/24); return 'há '+d+(d>1?' dias':' dia'); }
+function setUfiltro(f){ UFILTRO=f; document.getElementById('usbox').innerHTML=renderUsinas(); }
+
+async function carregarUsinas(){
+  var r=await sb.rpc('get_posvenda_usinas');
+  if(r.error||!r.data){ document.getElementById('usbox').innerHTML='<div class="vazio">Não consegui ler as usinas.</div>'; return; }
+  USI=r.data; document.getElementById('usbox').innerHTML=renderUsinas();
+}
+
+function renderUsinas(){
+  var R=(USI&&USI.resumo)||{}, arr=((USI&&USI.usinas)||[]).slice();
+  var chip=function(f,txt,n,cor){
+    return '<button class="chip '+(UFILTRO===f?'on':'')+'" onclick="setUfiltro(\'' + f + '\')">'
+      +(cor?'<span style="color:'+cor+'">●</span> ':'')+txt+' <b>'+n+'</b></button>';
+  };
+  var h='<div class="tools" style="margin-top:0">'
+    + chip('','Todas',R.total||0,'')
+    + chip('operando','Operando',R.operando||0,'#7bbf7b')
+    + chip('offline','Offline',R.offline||0,'#e57373')
+    + chip('problema','Com problema',R.problema||0,'#e0a33e')
+    + chip('sem_leitura','Sem leitura',R.sem_leitura||0,'#8fa6b8')
+    + '</div>';
+
+  if(UFILTRO) arr=arr.filter(function(u){return u.grupo_status===UFILTRO;});
+  if(BUSCA){ var b=BUSCA.toLowerCase();
+    arr=arr.filter(function(u){return (u.cliente||'').toLowerCase().includes(b)||(u.contrato||'').includes(b)||(u.apelido||'').toLowerCase().includes(b);}); }
+
+  if(!arr.length) return h+'<div class="vazio">Nenhuma usina com esse filtro.</div>';
+
+  h+='<div class="list">';
+  arr.forEach(function(u){
+    var st=u.status||'sem leitura';
+    var cor = u.grupo_status==='operando'?'#7bbf7b':(u.grupo_status==='offline'?'#e57373':(u.grupo_status==='problema'?'#e0a33e':'#8fa6b8'));
+    h+='<div class="card">'
+      +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">'
+      +'<b style="font-size:14.5px">'+esc(u.cliente||'')+'</b>'
+      +'<span style="color:'+cor+';font-size:12px;white-space:nowrap">● '+esc(st)+'</span></div>'
+      +'<div class="mut" style="font-size:12.5px;margin-top:4px">'
+      + esc(u.apelido||'Usina') + ' · ' + (Number(u.kwp)||0).toFixed(2).replace('.',',') + ' kWp'
+      + (u.contrato?' · contrato '+esc(u.contrato):'')
+      + (u.papel!=='propria'?' · '+esc(u.papel):'')
+      + (u.horas_assim!=null?' · '+hTxt(u.horas_assim):'')
+      + (u.saiu?' · <span style="color:#e0a33e">pediu para sair</span>':'')
+      +'</div></div>';
+  });
+  return h+'</div>';
+}
+
+/* ===== MENSAGENS E ALERTAS ===== */
+var MSG=null, MABA='pendentes';
+function setMaba(v){ MABA=v; document.getElementById('mgbox').innerHTML=renderMensagens(); }
+function quandoTxt(t){ if(!t) return ''; var d=new Date(t);
+  return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+
+async function carregarMensagens(){
+  var r=await sb.rpc('get_posvenda_mensagens',{p_dias:14});
+  if(r.error||!r.data){ document.getElementById('mgbox').innerHTML='<div class="vazio">Não consegui carregar.</div>'; return; }
+  MSG=r.data; document.getElementById('mgbox').innerHTML=renderMensagens();
+}
+
+function renderMensagens(){
+  var esp=(MSG&&MSG.esperando)||[], par=(MSG&&MSG.usinas_paradas)||[], env=(MSG&&MSG.enviadas)||[], lig=(MSG&&MSG.ligado)||{};
+  var pend=esp.length+par.length;
+  var h='<div class="tools" style="margin-top:0">'
+    +'<button class="chip '+(MABA==='pendentes'?'on':'')+'" onclick="setMaba(\'pendentes\')">Precisam de você <b>'+pend+'</b></button>'
+    +'<button class="chip '+(MABA==='enviadas'?'on':'')+'" onclick="setMaba(\'enviadas\')">Já enviadas <b>'+env.length+'</b></button>'
+    +'<button class="chip '+(MABA==='estado'?'on':'')+'" onclick="setMaba(\'estado\')">Automações</button>'
+    +'</div>';
+
+  if(MABA==='estado'){
+    var linha=function(nome,v,obs){
+      var on = String(v)==='1';
+      return '<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px">'
+        +'<div><b style="font-size:14px">'+nome+'</b>'+(obs?'<div class="mut" style="font-size:12px;margin-top:3px">'+obs+'</div>':'')+'</div>'
+        +'<span style="color:'+(on?'#7bbf7b':'#8fa6b8')+';font-size:12.5px;white-space:nowrap">'+(on?'● ligada':'○ desligada')+'</span></div>';
+    };
+    return h+'<div class="list">'
+      + linha('Nota lida do WhatsApp', lig.nps, 'Registra, agradece e pede avaliação no Google')
+      + linha('Cliente esperando resposta', lig.espera, 'Avisa quando a última mensagem do grupo é do cliente')
+      + linha('Transcrição de áudio', lig.transcricao, 'Transforma áudio em texto e alimenta o resto')
+      + linha('Aviso de usina parada', lig.usina, 'Leitura continua gravando mesmo desligado')
+      + '</div>';
+  }
+
+  if(MABA==='enviadas'){
+    if(!env.length) return h+'<div class="vazio">Nada enviado nos últimos 14 dias.</div>';
+    return h+'<div class="list">'+env.map(function(e){
+      return '<div class="card"><div style="display:flex;justify-content:space-between;gap:10px">'
+        +'<b style="font-size:14px">'+esc(e.tipo||'')+'</b>'
+        +'<span class="mut" style="font-size:12px;white-space:nowrap">'+quandoTxt(e.quando)+'</span></div>'
+        +'<div class="mut" style="font-size:12.5px;margin-top:3px">'+esc(e.cliente||'')
+        +(e.contrato?' · '+esc(e.contrato):'')+'</div></div>';
+    }).join('')+'</div>';
+  }
+
+  if(!pend) return h+'<div class="vazio">Nada pendente. 👏</div>';
+  var out='';
+  if(esp.length){
+    out+='<div class="mut" style="font-size:12.5px;margin:14px 0 6px">Clientes esperando resposta</div><div class="list">';
+    esp.forEach(function(c){
+      out+='<div class="card"><div style="display:flex;justify-content:space-between;gap:10px">'
+        +'<b style="font-size:14px">'+esc(c.cliente||'')+'</b>'
+        +'<span style="color:#e0a33e;font-size:12px;white-space:nowrap">'+hTxt((Number(c.minutos)||0)/60)+'</span></div>'
+        +(c.trecho?'<div class="mut" style="font-size:12.5px;margin-top:4px">“'+esc(c.trecho)+'”</div>':'')
+        +'</div>';
+    });
+    out+='</div>';
+  }
+  if(par.length){
+    out+='<div class="mut" style="font-size:12.5px;margin:14px 0 6px">Usinas sem gerar</div><div class="list">';
+    par.forEach(function(u){
+      out+='<div class="card"><div style="display:flex;justify-content:space-between;gap:10px">'
+        +'<b style="font-size:14px">'+esc(u.cliente||'')+'</b>'
+        +'<span style="color:#e57373;font-size:12px;white-space:nowrap">'+esc(u.status||'')+'</span></div>'
+        +'<div class="mut" style="font-size:12.5px;margin-top:4px">'+esc(u.usina||'')
+        +(u.contrato?' · contrato '+esc(u.contrato):'')
+        +(u.horas!=null?' · '+hTxt(u.horas):'')
+        +' · '+(u.avisado?'equipe avisada':'ainda não avisado')+'</div></div>';
+    });
+    out+='</div>';
+  }
+  return h+out;
+}
+
 async function carregarBrindes(){
   var box=document.getElementById('brbox'); if(!box) return;
   var r=await sb.rpc('get_brindes');
