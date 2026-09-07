@@ -522,7 +522,7 @@ root.innerHTML = `
 <div class="dchips" id="cchips"></div>
 <div class="toolbar">
 <div class="search">🔍 <input id="busca" placeholder="Buscar cliente ou contrato..."></div>
-<div class="viewtabs"><button id="vCards" class="on" onclick="setView('cards')">▦ Cards</button><button id="vKanban" onclick="setView('kanban')">▤ Kanban</button><button id="vClientes" onclick="setView('clientes')">👤 Clientes</button><button id="vVazias" style="display:none" onclick="toggleVazias()" title="Ocultar/mostrar colunas sem obras">⊟</button></div>
+<div class="viewtabs"><button id="vCards" class="on" onclick="setView('cards')">▦ Cards</button><button id="vKanban" onclick="setView('kanban')">▤ Kanban</button><button id="vClientes" onclick="setView('clientes')">👤 Clientes</button><button id="vRel" onclick="setView('relatorios')">📄 Relatórios</button><button id="vVazias" style="display:none" onclick="toggleVazias()" title="Ocultar/mostrar colunas sem obras">⊟</button></div>
 <select id="selTrilha" onchange="setTrilha(this.value)" style="display:none;background:var(--card);border:1px solid var(--border);color:var(--txt);border-radius:11px;padding:0 12px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer"></select>
 <button class="btn-equipe" id="bResp" title="Respostas dos clientes" onclick="openRespostas()" style="font-weight:700;font-size:13px">💬 Respostas<span class="badge" id="bdgResp" style="display:none">0</span></button>
 
@@ -775,7 +775,8 @@ function setView(v){
 VIEW=v; try{localStorage.setItem('polaris-view',v)}catch(_){}
 document.body.classList.toggle('kbmode', v==='kanban');
 const a=document.getElementById('vCards'),b=document.getElementById('vKanban'),z=document.getElementById('vVazias');
-const cl=document.getElementById('vClientes');
+const cl=document.getElementById('vClientes'), rl=document.getElementById('vRel');
+if(rl) rl.classList.toggle('on',v==='relatorios');
 if(a&&b){a.classList.toggle('on',v==='cards');b.classList.toggle('on',v==='kanban');}
 if(cl) cl.classList.toggle('on',v==='clientes');
 if(z){z.style.display=(v==='kanban')?'':'none';z.classList.toggle('on',KHIDE);}
@@ -791,6 +792,7 @@ function diasObra(o){ if(!o.data_fechamento) return null; const d=parseDate(o.da
 function renderList(){
 if(VIEW==='kanban') return renderKanban();
 if(VIEW==='clientes') return renderClientes();
+if(VIEW==='relatorios') return renderRelatorios();
 let arr=OBRAS.slice().filter(o=>passaDias(o,filtroDias)).filter(o=>!filtroCat||(o.categoria||'residencial')===filtroCat);
 if(filtroEtapa!==null) arr=arr.filter(o=>o.etapa_numero===filtroEtapa);
 if(filtroTrava) arr=arr.filter(o=>o.trava);
