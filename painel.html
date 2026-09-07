@@ -161,9 +161,10 @@ padding:4px 9px;border-radius:20px;white-space:nowrap}
 .ra{text-align:right}
 @media(max-width:760px){.rlin{grid-template-columns:1fr;gap:6px}.ra{text-align:left}}
 .kmais{font-size:15px;letter-spacing:1px;line-height:1}
-.mwrap{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:90;display:flex;align-items:flex-end;justify-content:center;padding:0}
+.mwrap{position:fixed;inset:0;background:rgba(10,14,20,.55);z-index:90;display:flex;align-items:center;justify-content:center;padding:18px}
 .mwrap.off{display:none}
-.mbox{background:var(--card);border:1px solid var(--border);border-radius:16px 16px 0 0;width:100%;max-width:460px;padding:16px 14px 22px;max-height:80vh;overflow:auto}
+.mbox{background:var(--card);border:1px solid var(--border);border-radius:14px;width:100%;max-width:420px;padding:18px 16px 20px;max-height:82vh;overflow:auto;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+@media(max-width:520px){.mwrap{align-items:flex-end;padding:0}.mbox{border-radius:16px 16px 0 0;max-width:none;padding-bottom:24px}}
 .mtit{font-size:15px;font-weight:800;color:var(--txt);margin-bottom:10px}
 .mtit span{font-weight:600;color:var(--mut);font-size:13px}
 .mgrupo{font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--mut);margin:12px 0 6px}
@@ -523,10 +524,10 @@ root.innerHTML = `
 <div class="tbrow">
 <img src="${logoAtual()}" onerror="this.style.display='none'">
 <div class="tabs">
-<button class="tab on">🏗️ Obras</button>
-<a class="tab" href="inicio.html">🏠 Início</a>
-<a class="tab" href="posvenda.html?v=${Date.now()}">💚 Pós-venda</a>
-<a class="tab" href="financeiro.html?v=${Date.now()}">💰 Financeiro</a>
+<button class="tab on">Obras</button>
+<a class="tab" href="inicio.html">Início</a>
+<a class="tab" href="posvenda.html?v=${Date.now()}">Pós-venda</a>
+<a class="tab" href="financeiro.html?v=${Date.now()}">Financeiro</a>
 </div>
 <div class="tbacts">
 <span class="who">${esc(session.user.email)}</span>
@@ -548,7 +549,7 @@ root.innerHTML = `
 <div class="search">🔍 <input id="busca" placeholder="Buscar cliente ou contrato..."></div>
 <div class="viewtabs"><button id="vCards" class="on" onclick="setView('cards')">Cards</button><button id="vKanban" onclick="setView('kanban')">Kanban</button><button id="vRel" onclick="setView('relatorios')">Relatórios</button><button id="vVazias" style="display:none" onclick="toggleVazias()" title="Ocultar/mostrar colunas sem obras">⊟</button></div>
 <select id="selTrilha" onchange="setTrilha(this.value)" style="display:none;background:var(--card);border:1px solid var(--border);color:var(--txt);border-radius:11px;padding:0 12px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer"></select>
-<button class="btn-equipe" id="bResp" title="Respostas dos clientes" onclick="openRespostas()" style="font-weight:700;font-size:13px">💬 Respostas<span class="badge" id="bdgResp" style="display:none">0</span></button>
+<button class="btn-equipe" id="bResp" title="Respostas dos clientes" onclick="openRespostas()" style="font-weight:700;font-size:13px">Respostas<span class="badge" id="bdgResp" style="display:none">0</span></button>
 
 <button class="btn-equipe" id="bAgenda" title="Links de agenda das equipes">📅</button>
 <button class="btn-equipe" id="bEquipe" title="Gerenciar equipe">👥</button>
@@ -670,17 +671,17 @@ function tarjaMan(o){
   const t=TIPO_MAN[o.tipo_manutencao];
   let h='';
   if(t) h+='<div class="kman">'+t[0]+' '+t[1]+'</div>';
-  if(o.cliente_externo) h+='<div class="kman ext">🏳️ Cliente de outra empresa</div>';
+  if(o.cliente_externo) h+='<div class="kman ext">Cliente de outra empresa</div>';
   return h;
 }
 function relPendente(o){ const r=relStatus(o); return !!(r && !r.ok); }
 function tarjaRel(o){
   const r=relStatus(o); if(!r) return '';
-  if(r.ok) return '<div class="krel ok">📋 Relatório completo e assinado</div>';
+  if(r.ok) return '<div class="krel ok">Relatório completo e assinado</div>';
   const partes=[];
   if(!r.completo) partes.push(r.feitos+'/'+r.obrig+' itens');
   if(!r.assinado) partes.push('sem assinatura');
-  return '<div class="krel">📋 '+partes.join(' · ')+'</div>';
+  return '<div class="krel">'+partes.join(' · ')+'</div>';
 }
 let ORIGENS=[];
 async function loadOrigens(){
@@ -711,7 +712,7 @@ let h=`<div class="chip total ${filtroEtapa===null?'on':''}" onclick="setFiltro(
 const trv=OBRAS.filter(o=>o.trava), crt=trv.filter(travaCritica);
 if(trv.length) h+=`<div class="chip trava ${filtroTrava?'on':''}" onclick="setFiltroTrava()"><div class="n">${trv.length}</div><div class="l">⏸ Travadas${crt.length?' · '+crt.length+' ⚠️':''}</div></div>`;
 const relP=OBRAS.filter(relPendente).length;
-if(relP) h+=`<div class="chip relx ${filtroRel?'on':''}" onclick="setFiltroRel()"><div class="n">${relP}</div><div class="l">📋 Relatório pendente</div></div>`;
+if(relP) h+=`<div class="chip relx ${filtroRel?'on':''}" onclick="setFiltroRel()"><div class="n">${relP}</div><div class="l">Relatório pendente</div></div>`;
 const semO=OBRAS.filter(o=>!o.origem_lead).length;
 for(let n=8;n>=0;n--){ if(!cont[n]) continue; const e=ET[n]||{nome:'Etapa '+n,icone:''};
 h+=`<div class="chip ${filtroEtapa===n?'on':''}" onclick="setFiltro(${n})"><div class="n">${cont[n]}</div><div class="l">${e.icone||''} ${esc((e.nome||'').replace('!',''))}</div></div>`; }
@@ -733,7 +734,7 @@ if(ex){
       const q=OBRAS.filter(o=>o.origem_lead===x.codigo).length;
       if(q) e2+=`<div class="chip orig ${filtroOrigem===x.codigo?'on':''}" onclick="setFiltroOrigem('${x.codigo}')"><div class="n">${q}</div><div class="l">${IC[x.codigo]||'•'} ${CT[x.codigo]||esc(x.nome)}</div></div>`;
     });
-    if(semO) e2+=`<div class="chip semorig ${filtroOrigem==='__sem'?'on':''}" onclick="setFiltroOrigem('__sem')"><div class="n">${semO}</div><div class="l">⚠️ Sem origem</div></div>`;
+    if(semO) e2+=`<div class="chip semorig ${filtroOrigem==='__sem'?'on':''}" onclick="setFiltroOrigem('__sem')"><div class="n">${semO}</div><div class="l">Sem origem</div></div>`;
     ex.innerHTML=e2;
   }
 }
@@ -1645,7 +1646,7 @@ try{
 }
 async function openRespostas(){
 const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovResp';
-ov.innerHTML='<div class="modal"><h2>💬 Respostas dos clientes</h2>'
+ov.innerHTML='<div class="modal"><h2>Respostas dos clientes</h2>'
 +'<p style="color:var(--muted);font-size:12.5px;margin:-8px 0 14px">Mensagens recebidas nos grupos. Marque como lida depois de tratar.</p>'
 +'<div class="rsp" id="rsplist"><div class="eqempty">Carregando...</div></div>'
 +'<button class="cancel" style="width:100%;margin-top:12px" onclick="document.getElementById(\'ovResp\').remove()">Fechar</button></div>';
