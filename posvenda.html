@@ -1480,7 +1480,12 @@ function renderFicha(D){
   h+=`</div>`;
 
   /* Trilha — o elemento assinatura */
-  h+=`<div class="sec"><h3>A trilha do relacionamento</h3>`;
+  const naoLidas = msgs.filter(m=>!m.lida_em).length;
+  h+=`<div class="sec"><h3>A trilha do relacionamento`
+    + ((naoLidas>1 && D.pode_agir)
+       ? ` <button class="chip" style="float:right;font-weight:700" onclick="marcarTodas('${o.id}')">marcar as ${naoLidas} como tratadas</button>`
+       : '')
+    + `</h3>`;
   const eventos=[];
   if(o.data_conclusao) eventos.push({d:o.data_conclusao,tipo:'sis',t:'☀️ Sistema ativado',x:null});
   if(o.relatorio_enviado_em) eventos.push({d:o.relatorio_enviado_em,tipo:'sis',t:'📄 Relatório enviado no grupo',x:null});
@@ -1524,6 +1529,15 @@ function renderFicha(D){
 
   h+='</div>';
   document.getElementById('ficha').innerHTML=h;
+}
+
+async function marcarTodas(obraId){
+  if(!confirm('Marcar todas as mensagens deste cliente como tratadas?')) return;
+  const r=await sb.rpc('marcar_todas_lidas',{p_obra:obraId});
+  if(r.error||(r.data&&r.data.erro)){toast('Não foi possível marcar');return;}
+  toast((r.data&&r.data.marcadas?r.data.marcadas:0)+' marcadas ✓');
+  await recarregarTudo();
+  await abrirFicha(obraId);
 }
 
 async function tratar(id,obraId){
