@@ -1098,16 +1098,22 @@ ${tarjaTrava(o)}
 <div class="ctrls">
 <select onchange="mudarEtapa('${o.id}',this.value)" title="Etapa">${opts}</select>
 <button class="act act-adv" ${o.etapa_numero>=8?'disabled':''} onclick="avancar('${o.id}')">Avançar ▶</button>
-<button class="act act-wa" onclick="enviarWA('${o.id}')">💬 Cliente</button>
-${o.whatsapp_grupo_id
-? `<button class="act act-grp" onclick="notificarGrupo('${o.id}')" title="Avisar no grupo do cliente">📣 Grupo</button>`
-: `<button class="act act-gh" style="opacity:.55" onclick="criarGrupo('${o.id}')" title="Esta obra ainda não tem grupo — clique para criar pelo sistema">⚠️ Sem grupo</button>`}
-<button class="act act-gh" onclick="copiarLink('${o.id}')">🔗 Link</button>
-<button class="act act-gh" onclick="copiarLinkInst('${o.id}')" title="Link do checklist do instalador">🔧</button>
-<button class="act act-gh" onclick="abrirRelatorio('${o.id}')" title="Relatório de instalação">📄</button>
-${o.etapa_numero>=8 && !o.nps_enviado_em ? `<button class="act act-gh" onclick="pedirAvaliacao('${o.id}')" title="Enviar pesquisa de satisfação">⭐</button>` : ''}
-${(IPTU_ATIVO && o.etapa_numero>=8 && !o.iptu_avisado_em && (CIDIPTU[o.cidade]||{}).tem_programa==='sim') ? `<button class="act act-gh" onclick="avisarIPTU('${o.id}')" title="Avisar sobre o IPTU Sustentável">🏛️</button>` : ''}
-<button class="act act-gh" onclick="openForm('${o.id}')">✏️</button>
+<button class="act act-gh" onclick="toggleAcoes(event,'${o.id}')" title="Mais ações">⋯</button>
+</div>
+<div class="acoes" id="ac-${o.id}" style="display:none">
+  <div class="acgrupo">Falar com o cliente</div>
+  <button class="act act-wa" onclick="enviarWA('${o.id}')">💬 Mensagem no privado</button>
+  ${o.whatsapp_grupo_id
+  ? `<button class="act act-grp" onclick="notificarGrupo('${o.id}')">📣 Avisar no grupo</button>`
+  : `<button class="act act-gh" style="opacity:.6" onclick="criarGrupo('${o.id}')">⚠️ Criar o grupo</button>`}
+  ${o.etapa_numero>=8 && !o.nps_enviado_em ? `<button class="act act-gh" onclick="pedirAvaliacao('${o.id}')">⭐ Pedir a nota</button>` : ''}
+  ${(IPTU_ATIVO && o.etapa_numero>=8 && !o.iptu_avisado_em && (CIDIPTU[o.cidade]||{}).tem_programa==='sim') ? `<button class="act act-gh" onclick="avisarIPTU('${o.id}')">🏛️ Avisar do IPTU</button>` : ''}
+  <div class="acgrupo">Documentos e links</div>
+  <button class="act act-gh" onclick="abrirRelatorio('${o.id}')">📄 Relatório da obra</button>
+  <button class="act act-gh" onclick="copiarLink('${o.id}')">🔗 Link do cliente</button>
+  <button class="act act-gh" onclick="copiarLinkInst('${o.id}')">🔧 Link do instalador</button>
+  <div class="acgrupo">Editar</div>
+  <button class="act act-gh" onclick="openForm('${o.id}')">✏️ Abrir a ficha</button>
 </div>
 </div>`;
 }
