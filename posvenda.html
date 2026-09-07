@@ -525,10 +525,10 @@ white-space:normal;padding:0 2px}
   <div class="tbrow">
     <img id="logo" src="https://obras.polarisenergiasolar.com/logo.png" onerror="this.style.display='none'">
     <div class="tabs">
-      <a class="tab" href="inicio.html">🏠 Início</a>
-      <a class="tab" id="tabObras" href="painel.html">🏗️ Obras</a>
-      <button class="tab on">💚 Pós-venda</button>
-      <a class="tab" id="tabFin" href="financeiro.html">💰 Financeiro</a>
+      <a class="tab" href="inicio.html">Início</a>
+      <a class="tab" id="tabObras" href="painel.html">Obras</a>
+      <button class="tab on">Pós-venda</button>
+      <a class="tab" id="tabFin" href="financeiro.html">Financeiro</a>
     </div>
     <div class="tbacts">
       <span class="who" id="who"></span>
@@ -633,14 +633,14 @@ function render(){
 
   h+=`<div class="tools">
     <div class="vtabs">
-      <button class="vtab ${VISAO==='jornada'?'on':''}" onclick="setVisao('jornada')">🗺️ Jornada</button>
-      <button class="vtab ${VISAO==='lista'?'on':''}" onclick="setVisao('lista')">☰ Lista</button>
-      <button class="vtab ${VISAO==='regua'?'on':''}" onclick="setVisao('regua')">📅 Régua</button>
-      <button class="vtab ${VISAO==='indic'?'on':''}" onclick="setVisao('indic')">🎁 Indicações</button>
-      <button class="vtab ${VISAO==='brindes'?'on':''}" onclick="setVisao('brindes')">🥤 Brindes</button>
-      <button class="vtab ${VISAO==='planos'?'on':''}" onclick="setVisao('planos')">🛡️ Planos</button>
-      <button class="vtab ${VISAO==='usinas'?'on':''}" onclick="setVisao('usinas')">⚡ Usinas</button>
-      <button class="vtab ${VISAO==='msgs'?'on':''}" onclick="setVisao('msgs')">🔔 Mensagens</button>
+      <button class="vtab ${VISAO==='jornada'?'on':''}" onclick="setVisao('jornada')">Jornada</button>
+      <button class="vtab ${VISAO==='lista'?'on':''}" onclick="setVisao('lista')">Lista</button>
+      <button class="vtab ${VISAO==='regua'?'on':''}" onclick="setVisao('regua')">Régua</button>
+      <button class="vtab ${VISAO==='indic'?'on':''}" onclick="setVisao('indic')">Indicações</button>
+      <button class="vtab ${VISAO==='brindes'?'on':''}" onclick="setVisao('brindes')">Brindes</button>
+      <button class="vtab ${VISAO==='planos'?'on':''}" onclick="setVisao('planos')">Planos</button>
+      <button class="vtab ${VISAO==='usinas'?'on':''}" onclick="setVisao('usinas')">Usinas</button>
+      <button class="vtab ${VISAO==='msgs'?'on':''}" onclick="setVisao('msgs')">Mensagens</button>
     </div>
     <div class="search">🔍<input id="q" placeholder="Buscar cliente ou contrato..." value="${esc(BUSCA)}" oninput="setBusca(this.value)"></div>
     ${VISAO==='lista'?`
@@ -989,7 +989,7 @@ function renderEnvioPlanos(){
   const ess=P.find(p=>p.codigo==='essencial'), atv=P.find(p=>p.codigo==='ativo');
   const comp=P.filter(p=>p.nivel===3);
 
-  let h='<div class="sec"><h3>🛡️ Planos de manutenção e acompanhamento</h3>'
+  let h='<div class="sec"><h3>Planos de manutenção e acompanhamento</h3>'
    +'<div class="dica">Escolha o cliente e envie a proposta no grupo. O valor do plano Completo '
    +'é ajustado automaticamente pelo tamanho do sistema dele.</div>';
 
