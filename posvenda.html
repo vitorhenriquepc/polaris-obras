@@ -639,6 +639,8 @@ function render(){
       <button class="vtab ${VISAO==='indic'?'on':''}" onclick="setVisao('indic')">🎁 Indicações</button>
       <button class="vtab ${VISAO==='brindes'?'on':''}" onclick="setVisao('brindes')">🥤 Brindes</button>
       <button class="vtab ${VISAO==='planos'?'on':''}" onclick="setVisao('planos')">🛡️ Planos</button>
+      <button class="vtab ${VISAO==='usinas'?'on':''}" onclick="setVisao('usinas')">⚡ Usinas</button>
+      <button class="vtab ${VISAO==='msgs'?'on':''}" onclick="setVisao('msgs')">🔔 Mensagens</button>
     </div>
     <div class="search">🔍<input id="q" placeholder="Buscar cliente ou contrato..." value="${esc(BUSCA)}" oninput="setBusca(this.value)"></div>
     ${VISAO==='lista'?`
@@ -666,6 +668,16 @@ function render(){
   if(VISAO==='brindes'){
     document.getElementById('app').innerHTML=h+'<div id="brbox"><div class="center"><div class="spin"></div>Carregando brindes...</div></div>';
     carregarBrindes();
+    return;
+  }
+  if(VISAO==='usinas'){
+    document.getElementById('app').innerHTML=h+'<div id="usbox"><div class="center"><div class="spin"></div>Lendo as usinas...</div></div>';
+    carregarUsinas();
+    return;
+  }
+  if(VISAO==='msgs'){
+    document.getElementById('app').innerHTML=h+'<div id="mgbox"><div class="center"><div class="spin"></div>Carregando mensagens...</div></div>';
+    carregarMensagens();
     return;
   }
   if(VISAO==='jornada'){
