@@ -168,7 +168,7 @@ function blocoOrigem(){
   if(!ORIG || !num(ORIG.total)) return '';
   var os=ORIG.origens||[], cs=ORIG.categorias||[];
   var IC={trafego:'📣',indicacao:'🤝',retomada:'♻️',ativa:'📞',network:'🌐'};
-  var h='<h2>🎯 De onde vêm os clientes <small>no período</small></h2><div class="card">';
+  var h='<h2>De onde vêm os clientes <small>no período</small></h2><div class="card">';
 
   // barra de participação
   var cores={indicacao:'#58b868',trafego:'#5a8fc4',network:'#c9a04a',ativa:'#a878c4',retomada:'#8fa6b8'};
@@ -212,7 +212,7 @@ function blocoQualidade(){
   var g=Number(D.geral||0);
   var cor = g>=9?'var(--green-l)':(g>=7?'var(--gold)':'#e07070');
 
-  var h='<h2>🔧 Qualidade da execução <small>últimos 6 meses</small></h2><div class="card">';
+  var h='<h2>Qualidade da execução <small>últimos 6 meses</small></h2><div class="card">';
   h+='<div class="kpis" style="margin-bottom:14px">'+
      '<div class="kpi"><div class="v" style="color:'+cor+'">'+g.toFixed(1)+'</div><div class="l">Nota geral</div></div>'+
      '<div class="kpi"><div class="v">'+n(D.obras)+'</div><div class="l">Obras avaliadas</div></div>'+
@@ -255,7 +255,7 @@ function render(M){
   h+='<div class="pinfo">Mostrando: <b>'+lbl+'</b>'+(M.periodo&&PER!=='tudo'?' ('+M.periodo.ini.split('-').reverse().join('/')+' até '+M.periodo.fim.split('-').reverse().join('/')+')':'')+'</div>';
 
   /* PERÍODO */
-  h+='<h2>🎯 Desempenho do período</h2><div class="kpis">'
+  h+='<h2>Desempenho do período</h2><div class="kpis">'
     +'<div class="kpi ok"><div class="v">'+n(A.entregues)+'</div><div class="l">Obras entregues</div>'+delta(A.entregues,P.entregues)+'</div>'
     +'<div class="kpi ok"><div class="v">'+n(A.kwp)+' <small>kWp</small></div><div class="l">Potência entregue</div>'+delta(A.kwp,P.kwp)+'</div>'
     +'<div class="kpi"><div class="v">'+n(A.modulos)+'</div><div class="l">Módulos instalados</div></div>'
@@ -267,7 +267,7 @@ function render(M){
     +'</div>';
 
   /* CARTEIRA */
-  h+='<h2>📊 Carteira atual <small>(situação de hoje)</small></h2><div class="kpis">'
+  h+='<h2>Carteira atual <small>(situação de hoje)</small></h2><div class="kpis">'
     +'<div class="kpi destaque"><div class="v">'+n(C.em_andamento)+'</div><div class="l">Obras em andamento</div></div>'
     +'<div class="kpi"><div class="v">'+n(C.kwp_andamento)+' <small>kWp</small></div><div class="l">Potência na esteira</div></div>'
     +'<div class="kpi"><div class="v">'+n(C.agendadas_7d)+'</div><div class="l">Instalações nos próx. 7 dias</div></div>'
@@ -331,7 +331,7 @@ function render(M){
   /* BRINDES */
   var br=M.brindes||[];
   if(br.length){
-    h+='<h2>🎁 Brindes dos promotores</h2><div class="card"><table>'
+    h+='<h2>Brindes dos promotores</h2><div class="card"><table>'
       +'<tr><th>Cliente</th><th>Brinde</th><th>Voucher</th><th class="num">Google</th><th class="num">Escolhido</th><th class="num">Status</th></tr>';
     br.forEach(function(b){
       var nome=b.brinde==='copo'?'🥤 Copo térmico':'🎧 Fone Bluetooth';
@@ -348,7 +348,7 @@ function render(M){
   }
 
   /* ATRASADAS */
-  h+='<h2>🚨 Obras acima do prazo (60 dias)</h2><div class="card">';
+  h+='<h2>Obras acima do prazo (60 dias)</h2><div class="card">';
   var at=M.atrasadas||[];
   if(!at.length) h+='<div class="vazio">Nenhuma obra estourando o prazo. 👏</div>';
   else{
