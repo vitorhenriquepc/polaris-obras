@@ -764,8 +764,8 @@ function statusBadge(s){
 const cls = s==='Finalizado'?'b-fim': s==='Em andamento'?'b-and':'b-out';
 return `<span class="badge b-st ${cls}">${esc(s)}</span>`;
 }
-let VIEW='cards';
-try{VIEW=localStorage.getItem('polaris-view')||'cards'}catch(_){}
+let VIEW='kanban';
+try{VIEW=localStorage.getItem('polaris-view')||'kanban'}catch(_){}
 let KHIDE=false;
 try{KHIDE=localStorage.getItem('polaris-kb-vazias')==='1'}catch(_){}
 function setView(v){
@@ -1110,6 +1110,13 @@ ${(IPTU_ATIVO && o.etapa_numero>=8 && !o.iptu_avisado_em && (CIDIPTU[o.cidade]||
 }
 
 /* ---------- ações ---------- */
+function toggleAcoes(ev,id){
+  ev.stopPropagation();
+  var box=document.getElementById('ac-'+id); if(!box) return;
+  var abrir = box.style.display==='none';
+  document.querySelectorAll('.acoes').forEach(function(b){ b.style.display='none'; });
+  box.style.display = abrir ? 'block' : 'none';
+}
 function getObra(id){ return OBRAS.find(o=>o.id===id); }
 
 async function mudarEtapa(id,n){
