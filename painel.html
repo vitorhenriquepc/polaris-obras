@@ -816,6 +816,67 @@ el.innerHTML = arr.map(cardHtml).join('');
 let KTR='padrao';
 try{KTR=localStorage.getItem('polaris-kb-trilha')||'padrao'}catch(_){}
 function setTrilha(t){ KTR=t; try{localStorage.setItem('polaris-kb-trilha',t)}catch(_){} renderKanban(); }
+/* ===== RELATORIOS PENDENTES ===== */
+var RFILTRO='pendentes';
+function setRfiltro(f){ RFILTRO=f; renderRelatorios(); }
+
+function relInfo(o){
+  var x=REL[o.id];
+  if(!x) return {obrig:0,feitos:0,assinado:false,tem:false};
+  return {obrig:x.obrig||0, feitos:x.feitos||0, assinado:!!x.assinado, tem:true};
+}
+
+function renderRelatorios(){
+  var el=document.getElementById('list');
+  el.className='list'; el.style.display='';
+  var arr=(OBRAS||[]).filter(function(o){ return o.etapa_numero>=6; });
+
+  var faltando=[], completos=[], semFoto=[];
+  arr.forEach(function(o){
+    var r=relInfo(o);
+    if(!r.tem || r.feitos===0){ semFoto.push(o); return; }
+    if(r.feitos<r.obrig || !r.assinado) faltando.push(o); else completos.push(o);
+  });
+
+  var chip=function(f,txt,n,cor){
+    return '<button class="chip '+(RFILTRO===f?'on':'')+'" onclick="setRfiltro(\'' + f + '\')">'
+      +(cor?'<span style="color:'+cor+'">●</span> ':'')+txt+' <b>'+n+'</b></button>';
+  };
+  var h='<div class="tools" style="margin-top:0">'
+    + chip('pendentes','Faltando algo',faltando.length,'#e0a33e')
+    + chip('semfoto','Sem nenhuma foto',semFoto.length,'#e57373')
+    + chip('ok','Completos',completos.length,'#7bbf7b')
+    + '</div>';
+
+  var lista = RFILTRO==='ok'?completos:(RFILTRO==='semfoto'?semFoto:faltando);
+  if(busca){ lista=lista.filter(function(o){
+    return (o.cliente||'').toLowerCase().includes(busca)||(o.contrato||'').includes(busca); }); }
+
+  if(!lista.length){ el.innerHTML=h+'<div class="empty"><span class="i">📄</span>Nada nesse filtro.</div>'; return; }
+
+  el.innerHTML = h + lista.map(function(o){
+    var r=relInfo(o);
+    var falta=[];
+    if(r.tem && r.feitos<r.obrig){ var n=r.obrig-r.feitos; falta.push(n+(n>1?' itens':' item')+' sem foto'); }
+    if(r.tem && !r.assinado) falta.push('sem assinatura do cliente');
+    if(!r.tem || r.feitos===0) falta.push('nenhuma foto enviada');
+    return '<div class="card">'
+      +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">'
+      +'<b style="font-size:14.5px">'+esc(o.cliente||'')+'</b>'
+      +'<span class="mut" style="font-size:12px;white-space:nowrap">'+(o.contrato?'#'+esc(o.contrato):'')+'</span></div>'
+      +'<div class="mut" style="font-size:12.5px;margin-top:4px">'
+      + (r.tem? r.feitos+' de '+r.obrig+' itens' : 'sem checklist')
+      + (o.cidade?' · '+esc(o.cidade):'') + '</div>'
+      + (falta.length? '<div style="color:#e0a33e;font-size:12.5px;margin-top:5px">⚠️ '+falta.join(' · ')+'</div>'
+                     : '<div style="color:#7bbf7b;font-size:12.5px;margin-top:5px">✅ completo e assinado</div>')
+      +'<div class="acoes" style="display:flex;flex-direction:row;flex-wrap:wrap;gap:6px;margin-top:8px;padding-top:8px">'
+      +'<button class="act act-gh" style="width:auto" onclick="abrirRelatorio(\'' + o.id + '\')">📄 Abrir</button>'
+      +'<button class="act act-gh" style="width:auto" onclick="copiarLinkInst(\'' + o.id + '\')">🔧 Link do instalador</button>'
+      +'<button class="act act-gh" style="width:auto" onclick="openForm(\'' + o.id + '\')">✏️ Ficha</button>'
+      +'</div></div>';
+  }).join('');
+}
+
 /* ===== VISAO POR CLIENTE (acervo) ===== */
 var CLIENTES=null, CLI_ABERTO=null;
 function escC(t){return String(t==null?'':t).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
