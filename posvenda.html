@@ -1099,6 +1099,104 @@ async function enviarPlano(){
   }catch(e){ toast('Falha de conexão'); }
 }
 
+/* ===== DETALHE DA USINA ===== */
+var DET=null;
+var MESNOME=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+function n0(v){ return v==null?'—':Math.round(Number(v)).toLocaleString('pt-BR'); }
+function corPct(p){ if(p==null) return 'var(--mut)'; if(p>=90) return '#7bbf7b'; if(p>=75) return '#e0a33e'; return '#e57373'; }
+
+async function abrirUsina(id){
+  var w=document.getElementById('usinaModal');
+  if(!w){ w=document.createElement('div'); w.id='usinaModal'; document.body.appendChild(w); }
+  w.className='uwrap';
+  w.innerHTML='<div class="ubox"><div class="center"><div class="spin"></div>Carregando...</div></div>';
+  w.onclick=function(ev){ if(ev.target===w) fecharUsina(); };
+  var r=await sb.rpc('get_usina_detalhe',{p_usina:id});
+  if(r.error||!r.data){ w.innerHTML='<div class="ubox">Não consegui carregar.</div>'; return; }
+  DET=r.data; desenhaUsina();
+}
+function fecharUsina(){ var w=document.getElementById('usinaModal'); if(w) w.className='uwrap off'; }
+
+function desenhaUsina(){
+  var u=DET.usina, c=DET.cliente, o=DET.obra||{}, meses=DET.meses||[], hist=DET.historico||[], msgs=DET.mensagens||[];
+  var ultimo = hist.length? hist[0] : null;
+  var h='<div class="ubox" onclick="event.stopPropagation()">';
+  h+='<div class="utopo"><div><b>'+esc(c.nome||'')+'</b>'
+    +'<div class="mut" style="font-size:12.5px;margin-top:2px">'+esc(u.apelido||'Usina')
+    +' · '+(Number(u.kwp)||0).toFixed(2).replace('.',',')+' kWp'
+    +(o.contrato?' · contrato '+esc(o.contrato):'')
+    +(o.papel && o.papel!=='propria'?' · '+esc(o.papel):'')+'</div></div>'
+    +'<button class="ufecha" onclick="fecharUsina()" aria-label="Fechar">✕</button></div>';
+  h+='<div class="ukpis">'
+    +'<div class="ukpi"><div class="uk">Situação</div><div class="uv" style="font-size:15px;color:'
+      +((u.status==='operando')?'#7bbf7b':(u.status?'#e57373':'var(--mut)'))+'">'+esc(u.status||'sem leitura')+'</div></div>'
+    +'<div class="ukpi"><div class="uk">Último mês</div><div class="uv">'+(ultimo?n0(ultimo.kwh)+' kWh':'—')+'</div></div>'
+    +'<div class="ukpi"><div class="uk">Desempenho</div><div class="uv" style="color:'+corPct(ultimo&&ultimo.pct)+'">'
+      +(ultimo&&ultimo.pct!=null?ultimo.pct+'%':'—')+'</div></div>'
+    +'</div>';
+  h+='<div class="usec">Ajuste desta usina</div>'
+    +'<div class="mut" style="font-size:12.5px;margin-bottom:8px">'
+    +'O previsto é multiplicado por este fator para refletir sombra, desligamento ou orientação. '
+    +(u.fator_origem?'<b>'+esc(u.fator_origem)+'</b>':'sem ajuste')+'</div>'
+    +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">'
+    +'<input id="fatorIn" type="number" step="0.01" min="0" max="2" value="'+(u.fator!=null?u.fator:'')+'" '
+    +'placeholder="1,00" style="width:96px;background:var(--card2);border:1px solid var(--border);'
+    +'color:var(--txt);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:14px">'
+    +'<input id="notaIn" type="text" value="'+esc(u.nota||'')+'" placeholder="ex: prédio faz sombra à tarde" '
+    +'style="flex:1;min-width:180px;background:var(--card2);border:1px solid var(--border);color:var(--txt);'
+    +'border-radius:8px;padding:8px 10px;font-family:inherit;font-size:14px">'
+    +'<button class="ubtn" onclick="gravarFator()">Salvar</button></div>';
+  h+='<div class="usec">Previsto e realizado, mês a mês</div>';
+  h+='<div class="umeses">';
+  meses.forEach(function(m){
+    var real=m.real, prev=m.ajustado, pct = (prev&&real!=null)? Math.round(real/prev*100) : null;
+    h+='<div class="umes">'
+      +'<div class="umnome">'+MESNOME[m.mes-1]+'</div>'
+      +'<input class="uminput" type="number" min="0" value="'+(m.previsto!=null?m.previsto:'')+'" '
+      +'onchange="gravarPrevisao('+m.mes+',this.value)" title="Previsto da proposta">'
+      +'<div class="umreal" style="color:'+corPct(pct)+'">'+(real!=null?n0(real):'—')+'</div>'
+      +'<div class="umfonte">'+(m.fonte==='proposta'?'proposta':'estimado')+'</div>'
+      +'</div>';
+  });
+  h+='</div>';
+  if(hist.length){
+    h+='<div class="usec">Histórico</div><div class="uhist">';
+    hist.slice(0,12).forEach(function(x){
+      h+='<div class="uhl"><span>'+x.ref+'</span>'
+        +'<span>'+n0(x.kwh)+' de '+n0(x.previsto)+' kWh</span>'
+        +'<span style="color:'+corPct(x.pct)+'">'+(x.pct!=null?x.pct+'%':'—')
+        +(x.completo?'':' <span class="mut">parcial</span>')+'</span></div>';
+    });
+    h+='</div>';
+  }
+  h+='<div class="usec">Mensagens enviadas a este cliente</div>';
+  if(!msgs.length) h+='<div class="mut" style="font-size:12.5px">Nada enviado ainda.</div>';
+  else { h+='<div class="uhist">'; msgs.slice(0,8).forEach(function(m){
+      var d=new Date(m.quando);
+      h+='<div class="uhl"><span>'+esc(m.tipo)+'</span><span class="mut">'
+        +('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear()+'</span></div>';
+    }); h+='</div>'; }
+  h+='</div>';
+  document.getElementById('usinaModal').innerHTML=h;
+}
+
+async function gravarFator(){
+  var f=document.getElementById('fatorIn').value.replace(',','.');
+  var nota=document.getElementById('notaIn').value;
+  var r=await sb.rpc('salvar_fator',{p_usina:DET.usina.id, p_fator: f===''?null:Number(f), p_nota: nota||null});
+  if(r.error||(r.data&&r.data.erro)){ toast('Não deu: '+((r.data&&r.data.erro)||r.error.message)); return; }
+  toast('Ajuste salvo ✓');
+  USI=null; abrirUsina(DET.usina.id);
+}
+async function gravarPrevisao(mes, valor){
+  var v=String(valor).replace(',','.');
+  if(v==='') return;
+  var r=await sb.rpc('salvar_previsao',{p_usina:DET.usina.id, p_mes:mes, p_kwh:Number(v)});
+  if(r.error||(r.data&&r.data.erro)){ toast('Não deu para salvar'); return; }
+  toast(MESNOME[mes-1]+' salvo ✓');
+  abrirUsina(DET.usina.id);
+}
+
 /* ===== USINAS EM OPERACAO ===== */
 var USI=null, UFILTRO='';
 function hTxt(h){ if(h==null) return ''; h=Number(h); if(h<24) return 'há '+Math.round(h)+'h'; var d=Math.floor(h/24); return 'há '+d+(d>1?' dias':' dia'); }
