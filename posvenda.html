@@ -1208,8 +1208,8 @@ async function carregarUsinas(){
   USI=r.data; document.getElementById('usbox').innerHTML=renderUsinas();
 }
 
-function renderUsinas(){
-  var R=(USI&&USI.resumo)||{}, arr=((USI&&USI.usinas)||[]).slice();
+function renderUsinasVelho(){
+  var R={}, arr=[];
   var chip=function(f,txt,n,cor){
     return '<button class="chip '+(UFILTRO===f?'on':'')+'" onclick="setUfiltro(\'' + f + '\')">'
       +(cor?'<span style="color:'+cor+'">●</span> ':'')+txt+' <b>'+n+'</b></button>';
@@ -1243,6 +1243,74 @@ function renderUsinas(){
       + (u.horas_assim!=null?' · '+hTxt(u.horas_assim):'')
       + (u.saiu?' · <span style="color:#e0a33e">pediu para sair</span>':'')
       +'</div></div>';
+  });
+  return h+'</div>';
+}
+
+function renderUsinas(){
+  var R=(USI&&USI.resumo)||{}, arr=((USI&&USI.usinas)||[]).slice();
+  var total=R.total||0;
+  var faixas=[
+    ['boa','Bom desempenho','#5aa469',R.boa||0],
+    ['atencao','Atenção','#e0a33e',R.atencao||0],
+    ['baixa','Gerando pouco','#e57373',R.baixa||0],
+    ['problema','Com problema','#c85a5a',R.problema||0],
+    ['offline','Offline','#8d6e63',R.offline||0],
+    ['sem_leitura','Sem leitura','#7b8a99',R.sem_leitura||0]
+  ].filter(function(f){return f[3]>0;});
+
+  var h='<div class="saude">';
+  if(total){
+    h+='<div class="sbar">';
+    faixas.forEach(function(f){
+      h+='<div class="sseg'+(UFILTRO===f[0]?' on':'')+'" style="width:'+(f[3]/total*100)+'%;background:'+f[2]+'" '
+        +'title="'+f[1]+': '+f[3]+'" onclick="setUfiltro(\'' + (UFILTRO===f[0]?'':f[0]) + '\')"></div>';
+    });
+    h+='</div>';
+  }
+  h+='<div class="sleg">';
+  h+='<button class="slg'+(UFILTRO===''?' on':'')+'" onclick="setUfiltro(\'\')"><b>'+total+'</b> todas</button>';
+  faixas.forEach(function(f){
+    h+='<button class="slg'+(UFILTRO===f[0]?' on':'')+'" onclick="setUfiltro(\'' + f[0] + '\')">'
+      +'<i style="background:'+f[2]+'"></i><b>'+f[3]+'</b> '+f[1]+'</button>';
+  });
+  h+='</div></div>';
+
+  if(UFILTRO) arr=arr.filter(function(u){return u.saude===UFILTRO;});
+  if(BUSCA){ var b=BUSCA.toLowerCase();
+    arr=arr.filter(function(u){return (u.cliente||'').toLowerCase().includes(b)
+      ||(u.contrato||'').includes(b)||(u.apelido||'').toLowerCase().includes(b);}); }
+  if(!arr.length) return h+'<div class="vazio">Nenhuma usina com esse filtro.</div>';
+
+  var cores={boa:'#5aa469',atencao:'#e0a33e',baixa:'#e57373',problema:'#c85a5a',offline:'#8d6e63',sem_leitura:'#7b8a99'};
+  var rotulo={boa:'bom desempenho',atencao:'atenção',baixa:'gerando pouco',problema:'com problema',
+              offline:'sem comunicar',sem_leitura:'sem leitura ainda'};
+
+  h+='<div class="ugrade">';
+  arr.forEach(function(u){
+    var cor=cores[u.saude]||'#7b8a99';
+    var kwp=(Number(u.kwp)||0).toFixed(2).replace('.',',');
+    h+='<div class="ucard" onclick="abrirUsina(\'' + u.usina_id + '\')">'
+      +  '<div class="uctopo">'
+      +    '<div class="ucnome">'+esc(u.cliente||'')+'</div>'
+      +    (u.contrato?'<span class="uctag">'+esc(u.contrato)+'</span>':'')
+      +  '</div>'
+      +  '<div class="ucloc">'+esc(u.apelido||'Usina')+' · '+kwp+' kWp'
+      +    (u.cidade?' · '+esc(u.cidade):'')+'</div>'
+      +  '<div class="ucmeio">'
+      +    '<div class="ucbig" style="color:'+cor+'">'+(u.pct!=null?u.pct+'%':'—')+'</div>'
+      +    '<div class="ucsit"><span class="ucdot" style="background:'+cor+'"></span>'
+      +      esc(rotulo[u.saude]||'')+'</div>'
+      +  '</div>'
+      +  '<div class="ucrod">'
+      +    '<span>'+(u.kwh_ultimo!=null
+             ? '<b>'+Number(u.kwh_ultimo).toLocaleString('pt-BR')+'</b> kWh em '+esc(u.ref_ultimo||'')
+             : 'sem geração registrada')+'</span>'
+      +    (u.papel!=='propria'?'<span class="ucobs">'+esc(u.papel)+'</span>':'')
+      +    (u.saiu?'<span class="ucobs">saiu da lista</span>':'')
+      +  '</div>'
+      +  (u.nota?'<div class="ucnota">'+esc(u.nota)+'</div>':'')
+      +'</div>';
   });
   return h+'</div>';
 }
