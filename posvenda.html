@@ -556,6 +556,13 @@ white-space:normal;padding:0 2px}
 .uk{font-size:11.5px;color:var(--mut)}
 .uv{font-size:19px;font-weight:800;color:var(--txt);margin-top:2px}
 .usec{font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--mut);margin:16px 0 8px}
+.dgraf{display:flex;gap:2px;align-items:flex-end;height:82px;margin-bottom:6px}
+.dcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+.dbar{width:100%;height:64px;display:flex;align-items:flex-end;background:var(--card2);border-radius:2px}
+.dbar span{display:block;width:100%;border-radius:2px;min-height:2px}
+.dtempo{font-size:8px;color:var(--mut);line-height:1}
+.dleg{display:flex;flex-wrap:wrap;gap:12px;font-size:11.5px;color:var(--mut);margin-bottom:12px}
+.dleg i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:5px}
 .ugraf{display:flex;gap:5px;align-items:flex-end;height:96px;margin-bottom:8px}
 .ugcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
 .ugbar{position:relative;width:100%;height:78px;display:flex;align-items:flex-end;justify-content:center}
@@ -1180,6 +1187,33 @@ function desenhaUsina(){
     +'style="flex:1;min-width:180px;background:var(--card2);border:1px solid var(--border);color:var(--txt);'
     +'border-radius:8px;padding:8px 10px;font-family:inherit;font-size:14px">'
     +'<button class="ubtn" onclick="gravarFator()">Salvar</button></div>';
+  var dias=DET.dias||[];
+  if(dias.length){
+    var mx=1; dias.forEach(function(d){ mx=Math.max(mx, Number(d.kwh)||0); });
+    var anor=dias.filter(function(d){return d.anormal;}).length;
+    h+='<div class="usec">Últimos 30 dias'
+      +(anor?' <span style="color:#e57373;font-weight:700;text-transform:none;letter-spacing:0">· '
+        +anor+' dia'+(anor>1?'s':'')+' fora do padrão</span>':'')+'</div>';
+    h+='<div class="dgraf">';
+    dias.forEach(function(d){
+      var alt=(Number(d.kwh)||0)/mx*100;
+      var cor = d.anormal ? '#e57373' : (d.tempo==='chuva'||d.tempo==='nublado' ? '#7b8a99' : '#5aa469');
+      var dt=String(d.dia).slice(8,10)+'/'+String(d.dia).slice(5,7);
+      var tt=dt+': '+(Number(d.kwh)||0).toFixed(1)+' kWh'
+        +(d.tempo?' · '+d.tempo:'')
+        +(d.sol!=null?' · '+d.sol+'h de sol':'')
+        +(d.chuva?' · '+d.chuva+'mm':'')
+        +(d.anormal?' · FORA DO PADRÃO':'');
+      h+='<div class="dcol" title="'+tt+'">'
+        +'<div class="dbar"><span style="height:'+Math.max(alt,2)+'%;background:'+cor+'"></span></div>'
+        +'<div class="dtempo">'+(d.tempo==='chuva'?'ch':(d.tempo==='nublado'?'nb':(d.tempo==='sol'?'s':'·')))+'</div>'
+        +'</div>';
+    });
+    h+='</div>';
+    h+='<div class="dleg"><span><i style="background:#5aa469"></i>dia de sol</span>'
+      +'<span><i style="background:#7b8a99"></i>chuva ou nublado</span>'
+      +'<span><i style="background:#e57373"></i>fora do padrão</span></div>';
+  }
   h+='<div class="usec">Previsto e realizado, mês a mês</div>';
   var maxv=1;
   meses.forEach(function(m){ maxv=Math.max(maxv, Number(m.ajustado)||0, Number(m.real)||0); });
