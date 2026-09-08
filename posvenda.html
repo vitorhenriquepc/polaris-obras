@@ -404,8 +404,10 @@ border-radius:50%;animation:g .8s linear infinite;margin:0 auto 12px}
   .tabs{order:3;flex:1 1 100%;justify-content:center}
   .tab{flex:1;justify-content:center;padding:9px 8px;font-size:12.5px}
   .btn-out{padding:6px 9px;font-size:12px;min-height:32px}
-  .vtabs{flex:1 1 100%}
-  .vtab{flex:1;text-align:center}
+  .vtabs{flex:1 1 100%;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;justify-content:flex-start}
+  .vtabs::-webkit-scrollbar{display:none}
+  .vtab{flex:0 0 auto;text-align:center;white-space:nowrap}
   .tools{gap:7px}
   .wrap{padding:14px 11px 50px}
   .hero{padding:16px}
@@ -419,7 +421,8 @@ border-radius:50%;animation:g .8s linear infinite;margin:0 auto 12px}
 }
 
 /* ---- Kanban da jornada ---- */
-.vtabs{display:flex;gap:4px;background:var(--card2);border-radius:11px;padding:3px;flex-shrink:0}
+.vtabs{display:flex;gap:4px;background:var(--card2);border-radius:11px;padding:3px;flex-shrink:0;max-width:100%;overflow-x:auto}
+.vtab{white-space:nowrap}
 .vtab{background:none;border:none;color:var(--muted);border-radius:8px;padding:8px 13px;
 font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
 .vtab.on{background:var(--card);color:var(--gold)}
