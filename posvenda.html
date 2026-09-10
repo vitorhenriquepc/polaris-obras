@@ -550,7 +550,7 @@ white-space:normal;padding:0 2px}
 .ucnota{font-size:12px;color:var(--mut);margin-top:8px;font-style:italic}
 .uwrap{position:fixed;inset:0;background:rgba(10,14,20,.55);z-index:95;display:flex;align-items:center;justify-content:center;padding:16px}
 .uwrap.off{display:none}
-.ubox{background:var(--card);border:1px solid var(--border);border-radius:14px;width:100%;max-width:560px;padding:18px;max-height:88vh;overflow:auto;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+.ubox{background:var(--card);border:1px solid var(--border);border-radius:14px;width:100%;max-width:720px;padding:18px;max-height:88vh;overflow:auto;box-shadow:0 18px 50px rgba(0,0,0,.35)}
 .utopo{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:12px}
 .ufecha{background:none;border:none;color:var(--mut);font-size:18px;cursor:pointer;padding:0 4px}
 .ukpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
@@ -558,11 +558,16 @@ white-space:normal;padding:0 2px}
 .uk{font-size:11.5px;color:var(--mut)}
 .uv{font-size:19px;font-weight:800;color:var(--txt);margin-top:2px}
 .usec{font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--mut);margin:16px 0 8px}
-.dgraf{display:flex;gap:2px;align-items:flex-end;height:82px;margin-bottom:6px}
-.dcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
-.dbar{width:100%;height:64px;display:flex;align-items:flex-end;background:var(--card2);border-radius:2px}
-.dbar span{display:block;width:100%;border-radius:2px;min-height:2px}
-.dtempo{font-size:8px;color:var(--mut);line-height:1}
+.dgraf{display:flex;gap:3px;align-items:flex-end;height:170px;margin-bottom:8px;overflow-x:auto;padding-bottom:2px}
+.dcol{flex:1 0 22px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;border-radius:6px;padding:3px 1px;transition:background .12s}
+.dcol:hover{background:var(--card2)}
+.dcol.ruim .ddia{color:#e57373;font-weight:800}
+.dval{font-size:9.5px;color:var(--mut);height:12px}
+.dbar{width:100%;height:104px;display:flex;align-items:flex-end;background:var(--card2);border-radius:3px}
+.dbar span{display:block;width:100%;border-radius:3px;min-height:2px}
+.dtempo{font-size:12px;line-height:1}
+.ddia{font-size:9.5px;color:var(--mut);line-height:1}
+.diainfo{font-size:12.5px;color:var(--mut);min-height:18px;margin-bottom:8px}
 .dleg{display:flex;flex-wrap:wrap;gap:12px;font-size:11.5px;color:var(--mut);margin-bottom:12px}
 .dleg i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:5px}
 .ugraf{display:flex;gap:5px;align-items:flex-end;height:96px;margin-bottom:8px}
@@ -1196,24 +1201,27 @@ function desenhaUsina(){
     h+='<div class="usec">Últimos 30 dias'
       +(anor?' <span style="color:#e57373;font-weight:700;text-transform:none;letter-spacing:0">· '
         +anor+' dia'+(anor>1?'s':'')+' fora do padrão</span>':'')+'</div>';
+    h+='<div class="mut" style="font-size:12.5px;margin:-2px 0 10px">'
+      +'<b style="color:var(--txt)">'+n0(dias.reduce(function(a,d){return a+(Number(d.kwh)||0);},0))+' kWh</b>'
+      +' no período · toque em um dia para ver o detalhe</div>';
     h+='<div class="dgraf">';
-    dias.forEach(function(d){
+    dias.forEach(function(d,ix){
       var alt=(Number(d.kwh)||0)/mx*100;
-      var cor = d.anormal ? '#e57373' : (d.tempo==='chuva'||d.tempo==='nublado' ? '#7b8a99' : '#5aa469');
-      var dt=String(d.dia).slice(8,10)+'/'+String(d.dia).slice(5,7);
-      var tt=dt+': '+(Number(d.kwh)||0).toFixed(1)+' kWh'
-        +(d.tempo?' · '+d.tempo:'')
-        +(d.sol!=null?' · '+d.sol+'h de sol':'')
-        +(d.chuva?' · '+d.chuva+'mm':'')
-        +(d.anormal?' · FORA DO PADRÃO':'');
-      h+='<div class="dcol" title="'+tt+'">'
+      var chuvoso=(d.tempo==='chuva'||d.tempo==='nublado');
+      var cor = d.anormal ? '#e57373' : (chuvoso ? '#8fa6b8' : '#5aa469');
+      var icone = d.tempo==='chuva' ? '🌧️' : (d.tempo==='nublado' ? '☁️'
+                : (d.tempo==='sol entre nuvens' ? '⛅' : (d.tempo==='sol' ? '☀️' : '·')));
+      h+='<div class="dcol'+(d.anormal?' ruim':'')+'" onclick="event.stopPropagation();detalheDia('+ix+')">'
+        +'<div class="dval">'+(Number(d.kwh)>0?Math.round(d.kwh):'')+'</div>'
         +'<div class="dbar"><span style="height:'+Math.max(alt,2)+'%;background:'+cor+'"></span></div>'
-        +'<div class="dtempo">'+(d.tempo==='chuva'?'ch':(d.tempo==='nublado'?'nb':(d.tempo==='sol'?'s':'·')))+'</div>'
+        +'<div class="dtempo">'+icone+'</div>'
+        +'<div class="ddia">'+String(d.dia).slice(8,10)+'</div>'
         +'</div>';
     });
     h+='</div>';
+    h+='<div id="diaInfo" class="diainfo"></div>';
     h+='<div class="dleg"><span><i style="background:#5aa469"></i>dia de sol</span>'
-      +'<span><i style="background:#7b8a99"></i>chuva ou nublado</span>'
+      +'<span><i style="background:#8fa6b8"></i>chuva ou nublado</span>'
       +'<span><i style="background:#e57373"></i>fora do padrão</span></div>';
   }
   h+='<div class="usec">Previsto e realizado, mês a mês</div>';
@@ -1261,6 +1269,19 @@ function desenhaUsina(){
     }); h+='</div>'; }
   h+='</div>';
   document.getElementById('usinaModal').innerHTML=h;
+}
+
+function detalheDia(ix){
+  var d=(DET.dias||[])[ix]; if(!d) return;
+  var el=document.getElementById('diaInfo'); if(!el) return;
+  var dt=String(d.dia).slice(8,10)+'/'+String(d.dia).slice(5,7);
+  var partes=['<b>'+dt+'</b>', n0(d.kwh)+' kWh'];
+  if(d.tempo) partes.push(d.tempo);
+  if(d.sol!=null) partes.push(d.sol+'h de sol');
+  if(d.chuva) partes.push(d.chuva+' mm de chuva');
+  if(d.razao!=null) partes.push(Math.round(d.razao*100)+'% do padrão dela');
+  if(d.anormal) partes.push('<b style="color:#e57373">fora do padrão</b>');
+  el.innerHTML=partes.join(' · ');
 }
 
 async function gravarFator(){
