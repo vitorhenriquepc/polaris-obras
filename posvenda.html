@@ -1192,13 +1192,13 @@ function desenhaUsina(){
     +(o.contrato?' · contrato '+esc(o.contrato):'')
     +(o.papel && o.papel!=='propria'?' · '+esc(o.papel):'')+'</div></div>'
     +'<button class="ufecha" onclick="fecharUsina()" aria-label="Fechar">✕</button></div>';
-  h+='<div class="ukpis">'
-    +'<div class="ukpi"><div class="uk">Situação</div><div class="uv" style="font-size:15px;color:'
-      +((u.status==='operando')?'#7bbf7b':(u.status?'#e57373':'var(--mut)'))+'">'+esc(u.status||'sem leitura')+'</div></div>'
-    +'<div class="ukpi"><div class="uk">Último mês</div><div class="uv">'+(ultimo?n0(ultimo.kwh)+' kWh':'—')+'</div></div>'
-    +'<div class="ukpi"><div class="uk">Desempenho</div><div class="uv" style="color:'+corPct(ultimo&&ultimo.pct)+'">'
-      +(ultimo&&ultimo.pct!=null?ultimo.pct+'%':'—')+'</div></div>'
-    +'</div>';
+  var E=DET.estado||{};
+  var ce = E.estado==='normal'?'#5aa469':(E.estado==='alerta'?'#e0a33e':
+           (E.estado==='sem leitura'?'#7b8a99':'#c0392b'));
+  h+='<div class="uest" style="border-color:'+ce+'">'
+    +'<span class="ucdot" style="background:'+ce+'"></span>'
+    +'<b style="color:'+ce+';text-transform:capitalize">'+esc(E.estado||'')+'</b>'
+    +'<span class="mut">'+esc(E.motivo||'')+'</span></div>';
   h+='<div class="usec">Ajuste desta usina</div>'
     +'<div class="mut" style="font-size:12.5px;margin-bottom:8px">'
     +'O previsto é multiplicado por este fator para refletir sombra, desligamento ou orientação. '
@@ -1211,28 +1211,44 @@ function desenhaUsina(){
     +'style="flex:1;min-width:180px;background:var(--card2);border:1px solid var(--border);color:var(--txt);'
     +'border-radius:8px;padding:8px 10px;font-family:inherit;font-size:14px">'
     +'<button class="ubtn" onclick="gravarFator()">Salvar</button></div>';
-  var dias=DET.dias||[];
+  var dias=DET.dias_serie||DET.dias||[];
+  var R=DET.resumo||{};
+  var anel=function(rot,v){
+    var c = v==null?'#7b8a99':(v>=85?'#5aa469':(v>=70?'#e0a33e':'#e57373'));
+    return '<div class="anel"><div class="acirc" style="border-color:'+c+';color:'+c+'">'
+      +(v!=null?v+'%':'—')+'</div><div class="arot">'+rot+'</div></div>';
+  };
+  h+='<div class="ukpis">'
+    +'<div class="ukpi"><div class="uk">Gerou no período</div><div class="uv">'+n0(R.kwh)+' <span style="font-size:13px;font-weight:600">kWh</span></div></div>'
+    +'<div class="ukpi"><div class="uk">Economizou</div><div class="uv" style="color:#5aa469">R$ '+n0(R.economia)+'</div></div>'
+    +'<div class="ukpi aneis">'+anel('1D',R.pct_1d)+anel('7D',R.pct_7d)+anel('30D',R.pct_30d)+anel('mês',R.pct_mes)+'</div>'
+    +'</div>';
   if(dias.length){
-    var mx=1; dias.forEach(function(d){ mx=Math.max(mx, Number(d.kwh)||0); });
+    var mx=1; dias.forEach(function(d){ mx=Math.max(mx, Number(d.kwh)||0, Number(d.esperado)||0); });
     var anor=dias.filter(function(d){return d.anormal;}).length;
-    h+='<div class="usec">Últimos 30 dias'
+    var esp=dias.filter(function(d){return Number(d.esperado)>0;});
+    var espMed = esp.length? esp.reduce(function(a,d){return a+Number(d.esperado);},0)/esp.length : 0;
+    h+='<div class="usec">Energia produzida'
       +(anor?' <span style="color:#e57373;font-weight:700;text-transform:none;letter-spacing:0">· '
         +anor+' dia'+(anor>1?'s':'')+' fora do padrão</span>':'')+'</div>';
-    h+='<div class="mut" style="font-size:12.5px;margin:-2px 0 10px">'
-      +'<b style="color:var(--txt)">'+n0(dias.reduce(function(a,d){return a+(Number(d.kwh)||0);},0))+' kWh</b>'
-      +' no período · toque em um dia para ver o detalhe</div>';
+    h+='<div class="dper">'
+      +[[7,'7 dias'],[30,'30 dias'],[90,'90 dias']].map(function(o){
+          return '<button class="dpb'+(UDIAS===o[0]?' on':'')+'" onclick="setUdias('+o[0]+')">'+o[1]+'</button>';
+        }).join('')
+      +'<span class="dlegp"><i class="lp-real"></i>produzida <i class="lp-esp"></i>esperada</span></div>';
     h+='<div class="dgraf">';
+    if(espMed>0) h+='<div class="dlinha" style="bottom:'+(espMed/mx*100*0.65+24)+'px"></div>';
     dias.forEach(function(d,ix){
       var alt=(Number(d.kwh)||0)/mx*100;
       var chuvoso=(d.tempo==='chuva'||d.tempo==='nublado');
-      var cor = d.anormal ? '#e57373' : (chuvoso ? '#8fa6b8' : '#5aa469');
+      var cor = d.anormal ? '#e57373' : (chuvoso ? '#8fa6b8' : '#22b573');
       var icone = d.tempo==='chuva' ? '🌧️' : (d.tempo==='nublado' ? '☁️'
                 : (d.tempo==='sol entre nuvens' ? '⛅' : (d.tempo==='sol' ? '☀️' : '·')));
       h+='<div class="dcol'+(d.anormal?' ruim':'')+'" onclick="event.stopPropagation();detalheDia('+ix+')">'
+        +'<div class="dtempo">'+icone+'</div>'
         +'<div class="dval">'+(Number(d.kwh)>0?Math.round(d.kwh):'')+'</div>'
         +'<div class="dbar"><span style="height:'+Math.max(alt,2)+'%;background:'+cor+'"></span></div>'
-        +'<div class="dtempo">'+icone+'</div>'
-        +'<div class="ddia">'+String(d.dia).slice(8,10)+'</div>'
+        +'<div class="ddia">'+String(d.dia).slice(8,10)+'/'+String(d.dia).slice(5,7)+'</div>'
         +'</div>';
     });
     h+='</div>';
@@ -1289,7 +1305,7 @@ function desenhaUsina(){
 }
 
 function detalheDia(ix){
-  var d=(DET.dias||[])[ix]; if(!d) return;
+  var d=(DET.dias_serie||DET.dias||[])[ix]; if(!d) return;
   var el=document.getElementById('diaInfo'); if(!el) return;
   var dt=String(d.dia).slice(8,10)+'/'+String(d.dia).slice(5,7);
   var partes=['<b>'+dt+'</b>', n0(d.kwh)+' kWh'];
