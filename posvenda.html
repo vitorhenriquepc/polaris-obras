@@ -1536,12 +1536,14 @@ function renderUsinas(){
   var R=(USI&&USI.resumo)||{}, arr=((USI&&USI.usinas)||[]).slice();
   var total=R.total||0;
   var faixas=[
+    ['crítico','Erro no inversor','#c0392b',R.critico||0],
     ['parada','Parada','#c0392b',R.parada||0],
-    ['crítico','Crítico','#c0392b',R.critico||0],
-    ['silencioso','Silencioso','#d35400',R.silencioso||0],
-    ['alerta','Sem comunicar','#e0a33e',R.alerta||0],
-    ['normal','Gerando','#5aa469',R.normal||0],
-    ['sem leitura','Sem leitura','#7b8a99',R.sem_leitura||0]
+    ['silencioso','Sem gerar com sol','#d35400',R.silencioso||0],
+    ['nunca gerou','Nunca gerou','#d35400',R.nunca_gerou||0],
+    ['sem comunicação','Sem medição','#e0a33e',R.sem_comunicacao||0],
+    ['sem dado','Sem dado','#7b8a99',R.sem_dado||0],
+    ['alerta','Alerta','#e0a33e',R.alerta||0],
+    ['normal','Gerando','#5aa469',R.normal||0]
   ].filter(function(f){return f[3]>0;});
 
   var h='<div class="saude">';
@@ -1572,7 +1574,8 @@ function renderUsinas(){
     aguardando_concessionaria:'Aguardando concessionária',defeito_inversor:'Defeito no inversor',
     cadastro_errado:'Cadastro errado',outro:'Outro motivo'};
   var cEstado={'parada':'#c0392b','crítico':'#c0392b','silencioso':'#d35400',
-               'alerta':'#e0a33e','normal':'#5aa469','sem leitura':'#7b8a99'};
+               'nunca gerou':'#d35400','sem comunicação':'#e0a33e',
+               'alerta':'#e0a33e','normal':'#5aa469','sem dado':'#7b8a99','sem leitura':'#7b8a99'};
   var cDesemp={boa:'#5aa469',atencao:'#e0a33e',baixa:'#e57373',sem_base:'#7b8a99'};
 
   h+='<div class="ugrade">';
@@ -1588,7 +1591,7 @@ function renderUsinas(){
       +    (u.cidade?' · '+esc(u.cidade):'')+'</div>'
       +  '<div class="ucselos">'
       +    '<span class="ucselo" style="border-color:'+ce+';color:'+ce+'">'
-      +      '<span class="ucdot" style="background:'+ce+'"></span>'+esc(u.estado)+'</span>'
+      +      '<span class="ucdot" style="background:'+ce+'"></span>'+esc(u.rotulo||u.estado)+'</span>'
       +    (u.causa ? ('<span class="uctagc">'+esc(CAUSANOME[u.causa]||u.causa)
              +(u.avisado?' · avisado':'')+'</span>') : '')
       +  '</div>'
