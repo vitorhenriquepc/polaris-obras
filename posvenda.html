@@ -842,7 +842,7 @@ function render(){
         <div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">
         ${c.pendentes?`<span class="tag gold">💬 ${c.pendentes} para tratar</span>`:''}
         ${(c.brinde && !c.brinde_retirado)?`<span class="tag gold">🎁 ${c.brinde==='fone'?'fone':'copo'} a retirar</span>`:''}
-        ${(c.usina_estado && c.usina_estado!=='normal')?`<span class="tag" style="border-color:rgba(224,163,62,.5);color:#e0a33e">⚡ ${esc(c.usina_estado)}</span>`:''}
+        ${(c.usina_estado && c.usina_estado!=='normal')?`<span class="tag" style="border-color:rgba(224,163,62,.5);color:#e0a33e">⚡ ${esc(c.usina_rotulo||c.usina_estado)}${c.cliente_avisado?' · avisado':''}</span>`:''}
         ${(c.usina_pct!=null && c.usina_pct<85)?`<span class="tag" style="border-color:rgba(229,115,115,.5);color:#e57373">${c.usina_pct}% do previsto</span>`:''}
         ${(c.ativo && !c.nascimento_dia)?`<span class="tag">🎂 sem aniversário</span>`:''}
         ${!c.ativo?`<span class="tag" style="border-color:rgba(143,166,184,.4);color:var(--muted)">🏗️ em obra</span>`:''}
