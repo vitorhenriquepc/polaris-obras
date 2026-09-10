@@ -882,7 +882,9 @@ function desenhaRel(){
     + num('Sem foto',cont.semfoto, cont.semfoto?'#e57373':'')
     + '</div>';
   var aba=function(f,t){ return '<button class="chip '+(RFILTRO===f?'on':'')+'" onclick="setRfiltro(\'' + f + '\')">'+t+'</button>'; };
-  h+='<div class="tools" style="margin-top:0">'+aba('pendentes','Faltando algo')+aba('semfoto','Sem foto')+aba('ok','Completos')+'</div>';
+  h+='<div class="tools" style="margin-top:0">'+aba('pendentes','Faltando algo')+aba('semfoto','Sem foto')+aba('ok','Completos')
+    +'<button class="chip" onclick="renderRelatorios(true)" title="Buscar de novo no servidor" style="margin-left:auto">↻ atualizar</button>'
+    +'</div>';
 
   var lista=todos.filter(function(o){ return rClasse(o)===RFILTRO; });
   if(busca) lista=lista.filter(function(o){
