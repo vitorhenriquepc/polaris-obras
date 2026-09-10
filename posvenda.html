@@ -553,6 +553,12 @@ white-space:normal;padding:0 2px}
 .ubox{background:var(--card);border:1px solid var(--border);border-radius:14px;width:96vw;max-width:1080px;padding:22px;height:92vh;overflow:auto;box-shadow:0 18px 50px rgba(0,0,0,.35)}
 .utopo{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:12px}
 .ufecha{background:none;border:none;color:var(--mut);font-size:18px;cursor:pointer;padding:0 4px}
+.sug{background:var(--card2);border-left:3px solid var(--gold);border-radius:8px;padding:10px 13px;margin-bottom:10px;font-size:12.5px}
+.sugt{font-size:12px;color:var(--mut);margin-top:5px;font-style:italic}
+.cxrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
+.cxsel{background:var(--card2);border:1px solid var(--border);color:var(--txt);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13.5px;min-width:210px}
+.cxnota{flex:1;min-width:200px;background:var(--card2);border:1px solid var(--border);color:var(--txt);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13.5px}
+.cxav{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--mut);cursor:pointer}
 .uest{display:flex;align-items:center;gap:9px;border:1px solid;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px}
 .uest .mut{font-size:12.5px}
 .aneis{display:flex;gap:10px;align-items:center;justify-content:space-around}
@@ -1200,6 +1206,41 @@ function desenhaUsina(){
     +'<span class="ucdot" style="background:'+ce+'"></span>'
     +'<b style="color:'+ce+';text-transform:capitalize">'+esc(E.estado||'')+'</b>'
     +'<span class="mut">'+esc(E.motivo||'')+'</span></div>';
+  var CA=DET.causa||{}, sug=CA.sugestao||null;
+  var CAUSAS=[['','— não informado —'],['wifi','Wi-Fi desconectado'],['sem_energia','Faltou energia no local'],
+    ['desligado_pelo_cliente','Cliente desligou o sistema'],['obra_no_local','Obra ou reforma no local'],
+    ['aguardando_concessionaria','Aguardando a concessionária'],['defeito_inversor','Defeito no inversor'],
+    ['cadastro_errado','Cadastro errado na plataforma'],['outro','Outro motivo']];
+  var atual = CA.causa || (sug? sug.causa : '');
+  h+='<div class="usec">Por que está assim</div>';
+  if(sug && !CA.causa){
+    var qd=new Date(sug.quando);
+    h+='<div class="sug">Pela conversa do grupo, parece <b>'
+      + esc((CAUSAS.filter(function(c){return c[0]===sug.causa;})[0]||['','—'])[1]) + '</b>'
+      + ' <span class="mut">· ' + (sug.de_quem==='cliente'?'o cliente':'a equipe') + ' escreveu em '
+      + ('0'+qd.getDate()).slice(-2)+'/'+('0'+(qd.getMonth()+1)).slice(-2) + '</span>'
+      + '<div class="sugt">“'+esc(sug.trecho)+'”</div></div>';
+  }
+  h+='<div class="cxrow">'
+    +'<select id="causaIn" class="cxsel">'
+    + CAUSAS.map(function(c){
+        return '<option value="'+c[0]+'"'+(c[0]===atual?' selected':'')+'>'+c[1]+'</option>';
+      }).join('')
+    +'</select>'
+    +'<input id="causaNota" class="cxnota" type="text" value="'+esc(CA.nota||'')+'" '
+    +'placeholder="ex: cliente trocou de provedor, vai religar na semana que vem">'
+    +'<label class="cxav"><input type="checkbox" id="causaAvisado"'
+    +(CA.avisado_em?' checked':'')+'> cliente avisado</label>'
+    +'<button class="ubtn" onclick="gravarCausa()">Salvar</button>'
+    +'</div>';
+  if(CA.causa){
+    var qe=CA.em?new Date(CA.em):null;
+    h+='<div class="mut" style="font-size:11.5px;margin-bottom:12px">Registrado'
+      +(qe?' em '+('0'+qe.getDate()).slice(-2)+'/'+('0'+(qe.getMonth()+1)).slice(-2):'')
+      +(CA.por?' por '+esc(CA.por):'')
+      +(CA.avisado_em?' · cliente avisado':'')+'</div>';
+  } else { h+='<div style="height:8px"></div>'; }
+
   h+='<div class="usec">Ajuste desta usina</div>'
     +'<div class="mut" style="font-size:12.5px;margin-bottom:8px">'
     +'O previsto é multiplicado por este fator para refletir sombra, desligamento ou orientação. '
@@ -1323,6 +1364,16 @@ function detalheDia(ix){
   if(d.razao!=null) partes.push(Math.round(d.razao*100)+'% do padrão dela');
   if(d.anormal) partes.push('<b style="color:#e57373">fora do padrão</b>');
   el.innerHTML=partes.join(' · ');
+}
+
+async function gravarCausa(){
+  var c=document.getElementById('causaIn').value;
+  var n=document.getElementById('causaNota').value;
+  var av=document.getElementById('causaAvisado').checked;
+  var r=await sb.rpc('salvar_causa',{p_usina:DET.usina.id, p_causa:c||null, p_nota:n||null, p_avisado:av});
+  if(r.error||(r.data&&r.data.erro)){ toast('Não deu para salvar'); return; }
+  toast('Motivo registrado ✓');
+  USI=null; abrirUsina(DET.usina.id);
 }
 
 async function gravarFator(){
