@@ -168,6 +168,7 @@ padding:4px 9px;border-radius:20px;white-space:nowrap}
 .mtit{font-size:15px;font-weight:800;color:var(--txt);margin-bottom:10px}
 .mtit span{font-weight:600;color:var(--mut);font-size:13px}
 .mgrupo{font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--mut);margin:12px 0 6px}
+.relin{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--txt);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:14px;margin-bottom:2px}
 .mact{display:block;width:100%;text-align:left;background:var(--card2);border:1px solid var(--border);color:var(--txt);border-radius:10px;padding:11px 13px;margin-bottom:6px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
 .mact:hover{border-color:var(--gold)}
 .acoes{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px}
@@ -1046,24 +1047,59 @@ function detalheCliente(c){
 
 function toggleCliente(id){ CLI_ABERTO = (CLI_ABERTO===id ? null : id); renderClientes(); }
 
-async function anexarRelatorio(obraId){
-  var titulo=prompt('Nome do relatório (ex: Instalação 2023):');
-  if(titulo===null) return;
-  if(!titulo.trim()){ alert('Preciso de um nome para o relatório.'); return; }
-  var url=prompt('Cole o link do PDF (começando com https://):');
-  if(url===null) return;
-  if(url.trim() && !/^https?:\/\//i.test(url.trim())){ alert('O link precisa começar com http:// ou https://'); return; }
-  var dt=prompt('Data do relatório (dd/mm/aaaa) — pode deixar em branco:');
-  var iso=null;
-  if(dt && dt.trim()){
-    var m=dt.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if(!m){ alert('Data inválida. Use dd/mm/aaaa.'); return; }
-    iso=m[3]+'-'+m[2]+'-'+m[1];
+function anexarRelatorio(obraId){
+  var o=(RDADOS||[]).find(function(x){return x.obra_id===obraId;}) || {};
+  var w=document.getElementById('acoesModal');
+  if(!w){ w=document.createElement('div'); w.id='acoesModal'; document.body.appendChild(w); }
+  w.className='mwrap';
+  w.innerHTML='<div class="mbox" onclick="event.stopPropagation()">'
+    +'<div class="mtit">Anexar relatório'+(o.contrato?' <span>#'+esc(o.contrato)+'</span>':'')+'</div>'
+    +'<div class="mgrupo">Nome</div>'
+    +'<input id="relTit" class="relin" type="text" placeholder="ex: Instalação 2023">'
+    +'<div class="mgrupo">Data (opcional)</div>'
+    +'<input id="relData" class="relin" type="date">'
+    +'<div class="mgrupo">O arquivo</div>'
+    +'<input id="relFile" class="relin" type="file" accept="application/pdf">'
+    +'<div class="mut" style="font-size:12px;margin:4px 0 10px">PDF de até 20 MB. '
+    +'Se preferir, cole um link em vez de enviar o arquivo.</div>'
+    +'<input id="relUrl" class="relin" type="url" placeholder="https://... (opcional)">'
+    +'<div id="relMsg" class="mut" style="font-size:12.5px;margin:8px 0 0"></div>'
+    +'<div style="display:flex;gap:8px;margin-top:12px">'
+    +'<button class="mact" style="width:auto;flex:1" onclick="enviarRelatorio(\'' + obraId + '\')">Salvar</button>'
+    +'<button class="mact" style="width:auto" onclick="fecharAcoes()">Cancelar</button>'
+    +'</div></div>';
+  w.onclick=function(ev){ if(ev.target===w) fecharAcoes(); };
+}
+
+async function enviarRelatorio(obraId){
+  var tit=document.getElementById('relTit').value.trim();
+  var dt=document.getElementById('relData').value || null;
+  var url=document.getElementById('relUrl').value.trim();
+  var f=document.getElementById('relFile').files[0];
+  var msg=document.getElementById('relMsg');
+  if(!tit){ msg.textContent='Preciso de um nome para o relatório.'; return; }
+  if(!f && !url){ msg.textContent='Escolha um arquivo ou cole um link.'; return; }
+  if(url && !/^https?:\/\//i.test(url)){ msg.textContent='O link precisa começar com http:// ou https://'; return; }
+
+  if(f){
+    if(f.type!=='application/pdf'){ msg.textContent='Só aceito PDF.'; return; }
+    if(f.size > 20*1024*1024){ msg.textContent='O arquivo passa de 20 MB.'; return; }
+    msg.textContent='Enviando o arquivo...';
+    var nome=String(Date.now())+'-'+f.name.replace(/[^A-Za-z0-9._-]/g,'_');
+    var caminho=obraId+'/'+nome;
+    var up=await sb.storage.from('relatorios-obras').upload(caminho, f, {contentType:'application/pdf'});
+    if(up.error){ msg.textContent='Não consegui enviar: '+up.error.message; return; }
+    var pub=sb.storage.from('relatorios-obras').getPublicUrl(caminho);
+    var r=await sb.rpc('salvar_relatorio_arquivo',{p_obra:obraId,p_titulo:tit,
+        p_path:caminho,p_url:(pub.data&&pub.data.publicUrl)||null,p_tamanho:f.size,p_data:dt});
+    if(r.error||(r.data&&r.data.erro)){ msg.textContent='Não deu: '+((r.data&&r.data.erro)||r.error.message); return; }
+  } else {
+    var r2=await sb.rpc('salvar_relatorio_link',{p_obra:obraId,p_titulo:tit,p_url:url,p_origem:'auvo',p_data:dt});
+    if(r2.error||(r2.data&&r2.data.erro)){ msg.textContent='Não deu: '+((r2.data&&r2.data.erro)||r2.error.message); return; }
   }
-  var r=await sb.rpc('salvar_relatorio_link',{p_obra:obraId,p_titulo:titulo.trim(),p_url:url.trim()||null,p_origem:'auvo',p_data:iso});
-  if(r.error || (r.data&&r.data.erro)){ alert('Não deu certo: '+((r.data&&r.data.erro)||r.error.message)); return; }
+  fecharAcoes();
   CLIENTES=null; RDADOS=null;
-  if(VIEW==='relatorios') renderRelatorios(); else renderClientes();
+  if(VIEW==='relatorios') renderRelatorios(); else if(VIEW==='clientes') renderClientes();
 }
 
 function renderKanban(){
