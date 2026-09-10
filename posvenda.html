@@ -555,6 +555,15 @@ white-space:normal;padding:0 2px}
 .ubox{background:var(--card);border:1px solid var(--border);border-radius:14px;width:96vw;max-width:1080px;padding:22px;height:92vh;overflow:auto;box-shadow:0 18px 50px rgba(0,0,0,.35)}
 .utopo{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:12px}
 .ufecha{background:none;border:none;color:var(--mut);font-size:18px;cursor:pointer;padding:0 4px}
+.autol{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)}
+.autol:last-child{border-bottom:none}
+.autotxt{flex:1}
+.autotxt b{display:block;font-size:14px;color:var(--txt)}
+.autotxt span{display:block;font-size:12.5px;color:var(--mut);margin-top:2px;line-height:1.4}
+.sw{flex:0 0 auto;width:46px;height:26px;border-radius:14px;border:1px solid var(--border);background:var(--card2);cursor:pointer;position:relative;transition:background .15s,border-color .15s}
+.sw i{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--mut);transition:left .15s,background .15s;display:block}
+.sw.on{background:rgba(90,164,105,.22);border-color:#5aa469}
+.sw.on i{left:22px;background:#5aa469}
 .apv{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px}
 .apv.fria{opacity:.72}
 .apvtop{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:7px}
@@ -746,7 +755,7 @@ function render(){
       <button class="vtab ${VISAO==='brindes'?'on':''}" onclick="setVisao('brindes')">Brindes</button>
       <button class="vtab ${VISAO==='planos'?'on':''}" onclick="setVisao('planos')">Planos</button>
       <button class="vtab ${VISAO==='usinas'?'on':''}" onclick="setVisao('usinas')">Usinas</button>
-      <button class="vtab ${VISAO==='msgs'?'on':''}" onclick="setVisao('msgs')">Mensagens</button>
+      <button class="vtab ${VISAO==='auto'?'on':''}" onclick="setVisao('auto')">Automações</button>
     </div>
     <div class="search">🔍<input id="q" placeholder="Buscar cliente ou contrato..." value="${esc(BUSCA)}" oninput="setBusca(this.value)"></div>
     ${VISAO==='lista'?`
@@ -781,9 +790,9 @@ function render(){
     carregarUsinas();
     return;
   }
-  if(VISAO==='msgs'){
-    document.getElementById('app').innerHTML=h+'<div id="mgbox"><div class="center"><div class="spin"></div>Carregando mensagens...</div></div>';
-    carregarMensagens();
+  if(VISAO==='auto'){
+    document.getElementById('app').innerHTML=h+'<div id="mgbox"><div class="center"><div class="spin"></div>Carregando automações...</div></div>';
+    carregarAutomacoes();
     return;
   }
   if(VISAO==='jornada'){
@@ -1182,6 +1191,44 @@ async function enviarPlano(){
     if(!r.ok||res.error){ toast('Erro ao enviar: '+(res.error||r.status)); return; }
     toast('📤 Proposta enviada para '+c.cliente);
   }catch(e){ toast('Falha de conexão'); }
+}
+
+/* ===== AUTOMACOES ===== */
+var AUTOS=null;
+async function carregarAutomacoes(){
+  var r=await sb.rpc('get_automacoes');
+  if(r.error||!r.data){ document.getElementById('mgbox').innerHTML='<div class="vazio">Não consegui carregar.</div>'; return; }
+  AUTOS=r.data; renderAutomacoes();
+}
+async function ligarAutomacao(chave, ligar){
+  var r=await sb.rpc('ligar_automacao',{p_chave:chave, p_ligar:ligar});
+  if(r.error||(r.data&&r.data.erro)){ toast((r.data&&r.data.erro)||'Não deu certo'); return; }
+  toast(ligar?'Ligada ✓':'Desligada');
+  var a=(AUTOS||[]).find(function(x){return x.chave===chave;});
+  if(a) a.ligada=ligar;
+  renderAutomacoes();
+}
+function renderAutomacoes(){
+  var lista=AUTOS||[];
+  var ligadas=lista.filter(function(a){return a.ligada;}).length;
+  var grupos=[];
+  lista.forEach(function(a){ if(grupos.indexOf(a.grupo)<0) grupos.push(a.grupo); });
+  var h='<div class="dica" style="margin-bottom:14px">'
+    +'<b>'+ligadas+' de '+lista.length+'</b> automações ligadas. '
+    +'Desligar uma não apaga nada — só para de executar.</div>';
+  grupos.forEach(function(g){
+    h+='<div class="sec"><h3>'+esc(g)+'</h3>';
+    lista.filter(function(a){return a.grupo===g;}).forEach(function(a){
+      h+='<div class="autol">'
+        +'<div class="autotxt"><b>'+esc(a.nome)+'</b>'
+        +(a.descricao?'<span>'+esc(a.descricao)+'</span>':'')+'</div>'
+        +'<button class="sw'+(a.ligada?' on':'')+'" onclick="ligarAutomacao(\'' + a.chave + '\','+(!a.ligada)+')" '
+        +'aria-label="'+(a.ligada?'desligar':'ligar')+'"><i></i></button>'
+        +'</div>';
+    });
+    h+='</div>';
+  });
+  document.getElementById('mgbox').innerHTML=h;
 }
 
 /* ===== DETALHE DA USINA ===== */
