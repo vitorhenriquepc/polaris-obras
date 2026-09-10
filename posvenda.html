@@ -756,7 +756,6 @@ function render(){
       <button class="vtab ${VISAO==='lista'?'on':''}" onclick="setVisao('lista')">Lista</button>
       <button class="vtab ${VISAO==='regua'?'on':''}" onclick="setVisao('regua')">Régua</button>
       <button class="vtab ${VISAO==='indic'?'on':''}" onclick="setVisao('indic')">Indicações</button>
-      <button class="vtab ${VISAO==='brindes'?'on':''}" onclick="setVisao('brindes')">Brindes</button>
       <button class="vtab ${VISAO==='planos'?'on':''}" onclick="setVisao('planos')">Planos</button>
       <button class="vtab ${VISAO==='usinas'?'on':''}" onclick="setVisao('usinas')">Usinas</button>
       <button class="vtab ${VISAO==='auto'?'on':''}" onclick="setVisao('auto')">Automações</button>
@@ -766,7 +765,9 @@ function render(){
     <button class="chip ${FILTRO===''?'on':''}" onclick="setFiltro('')">Todos</button>
     <button class="chip ${FILTRO==='pendentes'?'on':''}" onclick="setFiltro('pendentes')">Com pendência</button>
     <button class="chip ${FILTRO==='sem_nps'?'on':''}" onclick="setFiltro('sem_nps')">Sem NPS</button>
-    <button class="chip ${FILTRO==='sem_aniv'?'on':''}" onclick="setFiltro('sem_aniv')">🎂 Sem aniversário</button>`:''}
+    <button class="chip ${FILTRO==='sem_aniv'?'on':''}" onclick="setFiltro('sem_aniv')">🎂 Sem aniversário</button>
+    <button class="chip ${FILTRO==='brinde'?'on':''}" onclick="setFiltro('brinde')">🎁 Brinde a retirar${R.brinde_a_retirar?' <b>'+R.brinde_a_retirar+'</b>':''}</button>
+    <button class="chip ${FILTRO==='usina'?'on':''}" onclick="setFiltro('usina')">⚡ Usina com problema${R.usinas_com_problema?' <b>'+R.usinas_com_problema+'</b>':''}</button>`:''}
   </div>`;
 
   if(VISAO==='indic'){
@@ -811,6 +812,8 @@ function render(){
   if(FILTRO==='sem_nps') arr=arr.filter(c=>c.ativo && c.nps==null);
   if(FILTRO==='sem_aniv') arr=arr.filter(c=>c.ativo && !c.nascimento_dia);
   if(FILTRO==='indicacao') arr=arr.filter(c=>c.pendentes>0);
+  if(FILTRO==='brinde') arr=arr.filter(c=>c.brinde && !c.brinde_retirado);
+  if(FILTRO==='usina') arr=arr.filter(c=>c.usina_estado && c.usina_estado!=='normal');
   if(BUSCA){const b=BUSCA.toLowerCase();
     arr=arr.filter(c=>(c.cliente||'').toLowerCase().includes(b)||(c.contrato||'').includes(b));}
 
@@ -827,6 +830,8 @@ function render(){
       if(c.potencia_kwp) bits.push('⚡ '+String(c.potencia_kwp).replace('.',',')+' kWp');
       if(c.dias_ativo!=null) bits.push('☀️ '+c.dias_ativo+' dias ativo');
       if(c.vendedor) bits.push('👔 '+esc(c.vendedor));
+      if(c.usinas>1) bits.push(c.usinas+' usinas');
+      if(c.kwh_30d) bits.push(Number(c.kwh_30d).toLocaleString('pt-BR')+' kWh/30d');
       return `<button class="cli ${c.pendentes?'pend':''}" onclick="abrirFicha('${c.id}')">
         <div class="top">
           <div class="nome">${esc(c.cliente)}${c.contrato?` <span style="color:var(--muted);font-weight:600;font-size:12px">#${esc(c.contrato)}</span>`:''}</div>
@@ -835,6 +840,9 @@ function render(){
         <div class="meta">${bits.join('<span style="opacity:.4">·</span>')}</div>
         <div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">
         ${c.pendentes?`<span class="tag gold">💬 ${c.pendentes} para tratar</span>`:''}
+        ${(c.brinde && !c.brinde_retirado)?`<span class="tag gold">🎁 ${c.brinde==='fone'?'fone':'copo'} a retirar</span>`:''}
+        ${(c.usina_estado && c.usina_estado!=='normal')?`<span class="tag" style="border-color:rgba(224,163,62,.5);color:#e0a33e">⚡ ${esc(c.usina_estado)}</span>`:''}
+        ${(c.usina_pct!=null && c.usina_pct<85)?`<span class="tag" style="border-color:rgba(229,115,115,.5);color:#e57373">${c.usina_pct}% do previsto</span>`:''}
         ${(c.ativo && !c.nascimento_dia)?`<span class="tag">🎂 sem aniversário</span>`:''}
         ${!c.ativo?`<span class="tag" style="border-color:rgba(143,166,184,.4);color:var(--muted)">🏗️ em obra</span>`:''}
         </div>
