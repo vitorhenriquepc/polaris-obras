@@ -904,7 +904,9 @@ function desenhaRel(){
       +'<div class="rc"><div class="rnome">'+esc(o.cliente||'')+'</div>'
       +'<div class="rsub">'+(o.contrato?'#'+esc(o.contrato):'')
         +(o.cidade?' · '+esc(o.cidade):'')
-        +(Number(o.anexos)?' · '+o.anexos+' anexo'+(o.anexos>1?'s':''):'')+'</div></div>'
+        +'</div>'
+      +(Number(o.anexos)?'<div class="ranx">📎 '+o.anexos+' PDF anexado'+(o.anexos>1?'s':'')+'</div>':'')
+      +'</div>'
       +'<div class="rb"><div class="rbar"><i style="width:'+(fotos?Math.max(pct,3):3)+'%;background:'+cor+'"></i></div>'
       +'<div class="rsub">'+(obrig?feitos+' de '+obrig+' · ':'')+nota+'</div></div>'
       +'<div class="ra"><button class="act act-gh" onclick="event.stopPropagation();anexarRelatorio(\'' + o.obra_id + '\')">anexar PDF</button></div>'
