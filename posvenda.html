@@ -2145,13 +2145,49 @@ async function marcarOptin(id, valor){
 
 
 /* ===== RÉGUA ===== */
+var APROV=[];
 async function carregarRegua(){
   const r=await sb.rpc('get_regua_painel');
   if(r.error||!r.data){
     document.getElementById('rgbox').innerHTML='<div class="vazio">Não foi possível carregar a régua.</div>';
     return;
   }
-  RG=r.data; renderRegua();
+  RG=r.data;
+  const q=await sb.rpc('get_regua_aprovacoes');
+  APROV=(q.error?[]:(q.data||[]));
+  renderRegua();
+}
+
+async function decidirRegua(id, acao){
+  const el=document.getElementById('rg-'+id);
+  const txt=el?el.value:null;
+  if(acao==='recusar' && !confirm('Recusar esta mensagem? Ela não será enviada.')) return;
+  const r=await sb.rpc('regua_decidir',{p_id:id, p_acao:acao, p_texto:txt});
+  if(r.error||(r.data&&r.data.erro)){ toast((r.data&&r.data.erro)||'Não deu certo'); return; }
+  toast(acao==='aprovar'?'Aprovada — entra na fila ✓':'Recusada');
+  carregarRegua();
+}
+
+function blocoAprovacao(){
+  if(!APROV.length) return '';
+  var h='<div class="sec" style="border-color:var(--gold)">'
+    +'<h3>Escritas pela IA — esperando você <span class="thead">'+APROV.length+'</span></h3>'
+    +'<div class="dica">Estas foram geradas a partir do que aconteceu na usina. Leia, ajuste se quiser e aprove.</div>';
+  APROV.forEach(function(a){
+    var alerta = a.motivo && a.motivo.indexOf('conferir numeros')===0;
+    h+='<div class="apv">'
+      +'<div class="apvtop"><b>'+esc(a.cliente||'')+'</b>'
+      +(a.contrato?'<span class="uctag">'+esc(a.contrato)+'</span>':'')
+      +'<span class="apvsit">'+esc(a.nome_modelo||a.modelo)+'</span></div>'
+      +(a.motivo?'<div class="apvmot'+(alerta?' erro':'')+'">'+esc(a.motivo)+'</div>':'')
+      +'<textarea class="apvtxt" id="rg-'+a.id+'">'+esc(a.texto)+'</textarea>'
+      +(a.bloqueio?'<div class="apvmot erro">'+esc(a.bloqueio)+'</div>':'')
+      +'<div class="apvacts">'
+      +'<button class="stb" onclick="decidirRegua('+a.id+',\'aprovar\')">Aprovar</button>'
+      +'<button class="stb" onclick="decidirRegua('+a.id+',\'recusar\')">Recusar</button>'
+      +'</div></div>';
+  });
+  return h+'</div>';
 }
 let RGF='';
 function setRgf(k){ RGF=(RGF===k?'':k); renderRegua(); }
@@ -2187,10 +2223,11 @@ function listaRgf(){
 }
 function renderRegua(){
   const R=RG.resumo||{}, fila=RG.fila||[], ult=RG.ultimos||[];
+  const _aprov = blocoAprovacao();
   const hoje=fila.filter(f=>f.quando<=new Date().toISOString().slice(0,10));
   const prox=fila.filter(f=>f.quando>new Date().toISOString().slice(0,10));
 
-  let h='';
+  let h=_aprov;
   if(RG.pode_agir){
     h+=`<div class="liga">
       <div class="txt">
