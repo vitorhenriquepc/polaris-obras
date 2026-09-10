@@ -612,6 +612,9 @@ white-space:normal;padding:0 2px}
 .dcol{flex:1 0 26px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;border-radius:6px;padding:3px 1px;transition:background .12s}
 .dcol:hover{background:var(--card2)}
 .dcol.ruim .ddia{color:#e57373;font-weight:800}
+.dcol.mudo{opacity:.75}
+.dcol.mudo .ddia{color:var(--mut)}
+.dleg i.imudo{background:repeating-linear-gradient(45deg,var(--card2),var(--card2) 2px,var(--border) 2px,var(--border) 4px)}
 .dval{font-size:9.5px;color:var(--mut);height:12px}
 .dbar{width:100%;height:150px;display:flex;align-items:flex-end;background:var(--card2);border-radius:3px}
 .dbar span{display:block;width:100%;border-radius:3px;min-height:2px}
@@ -1362,21 +1365,27 @@ function desenhaUsina(){
     dias.forEach(function(d,ix){
       var alt=(Number(d.kwh)||0)/mx*100;
       var chuvoso=(d.tempo==='chuva'||d.tempo==='nublado');
-      var cor = d.anormal ? '#e57373' : (chuvoso ? '#8fa6b8' : '#22b573');
-      var icone = d.tempo==='chuva' ? '🌧️' : (d.tempo==='nublado' ? '☁️'
-                : (d.tempo==='sol entre nuvens' ? '⛅' : (d.tempo==='sol' ? '☀️' : '·')));
-      h+='<div class="dcol'+(d.anormal?' ruim':'')+'" onclick="event.stopPropagation();detalheDia('+ix+')">'
+      var cor = d.sem_medicao ? 'repeating-linear-gradient(45deg,var(--card2),var(--card2) 3px,var(--border) 3px,var(--border) 6px)'
+              : (d.anormal ? '#e57373' : (chuvoso ? '#8fa6b8' : '#22b573'));
+      var icone = d.sem_medicao ? '📵'
+                : (d.tempo==='chuva' ? '🌧️' : (d.tempo==='nublado' ? '☁️'
+                : (d.tempo==='sol entre nuvens' ? '⛅' : (d.tempo==='sol' ? '☀️' : '·'))));
+      var altura = d.sem_medicao ? 100 : Math.max(alt,2);
+      h+='<div class="dcol'+(d.anormal?' ruim':'')+(d.sem_medicao?' mudo':'')+'" onclick="event.stopPropagation();detalheDia('+ix+')">'
         +'<div class="dtempo">'+icone+'</div>'
-        +'<div class="dval">'+(Number(d.kwh)>0?Math.round(d.kwh):'')+'</div>'
-        +'<div class="dbar"><span style="height:'+Math.max(alt,2)+'%;background:'+cor+'"></span></div>'
+        +'<div class="dval">'+(d.sem_medicao?'':(Number(d.kwh)>0?Math.round(d.kwh):''))+'</div>'
+        +'<div class="dbar"><span style="height:'+altura+'%;background:'+cor+'"></span></div>'
         +'<div class="ddia">'+String(d.dia).slice(8,10)+'/'+String(d.dia).slice(5,7)+'</div>'
         +'</div>';
     });
     h+='</div>';
     h+='<div id="diaInfo" class="diainfo"></div>';
-    h+='<div class="dleg"><span><i style="background:#5aa469"></i>dia de sol</span>'
+    var temMudo=dias.some(function(x){return x.sem_medicao;});
+    h+='<div class="dleg"><span><i style="background:#22b573"></i>dia de sol</span>'
       +'<span><i style="background:#8fa6b8"></i>chuva ou nublado</span>'
-      +'<span><i style="background:#e57373"></i>fora do padrão</span></div>';
+      +'<span><i style="background:#e57373"></i>fora do padrão</span>'
+      +(temMudo?'<span><i class="imudo"></i>sem medição — o sistema pode estar gerando</span>':'')
+      +'</div>';
   }
   h+='<div class="usec">Previsto e realizado, mês a mês</div>';
   var maxv=1;
@@ -1432,6 +1441,11 @@ function detalheDia(ix){
   var d=(DET.dias_serie||DET.dias||[])[ix]; if(!d) return;
   var el=document.getElementById('diaInfo'); if(!el) return;
   var dt=String(d.dia).slice(8,10)+'/'+String(d.dia).slice(5,7);
+  if(d.sem_medicao){
+    el.innerHTML='<b>'+dt+'</b> · sem medição — a usina estava sem comunicar, pode ter gerado normalmente'
+      +(d.tempo?' · '+d.tempo:'');
+    return;
+  }
   var partes=['<b>'+dt+'</b>', n0(d.kwh)+' kWh'];
   if(d.tempo) partes.push(d.tempo);
   if(d.sol!=null) partes.push(d.sol+'h de sol');
