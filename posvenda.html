@@ -538,7 +538,9 @@ white-space:normal;padding:0 2px}
 .ucnome{font-size:15px;font-weight:800;color:var(--txt);line-height:1.3}
 .uctag{flex:0 0 auto;font-size:11.5px;color:var(--mut);background:var(--card2);border-radius:6px;padding:3px 8px;font-weight:700}
 .ucloc{font-size:12.5px;color:var(--mut);margin-top:5px}
-.ucselo{display:inline-flex;align-items:center;gap:7px;border:1px solid;border-radius:20px;padding:5px 13px;font-size:12.5px;font-weight:800;margin:15px 0 8px;text-transform:capitalize}
+.ucselos{display:flex;flex-wrap:wrap;gap:7px;margin:15px 0 8px}
+.ucselo{display:inline-flex;align-items:center;gap:7px;border:1px solid;border-radius:20px;padding:5px 13px;font-size:12.5px;font-weight:800;text-transform:capitalize}
+.uctagc{display:inline-flex;align-items:center;background:var(--card2);color:var(--mut);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700}
 .ucmotivo{font-size:12.5px;color:var(--mut);margin-bottom:13px;line-height:1.4}
 .ucmeio{display:flex;align-items:baseline;gap:12px;margin:16px 0 14px}
 .ucbig{font-size:34px;font-weight:800;line-height:1}
@@ -1478,6 +1480,10 @@ function renderUsinas(){
       ||(u.contrato||'').includes(b)||(u.apelido||'').toLowerCase().includes(b);}); }
   if(!arr.length) return h+'<div class="vazio">Nenhuma usina com esse filtro.</div>';
 
+  var CAUSANOME={wifi:'Wi-Fi desconectado',sem_energia:'Faltou energia',
+    desligado_pelo_cliente:'Cliente desligou',obra_no_local:'Obra no local',
+    aguardando_concessionaria:'Aguardando concessionária',defeito_inversor:'Defeito no inversor',
+    cadastro_errado:'Cadastro errado',outro:'Outro motivo'};
   var cEstado={'parada':'#c0392b','crítico':'#c0392b','silencioso':'#d35400',
                'alerta':'#e0a33e','normal':'#5aa469','sem leitura':'#7b8a99'};
   var cDesemp={boa:'#5aa469',atencao:'#e0a33e',baixa:'#e57373',sem_base:'#7b8a99'};
@@ -1493,8 +1499,12 @@ function renderUsinas(){
       +  '</div>'
       +  '<div class="ucloc">'+esc(u.apelido||'Usina')+' · '+kwp+' kWp'
       +    (u.cidade?' · '+esc(u.cidade):'')+'</div>'
-      +  '<div class="ucselo" style="border-color:'+ce+';color:'+ce+'">'
-      +    '<span class="ucdot" style="background:'+ce+'"></span>'+esc(u.estado)+'</div>'
+      +  '<div class="ucselos">'
+      +    '<span class="ucselo" style="border-color:'+ce+';color:'+ce+'">'
+      +      '<span class="ucdot" style="background:'+ce+'"></span>'+esc(u.estado)+'</span>'
+      +    (u.causa ? '<span class="uctagc">'+esc(CAUSANOME[u.causa]||u.causa)
+      +      +(u.avisado?' · avisado':'')+'</span>' : '')
+      +  '</div>'
       +  '<div class="ucmotivo">'+esc(u.motivo||'')+'</div>'
       +  '<div class="ucrod">'
       +    '<span>'+(u.pct!=null
