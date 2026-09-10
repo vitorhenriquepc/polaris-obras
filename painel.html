@@ -1024,35 +1024,56 @@ function anexarRelatorio(obraId){
   w.onclick=function(ev){ if(ev.target===w) fecharAcoes(); };
 }
 
+var ENVIANDO=false;
 async function enviarRelatorio(obraId){
+  if(ENVIANDO) return;
   var tit=document.getElementById('relTit').value.trim();
   var dt=document.getElementById('relData').value || null;
   var url=document.getElementById('relUrl').value.trim();
   var f=document.getElementById('relFile').files[0];
   var msg=document.getElementById('relMsg');
+  var btns=document.querySelectorAll('#acoesModal .mact');
   if(!tit){ msg.textContent='Preciso de um nome para o relatório.'; return; }
   if(!f && !url){ msg.textContent='Escolha um arquivo ou cole um link.'; return; }
   if(url && !/^https?:\/\//i.test(url)){ msg.textContent='O link precisa começar com http:// ou https://'; return; }
 
-  if(f){
-    if(f.type!=='application/pdf'){ msg.textContent='Só aceito PDF.'; return; }
-    if(f.size > 20*1024*1024){ msg.textContent='O arquivo passa de 20 MB.'; return; }
-    msg.textContent='Enviando o arquivo...';
-    var nome=String(Date.now())+'-'+f.name.replace(/[^A-Za-z0-9._-]/g,'_');
-    var caminho=obraId+'/'+nome;
-    var up=await sb.storage.from('relatorios-obras').upload(caminho, f, {contentType:'application/pdf'});
-    if(up.error){ msg.textContent='Não consegui enviar: '+up.error.message; return; }
-    var pub=sb.storage.from('relatorios-obras').getPublicUrl(caminho);
-    var r=await sb.rpc('salvar_relatorio_arquivo',{p_obra:obraId,p_titulo:tit,
-        p_path:caminho,p_url:(pub.data&&pub.data.publicUrl)||null,p_tamanho:f.size,p_data:dt});
-    if(r.error||(r.data&&r.data.erro)){ msg.textContent='Não deu: '+((r.data&&r.data.erro)||r.error.message); return; }
-  } else {
-    var r2=await sb.rpc('salvar_relatorio_link',{p_obra:obraId,p_titulo:tit,p_url:url,p_origem:'auvo',p_data:dt});
-    if(r2.error||(r2.data&&r2.data.erro)){ msg.textContent='Não deu: '+((r2.data&&r2.data.erro)||r2.error.message); return; }
+  ENVIANDO=true;
+  btns.forEach(function(b){ b.disabled=true; b.style.opacity='.55'; b.style.cursor='wait'; });
+  var liberar=function(){ ENVIANDO=false;
+    btns.forEach(function(b){ b.disabled=false; b.style.opacity=''; b.style.cursor=''; }); };
+
+  try{
+    if(f){
+      if(f.type!=='application/pdf'){ msg.textContent='Só aceito PDF.'; liberar(); return; }
+      if(f.size > 20*1024*1024){ msg.textContent='O arquivo passa de 20 MB.'; liberar(); return; }
+      var mb=(f.size/1048576).toFixed(1);
+      msg.textContent='Enviando '+mb+' MB... pode levar alguns segundos.';
+      var nome=String(Date.now())+'-'+f.name.replace(/[^A-Za-z0-9._-]/g,'_');
+      var caminho=obraId+'/'+nome;
+      var up=await sb.storage.from('relatorios-obras').upload(caminho, f, {contentType:'application/pdf'});
+      if(up.error){ msg.textContent='Não consegui enviar: '+up.error.message; liberar(); return; }
+      msg.textContent='Arquivo enviado, salvando o registro...';
+      var pub=sb.storage.from('relatorios-obras').getPublicUrl(caminho);
+      var r=await sb.rpc('salvar_relatorio_arquivo',{p_obra:obraId,p_titulo:tit,
+          p_path:caminho,p_url:(pub.data&&pub.data.publicUrl)||null,p_tamanho:f.size,p_data:dt});
+      if(r.error||(r.data&&r.data.erro)){
+        msg.textContent='O arquivo subiu mas não salvou: '+((r.data&&r.data.erro)||r.error.message);
+        try{ await sb.storage.from('relatorios-obras').remove([caminho]); }catch(e){}
+        liberar(); return;
+      }
+    } else {
+      var r2=await sb.rpc('salvar_relatorio_link',{p_obra:obraId,p_titulo:tit,p_url:url,p_origem:'auvo',p_data:dt});
+      if(r2.error||(r2.data&&r2.data.erro)){
+        msg.textContent='Não deu: '+((r2.data&&r2.data.erro)||r2.error.message); liberar(); return; }
+    }
+  }catch(err){
+    msg.textContent='Não deu certo: '+String(err).slice(0,90); liberar(); return;
   }
+  liberar();
+  toast('PDF anexado ✓');
   fecharAcoes();
   CLIENTES=null; RDADOS=null;
-  if(VIEW==='relatorios') renderRelatorios(); else if(VIEW==='clientes') renderClientes();
+  if(VIEW==='relatorios') renderRelatorios(true); else if(VIEW==='clientes') renderClientes();
 }
 
 function renderKanban(){
