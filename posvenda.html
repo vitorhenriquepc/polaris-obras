@@ -1502,8 +1502,8 @@ function renderUsinas(){
       +  '<div class="ucselos">'
       +    '<span class="ucselo" style="border-color:'+ce+';color:'+ce+'">'
       +      '<span class="ucdot" style="background:'+ce+'"></span>'+esc(u.estado)+'</span>'
-      +    (u.causa ? '<span class="uctagc">'+esc(CAUSANOME[u.causa]||u.causa)
-      +      +(u.avisado?' · avisado':'')+'</span>' : '')
+      +    (u.causa ? ('<span class="uctagc">'+esc(CAUSANOME[u.causa]||u.causa)
+             +(u.avisado?' · avisado':'')+'</span>') : '')
       +  '</div>'
       +  '<div class="ucmotivo">'+esc(u.motivo||'')+'</div>'
       +  '<div class="ucrod">'
