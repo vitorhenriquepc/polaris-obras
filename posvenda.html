@@ -538,6 +538,8 @@ white-space:normal;padding:0 2px}
 .ucnome{font-size:15px;font-weight:800;color:var(--txt);line-height:1.3}
 .uctag{flex:0 0 auto;font-size:11.5px;color:var(--mut);background:var(--card2);border-radius:6px;padding:3px 8px;font-weight:700}
 .ucloc{font-size:12.5px;color:var(--mut);margin-top:5px}
+.ucselo{display:inline-flex;align-items:center;gap:7px;border:1px solid;border-radius:20px;padding:5px 13px;font-size:12.5px;font-weight:800;margin:15px 0 8px;text-transform:capitalize}
+.ucmotivo{font-size:12.5px;color:var(--mut);margin-bottom:13px;line-height:1.4}
 .ucmeio{display:flex;align-items:baseline;gap:12px;margin:16px 0 14px}
 .ucbig{font-size:34px;font-weight:800;line-height:1}
 .ucsit{font-size:12.5px;color:var(--mut);display:flex;align-items:center;gap:6px}
@@ -1332,12 +1334,12 @@ function renderUsinas(){
   var R=(USI&&USI.resumo)||{}, arr=((USI&&USI.usinas)||[]).slice();
   var total=R.total||0;
   var faixas=[
-    ['boa','Bom desempenho','#5aa469',R.boa||0],
-    ['atencao','Atenção','#e0a33e',R.atencao||0],
-    ['baixa','Gerando pouco','#e57373',R.baixa||0],
-    ['problema','Com problema','#c85a5a',R.problema||0],
-    ['offline','Offline','#8d6e63',R.offline||0],
-    ['sem_leitura','Sem leitura','#7b8a99',R.sem_leitura||0]
+    ['parada','Parada','#c0392b',R.parada||0],
+    ['crítico','Crítico','#c0392b',R.critico||0],
+    ['silencioso','Silencioso','#d35400',R.silencioso||0],
+    ['alerta','Sem comunicar','#e0a33e',R.alerta||0],
+    ['normal','Gerando','#5aa469',R.normal||0],
+    ['sem leitura','Sem leitura','#7b8a99',R.sem_leitura||0]
   ].filter(function(f){return f[3]>0;});
 
   var h='<div class="saude">';
@@ -1357,19 +1359,19 @@ function renderUsinas(){
   });
   h+='</div></div>';
 
-  if(UFILTRO) arr=arr.filter(function(u){return u.saude===UFILTRO;});
+  if(UFILTRO) arr=arr.filter(function(u){return u.estado===UFILTRO;});
   if(BUSCA){ var b=BUSCA.toLowerCase();
     arr=arr.filter(function(u){return (u.cliente||'').toLowerCase().includes(b)
       ||(u.contrato||'').includes(b)||(u.apelido||'').toLowerCase().includes(b);}); }
   if(!arr.length) return h+'<div class="vazio">Nenhuma usina com esse filtro.</div>';
 
-  var cores={boa:'#5aa469',atencao:'#e0a33e',baixa:'#e57373',problema:'#c85a5a',offline:'#8d6e63',sem_leitura:'#7b8a99'};
-  var rotulo={boa:'bom desempenho',atencao:'atenção',baixa:'gerando pouco',problema:'com problema',
-              offline:'sem comunicar',sem_leitura:'sem leitura ainda'};
+  var cEstado={'parada':'#c0392b','crítico':'#c0392b','silencioso':'#d35400',
+               'alerta':'#e0a33e','normal':'#5aa469','sem leitura':'#7b8a99'};
+  var cDesemp={boa:'#5aa469',atencao:'#e0a33e',baixa:'#e57373',sem_base:'#7b8a99'};
 
   h+='<div class="ugrade">';
   arr.forEach(function(u){
-    var cor=cores[u.saude]||'#7b8a99';
+    var ce=cEstado[u.estado]||'#7b8a99', cd=cDesemp[u.desempenho]||'#7b8a99';
     var kwp=(Number(u.kwp)||0).toFixed(2).replace('.',',');
     h+='<div class="ucard" onclick="abrirUsina(\'' + u.usina_id + '\')">'
       +  '<div class="uctopo">'
@@ -1378,15 +1380,15 @@ function renderUsinas(){
       +  '</div>'
       +  '<div class="ucloc">'+esc(u.apelido||'Usina')+' · '+kwp+' kWp'
       +    (u.cidade?' · '+esc(u.cidade):'')+'</div>'
-      +  '<div class="ucmeio">'
-      +    '<div class="ucbig" style="color:'+cor+'">'+(u.pct!=null?u.pct+'%':'—')+'</div>'
-      +    '<div class="ucsit"><span class="ucdot" style="background:'+cor+'"></span>'
-      +      esc(rotulo[u.saude]||'')+'</div>'
-      +  '</div>'
+      +  '<div class="ucselo" style="border-color:'+ce+';color:'+ce+'">'
+      +    '<span class="ucdot" style="background:'+ce+'"></span>'+esc(u.estado)+'</div>'
+      +  '<div class="ucmotivo">'+esc(u.motivo||'')+'</div>'
       +  '<div class="ucrod">'
-      +    '<span>'+(u.kwh_ultimo!=null
-             ? '<b>'+Number(u.kwh_ultimo).toLocaleString('pt-BR')+'</b> kWh em '+esc(u.ref_ultimo||'')
-             : 'sem geração registrada')+'</span>'
+      +    '<span>'+(u.pct!=null
+             ? '<b style="color:'+cd+';font-size:15px">'+u.pct+'%</b> do previsto em '+esc(u.ref_pct||'')
+             : (Number(u.kwh_14d)>0
+                ? '<b style="font-size:15px">'+Number(u.kwh_14d).toLocaleString('pt-BR')+'</b> kWh em 14 dias'
+                : 'sem geração registrada'))+'</span>'
       +    (u.papel!=='propria'?'<span class="ucobs">'+esc(u.papel)+'</span>':'')
       +    (u.saiu?'<span class="ucobs">saiu da lista</span>':'')
       +  '</div>'
