@@ -853,13 +853,15 @@ function rClasse(o){
   return 'pendentes';
 }
 
-async function renderRelatorios(){
+async function renderRelatorios(forcar){
   var el=document.getElementById('list');
   el.className='relwrap'; el.style.display='block';
-  if(!RDADOS){
-    el.innerHTML='<div class="spinner"></div>';
-    var r=await sb.rpc('get_relatorios_painel');
-    if(r.error||!r.data){ el.innerHTML='<div class="empty">Não consegui carregar os relatórios.</div>'; return; }
+  if(forcar===true) RDADOS=null;
+  if(!RDADOS) el.innerHTML='<div class="spinner"></div>';
+  var r=await sb.rpc('get_relatorios_painel');
+  if(r.error||!r.data){
+    if(!RDADOS){ el.innerHTML='<div class="empty">Não consegui carregar os relatórios.</div>'; return; }
+  } else {
     RDADOS=r.data;
   }
   desenhaRel();
