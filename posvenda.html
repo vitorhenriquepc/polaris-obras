@@ -595,6 +595,7 @@ white-space:normal;padding:0 2px}
 .umes{background:var(--card2);border-radius:9px;padding:8px 7px;text-align:center}
 .umnome{font-size:11px;color:var(--mut);text-transform:uppercase;font-weight:700}
 .uminput{width:100%;background:transparent;border:1px solid var(--border);color:var(--txt);border-radius:6px;padding:5px 4px;text-align:center;font-family:inherit;font-size:13px;margin:4px 0}
+.umaj{font-size:10px;color:var(--gold);font-weight:700;margin-bottom:2px}
 .umreal{font-size:14px;font-weight:800}
 .umfonte{font-size:10px;color:var(--mut);margin-top:2px}
 .uhist{background:var(--card2);border-radius:10px;overflow:hidden}
@@ -1210,7 +1211,11 @@ function desenhaUsina(){
     +'<input id="notaIn" type="text" value="'+esc(u.nota||'')+'" placeholder="ex: prédio faz sombra à tarde" '
     +'style="flex:1;min-width:180px;background:var(--card2);border:1px solid var(--border);color:var(--txt);'
     +'border-radius:8px;padding:8px 10px;font-family:inherit;font-size:14px">'
-    +'<button class="ubtn" onclick="gravarFator()">Salvar</button></div>';
+    +'<button class="ubtn" onclick="gravarFator()">Salvar</button></div>'
+    +((u.fator!=null && Number(u.fator)!==1)
+      ? '<div class="mut" style="font-size:12px;margin-bottom:4px">Com o fator '
+        +String(u.fator).replace('.',',')+', a meta de cada mês vira '
+        +Math.round(Number(u.fator)*100)+'% do previsto da proposta.</div>' : '');
   var dias=DET.dias_serie||DET.dias||[];
   var R=DET.resumo||{};
   var anel=function(rot,v){
@@ -1274,12 +1279,15 @@ function desenhaUsina(){
   h+='<div class="umeses">';
   meses.forEach(function(m){
     var real=m.real, prev=m.ajustado, pct = (prev&&real!=null)? Math.round(real/prev*100) : null;
+    var fat=DET.usina.fator;
     h+='<div class="umes">'
       +'<div class="umnome">'+MESNOME[m.mes-1]+'</div>'
       +'<input class="uminput" type="number" min="0" value="'+(m.previsto!=null?m.previsto:'')+'" '
-      +'onchange="gravarPrevisao('+m.mes+',this.value)" title="Previsto da proposta">'
+      +'onchange="gravarPrevisao('+m.mes+',this.value)" title="Previsto da proposta, antes do ajuste">'
+      +((fat!=null && Number(fat)!==1)
+        ? '<div class="umaj">meta '+n0(m.ajustado)+'</div>' : '')
       +'<div class="umreal" style="color:'+corPct(pct)+'">'+(real!=null?n0(real):'—')+'</div>'
-      +'<div class="umfonte">'+(m.fonte==='proposta'?'proposta':'estimado')+'</div>'
+      +'<div class="umfonte">'+(real!=null&&pct!=null?pct+'%':(m.fonte==='proposta'?'proposta':'estimado'))+'</div>'
       +'</div>';
   });
   h+='</div>';
