@@ -1266,9 +1266,20 @@ function acoesRel(obraId){
     +'<div class="mtit">'+esc(o.cliente||'')+(o.contrato?' <span>#'+esc(o.contrato)+'</span>':'')+'</div>'
     +'<div class="rsub" style="margin:-4px 0 4px">'+resumo
       +(Number(o.anexos)?' · '+o.anexos+' PDF anexado'+(o.anexos>1?'s':''):'')+'</div>'
-    +'<div class="mgrupo">Relatório</div>'
-    + b("abrirRelatorio('"+obraId+"')",'Abrir o relatório do sistema')
-    + b("anexarRelatorio('"+obraId+"')",'Anexar PDF do Auvo')
+    +(function(){
+        var arq=(o.arquivos||[]).filter(function(a){return a.url;});
+        if(!arq.length) return '';
+        var h2='<div class="mgrupo">PDF anexado'+(arq.length>1?'s':'')+'</div>';
+        arq.forEach(function(a){
+          var mb = a.tamanho ? ' · '+(a.tamanho/1048576).toFixed(1)+' MB' : '';
+          h2+='<a class="mact" href="'+esc(a.url)+'" target="_blank" rel="noopener" '
+            +'style="text-decoration:none;display:block">📄 '+esc(a.titulo||'relatório')+mb+'</a>';
+        });
+        return h2;
+      })()
+      +'<div class="mgrupo">Relatório de fotos</div>'
+      + b("abrirRelatorio('"+obraId+"')",'Abrir o relatório do sistema')
+      + b("anexarRelatorio('"+obraId+"')",'Anexar outro PDF')
     +'<div class="mgrupo">Completar</div>'
     + b("copiarLinkInst('"+obraId+"')",'Copiar link do instalador')
     + b("openForm('"+obraId+"')",'Abrir a ficha da obra')
