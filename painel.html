@@ -849,6 +849,8 @@ function setRfiltro(f){ RFILTRO=f; desenhaRel(); }
 
 function rClasse(o){
   var fotos=Number(o.fotos_total)||0, feitos=Number(o.feitos)||0, obrig=Number(o.obrig)||0;
+  // relatorio anexado em PDF ja documenta a obra
+  if(Number(o.anexos)>0 && !fotos) return 'ok';
   if(!fotos) return 'semfoto';
   if(feitos>=obrig && o.assinado) return 'ok';
   return 'pendentes';
