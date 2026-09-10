@@ -896,8 +896,12 @@ function desenhaRel(){
   h+='<div class="rtab">';
   lista.forEach(function(o){
     var feitos=Number(o.feitos)||0, obrig=Number(o.obrig)||0, fotos=Number(o.fotos_total)||0;
+    var anx=Number(o.anexos)||0;
+    // relatorio antigo, que veio em PDF: a barra de fotos nao se aplica
+    var soPdf = (anx>0 && !fotos);
     var pct = obrig? Math.round(feitos/obrig*100) : 0;
-    var cor = (!fotos)?'#e57373':((feitos>=obrig&&o.assinado)?'#7bbf7b':'#e0a33e');
+    var cor = soPdf ? '#5aa469'
+            : ((!fotos)?'#e57373':((feitos>=obrig&&o.assinado)?'#7bbf7b':'#e0a33e'));
     var nota = !fotos ? 'nenhuma foto'
              : (feitos<obrig ? (obrig-feitos)+(obrig-feitos>1?' itens sem foto':' item sem foto')
              : (!o.assinado ? 'falta assinar' : 'completo e assinado'));
@@ -906,10 +910,13 @@ function desenhaRel(){
       +'<div class="rsub">'+(o.contrato?'#'+esc(o.contrato):'')
         +(o.cidade?' · '+esc(o.cidade):'')
         +'</div>'
-      +(Number(o.anexos)?'<div class="ranx">📎 '+o.anexos+' PDF anexado'+(o.anexos>1?'s':'')+'</div>':'')
+      +(anx?'<div class="ranx">📎 '+anx+' PDF anexado'+(anx>1?'s':'')+'</div>':'')
       +'</div>'
-      +'<div class="rb"><div class="rbar"><i style="width:'+(fotos?Math.max(pct,3):3)+'%;background:'+cor+'"></i></div>'
-      +'<div class="rsub">'+(obrig?feitos+' de '+obrig+' · ':'')+nota+'</div></div>'
+      +(soPdf
+        ? '<div class="rb"><div class="rsub" style="color:#4e8f5e;font-weight:700">documentado em PDF</div>'
+          +'<div class="rsub">relatório do Auvo, sem fotos no sistema</div></div>'
+        : '<div class="rb"><div class="rbar"><i style="width:'+(fotos?Math.max(pct,3):3)+'%;background:'+cor+'"></i></div>'
+          +'<div class="rsub">'+(obrig?feitos+' de '+obrig+' · ':'')+nota+'</div></div>')
       +'<div class="ra"><button class="act act-gh" onclick="event.stopPropagation();anexarRelatorio(\'' + o.obra_id + '\')">anexar PDF</button></div>'
       +'</div>';
   });
