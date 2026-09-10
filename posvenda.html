@@ -2283,7 +2283,23 @@ function listaRgf(){
   let h='<div class="sec" style="border-color:var(--gold)">'+
     '<h3 style="display:flex;align-items:center;gap:8px">'+esc(tit)+' — '+arr.length+
     '<button class="stb" style="margin-left:auto" onclick="setRgf(\''+RGF+'\')">✕ fechar</button></h3>';
-  if(!arr.length) h+='<div class="vazio">Nenhum cliente aqui.</div>';
+  if(!arr.length){
+    var hojeStr=new Date().toISOString().slice(0,10);
+    var enviadasHoje=(RG.ultimos||[]).filter(function(u){
+      return u.enviado_em && String(u.enviado_em).slice(0,10)===hojeStr; }).length;
+    var prox=(RG.fila||[]).filter(function(f){ return f.quando>hojeStr; });
+    var msg='Nenhum cliente aqui.';
+    if(RGF==='hoje'){
+      msg = enviadasHoje
+        ? '<b>'+enviadasHoje+' mensagem'+(enviadasHoje>1?'s':'')+' já enviada'+(enviadasHoje>1?'s':'')+' hoje.</b> Nada mais para agora.'
+        : 'Nada programado para hoje.';
+      if(prox.length){
+        var d=prox.map(function(f){return f.quando;}).sort()[0];
+        msg += ' Próxima em '+dataBR(d)+'.';
+      }
+    }
+    h+='<div class="vazio">'+msg+'</div>';
+  }
   for(let i=0;i<arr.length;i++){
     const f=arr[i];
     const quando = f.enviado_em ? dataBR(f.enviado_em)
