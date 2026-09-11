@@ -1381,7 +1381,7 @@ async function abrirLinha(id){
     +'<select id="ntTipo">'+sel+'</select>'
     +'<input id="ntData" type="date" value="'+hoje+'">'
     +'<textarea id="ntTexto" rows="2" placeholder="o que aconteceu"></textarea>'
-    +'<button class="mact" onclick="salvarNota(\\''+id+'\\')">Salvar anotação</button>'
+    +'<button class="mact" data-id="'+id+'" onclick="salvarNota(this.dataset.id)">Salvar anotação</button>'
     +'</div>';
 }
 async function salvarNota(id){
