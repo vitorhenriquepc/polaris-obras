@@ -347,6 +347,12 @@ width:100%;max-width:560px;max-height:90vh;overflow-y:auto;padding:22px 20px 30p
 .fld label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;font-weight:600}
 .faltando{border:1.5px solid #e5484d !important;background:rgba(229,72,77,.07) !important}
 .faltando:focus{outline:none;border-color:#e5484d !important;box-shadow:0 0 0 3px rgba(229,72,77,.18) !important}
+.ltbox{max-height:46vh;overflow:auto;margin:6px 0 2px;padding-right:4px}
+.lt{border-left:2px solid var(--linha,#2a2f3a);padding:0 0 12px 12px;margin-left:4px}
+.ltd{font-size:11px;color:#8b93a7}
+.ltt{font-size:14px;margin-top:2px}
+.ltx{font-size:12px;color:#8b93a7;margin-top:1px}
+#linhaModal select,#linhaModal input,#linhaModal textarea{width:100%;margin:4px 0;padding:8px;border-radius:8px;border:1px solid #2a2f3a;background:#12151c;color:inherit;font:inherit}
 .fld input,.fld select,.fld textarea{width:100%;background:var(--card2);border:1px solid var(--border);
 color:var(--txt);border-radius:10px;padding:11px 12px;font-family:inherit;font-size:14px;outline:none}
 .fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--gold)}
@@ -1333,7 +1339,8 @@ function abrirAcoes(id){
     + ((IPTU_ATIVO && o.etapa_numero>=8 && !o.iptu_avisado_em && (CIDIPTU[o.cidade]||{}).tem_programa==='sim')
         ? b("avisarIPTU('"+id+"')",'Avisar do IPTU') : '')
     + '<div class="mgrupo">Documentos e links</div>'
-    + b("abrirRelatorio('"+id+"')",'Relatório da obra')
+      + b("abrirRelatorio('"+id+"')",'Relatório da obra')
+      + b("abrirLinha('"+id+"')",'Linha do tempo')
     + b("copiarLink('"+id+"')",'Link do cliente')
     + b("copiarLinkInst('"+id+"')",'Link do instalador')
     + '<div class="mgrupo">Editar</div>'
@@ -1347,6 +1354,46 @@ function abrirAcoes(id){
   w.onclick=fecharAcoes;
 }
 function fecharAcoes(){ var w=document.getElementById('acoesModal'); if(w) w.className='mwrap off'; }
+
+var NOTA_TIPOS=[['visita','Visita técnica'],['ligacao','Ligação'],['combinado','Combinado com o cliente'],['troca','Troca de equipamento'],['observacao','Observação']];
+function fecharLinha(){ var w=document.getElementById('linhaModal'); if(w) w.className='mwrap off'; }
+async function abrirLinha(id){
+  var o=getObra(id); if(!o) return;
+  var w=document.getElementById('linhaModal');
+  if(!w){ w=document.createElement('div'); w.id='linhaModal'; document.body.appendChild(w); }
+  w.className='mwrap'; w.onclick=fecharLinha;
+  w.innerHTML='<div class="mbox" onclick="event.stopPropagation()"><div class="mtit">Linha do tempo</div><div class="ltx">carregando…</div></div>';
+  var r=await sb.rpc('linha_do_tempo',{p_obra:id});
+  if(r.error){ toast(r.error.message); return; }
+  var ev=(r.data||[]).slice().reverse();
+  var lista = ev.length ? ev.map(function(e){
+      var d=new Date(e.quando);
+      return '<div class="lt"><div class="ltd">'+d.toLocaleDateString('pt-BR')+'</div>'
+        +'<div class="ltt">'+(e.icone||'')+' '+esc(e.titulo||'')+'</div>'
+        +(e.detalhe?'<div class="ltx">'+esc(e.detalhe)+'</div>':'')+'</div>';
+    }).join('') : '<div class="ltx">nada registrado ainda</div>';
+  var sel=NOTA_TIPOS.map(function(t){return '<option value="'+t[0]+'">'+t[1]+'</option>';}).join('');
+  var hoje=new Date().toISOString().slice(0,10);
+  w.innerHTML='<div class="mbox" onclick="event.stopPropagation()">'
+    +'<div class="mtit">Linha do tempo <span>'+esc(o.cliente||'')+'</span></div>'
+    +'<div class="ltbox">'+lista+'</div>'
+    +'<div class="mgrupo">Anotar</div>'
+    +'<select id="ntTipo">'+sel+'</select>'
+    +'<input id="ntData" type="date" value="'+hoje+'">'
+    +'<textarea id="ntTexto" rows="2" placeholder="o que aconteceu"></textarea>'
+    +'<button class="mact" onclick="salvarNota(\\''+id+'\\')">Salvar anotação</button>'
+    +'</div>';
+}
+async function salvarNota(id){
+  var tipo=document.getElementById('ntTipo').value;
+  var texto=(document.getElementById('ntTexto').value||'').trim();
+  var data=document.getElementById('ntData').value;
+  if(texto.length<3){ toast('Escreva o que aconteceu'); return; }
+  var quem=null; try{ var u=await sb.auth.getUser(); quem=u&&u.data&&u.data.user?u.data.user.email:null; }catch(e){}
+  var r=await sb.from('obra_nota').insert({obra_id:id,tipo:tipo,texto:texto,aconteceu_em:data,criado_por:quem});
+  if(r.error){ toast(r.error.message); return; }
+  toast('Anotado'); abrirLinha(id);
+}
 
 function toggleAcoes(ev,id){
   ev.stopPropagation();
