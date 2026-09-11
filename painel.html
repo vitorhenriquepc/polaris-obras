@@ -2036,8 +2036,28 @@ if(id) sb.rpc('is_admin').then(r=>{ const rd=document.getElementById('rowDel'); 
 document.getElementById('f_save').onclick = ()=> salvarForm(id);
 }
 async function salvarForm(id){
-const cli=document.getElementById('f_cli').value.trim();
-if(!cli){ toast('Informe o nome do cliente'); return; }
+  const cli=document.getElementById('f_cli').value.trim();
+  // campos que nao deixam salvar; o que faltar fica vermelho
+  document.querySelectorAll('.faltando').forEach(function(el){el.classList.remove('faltando');});
+  var OBRIG=[['f_cli','cliente'],['f_con','número do contrato'],['f_pot','potência'],
+             ['f_vend','vendedor'],['f_org','origem do lead'],['f_tel2','tipo de telhado'],
+             ['f_end','endereço'],['f_valor','valor do projeto'],['f_km','distância (km)']];
+  var trilhaAtual=(document.getElementById('f_trilha')&&document.getElementById('f_trilha').value)||'padrao';
+  if(trilhaAtual==='padrao'){
+    var faltou=[];
+    OBRIG.forEach(function(f){
+      var el=document.getElementById(f[0]); if(!el) return;
+      var v=(el.value||'').trim();
+      var vazio = !v || (el.type==='number' && !(parseFloat(v.replace(',','.'))>0));
+      if(vazio){ el.classList.add('faltando'); faltou.push(f[1]); }
+    });
+    if(faltou.length){
+      var p=document.querySelector('.faltando'); if(p&&p.scrollIntoView) p.scrollIntoView({block:'center',behavior:'smooth'});
+      toast('Falta preencher: '+faltou.join(', '));
+      return;
+    }
+  }
+  if(!cli){ toast('Informe o nome do cliente'); return; }
 const potRaw=document.getElementById('f_pot').value.trim().replace(',','.');
 const rec={
 cliente:cli,
