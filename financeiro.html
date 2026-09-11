@@ -1040,7 +1040,8 @@ async function calcularPrevistoObra(){
   const km=parseFloat(document.getElementById('eKm').value)||0;
   const mods=n(EDIT.obra.qtd_modulos);
   if(!(mods>0)){toast('Obra sem quantidade de módulos — cadastre no painel de obras');return;}
-  await sb.from('obras').update({tipo_telhado:estr, distancia_km:km}).eq('id',EDIT.obra.id);
+  const u=await sb.from('obras').update({tipo_telhado:estr, distancia_km:km}).eq('id',EDIT.obra.id);
+  if(u.error){toast(u.error.message);return;}
   const r=await sb.rpc('gravar_previsto',{p_obra:EDIT.obra.id});
   if(r.error){toast('Erro: '+r.error.message);return;}
   if(r.data&&r.data.erro){toast(r.data.erro);return;}
@@ -1161,6 +1162,7 @@ async function salvarFin(){
   payload.status_pagamento = PARC.length===0 ? 'aberto'
                            : (recT===PARC.length ? 'quitado' : 'parcelado');
   const r=await sb.from('obra_financeiro').upsert(payload,{onConflict:'obra_id'});
+  if(r.error){toast(r.error.message);return;}
   // parcelas: apaga e regrava
   await sb.from('obra_parcelas').delete().eq('obra_id',EDIT.obra.id);
   if(PARC.length){
