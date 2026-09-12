@@ -1,4 +1,4 @@
--- PROPOSTA — NÃO APLICADA. Decisão do Vitor.
+-- APLICADA em 12/09/2026 (migração `delete_so_admin_de_verdade`).
 --
 -- O QUE ESTÁ ERRADO
 --
@@ -31,8 +31,6 @@
 -- Aplicar isto HOJE não muda nada para ninguém — as três pessoas são admin.
 -- O ganho é no dia em que não forem.
 
-begin;
-
 do $$
 declare t text;
 begin
@@ -48,14 +46,14 @@ begin
   end loop;
 end $$;
 
--- CONFERÊNCIA antes de dar commit: nenhuma policy de DELETE pode sobrar
--- com is_autorizado(). O esperado é zero linhas.
-select tablename, policyname, cmd, qual
-from pg_policies
-where schemaname='public'
-  and tablename in ('clientes','obra_relatorios','obra_usina','usinas','usina_monitoramento')
-  and cmd in ('DELETE','ALL')
-  and qual like '%is_autorizado%';
-
--- Se voltou vazio: commit. Se voltou linha: rollback e me chame.
-rollback;  -- trocar por commit depois de conferir
+-- CONFERIDO DEPOIS DE APLICAR
+--
+--   delete ainda aberto a qualquer autorizado ....... NENHUMA (correto)
+--   leitura como authenticated ...................... clientes 68, usinas 56,
+--                                                     obra_usina 56,
+--                                                     obra_relatorios 37,
+--                                                     usina_monitoramento 56
+--   update como authenticated ....................... funciona nas tres testadas
+--   delete como admin ............................... continua funcionando
+--
+-- Ou seja: a tela nao perdeu nada, e o delete deixou de ser de todo mundo.

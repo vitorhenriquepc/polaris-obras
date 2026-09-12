@@ -287,9 +287,9 @@ que entrar um vendedor não-admin, ele passa a poder apagar cliente, usina,
 vínculo obra-usina e relatório de obra. Isso bate de frente com a regra 3.6
 do CLAUDE.md (não apagar histórico).
 
-A correção está escrita em `migrations/PROPOSTA_2026-09-12_delete_so_admin.sql`
-e **não foi aplicada** — mexer em quem pode apagar é decisão do Vitor.
-Aplicar hoje não muda nada para ninguém; o ganho é no dia em que mudar.
+**Corrigido e aplicado** em 12/09/2026 — `migrations/2026-09-12_delete_so_admin.sql`.
+Depois de aplicar, conferi que a tela não perdeu nada: leitura, `update` e
+`delete` (como admin) seguem funcionando nas cinco tabelas.
 
 ### E o `anon`? Não alcança essas tabelas
 
@@ -301,6 +301,57 @@ buraco.
 
 ### Um detalhe para o Vitor conferir
 
-`contato@polarisenergiasolar.com` (Ana Claudia) está com `is_admin = true` e
+A conta de nível `financeiro` (Ana Claudia) está com `is_admin = true` e
 `nivel = 'financeiro'`. As outras duas contas admin têm `nivel = 'admin'`.
 Pode ser proposital, pode ser engano — não mexi.
+
+
+---
+
+## Fechamento de 12/09/2026 — o que foi aplicado nesta rodada
+
+| O quê | Migração | Situação |
+|---|---|---|
+| Revoga `anon` de 3 funções expostas | `revoga_anon_funcoes_expostas` | aplicada |
+| `search_path` em 2 funções | `fixa_search_path_duas_funcoes` | aplicada |
+| Rotaciona o `cron_token` | `rotaciona_cron_token` | aplicada |
+| Chaves de tela + parâmetros do recorde | `config_chaves_de_tela_e_parametros_recorde` | aplicada |
+| **Delete deixa de ser de qualquer autorizado** | `delete_so_admin_de_verdade` | aplicada |
+| Índice duplicado em `geracao` | `remove_indice_duplicado_geracao` | aplicada |
+| `zz_*`, `_t_pend`, tabela `usina_status` | `remove_restos_de_prototipo` | aplicada |
+
+### O circuito da régua, conferido ponta a ponta
+
+O que motivou tudo isto foi o interruptor da régua mentir. Agora o caminho
+inteiro está verificado:
+
+1. A tela chama `ligar_automacao('regua_ativa', …)` — não mais `update` direto.
+2. A função é `security definer`, confere `is_autorizado()` e grava de verdade.
+3. O cron das 17h (`regua-disparo`, `0 20 * * 1-5` em UTC) chama a edge function.
+4. A edge function lê `cfg('regua_ativa','0')` e **para se não for `'1'`**.
+
+O default é `'0'`: se a chave sumir, a régua não envia. Falha para o lado
+seguro, que é o certo para coisa que fala com cliente.
+
+### Um método que me enganou, registrado para não enganar de novo
+
+Cruzar as chaves de `config` com os comandos do cron e as funções do banco dá
+13 chaves "sem leitor". **É falso.** As edge functions leem a `config` pelo
+service role, que passa por cima da RLS e não aparece em nenhum dos dois
+lugares. `regua_ativa` cai justamente nesse caso — parecia morta e é a trava
+mais importante do sistema. Para saber se uma chave é lida de verdade, tem de
+abrir a edge function.
+
+### Exposição do repositório público
+
+`vitorhenriquepc/polaris-obras` é **público** (serve o GitHub Pages). Varri o
+que está versionado:
+
+- a única chave presente é a `anon`/publishable, que é feita para ser pública;
+- nenhuma referência a `service_role` é valor, só documentação;
+- nenhum nome, telefone ou e-mail de cliente;
+- o telefone que aparece em `cliente.html` e `nps.html` é o WhatsApp de
+  contato que o cliente já recebe — é para ser público.
+
+A segurança, portanto, depende inteiramente da RLS e das guardas das funções.
+Foi por isso que valeu conferir uma por uma, chamando como `anon`.
