@@ -151,6 +151,35 @@ Prefira criar parâmetro a chumbar número no código.
 precise ler tem de entrar na policy, senão o `select` volta vazio **sem
 erro**. E a tela não escreve na `config` — escrita é por `ligar_automacao()`.
 
+### Chaves que só as edge functions leem
+
+Estas **não aparecem** se você procurar nos cron jobs ou nas funções do banco:
+as edge functions leem a `config` pelo service role. Foi assim que a
+`regua_ativa` passou por "morta" numa varredura — e ela é a trava mais
+importante do sistema. Para saber se uma chave é viva, tem de abrir a edge
+function.
+
+| Chave | Valor | Onde é lida |
+|---|---|---|
+| `regua_ativa` | 1 | `regua-disparo` — **a trava dos 17h**; default `'0'`, some a chave e não envia |
+| `regua_por_dia` | 15 | `regua-disparo` — teto de envios por dia |
+| `usina_hora_ini` / `usina_hora_fim` | 9 / 17 | `usina-status` — janela de leitura |
+| `usina_hora_min_alerta` | 12 | `usina-status` — não avisa antes disso (inversor acordando) |
+| `usina_limite_geral` | 0,5 | `usina-status` — se mais que isso está ruim, cala: é pane geral, não usina |
+| `usina_alerta_comunicacao_dias` | 2 | `usina-status` — dias mudo **e sem gerar** antes de avisar |
+| `solarview_vincular_ativo` | 1 | `solarview-vincular` |
+| `solarview_etapa_minima` | 7 | `solarview-vincular` |
+| `vinculo_palavra_comum` | 3 | `solarview-vincular` — palavra que aparece demais não vale como prova |
+| `vinculo_min_palavras_iguais` | 2 | `solarview-vincular` |
+| `solarview_avisa_pendente` | 1 | `solarview-vincular` |
+| `ger_dias_janela` | 35 | `solarview-diario` |
+| `hsp` | 4,9 | `conferencia-geracao` — horas de sol pleno |
+| `perf_ratio` | 0,78 | `conferencia-geracao` |
+
+⚠️ `hsp` e `perf_ratio` entram no **mesmo cálculo de economia que o cliente
+lê**, junto com `economia_por_kwh`. Calibrar uma sem as outras desloca o
+número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
+
 `campos_obrigatorios` define o que trava o salvamento — é `update`, não código.
 
 ---
@@ -185,7 +214,11 @@ erro**. E a tela não escreve na `config` — escrita é por `ligar_automacao()`
 ## 10. Estado e pendências
 
 56 usinas · **50 normais, 6 sem comunicação** · 29 cron jobs, **todos
-ativos** · 22 chaves de automação em `config`, 20 ligadas.
+ativos** · 21 chaves de automação em `config`, 20 ligadas — a única
+desligada é `iptu_envio_ativo`, de propósito (ver pendência abaixo). A
+`solarview_ativo` foi **removida** em 12/09: estava em 0, ninguém lia, e fazia
+parecer que o monitoramento estava desligado enquanto ele entregava dado todo
+dia.
 
 As 6 sem comunicação não são iguais, e tratar como um número só esconde o
 que importa:
