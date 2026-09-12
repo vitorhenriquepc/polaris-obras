@@ -184,8 +184,12 @@ erro**. E a tela não escreve na `config` — escrita é por `ligar_automacao()`
 
 ## 10. Estado e pendências
 
-56 usinas · 51 operando, 5 sem comunicação · 23 automações ligadas (de 24).
-Conferido no banco em 12/09/2026.
+56 usinas · 55 com geração ontem · 29 cron jobs, **todos ativos** · 22
+chaves de automação em `config`, 20 ligadas. As duas desligadas são
+`iptu_envio_ativo` (de propósito, ver pendência abaixo) e `solarview_ativo`,
+que **não é lida por ninguém** — nem função do banco, nem tela, nem o coletor
+`solarview-diario`. Chave morta: parece dizer que o SolarView está desligado
+quando ele está entrando todo dia. Conferido no banco em 12/09/2026.
 
 - [ ] **Importar o extrato anterior a agosto/2026.** O extrato começa em
       03/08. Maio, junho e julho têm zero lançamento vindo do banco — o que
@@ -194,8 +198,11 @@ Conferido no banco em 12/09/2026.
       análise de margem, e a causa é esta, não "faltam despesas": junho tem
       R$ 124.167 e julho R$ 120.328 lançados, só que pela ficha.
 - [ ] Calibrar `economia_por_kwh` (estimativa 0,78–0,82)
-- [ ] Completar distância em km e valor: são **40 fichas** incompletas
-      e **13** com parcelamento que não fecha com o preço
+- [ ] Completar distância em km e valor. De **71 obras**: **58 sem km**,
+      **23 sem valor**, 22 sem os dois — **59 com pelo menos um furo**.
+      Toda obra tem ficha financeira criada; o que falta é preencher.
+      Somam-se a isso **13 obras** cujas parcelas não fecham com o preço
+      (diferença acima de R$ 1,00).
 - [ ] 5 cards incompletos: 4349, 4420, 4483, 4563, 4808
 - [ ] Confirmar se as parcelas de ~30% são entrada de financiamento
 - [ ] Ligar proteção de senha vazada no Supabase
