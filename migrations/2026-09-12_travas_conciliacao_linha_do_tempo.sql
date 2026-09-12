@@ -151,9 +151,11 @@ commit;
 -- é o que está rodando, não uma reescrita.
 --
 -- Precisam vir antes da seção 7: os triggers apontam para elas.
--- Estas dependem de coisas que vieram antes de 12/09 e ainda não estão
--- versionadas: conferir_saude_base(), queda_geracao(), regua_texto(),
--- regua_bloqueio(), v_indice_dia e as tabelas do pós-venda.
+--
+-- Dependem de coisas anteriores a 12/09 que não estão neste arquivo.
+-- Parte está no histórico do Supabase — regua_texto(), regua_bloqueio().
+-- Parte não está em histórico nenhum: conferir_saude_base(), queda_geracao(),
+-- v_indice_dia e as tabelas do pós-venda. Ver COBERTURA.md.
 -- ---------------------------------------------------------------------
 
 -- trava_campos_obra — campos obrigatórios do card.
