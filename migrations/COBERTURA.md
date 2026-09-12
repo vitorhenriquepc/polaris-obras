@@ -195,3 +195,61 @@ Foi substituída por `usinas.status_atual` + `usina_leitura`. Está versionada
 em `esquema/tabelas/usina_status.sql` caso alguém precise dela de volta.
 Não apaguei: é decisão do Vitor, e depois do caso `manutencao_usinas` ficou
 claro que nome parecido não é prova de nada.
+
+---
+
+## A superfície `anon`, medida de verdade (12/09/2026, depois das revogações)
+
+Rodei o linter de segurança do Supabase depois de revogar as três funções
+abertas. Resultado, por regra:
+
+| Nível | Regra | Quantas |
+|---|---|---|
+| WARN | `authenticated_security_definer_function_executable` | 159 |
+| WARN | `anon_security_definer_function_executable` | 13 |
+| WARN | `extension_in_public` (`pg_net`) | 1 |
+| WARN | `auth_leaked_password_protection` | 1 |
+| INFO | `rls_enabled_no_policy` (`usina_status`) | 1 |
+
+As 159 do `authenticated` são o sistema inteiro: a tela é gente logada
+chamando RPC, e cada função confere permissão por dentro. Não é achado.
+
+**As 13 do `anon` eu conferi uma por uma — chamando de fato como `anon`, não
+lendo o código.** Isso importa: minha primeira leitura, por regex, deu cinco
+delas como "sem guarda", e estava errada. `get_ficha_cliente` usa
+`pode_ver_posvenda()`, `indicacao_status` usa `pode_agir_posvenda()`,
+`zz_lista` e `zz_brindes` usam `meu_nivel()` — nomes que minha busca não
+cobria. Teste é medição; regex é palpite.
+
+O que cada uma devolve para o `anon`:
+
+| Função | Como se defende | Resposta ao `anon` |
+|---|---|---|
+| `get_ficha_cliente` | `pode_ver_posvenda()` | `Sem permissão para ver este cliente` |
+| `indicacao_status` | `pode_agir_posvenda()` | `Sem permissão` (antes de qualquer `update`) |
+| `zz_lista`, `zz_brindes` | `meu_nivel() = 'nenhum'` | `null` |
+| `get_optin_status` | idem | `null` |
+| `get_agenda` | token | `null` com token errado |
+| `get_nps`, `get_obra_instalador` | slug + token | `null` com par errado |
+| `salvar_nps`, `declarar_avaliacao_google` | slug + token | `Link inválido` |
+| `salvar_brinde` | slug + token | `Link inválido` — a checagem do par vem antes do `update`; o `Brinde inválido` que aparece primeiro é só validação de entrada |
+| `get_obra_publica`, `get_relatorio_publico` | o slug **é** o segredo | `null` para slug inexistente |
+
+Nenhuma vaza. As duas últimas são públicas de propósito: é o que a
+`relatorio.html` serve para o cliente.
+
+### O que o linter não pega
+
+`config` **não** aparece em `rls_enabled_no_policy`, porque ela tem policy —
+de leitura. Não tem de escrita. O linter só acusa tabela com *zero* policy,
+então o bug que fazia o interruptor da régua mentir passou invisível por ele.
+Vale a regra: RLS ligada com policy só de leitura devolve **sucesso sem erro**
+no `update`, e isso nenhum alerta automático conta.
+
+### O que deixei como está, e por quê
+
+- **`pg_net` no schema `public`** — mover quebra as chamadas `net.http_post()`
+  de todos os cron jobs. Risco alto, ganho baixo.
+- **Proteção de senha vazada** — é chave de dashboard, não sai por SQL.
+- **`usina_status`** — RLS ligada e zero policy: ninguém lê, ninguém escreve.
+  Está morta e inofensiva. Apagar é decisão do Vitor, não minha.
