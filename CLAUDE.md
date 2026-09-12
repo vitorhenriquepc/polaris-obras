@@ -230,11 +230,7 @@ que importa:
 | 2 | nunca comunicaram desde a instalação | sim — nasceram mudas |
 
 Lembre da armadilha 5: datalogger offline reporta zero, e zero aqui
-significa "não medi", não "não gerou". As duas desligadas são
-`iptu_envio_ativo` (de propósito, ver pendência abaixo) e `solarview_ativo`,
-que **não é lida por ninguém** — nem função do banco, nem tela, nem o coletor
-`solarview-diario`. Chave morta: parece dizer que o SolarView está desligado
-quando ele está entrando todo dia. Conferido no banco em 12/09/2026.
+significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
 
 - [ ] **Importar o extrato anterior a agosto/2026.** O extrato começa em
       03/08. Maio, junho e julho têm zero lançamento vindo do banco — o que
