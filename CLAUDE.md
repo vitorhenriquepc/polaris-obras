@@ -131,7 +131,7 @@ Prefira criar parâmetro a chumbar número no código.
 
 | Chave | Valor | O que faz |
 |---|---|---|
-| `economia_por_kwh` | 0,73 | única fonte de economia. ⚠️ sem calibrar desde antes do reajuste de abril |
+| `economia_por_kwh` | **0,7968** | única fonte de economia. ⚠️ **PROVISÓRIO** — derivado de 0,73 × 1,0915 (reajuste CPFL de 22/04/2026), não de conta de luz. `tarifa_status()` devolve `provisorio: true`. Trocar assim que houver uma conta pós-abril: `select calibrar_tarifa(<valor>, '<de quem>')` |
 | `conciliacao_automatica` | 1 | liga o casamento extrato ↔ parcela |
 | `conciliacao_tolerancia` | 1,00 | diferença aceita em reais |
 | `conciliacao_dias_max` | 90 | distância entre vencimento e data do banco |
@@ -238,7 +238,12 @@ significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
       julho com a de agosto é comparar orçado com realizado. Bloqueante para
       análise de margem, e a causa é esta, não "faltam despesas": junho tem
       R$ 124.167 e julho R$ 120.328 lançados, só que pela ficha.
-- [ ] Calibrar `economia_por_kwh` (estimativa 0,78–0,82)
+- [ ] **Calibrar `economia_por_kwh` com uma conta de luz de verdade.** Está em
+      0,7968 desde 12/09, mas é **provisório**: saiu de 0,73 × 1,0915, e não de
+      uma conta. Basta uma conta pós-abril de qualquer cliente — total em R$
+      dividido pelo total em kWh — e um `calibrar_tarifa()`. O
+      `tarifa_status()` marca `provisorio: true` e conta 8 meses desde a
+      última calibração real, então o lembrete continua cobrando.
 - [ ] Completar distância em km e valor. De **71 obras**: **58 sem km**,
       **23 sem valor**, 22 sem os dois — **59 com pelo menos um furo**.
       Toda obra tem ficha financeira criada; o que falta é preencher.
