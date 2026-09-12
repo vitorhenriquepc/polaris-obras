@@ -123,12 +123,13 @@ revoke all on function public.trg_marcar_aceite_pedido() from public, anon, auth
 -- fracao_polaris são cálculo puro; zz_lista e zz_brindes conferem permissão
 -- por dentro.
 --
--- Três NÃO conferem nada e são SECURITY DEFINER, ou seja, passam por cima
--- da RLS. Ver o aviso em ../../migrations/COBERTURA.md.
---
---   revoke all on function public._t_pend(p_conta uuid) from public, anon;
---   revoke all on function public.zz_det(p_usina uuid) from public, anon;
---   revoke all on function public.manutencao_usinas() from public, anon;
---
--- Deixado comentado de propósito: mexer em permissão de produção é decisão
--- do Vitor, não efeito colateral de um export.
+-- Três não conferiam nada e eram SECURITY DEFINER, ou seja, passavam por
+-- cima da RLS. Fechadas em 12/09/2026, com o Vitor de acordo — ver
+-- ../../migrations/2026-09-12_revoga_anon_funcoes_expostas.sql.
+
+revoke all on function public._t_pend(p_conta uuid)  from public, anon;
+revoke all on function public.zz_det(p_usina uuid)   from public, anon;
+revoke all on function public.manutencao_usinas()    from public, anon;
+
+-- manutencao_usinas continua sendo chamada pelo cron das 9h, que roda como
+-- postgres: o revoke não a atinge. Não apagar.

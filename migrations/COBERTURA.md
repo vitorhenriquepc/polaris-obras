@@ -115,7 +115,20 @@ login — a chave dele está no código das páginas, à vista de qualquer um.
 Os nomes (`_t`, `zz_`) sugerem função de teste que ficou para trás. Nenhuma
 página do repositório chama qualquer uma delas — conferido por busca nos HTML.
 
-O conserto está escrito e **comentado** em `esquema/funcoes/_permissoes.sql`.
-Não foi aplicado: mexer em permissão de produção é decisão do Vitor.
+**Corrigido no mesmo dia**, com o Vitor de acordo:
+`migrations/2026-09-12_revoga_anon_funcoes_expostas.sql`. Depois do revoke o
+`anon` não executa nenhuma das três; `authenticated`, `service_role` e
+`postgres` têm grant próprio e seguem iguais.
 
-Se forem mesmo sobra de teste, o certo é `drop function`, não só revogar.
+Uma correção ao que ficou escrito antes: **`manutencao_usinas` não é sobra de
+teste.** É o cron `manutencao-usinas` (jobid 30, `0 12 * * *`), a automação
+das 9h. Roda como `postgres`, então o revoke não a atinge — mas apagar
+quebraria a manutenção diária. `_t_pend` e `zz_det` é que têm cara de
+rascunho; ficaram no ar, só fechadas.
+
+A varredura geral feita junto encontrou mais 10 funções `security definer`
+que o `anon` executa, e **nenhuma é buraco**: 6 são fluxo público protegido
+por slug + token da obra, 2 são o relatório público por slug (que é o que o
+`relatorio.html` serve de propósito) e 2 têm guarda própria
+(`pode_ver_posvenda`, `pode_agir_posvenda`). Fica registrado para não se
+refazer essa investigação.
