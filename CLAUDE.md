@@ -208,6 +208,17 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
 6. **Mês corrente nunca entra em comparação de desempenho.**
 7. **`extrato_rateio.lancamento_id` é ON DELETE SET NULL** — por isso o trigger
    de desfazer é `deferrable`.
+8. **Policy permissiva SOMA, não subtrai.** Uma policy `ALL` com
+   `is_autorizado()` ao lado de uma `DELETE` com `is_admin()` não restringe o
+   delete: vale `is_autorizado() OR is_admin()`. Foi assim em seis tabelas até
+   12/09 — e eu corrigi cinco na primeira passada e esqueci a `obras`, a mais
+   importante. Para restringir de verdade, o comando amplo tem de ser
+   `select`/`insert`/`update` explícitos, sem `ALL`.
+9. **RLS com policy só de leitura devolve sucesso sem gravar.** O `update` não
+   altera nada e o PostgREST não acusa erro. Foi o bug do interruptor da régua.
+   Hoje 17 tabelas têm esse formato, mas nenhuma tela grava direto nelas
+   (conferido) — a escrita passa por função `security definer`. Antes de criar
+   gravação direta numa tabela nova, confira se existe policy de escrita.
 
 ---
 
