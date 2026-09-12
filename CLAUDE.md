@@ -184,8 +184,20 @@ erro**. E a tela não escreve na `config` — escrita é por `ligar_automacao()`
 
 ## 10. Estado e pendências
 
-56 usinas · 55 com geração ontem · 29 cron jobs, **todos ativos** · 22
-chaves de automação em `config`, 20 ligadas. As duas desligadas são
+56 usinas · **50 normais, 6 sem comunicação** · 29 cron jobs, **todos
+ativos** · 22 chaves de automação em `config`, 20 ligadas.
+
+As 6 sem comunicação não são iguais, e tratar como um número só esconde o
+que importa:
+
+| Quantas | Situação | Vale agir? |
+|---|---|---|
+| 3 | sem medição há 1 dia (última 11/09) | não — é o normal do datalogger |
+| 1 | **sem medição há 21 dias** (última 22/08) | **sim, é a única urgente** |
+| 2 | nunca comunicaram desde a instalação | sim — nasceram mudas |
+
+Lembre da armadilha 5: datalogger offline reporta zero, e zero aqui
+significa "não medi", não "não gerou". As duas desligadas são
 `iptu_envio_ativo` (de propósito, ver pendência abaixo) e `solarview_ativo`,
 que **não é lida por ninguém** — nem função do banco, nem tela, nem o coletor
 `solarview-diario`. Chave morta: parece dizer que o SolarView está desligado
