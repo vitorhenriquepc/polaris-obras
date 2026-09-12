@@ -2436,11 +2436,15 @@ function linhaRegua(f, ehHoje){
   </div>`;
 }
 async function ligarRegua(v){
-  if(v && !confirm('Ativar a régua?\n\nA partir de agora o sistema envia automaticamente os contatos programados, todo dia útil às 11h.')){
+  if(v && !confirm('Ativar a régua?\n\nA partir de agora o sistema envia automaticamente os contatos programados, todo dia útil às 17h.')){
     renderRegua(); return;
   }
-  const r=await sb.from('config').update({valor:v?'1':'0'}).eq('chave','regua_ativa');
-  if(r.error){ toast('Erro ao salvar'); return; }
+  /* Passa pela RPC, e nao por update direto na config: a tabela tem RLS
+     ligada e nenhuma policy de escrita, entao o update nao altera nada e
+     ainda assim devolve sucesso. ligar_automacao e security definer,
+     confere is_autorizado() e grava de verdade. */
+  const r=await sb.rpc('ligar_automacao',{p_chave:'regua_ativa', p_ligar:v});
+  if(r.error||!r.data||r.data.erro){ toast((r.data&&r.data.erro)||'Não deu certo'); renderRegua(); return; }
   toast(v?'Régua ativada ✅':'Régua pausada');
   await recarregarTudo();
 }
