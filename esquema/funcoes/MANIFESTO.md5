@@ -40,3 +40,11 @@ fd482e3bab312e24d7cdd534e5b722de  mascara_credencial.sql
 930e5886156967189d39209c2055ed49  obras_aguardando_ligacao.sql
 0c460d77a6ea25ad3dc7c6f3658f0a45  painel_avulsos.sql
 66b925893ffecd571628583bd2ba162f  parcelas_abertas.sql
+aeab8df8f2a8123131deb569127ef775  pista_de_causa.sql
+a677439a3558cbb81f1337eb1ebc28a4  pontua_nome.sql
+6f35546627e22460198e27a57d698e77  previsao_estimada.sql
+ff6ca025acebbd5d505479d721f38494  queda_geracao.sql
+626ae185ffc9957bf42facf50045fd66  receber_do_extrato.sql
+96190da202d7460b2b4d445f4dd72628  recorde_do_dia.sql
+875d7eb59ab9d90e659ea383dc723d05  registrar_google_enviado.sql
+124a9582db75688bf2815cb6bac6a60a  regua_decidir.sql
