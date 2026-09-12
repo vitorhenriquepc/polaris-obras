@@ -45,3 +45,25 @@ repositório ficou para trás.
 As 18 tabelas e 3 views órfãs. Precisam de `supabase db dump` numa máquina
 com a CLI: reconstruir DDL de tabela pelo catálogo, na mão, perde default,
 constraint, índice, RLS e grant, e não há como conferir por checksum.
+
+## tabelas/ e views/
+
+Geradas a partir do catálogo do Postgres em 12/09/2026, não do `pg_dump`
+(não há CLI nem conexão direta nesta máquina). Cada arquivo foi conferido
+por md5 contra a mesma geração feita dentro do banco.
+
+O que cada arquivo carrega: colunas com tipo, default e `not null`;
+constraints via `pg_get_constraintdef`; índices via `pg_indexes.indexdef`;
+sequences com `owned by`; `enable row level security`; e as policies.
+
+**O que não carrega, e é bom saber:**
+
+- **Grants.** As 18 tabelas estão todas no padrão do Supabase — os sete
+  privilégios para `anon`, `authenticated` e `service_role` — que o próprio
+  Supabase aplica por default privilege. Quem segura a escrita é a RLS.
+  Se alguma tabela sair desse padrão, o arquivo dela não vai refletir isso.
+- **Ordem de criação.** O Postgres não guarda. Rodar a pasta de cima a baixo
+  não funciona: há FK entre as tabelas e para `obras` e `clientes`.
+- **Triggers.** Ficam com as funções, não com as tabelas.
+- **Um índice sem `if not exists`:** `uq_ou_principal`, em `obra_usina`, é
+  `CREATE UNIQUE INDEX` e ficou verbatim. Rodar duas vezes dá erro nele.

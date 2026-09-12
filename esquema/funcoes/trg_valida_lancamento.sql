@@ -1,6 +1,7 @@
 CREATE OR REPLACE FUNCTION public.trg_valida_lancamento()
  RETURNS trigger
  LANGUAGE plpgsql
+ SET search_path TO 'public'
 AS $function$
 declare v_nivel int;
 begin

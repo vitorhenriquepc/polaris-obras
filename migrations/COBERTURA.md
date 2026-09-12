@@ -73,9 +73,10 @@ A ordem que faz sentido:
 
 1. ~~Exportar as 66 funções órfãs.~~ **Feito** — estão em `esquema/funcoes/`,
    uma por arquivo, conferidas por md5 uma a uma contra o banco.
-2. Exportar as 18 tabelas e 3 views. Precisa de `supabase db dump` numa
-   máquina com a CLI — reconstruir DDL de tabela pelo catálogo, na mão,
-   perde default, constraint, índice, RLS e grant.
+2. ~~Exportar as 18 tabelas e 3 views.~~ **Feito** — estão em
+   `esquema/tabelas/` e `esquema/views/`, geradas do catálogo e conferidas
+   por md5. Não precisou de `pg_dump`: o gerador monta o DDL dentro do
+   próprio banco. O que ele não cobre está listado no `esquema/README.md`.
 3. Só quando o repositório conseguir levantar o esquema, realinhar o
    histórico do Supabase — e aí pela CLI (`supabase migration repair`),
    não com INSERT na mão.
@@ -132,3 +133,65 @@ por slug + token da obra, 2 são o relatório público por slug (que é o que o
 `relatorio.html` serve de propósito) e 2 têm guarda própria
 (`pode_ver_posvenda`, `pode_agir_posvenda`). Fica registrado para não se
 refazer essa investigação.
+
+## Recontagem em 12/09/2026, depois do export
+
+| | funções | tabelas | views |
+|---|---:|---:|---:|
+| Total no banco | 231 | 77 | 7 |
+| No histórico do Supabase | 151 | 58 | 2 |
+| Coberto pelo repositório | 80 | 19 | 5 |
+| **Em lugar nenhum** | **0** | **0** | **0** |
+
+Os 315 objetos de `public` estão todos em algum lugar. Continua valendo que
+o repositório **não levanta o banco do zero**: falta a ordem de criação, que
+o Postgres não guarda.
+
+## Auditoria do banco, 12/09/2026
+
+`conferir_saude()` — a conferência das 7h30 — devolveu seis achados, todos
+de dado e não de estrutura:
+
+| Achado | Onde olhar |
+|---|---|
+| 40 fichas financeiras incompletas | falta valor do projeto ou distância em km |
+| 15 movimentos de extrato sem classificar | conciliar no financeiro |
+| 13 fichas com parcelas que não fecham com o preço | abrir o financeiro |
+| 5 cards de obra incompletos | contratos 4349, 4420, 4483, 4563, 4808 |
+| 1 parcela recebida sem extrato | contrato 4657 |
+| 1 obra finalizada sem usina | — |
+
+Os 5 cards batem com a lista do `CLAUDE.md`. As 40 fichas e as 13 com
+parcela furada são bem mais do que o `CLAUDE.md` sugere — vale olhar antes
+de confiar em margem.
+
+O linter do Supabase deu 177 achados em 6 regras. Tratados:
+
+- `function_search_path_mutable` (2) — **corrigido**, ver
+  `2026-09-12_fixa_search_path_duas_funcoes.sql`
+- `anon_security_definer_function_executable` — caiu de 16 para 13 com o
+  revoke; os 13 restantes foram auditados um a um e nenhum é buraco
+- `rls_enabled_no_policy` (1) — `usina_status`, ver abaixo
+
+Não tratados, de propósito:
+
+- `auth_leaked_password_protection` — é a pendência que já está no
+  `CLAUDE.md`. Não se liga por SQL: é Authentication → Policies no painel
+  do Supabase. Só o Vitor tem essa tela.
+- `extension_in_public` — `pg_net` no schema `public`. Mover quebraria todos
+  os crons que chamam `net.http_post`. Risco alto, ganho baixo.
+- `authenticated_security_definer_function_executable` (159) — é o desenho
+  do sistema: as telas falam com o banco por RPC `security definer`. Mudar
+  isso é reescrever o modelo de acesso, não corrigir um bug.
+
+## `usina_status` está morta
+
+Tabela com RLS ligada e **zero policies** — ou seja, inalcançável pela API.
+Tem 0 linhas, nenhuma função a menciona e nenhum cron a usa. Investiguei a
+edge function de nome parecido: `usina-status` escreve em `usina_leitura` e
+em `usinas`, nunca nela.
+
+Foi substituída por `usinas.status_atual` + `usina_leitura`. Está versionada
+em `esquema/tabelas/usina_status.sql` caso alguém precise dela de volta.
+Não apaguei: é decisão do Vitor, e depois do caso `manutencao_usinas` ficou
+claro que nome parecido não é prova de nada.

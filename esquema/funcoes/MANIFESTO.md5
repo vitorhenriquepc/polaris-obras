@@ -1,3 +1,4 @@
+c9e71a08e39026d84b6e9aab2ca91f7d  _permissoes.sql
 b361b0bfa70a5b02baaf6e8e5b01a0ca  _t_pend.sql
 4c83f09263c527b5bd700b5d658789da  auto_lida.sql
 5dbba18cd4757eb2441590c3c878a409  buscar_duplicata.sql
@@ -57,7 +58,7 @@ b233d8d6041ec068a9d575044285e94f  salvar_relatorio_link.sql
 ced64e4f349bc55d7a90d340956c5045  tarifa_status.sql
 d3fdc22117f64ce370b71615388e7bc5  tokens_iguais.sql
 3c85430efde47720c9de368db781f91f  trg_marcar_aceite_pedido.sql
-a1d5b5c9ff527bccc9f9348c970bf286  trg_valida_lancamento.sql
+2439827237477bdf1534c58b56d15828  trg_valida_lancamento.sql
 771f6d40c36aa161637874f87e975ca8  usina_meses.sql
 83426b10b31a2fb32f8167c69e87f1e1  usina_retorno.sql
 26ce990e209888fa5db4abefe9db6d89  valida_obra_usina.sql
