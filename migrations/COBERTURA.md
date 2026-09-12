@@ -253,3 +253,54 @@ no `update`, e isso nenhum alerta automático conta.
 - **Proteção de senha vazada** — é chave de dashboard, não sai por SQL.
 - **`usina_status`** — RLS ligada e zero policy: ninguém lê, ninguém escreve.
   Está morta e inofensiva. Apagar é decisão do Vitor, não minha.
+
+---
+
+## Linter de performance (12/09/2026) — e o que dele não é performance
+
+| Regra | Quantas | Veredito |
+|---|---|---|
+| `multiple_permissive_policies` | 54 | **uma parte é permissão, não performance — ver abaixo** |
+| `unindexed_foreign_keys` | 33 | irrelevante nesta escala (dezenas a milhares de linhas) |
+| `unused_index` | 7 | índices criados "por via das dúvidas"; deixar |
+| `no_primary_key` | 2 | `nps_backup_20260902`, `backup_valores_20260910` — são backups |
+| `duplicate_index` | 1 | `geracao`: `geracao_obra_id_referencia_key` e `uq_geracao_obra_dia` são idênticos |
+| `auth_rls_initplan` | 1 | `usuarios_autorizados.ua_admin_del` reavalia por linha — a tabela tem 3 linhas |
+
+### O achado que não é performance: o delete "só admin" não é só admin
+
+Cinco tabelas — `clientes`, `obra_relatorios`, `obra_usina`, `usinas`,
+`usina_monitoramento` — têm duas policies permissivas:
+
+```
+<tabela>_auth   ALL      using (is_autorizado())
+<tabela>_del    DELETE   using (is_admin())
+```
+
+Policy permissiva **soma**, não subtrai. Num delete o Postgres avalia as duas
+e aceita se qualquer uma passar: `is_autorizado() OR is_admin()`. A policy
+`_del` não restringe nada — ela alarga.
+
+**Ainda não estourou** porque as três pessoas em `usuarios_autorizados` são
+todas `is_admin = true`: os dois lados do OR dão o mesmo resultado. No dia em
+que entrar um vendedor não-admin, ele passa a poder apagar cliente, usina,
+vínculo obra-usina e relatório de obra. Isso bate de frente com a regra 3.6
+do CLAUDE.md (não apagar histórico).
+
+A correção está escrita em `migrations/PROPOSTA_2026-09-12_delete_so_admin.sql`
+e **não foi aplicada** — mexer em quem pode apagar é decisão do Vitor.
+Aplicar hoje não muda nada para ninguém; o ganho é no dia em que mudar.
+
+### E o `anon`? Não alcança essas tabelas
+
+As policies são `to public`, e `public` inclui `anon` — foi por isso que o
+linter listou `anon` nas linhas de DELETE. Testei: como `anon`, a consulta
+morre antes, com `permission denied for function is_autorizado`. O `anon` não
+tem EXECUTE na função que a policy chama, então nem chega a avaliar. Sem
+buraco.
+
+### Um detalhe para o Vitor conferir
+
+`contato@polarisenergiasolar.com` (Ana Claudia) está com `is_admin = true` e
+`nivel = 'financeiro'`. As outras duas contas admin têm `nivel = 'admin'`.
+Pode ser proposital, pode ser engano — não mexi.
