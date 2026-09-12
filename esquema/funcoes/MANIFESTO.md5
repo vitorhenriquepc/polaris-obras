@@ -1,0 +1,10 @@
+b361b0bfa70a5b02baaf6e8e5b01a0ca  _t_pend.sql
+4c83f09263c527b5bd700b5d658789da  auto_lida.sql
+5dbba18cd4757eb2441590c3c878a409  buscar_duplicata.sql
+1ea8aeaf1e62543abc4e87db2cae8794  calibrar_fatores.sql
+a8cbc0fdbd2eaf5bee0e6b9779a8891d  calibrar_tarifa.sql
+75733a55ef273fc92b73f531c1f84d4a  chave_nome.sql
+cc3bb3a01bf78c8df7b6e39a063070b8  classificar_lote.sql
+795154e8d39d4e4175b458fc6a543e88  classificar_movimento.sql
+52ce32d65c26d5ca6b80da9f070ab6e1  clientes_esperando.sql
+1dc6d133a816320dd1c50bc78057e7c4  conferir_saude_base.sql
