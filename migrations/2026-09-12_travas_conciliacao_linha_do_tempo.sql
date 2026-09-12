@@ -1009,9 +1009,12 @@ $cron$);
 -- ---------------------------------------------------------------------
 -- Para este arquivo levantar o ambiente do zero ainda falta:
 --
--- 1. O código da edge function regua-resumo. Está publicada e ativa no
---    projeto, mas o fonte não está no repositório — a seção 9 agenda uma
---    chamada para uma função que um ambiente novo não tem.
+-- 1. A publicação da edge function regua-resumo. O fonte agora está em
+--    supabase/functions/regua-resumo/, mas a seção 9 agenda uma chamada
+--    para uma função que só existe depois de:
+--      supabase functions deploy regua-resumo --no-verify-jwt
+--    Ela também precisa das variáveis de ambiente da Z-API e da chave
+--    cron_token em config — ver o README da pasta.
 -- 2. Tudo que é anterior a 12/09/2026. As funções da seção 6 dependem de
 --    conferir_saude_base(), queda_geracao(), regua_texto(), regua_bloqueio(),
 --    v_indice_dia e das tabelas de obra, financeiro e pós-venda.
