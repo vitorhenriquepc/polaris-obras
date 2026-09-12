@@ -86,7 +86,7 @@ são orçamento. Não some os dois.
 `trg_sincroniza_valor`. **Já existia — não crie outro.**
 
 ### Pós-venda
-`usinas`, `usina_dia`, `usina_mes` · `clima_dia` · `v_indice_dia` ·
+`usinas`, `usina_dia`, `usina_geracao` · `clima_dia` · `v_indice_dia` ·
 `v_indice_regiao` (cidade com 5+ usinas ganha grupo próprio) ·
 `regua_contatos` + `regua_modelos` · `usina_marco` · `nps`
 
@@ -142,6 +142,14 @@ Prefira criar parâmetro a chumbar número no código.
 | `ger_faixa_boa` | 85% | abaixo disso não vira boa notícia |
 | `msg_ia_intervalo_dias` | 20 | descanso entre mensagens de cortesia |
 | `msg_ia_intervalo_urgente` | 7 | descanso entre urgentes |
+| `recorde_min_dias` | 90 | histórico mínimo para avisar recorde |
+| `recorde_margem` | 8% | quanto precisa superar o pico anterior |
+| `recorde_intervalo_meses` | 6 | descanso entre avisos de recorde |
+
+⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
+`iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
+precise ler tem de entrar na policy, senão o `select` volta vazio **sem
+erro**. E a tela não escreve na `config` — escrita é por `ligar_automacao()`.
 
 `campos_obrigatorios` define o que trava o salvamento — é `update`, não código.
 
@@ -176,12 +184,18 @@ Prefira criar parâmetro a chumbar número no código.
 
 ## 10. Estado e pendências
 
-56 usinas · 50 normais, 6 sem comunicação · 22 automações ligadas.
+56 usinas · 51 operando, 5 sem comunicação · 23 automações ligadas (de 24).
+Conferido no banco em 12/09/2026.
 
-- [ ] Lançar despesas de **junho e julho/2026** — mostram lucro que não existe.
-      Bloqueante para análise de margem.
+- [ ] **Importar o extrato anterior a agosto/2026.** O extrato começa em
+      03/08. Maio, junho e julho têm zero lançamento vindo do banco — o que
+      está neles é orçamento da ficha, não realizado. Comparar a margem de
+      julho com a de agosto é comparar orçado com realizado. Bloqueante para
+      análise de margem, e a causa é esta, não "faltam despesas": junho tem
+      R$ 124.167 e julho R$ 120.328 lançados, só que pela ficha.
 - [ ] Calibrar `economia_por_kwh` (estimativa 0,78–0,82)
-- [ ] Completar distância em km e valor nas fichas incompletas
+- [ ] Completar distância em km e valor: são **40 fichas** incompletas
+      e **13** com parcelamento que não fecha com o preço
 - [ ] 5 cards incompletos: 4349, 4420, 4483, 4563, 4808
 - [ ] Confirmar se as parcelas de ~30% são entrada de financiamento
 - [ ] Ligar proteção de senha vazada no Supabase
