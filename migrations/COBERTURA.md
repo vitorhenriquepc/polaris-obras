@@ -71,9 +71,8 @@ Enquanto o histórico está claramente parado em 01/09, ninguém se engana.
 
 A ordem que faz sentido:
 
-1. Exportar as 66 funções órfãs. É mecânico e confere por md5, igual ao que
-   foi feito com as 19 da sessão de 12/09. É onde mora a regra de negócio e
-   é o que seria mais caro perder.
+1. ~~Exportar as 66 funções órfãs.~~ **Feito** — estão em `esquema/funcoes/`,
+   uma por arquivo, conferidas por md5 uma a uma contra o banco.
 2. Exportar as 18 tabelas e 3 views. Precisa de `supabase db dump` numa
    máquina com a CLI — reconstruir DDL de tabela pelo catálogo, na mão,
    perde default, constraint, índice, RLS e grant.
@@ -99,3 +98,24 @@ A tabela de geração mensal se chama `usina_geracao` (5 colunas).
 
 Não mexi no `CLAUDE.md`: corrigir o mapa do projeto é decisão do Vitor, e
 pode ser que o nome certo seja o da tabela, não o do documento.
+
+## Achado de segurança (12/09/2026)
+
+Ao levantar as permissões das 66 funções apareceram **três que o `anon` pode
+executar, são `security definer` e não conferem permissão nenhuma por dentro**.
+`security definer` passa por cima da RLS, e `anon` é o papel de quem não fez
+login — a chave dele está no código das páginas, à vista de qualquer um.
+
+| Função | O que faz |
+|---|---|
+| `_t_pend(uuid)` | devolve o extrato bancário: até 400 movimentos com valor, memo, banco e conta |
+| `zz_det(uuid)` | devolve dados da usina com nome do cliente e contrato |
+| `manutencao_usinas()` | **escreve**: cria previsões e altera `fator_local` das usinas |
+
+Os nomes (`_t`, `zz_`) sugerem função de teste que ficou para trás. Nenhuma
+página do repositório chama qualquer uma delas — conferido por busca nos HTML.
+
+O conserto está escrito e **comentado** em `esquema/funcoes/_permissoes.sql`.
+Não foi aplicado: mexer em permissão de produção é decisão do Vitor.
+
+Se forem mesmo sobra de teste, o certo é `drop function`, não só revogar.

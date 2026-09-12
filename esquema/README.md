@@ -37,6 +37,9 @@ cd esquema/funcoes && md5sum -c MANIFESTO.md5
 Divergência quer dizer que alguém mexeu na função direto no banco e o
 repositório ficou para trás.
 
+`_permissoes.sql` guarda quem pode executar cada função — o
+`pg_get_functiondef` não traz isso. Leia o aviso no fim dele.
+
 ## O que ainda não está aqui
 
 As 18 tabelas e 3 views órfãs. Precisam de `supabase db dump` numa máquina
