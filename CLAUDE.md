@@ -109,6 +109,8 @@ são orçamento. Não some os dois.
 | `indicacoes_resumo(obra)` | funil; só conta o que fechou |
 | `regua_fila(limite)` | o que sai hoje às 17h |
 | `regua_resumo_dia()` | o que a Lívia recebe às 11h |
+| `obras_para_nps()` | quem recebe o NPS: **só depois da última etapa da trilha** |
+| `nps_para_lembrete_google()` | quem recebe o convite do Google — mesma trava |
 
 ---
 
@@ -122,6 +124,14 @@ dia 2 fechamento · dia 5 resumo mensal · dia 6 marcos · dia 10 lembrete de
 tarifa · domingo 11h30 limpa órfãos
 
 **Fim de semana: vigilância roda, mensagem para cliente não.** Decisão do Vitor.
+
+⚠️ **NPS e convite do Google só saem depois da ATIVAÇÃO**, nunca depois da
+vistoria. Na trilha padrão a etapa 7 é "Vistoria e Conexão" e a 8 é "Sistema
+Ativo!" — é a 8 que libera. A trava é "chegou na última etapa da **própria
+trilha**", porque `manutencao` vai só até a 4 ("Concluída") e um corte em
+">= 8" a deixaria sem NPS para sempre. Até 14/09 existia um atalho pelo termo
+assinado (`aceite_em`) que furava isso: três obras receberam o NPS na etapa 7,
+e uma já estava na fila do Google com a usina desligada.
 
 ---
 
