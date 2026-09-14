@@ -111,6 +111,8 @@ são orçamento. Não some os dois.
 | `regua_resumo_dia()` | o que a Lívia recebe às 11h |
 | `obras_para_nps()` | quem recebe o NPS: **só depois da última etapa da trilha** |
 | `nps_para_lembrete_google()` | quem recebe o convite do Google — mesma trava |
+| `obra_ativa(obra)` | **a definição única de "está ativa"**: chegou na última etapa da própria trilha |
+| `obra_ativa_em(obra)` | desde quando está ativa (cai no `etapas_historico` se `data_conclusao` for nula) |
 
 ---
 
@@ -131,7 +133,10 @@ Ativo!" — é a 8 que libera. A trava é "chegou na última etapa da **própria
 trilha**", porque `manutencao` vai só até a 4 ("Concluída") e um corte em
 ">= 8" a deixaria sem NPS para sempre. Até 14/09 existia um atalho pelo termo
 assinado (`aceite_em`) que furava isso: três obras receberam o NPS na etapa 7,
-e uma já estava na fila do Google com a usina desligada.
+e uma já estava na fila do Google com a usina desligada. Desde então existe
+`obra_ativa()`: **toda automação que fala com o cliente deve passar por ela**,
+em vez de escrever `etapa_numero >= 8` à mão. As outras automações foram
+conferidas uma a uma e nenhuma dispara cedo.
 
 ---
 
@@ -229,6 +234,11 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
    Hoje 17 tabelas têm esse formato, mas nenhuma tela grava direto nelas
    (conferido) — a escrita passa por função `security definer`. Antes de criar
    gravação direta numa tabela nova, confira se existe policy de escrita.
+10. **`revoke ... from anon` não tira o que foi concedido a `public`.** O
+    Supabase concede EXECUTE a PUBLIC por padrão, e PUBLIC inclui o anon. O
+    revoke passa sem erro e não faz nada. O certo é
+    `revoke execute ... from public` e depois `grant` a quem precisa —
+    e conferir com `has_function_privilege('anon', ...)`.
 
 ---
 
