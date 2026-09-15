@@ -300,6 +300,18 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
    12/09 — e eu corrigi cinco na primeira passada e esqueci a `obras`, a mais
    importante. Para restringir de verdade, o comando amplo tem de ser
    `select`/`insert`/`update` explícitos, sem `ALL`.
+
+   Em 15/09 a `plano_contratos` recebeu o mesmo tratamento, agora que guarda
+   dinheiro: apagar contrato virou `is_admin()`, e `select`/`insert`/`update`
+   seguem em `is_autorizado()` — encerrar e cancelar são `update`, então a
+   Lívia trabalha igual. **Medido, não deduzido:** a conta do financeiro apaga
+   **0 linhas** e o contrato sobrevive; a de admin apaga 1.
+
+   ⚠️ **Isso conserta uma tabela de cinquenta.** Outras 49 ainda têm o formato
+   `ALL`, várias com dinheiro dentro — `dre_lancamentos`, `obra_parcelas`,
+   `extrato_movimentos`, `obra_financeiro`, `cartao_faturas`. Não é que o
+   sistema esteja errado: ele é permissivo por padrão, e apertar cada uma é
+   decisão do Vitor, não varredura automática.
 9. **RLS com policy só de leitura devolve sucesso sem gravar.** O `update` não
    altera nada e o PostgREST não acusa erro. Foi o bug do interruptor da régua.
    Hoje 17 tabelas têm esse formato, mas nenhuma tela grava direto nelas
