@@ -893,11 +893,15 @@ function n(v){var x=Number(v);return isNaN(x)?0:x;}
 /* ---------- PLANOS DE MANUTENÇÃO ---------- */
 let PLN=null, PLSEL=null, PAI=null, PLABA='painel';
 let FICHA=null;   // a ficha aberta agora, para o formulario de usina achar as irmas
+let VIS=null;     // visitas do plano
 
 async function carregarPlanos(){
   const box=document.getElementById('plbox'); if(!box) return;
-  const [r,pp]=await Promise.all([sb.rpc('get_planos_envio'), sb.rpc('get_painel_planos')]);
+  const [r,pp,vv]=await Promise.all([sb.rpc('get_planos_envio'),
+                                    sb.rpc('get_painel_planos'),
+                                    sb.rpc('get_plano_visitas')]);
   PAI=pp&&pp.data?pp.data:null;
+  VIS=vv&&vv.data?vv.data:null;
   if(r.error||!r.data){ box.innerHTML='<div class="vazio">Não foi possível carregar os planos.</div>'; return; }
   PLN=r.data;
   box.innerHTML=renderPlanos();
@@ -1024,10 +1028,12 @@ function renderPlanos(){
     +'<button class="'+(PLABA==='painel'?'on':'')+'" onclick="setPlaba(\'painel\')">📊 Acompanhamento</button>'
     +'<button class="'+(PLABA==='envio'?'on':'')+'" onclick="setPlaba(\'envio\')">📤 Enviar proposta</button>'
     +'<button class="'+(PLABA==='fora'?'on':'')+'" onclick="setPlaba(\'fora\')">🏳️ Cliente de fora</button>'
+    +'<button class="'+(PLABA==='visitas'?'on':'')+'" onclick="setPlaba(\'visitas\')">🔧 Visitas</button>'
     +'<button class="'+(PLABA==='novo'?'on':'')+'" onclick="setPlaba(\'novo\')">➕ Novo cliente</button>'
     +'</div>';
   if(PLABA==='painel') return nav+renderPainelPlanos();
   if(PLABA==='fora') return nav+renderForaPlanos();
+  if(PLABA==='visitas') return nav+renderVisitas();
   if(PLABA==='novo') return nav+renderNovoCliente();
   return nav+renderEnvioPlanos();
 }
@@ -1280,6 +1286,96 @@ function ncMascara(){
     const i=document.getElementById(x[1]);
     if(i) i.placeholder = (t==='cnpj') ? '00.000.000/0000-00' : '000.000.000-00';
   });
+}
+
+/* ---------- VISITAS DO PLANO ----------
+   A visita e a unica parte do Completo que custa mao de obra, e ate 15/09 nao
+   havia onde registrar que tinha acontecido. Uma por ENDERECO, nao por usina:
+   o Gilberto tem 4 usinas num endereco so, e seria uma visita, nao quatro.
+
+   As previstas nascem quando o contrato e ativado, no meio do periodo. */
+function renderVisitas(){
+  if(!VIS) return '<div class="vazio">Não foi possível carregar as visitas.</div>';
+  const R=VIS.resumo||{}, L=VIS.lista||[];
+
+  let h='<div class="rgstat">'
+   +'<div class="rgs"><div class="n">'+n(R.previstas)+'</div><div class="l">Previstas</div></div>'
+   +'<div class="rgs"><div class="n" style="color:'+(n(R.atrasadas)>0?'#e07070':'var(--muted)')+'">'
+     +n(R.atrasadas)+'</div><div class="l">Atrasadas</div></div>'
+   +'<div class="rgs"><div class="n" style="color:var(--green-l)">'+n(R.realizadas)+'</div><div class="l">Realizadas</div></div>'
+   +'<div class="rgs"><div class="n" style="color:'+(n(R.sem_laudo)>0?'var(--gold)':'var(--muted)')+'">'
+     +n(R.sem_laudo)+'</div><div class="l">Sem laudo</div></div>'
+   +'</div>';
+
+  if(n(R.sem_laudo)>0){
+    h+='<div class="dica" style="margin-top:11px">O laudo com registro fotográfico é o que o '
+     +'fabricante pede quando há acionamento de garantia. Visita feita sem laudo anexado '
+     +'não serve para isso.</div>';
+  }
+
+  if(!L.length){
+    h+='<div class="sec"><div class="vazio">Nenhuma visita registrada ainda. '
+     +'Elas nascem sozinhas quando um contrato com visita inclusa é ativado — '
+     +'uma para cada endereço do cliente.</div></div>';
+    return h;
+  }
+
+  h+='<div class="sec"><h3>Agenda</h3>';
+  L.forEach(function(v){
+    const feita = v.status==='realizada';
+    const d=n(v.dias);
+    const cor = feita ? 'var(--green-l)' : (d<0?'#e07070':(d<=60?'var(--gold)':'var(--muted)'));
+    const quando = feita
+        ? 'feita em '+dataBR(v.realizada_em)+(v.tecnico?' por '+esc(v.tecnico):'')
+        : 'prevista para '+dataBR(v.prevista_para)+' · '
+          +(d<0?('atrasada há '+Math.abs(d)+' dias'):('em '+d+' dias'));
+    h+='<div class="chkline" style="cursor:default">'
+      +'<div class="cn"><b>'+esc(v.cliente||'')+'</b>'
+      +'<span>'+esc(v.endereco||v.usina||'endereço não informado')+'<br>'
+      +'<span style="color:'+cor+'">'+quando+'</span>'
+      +(feita && !v.laudo_url?' · <span style="color:var(--gold)">sem laudo</span>':'')
+      +(v.laudo_url?' · <a href="'+esc(v.laudo_url)+'" target="_blank" rel="noopener" '
+        +'style="color:var(--gold)">laudo</a>':'')
+      +'</span></div>'
+      +(feita?'':'<button class="stb" onclick="formVisita(\''+v.id+'\')">Dar baixa</button>')
+      +'</div><div id="fv'+v.id+'"></div>';
+  });
+  h+='</div>';
+  return h;
+}
+
+function formVisita(id){
+  const box=document.getElementById('fv'+id); if(!box) return;
+  if(box.innerHTML){ box.innerHTML=''; return; }
+  let ops='<option value="">— quem foi (opcional) —</option>';
+  (VIS.equipe||[]).forEach(function(e){
+    ops+='<option value="'+esc(e.id)+'">'+esc(e.nome)+'</option>';
+  });
+  box.innerHTML='<div class="ncsec">'
+   +'<div class="nctit">Registrar a visita</div>'
+   +'<div class="ncg2">'
+   +'<label>Feita em<input id="v_data'+id+'" type="date" value="'+new Date().toISOString().slice(0,10)+'"></label>'
+   +'<label>Técnico<select id="v_eq'+id+'">'+ops+'</select></label>'
+   +'</div>'
+   +'<label>Link do laudo com fotos<input id="v_laudo'+id+'" placeholder="cole o link do relatório"></label>'
+   +'<label>Observação<input id="v_obs'+id+'" placeholder="o que foi encontrado"></label>'
+   +'<div class="plbtns" style="margin-top:11px">'
+   +'<button class="stb prim" onclick="visitaGravar(\''+id+'\')">💾 Registrar</button>'
+   +'<button class="stb" onclick="formVisita(\''+id+'\')">Cancelar</button>'
+   +'</div></div>';
+}
+
+async function visitaGravar(id){
+  const v=function(x){ return (((document.getElementById(x+id)||{}).value)||'').trim(); };
+  if(!v('v_data')){ toast('Informe a data da visita'); return; }
+  const r=await sb.rpc('plano_visita_registrar',{
+    p_visita:id, p_data:v('v_data'),
+    p_equipe:v('v_eq')||null, p_laudo:v('v_laudo')||null, p_obs:v('v_obs')||null });
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  if(!v('v_laudo')) toast('Registrada ✓ — mas ficou sem laudo');
+  else toast('Visita registrada ✓');
+  carregarPlanos();
 }
 
 function renderNovoCliente(){
@@ -2271,6 +2367,11 @@ function formUsina(obraId){
    +'<label>Instalada em<input id="nu_dti" type="date"></label>'
    +'<label class="ncck"><input type="checkbox" id="nu_est"> a data é estimada</label>'
    +'</div>'
+   +'<label>Quem instalou esta usina<select id="nu_papel">'
+     +'<option value="">— decidir pelo tipo de cliente —</option>'
+     +'<option value="expansao">A Polaris — é uma ampliação</option>'
+     +'<option value="herdada">Outra empresa — usina herdada</option>'
+   +'</select></label>'
    +(US.length?'<label>Manda os créditos para<select id="nu_comp">'+comp+'</select></label>':'')
    +'<div class="plbtns" style="margin-top:11px">'
    +'<button class="stb" onclick="nuSimular(\''+obraId+'\')">🔍 Conferir</button>'
@@ -2285,7 +2386,7 @@ function nuColeta(obraId){
     potencia_kwp:v('nu_kwp'), modulos:v('nu_mod'),
     endereco:v('nu_end'), data_instalacao:v('nu_dti'),
     data_estimada: !!(document.getElementById('nu_est')||{}).checked,
-    compensa_em:v('nu_comp') } };
+    papel:v('nu_papel'), compensa_em:v('nu_comp') } };
 }
 
 function nuErros(lista){
@@ -2308,6 +2409,10 @@ async function nuSimular(obraId){
     h+='<span style="color:var(--gold)">Vira um endereço novo — '
       +d.enderecos_hoje+' → <b>'+d.enderecos_depois+'</b>. '
       +'O plano Completo cobra uma visita técnica anual em cada um.</span><br>';
+  }
+  if(d.papel){
+    h+='Entra como <b>'+(d.papel==='herdada'?'herdada — instalada por outra empresa'
+        :(d.papel==='expansao'?'expansão — a Polaris vendeu depois':esc(d.papel)))+'</b><br>';
   }
   if(d.externo){
     h+='O total da ficha passa a <b>'+Number(d.kwp_obra_depois||0).toFixed(2)+' kWp</b>'
@@ -2418,10 +2523,15 @@ function renderFicha(D){
     h+=`<div class="ulist">`;
     US.forEach(function(u){
       var cor = (u.gravidade<=2) ? '#e07070' : ((u.gravidade==3) ? 'var(--gold)' : 'var(--green-l)');
+      // papel vem de obra_usina e ja existia desde sempre; so nunca tinha sido
+      // mostrado. 'propria' e o normal, entao nao ganha selo.
+      var selo = u.papel==='herdada' ? ' <span class="uext">herdada</span>'
+               : (u.papel==='expansao' ? ' <span class="tag">expansão</span>' : '');
       h+=`<button class="urow" onclick="abrirUsina('${u.id}')" title="${esc(u.motivo||'')}">
         <div>
-          <div class="uname">${esc(u.apelido||'Usina')}${u.principal?' <span class="tag">principal</span>':''}</div>
+          <div class="uname">${esc(u.apelido||'Usina')}${u.principal?' <span class="tag">principal</span>':''}${selo}</div>
           <div class="umeta">${u.kwp!=null?u.kwp+' kWp':'potência não informada'}${u.cidade?' · '+esc(u.cidade):''}</div>
+          ${u.endereco?`<div class="umeta">📍 ${esc(u.endereco)}</div>`:''}
         </div>
         <div class="uright">
           <div class="ust" style="color:${cor}">${esc(u.estado||'—')}</div>
