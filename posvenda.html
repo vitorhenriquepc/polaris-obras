@@ -892,6 +892,7 @@ function n(v){var x=Number(v);return isNaN(x)?0:x;}
 
 /* ---------- PLANOS DE MANUTENÇÃO ---------- */
 let PLN=null, PLSEL=null, PAI=null, PLABA='painel';
+let FICHA=null;   // a ficha aberta agora, para o formulario de usina achar as irmas
 
 async function carregarPlanos(){
   const box=document.getElementById('plbox'); if(!box) return;
@@ -2238,7 +2239,99 @@ function fecharFicha(){document.getElementById('ov').classList.remove('on');}
 document.getElementById('ov').addEventListener('click',e=>{if(e.target.id==='ov')fecharFicha();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')fecharFicha();});
 
+/* ---------- ADICIONAR USINA A UM CLIENTE QUE JA EXISTE ----------
+   O caso e o rural com propriedade nova, ou quem ampliou. Ate aqui usina so
+   nascia do casamento com o SolarView.
+
+   Quem grava e usina_adicionar() no banco, que decide sozinha se mexe no
+   total da obra: em cliente de plano soma, em obra de venda NAO -- ali a
+   potencia e o projeto vendido e alimenta ficha, relatorio e margem. */
+function formUsina(obraId){
+  const box=document.getElementById('fusina'); if(!box) return;
+  if(box.innerHTML){ box.innerHTML=''; return; }   // clicar de novo fecha
+
+  const US=(FICHA&&FICHA.usinas)||[];
+  let comp='<option value="">— compensa no próprio relógio —</option>';
+  US.forEach(function(u){
+    comp+='<option value="'+esc(u.id)+'">'+esc(u.apelido||'Usina')+'</option>';
+  });
+
+  box.innerHTML='<div class="ncsec">'
+   +'<div class="nctit">Nova usina deste cliente</div>'
+   +'<div class="ncg2">'
+   +'<label>Apelido<input id="nu_ap" placeholder="Sítio — Birigui"></label>'
+   +'<label>Cidade<input id="nu_cid" placeholder="Birigui"></label>'
+   +'</div>'
+   +'<div class="ncg2">'
+   +'<label>Potência (kWp)<input id="nu_kwp" type="number" step="0.01" inputmode="decimal"></label>'
+   +'<label>Módulos<input id="nu_mod" type="number" inputmode="numeric"></label>'
+   +'</div>'
+   +'<label>Endereço<input id="nu_end" placeholder="onde o técnico vai na visita anual"></label>'
+   +'<div class="ncg2">'
+   +'<label>Instalada em<input id="nu_dti" type="date"></label>'
+   +'<label class="ncck"><input type="checkbox" id="nu_est"> a data é estimada</label>'
+   +'</div>'
+   +(US.length?'<label>Manda os créditos para<select id="nu_comp">'+comp+'</select></label>':'')
+   +'<div class="plbtns" style="margin-top:11px">'
+   +'<button class="stb" onclick="nuSimular(\''+obraId+'\')">🔍 Conferir</button>'
+   +'<button class="stb prim" id="nuBtn" onclick="nuGravar(\''+obraId+'\')" disabled>💾 Adicionar</button>'
+   +'</div><div id="nuPrev"></div></div>';
+}
+
+function nuColeta(obraId){
+  const v=function(id){ return (((document.getElementById(id)||{}).value)||'').trim(); };
+  return { obra_id: obraId, usina: {
+    apelido:v('nu_ap'), cidade:v('nu_cid'),
+    potencia_kwp:v('nu_kwp'), modulos:v('nu_mod'),
+    endereco:v('nu_end'), data_instalacao:v('nu_dti'),
+    data_estimada: !!(document.getElementById('nu_est')||{}).checked,
+    compensa_em:v('nu_comp') } };
+}
+
+function nuErros(lista){
+  const b=document.getElementById('nuBtn'); if(b) b.disabled=true;
+  document.getElementById('nuPrev').innerHTML=
+    '<div class="ncerro"><b>Falta corrigir:</b><ul>'
+    +(lista||[]).map(function(e){ return '<li>'+esc(e)+'</li>'; }).join('')+'</ul></div>';
+}
+
+async function nuSimular(obraId){
+  const r=await sb.rpc('usina_adicionar',{ p:nuColeta(obraId), p_simular:true });
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  const d=r.data||{};
+  if(!d.ok){ nuErros(d.erros); return; }
+
+  let h='<div class="ncok">'
+   +'<b>'+esc(d.cliente||'')+'</b> passa de '+d.usinas_hoje
+   +(d.usinas_hoje===1?' usina':' usinas')+' para '+(Number(d.usinas_hoje)+1)+'<br>';
+  if(Number(d.enderecos_depois) > Number(d.enderecos_hoje)){
+    h+='<span style="color:var(--gold)">Vira um endereço novo — '
+      +d.enderecos_hoje+' → <b>'+d.enderecos_depois+'</b>. '
+      +'O plano Completo cobra uma visita técnica anual em cada um.</span><br>';
+  }
+  if(d.externo){
+    h+='O total da ficha passa a <b>'+Number(d.kwp_obra_depois||0).toFixed(2)+' kWp</b>'
+      +(d.modulos_obra_depois?' · '+d.modulos_obra_depois+' módulos':'')+'<br>';
+  }
+  (d.avisos||[]).forEach(function(a){
+    h+='<span style="color:var(--gold)">⚠️ '+esc(a)+'</span><br>';
+  });
+  h+='</div>';
+  document.getElementById('nuPrev').innerHTML=h;
+  document.getElementById('nuBtn').disabled=false;
+}
+
+async function nuGravar(obraId){
+  const r=await sb.rpc('usina_adicionar',{ p:nuColeta(obraId), p_simular:false });
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  const d=r.data||{};
+  if(!d.ok){ nuErros(d.erros); return; }
+  toast('Usina adicionada ✓');
+  abrirFicha(obraId);
+}
+
 function renderFicha(D){
+  FICHA=D;
   const o=D.obra, n=D.nps, msgs=D.mensagens||[];
   const bits=[];
   if(o.contrato) bits.push('#'+esc(o.contrato));
@@ -2314,10 +2407,15 @@ function renderFicha(D){
 
   /* Usinas do cliente — quem tem mais de uma chega no detalhe de cada uma daqui */
   const US = D.usinas || [];
-  if(US.length){
-    h+=`<div class="sec"><h3>Usina${US.length>1?'s':''}`
+  if(US.length || D.pode_agir){
+    h+=`<div class="sec"><h3>Usina${US.length===1?'':'s'}`
       + (US.length>1?` <span class="tag">${US.length} medidores</span>`:'')
-      + `</h3><div class="ulist">`;
+      + `</h3>`;
+    if(!US.length){
+      h+=`<div class="vazio">Nenhuma usina ligada a este cliente ainda. Sem usina não há
+          monitoramento — e é a usina que traz a geração para esta tela.</div>`;
+    }
+    h+=`<div class="ulist">`;
     US.forEach(function(u){
       var cor = (u.gravidade<=2) ? '#e07070' : ((u.gravidade==3) ? 'var(--gold)' : 'var(--green-l)');
       h+=`<button class="urow" onclick="abrirUsina('${u.id}')" title="${esc(u.motivo||'')}">
@@ -2331,7 +2429,12 @@ function renderFicha(D){
         </div>
       </button>`;
     });
-    h+=`</div></div>`;
+    h+=`</div>`;
+    if(D.pode_agir){
+      h+=`<button class="mini" style="margin-top:9px" onclick="formUsina('${o.id}')">➕ Adicionar usina</button>
+          <div id="fusina"></div>`;
+    }
+    h+=`</div>`;
   }
 
   /* Geração */
