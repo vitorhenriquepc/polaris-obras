@@ -97,6 +97,21 @@ A tela, a régua e os painéis leem todos dali, então o que o cliente recebe
 bate com o que a equipe vê. Só `get_geracao_bruta` ainda lê a tabela vazia —
 é código morto, sem nenhum chamador.
 
+⚠️ **`obra_usina` é a ligação obra ↔ usina, não `usinas.cliente_id`.**
+**Vinte e quatro funções** leem essa tabela — `obra_geracao_total`,
+`get_geracao`, `get_ficha_cliente`, `get_posvenda_lista`, `usina_estado`,
+`pendencias_posvenda`, `linha_do_tempo` entre elas. Usina criada sem essa
+linha nasce meio conectada e some de tudo. Aconteceu em 15/09 com as duas da
+Tays, e o achado **"usina sem obra"** da `conferir_saude_base()` é a rede que
+pega isso.
+
+| coluna | o que guarda |
+|---|---|
+| `papel` | `propria` · `expansao` · `herdada` (instalou outra empresa) |
+| `medicao` | `inversor_proprio` · `compartilhado` (aí `kwp_parte` é obrigatório) |
+| `principal` | uma só por obra, garantido por índice único parcial |
+| `entrou_em` / `saiu_em` | vigência |
+
 `usinas`, `usina_dia`, `usina_geracao` · `clima_dia` · `v_indice_dia` ·
 `v_indice_regiao` (cidade com 5+ usinas ganha grupo próprio) ·
 `regua_contatos` + `regua_modelos` · `usina_marco` · `nps`
@@ -149,6 +164,68 @@ cliente — o Gilberto tem **4 usinas e 1 endereço** e não paga extra. Quando
 `endereco` está vazio a conta cai para a cidade, então ela **subestima**, que
 é o lado seguro: nunca cobra a mais, e se corrige quando alguém preencher.
 
+### Visitas do plano
+`plano_visita` (contrato → endereço → prevista/realizada, com laudo). Nascem
+quando `plano_registrar_pagamento()` ativa o contrato, **uma por endereço** e
+no meio do período. A tela conta separadamente as **realizadas sem laudo**:
+laudo com foto é o que o fabricante pede no acionamento de garantia.
+
+### Fim da cortesia
+Os 54 contratos ativos são **todos cortesia de um ano**, e o cliente não tem
+como adivinhar que ela acaba. `plano-vencimento` avisa em **D-30 e D-7** pela
+`contratos_para_avisar()`, e desde 15/09 o texto distingue cortesia de
+renovação paga: diz que foi cortesia, lista **o que para de acontecer**
+(monitoramento, aviso de parada, relatório) e só então traz o preço da faixa
+do porte dele. Ainda não disparou para ninguém — o **primeiro vencimento é
+17/04/2027**.
+
+⚠️ **Esse aviso sai direto para o cliente, sem passar pela régua e sem a
+aprovação da Lívia.** Já era assim antes de 15/09; o que mudou é que agora a
+mensagem carrega preço e oferta. A equipe recebe o resumo no mesmo disparo,
+**depois** do cliente. Se for para exigir aprovação, a mudança é na
+`plano-vencimento` e é decisão do Vitor.
+
+`plano_contratos.desfecho` guarda **como** o contrato terminou —
+`renovou` · `nao_renovou` · nulo enquanto aberto. Antes disso, cortesia que
+virou plano pago e cortesia que se perdeu ficavam as duas em `encerrado`, e
+não dava para responder "de 54 cortesias, quantas viraram cliente?".
+`plano_desfecho()` fecha a antiga e, quando renovou, **cria a nova na mesma
+chamada** (herdando obra, CPF/CNPJ e nome da nota), já em
+`aguardando_pagamento` — plano só começa quando o dinheiro entra. Não apaga
+nada: a antiga fica com o desfecho carimbado e a nova aponta para ela na
+observação. Fechar duas vezes é recusado com a data do primeiro fechamento.
+
+O botão "fidelizou?" no painel só aparece a **90 dias ou menos** do
+vencimento e **nunca** em contrato aguardando pagamento — ali `dias` é nulo, e
+`n(null)` devolve `0`, que passaria por "vence hoje".
+
+### Autoleitura
+`unidade_consumidora` (o relógio; um cliente rural pode ter vários) +
+`uc_leitura_prevista` (o calendário que a conta de luz mostra, com
+`responsavel` = cliente ou distribuidora). Só as de responsabilidade do
+**cliente** geram aviso.
+
+⚠️ **Não entrou na régua de propósito.** `regua_contatos` tem
+`UNIQUE (obra_id, modelo)` — uma mensagem por modelo por obra, para sempre, e
+é isso que impede a régua de repetir boas-vindas. Autoleitura é mensal, então
+ou criaria um modelo por mês ou afrouxaria esse índice. Ganhou casa própria.
+
+**Ligada desde 15/09**, com os horários que o Vitor definiu: **9h o aviso do
+dia** (quem lê o relógio faz de manhã) e **18h a véspera** (depois da régua das
+17h, para não disputar). Quem envia é a edge function `autoleitura-aviso`, no
+mesmo desenho do `regua-disparo`: `verify_jwt` false, autorizada pelo
+`cron_token`, e só marca como avisado **depois** que a Z-API aceita.
+
+Aceita `{"simular":true}`, que lista quem receberia sem enviar nada.
+
+Para desligar não se mexe em cron nem em código:
+`update config set valor='0' where chave='autoleitura_ativo'` — a função lê a
+chave em toda rodada.
+
+⚠️ O **canal pessoal continua não existindo**. A régua e a autoleitura mandam
+só para `whatsapp_grupo_id`. Mandar para o número do cliente exige mexer na
+`regua-disparo`, que é a trava dos 17h.
+
 ### Indicações
 `indicacoes` — nova → contatada → visita → fechada/perdida
 
@@ -175,6 +252,12 @@ cliente — o Gilberto tem **4 usinas e 1 endereço** e não paga extra. Quando
 | `obra_geracao_total(obra)` | **quanto a obra já gerou**: kWh, economia, desempenho e meses — a fonte única |
 | `plano_registrar_pagamento(contrato, data)` | liga o contrato no dia em que o primeiro pagamento entrou; é ela que calcula `inicio` e `fim` |
 | `plano_cadastrar_cliente(json, simular)` | **cadastra cliente de plano inteiro**: cliente + obra + usinas + contrato numa transação. Com `simular = true` (o padrão) não grava nada e devolve a prévia ou a lista de erros |
+| `plano_visitas_gerar(contrato)` | cria as visitas previstas, uma por endereço, no meio do contrato |
+| `plano_visita_registrar(visita, data, equipe, laudo, obs)` | dá baixa numa visita |
+| `plano_desfecho(contrato, desfecho, motivo, plano, valor, forma, meses, aguardando)` | fecha o contrato como `renovou`/`nao_renovou` e, se renovou, já abre o novo na mesma chamada |
+| `contratos_para_avisar()` | quem está a 30 ou 7 dias do fim, com módulos, faixa do Completo e quantos endereços |
+| `autoleitura_fila()` | quem avisar hoje, com o texto pronto |
+| `dia_util_ate(data)` | o último dia útil em `data` ou antes — é o que antecipa o aviso de fim de semana para a sexta |
 | `usina_adicionar(json, simular)` | acrescenta uma usina a um cliente que já existe. **Só soma no total da obra se ela for cliente de plano** — em obra de venda a potência é o projeto vendido, e mexer ali muda o tamanho de uma venda que já aconteceu |
 
 ---
@@ -185,6 +268,8 @@ cliente — o Gilberto tem **4 usinas e 1 endereço** e não paga extra. Quando
 09h15/13h15/16h15 status das usinas · 10h20 gera mensagens (seg–sex) ·
 10h40 vincula usina nova · 11h resumo da régua (seg–sex) ·
 14h30 geração parcial (seg/qua/sex) · 17h dispara a régua (seg–sex) ·
+**9h aviso de autoleitura no dia · 18h aviso da véspera** (seg–sex) ·
+9h aviso de vencimento de plano, D-30 e D-7 (seg–sex) ·
 dia 2 fechamento · dia 5 resumo mensal · dia 6 marcos · dia 10 lembrete de
 tarifa · domingo 11h30 limpa órfãos
 
@@ -231,6 +316,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `recorde_margem` | 8% | quanto precisa superar o pico anterior |
 | `recorde_intervalo_meses` | 6 | descanso entre avisos de recorde |
 | `plano_endereco_adicional` | 200 | R$/ano por endereço além do primeiro no Completo — a visita técnica é em cada um |
+| `autoleitura_ativo` | 1 | envio automático do lembrete de autoleitura (9h no dia, 18h na véspera) |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -287,6 +373,24 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
    que existia há meses.
 2. **`rollback` desfaz DDL** — se testar em transação, aplique a correção da
    função fora do bloco `begin/rollback`.
+
+   Em 15/09 eu caí nisso **duas vezes seguidas** e quase não percebi. O padrão
+   perigoso é mandar, no mesmo comando:
+
+   ```sql
+   do $do$ ... execute replace(definicao, velho, novo); end $do$;   -- DDL
+   begin;  select minha_funcao(...);  rollback;                     -- teste
+   ```
+
+   O teste **passa** — dentro da transação a função já está corrigida — e o
+   `rollback` no fim desfaz a correção junto. `get_ficha_cliente` perdeu três
+   alterações assim (`papel`, `plano`, `autoleitura`) e `get_plano_visitas`
+   perdeu uma, e as duas continuaram *parecendo* aplicadas porque o resultado
+   do teste tinha sido verdadeiro.
+
+   O que pegou: conferir **num comando separado**, depois, se o trecho novo
+   está na `pg_get_functiondef`. Teste que roda junto com o DDL não prova
+   nada sobre o que ficou gravado.
 3. **Trigger adiado só age no commit** — `constraint trigger deferrable` não
    reflete dentro da mesma transação.
 4. **CDN do GitHub leva ~3 min** — validar o arquivo publicado e esperar.
@@ -300,6 +404,18 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
    12/09 — e eu corrigi cinco na primeira passada e esqueci a `obras`, a mais
    importante. Para restringir de verdade, o comando amplo tem de ser
    `select`/`insert`/`update` explícitos, sem `ALL`.
+
+   Em 15/09 a `plano_contratos` recebeu o mesmo tratamento, agora que guarda
+   dinheiro: apagar contrato virou `is_admin()`, e `select`/`insert`/`update`
+   seguem em `is_autorizado()` — encerrar e cancelar são `update`, então a
+   Lívia trabalha igual. **Medido, não deduzido:** a conta do financeiro apaga
+   **0 linhas** e o contrato sobrevive; a de admin apaga 1.
+
+   ⚠️ **Isso conserta uma tabela de cinquenta.** Outras 49 ainda têm o formato
+   `ALL`, várias com dinheiro dentro — `dre_lancamentos`, `obra_parcelas`,
+   `extrato_movimentos`, `obra_financeiro`, `cartao_faturas`. Não é que o
+   sistema esteja errado: ele é permissivo por padrão, e apertar cada uma é
+   decisão do Vitor, não varredura automática.
 9. **RLS com policy só de leitura devolve sucesso sem gravar.** O `update` não
    altera nada e o PostgREST não acusa erro. Foi o bug do interruptor da régua.
    Hoje 17 tabelas têm esse formato, mas nenhuma tela grava direto nelas
@@ -332,7 +448,7 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
 
 ## 10. Estado e pendências
 
-56 usinas · **50 normais, 6 sem comunicação** · 29 cron jobs, **todos
+56 usinas · **50 normais, 6 sem comunicação** · 31 cron jobs, **todos
 ativos** · 21 chaves de automação em `config`, 20 ligadas — a única
 desligada é `iptu_envio_ativo`, de propósito (ver pendência abaixo). A
 `solarview_ativo` foi **removida** em 12/09: estava em 0, ninguém lia, e fazia
@@ -381,7 +497,19 @@ significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
       e o vínculo é manual porque ela não tem número de contrato no nome.
       O aniversário (31/10) ficou só em `clientes`, fora de `obras`, para a
       automação de aniversário não mandar texto de cliente de instalação.
+- [ ] **Decidir se o aviso de fim de cortesia passa por aprovação humana.**
+      A `plano-vencimento` envia direto ao cliente às 9h, e agora com preço e
+      oferta dentro. Tem folga para decidir: o primeiro vencimento é
+      **17/04/2027**, e nenhum contrato tem `aviso_30_em` preenchido.
 - [ ] Ligar proteção de senha vazada no Supabase
+- [ ] **Prospecção de sistema órfão, se virar rotina.** A aba "Cliente de fora"
+      foi removida em 15/09: ela gerava um texto de abordagem e **não gravava
+      nada** — nenhum `insert`, nenhum envio, só copiar. Sem registro de quem
+      foi abordado não havia o que mostrar, e por isso parecia parada. A ideia
+      é boa (a Tays é justamente um cliente de fora que converteu), mas a
+      versão certa guarda o prospect — nome, porte, quando foi abordado, o que
+      respondeu — e desemboca no cadastro de cliente de plano. O texto antigo
+      está no git.
 - [ ] Conferir cidades com IPTU Sustentável antes da última automação
 
 Próximos módulos: garantia e nota fiscal · tela de indicação com o funil novo ·

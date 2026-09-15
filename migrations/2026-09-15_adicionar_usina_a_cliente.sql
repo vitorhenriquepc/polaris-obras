@@ -106,7 +106,9 @@ begin
                               else v_obra.potencia_kwp end,
       'modulos_obra_depois', case when v_obra.externo
                                   then coalesce(v_obra.qtd_modulos,0) + v_mods
-                                  else v_obra.qtd_modulos end);
+                                  else v_obra.qtd_modulos end,
+      'papel', coalesce(nullif(btrim(coalesce(u->>'papel','')),''),
+                        case when v_obra.externo then 'herdada' else 'expansao' end));
   end if;
 
   insert into usinas (cliente_id, apelido, potencia_kwp, cidade, endereco,
@@ -119,6 +121,19 @@ begin
           coalesce(v_inst, case when v_obra.externo then v_obra.sistema_origem end),
           v_comp, true)
   returning id into v_uid;
+
+  -- sem o vinculo em obra_usina a usina nasce meio conectada: 24 funcoes do
+  -- pos-venda leem essa tabela, nao usinas.cliente_id.
+  -- papel 'herdada' = instalou outra empresa; 'expansao' = a Polaris vendeu
+  -- esta usina depois da obra original.
+  insert into obra_usina (obra_id, usina_id, papel, medicao, principal, entrou_em)
+  values (v_obra_id, v_uid,
+          coalesce(nullif(btrim(coalesce(u->>'papel','')),''),
+                   case when v_obra.externo then 'herdada' else 'expansao' end),
+          'inversor_proprio',
+          not exists (select 1 from obra_usina x
+                       where x.obra_id = v_obra_id and x.principal),
+          nullif(u->>'data_instalacao','')::date);
 
   if v_obra.externo then
     update obras

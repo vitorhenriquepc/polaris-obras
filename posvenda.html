@@ -154,7 +154,8 @@ padding:8px 0}
 .reg .salvar{width:100%;background:var(--green);border:none;color:#fff;border-radius:10px;
 padding:12px;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;margin-top:4px}
 .reg .salvar:active{transform:scale(.99)}
-.reg .dica{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.45;font-weight:600}
+.reg .dica{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.45;font-weight:600;
+  background:none;border:0;padding:0}
 .mini{background:none;border:1px dashed var(--border);color:var(--muted);border-radius:9px;
 padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;width:100%}
 .mini:hover{border-color:var(--gold);color:var(--gold)}
@@ -297,17 +298,6 @@ letter-spacing:.8px;padding-bottom:6px;font-weight:800}
 .pltbl th.num,.pltbl td.num{text-align:right}
 .pltbl td{padding:7px 0;border-top:1px solid var(--border);color:var(--muted)}
 .pltbl td.num{color:var(--txt)}
-.plfora{display:grid;grid-template-columns:2fr 1fr;gap:9px;margin-top:11px}
-@media(max-width:600px){.plfora{grid-template-columns:1fr}}
-.plfora .fl label{display:block;font-size:11px;font-weight:800;color:var(--muted);
-text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
-.plfora input{width:100%;background:var(--card);border:1px solid var(--border);color:var(--txt);
-border-radius:10px;padding:11px;font-family:inherit;font-size:14px}
-.plnota{background:var(--card);border-left:3px solid var(--green);border-radius:0 11px 11px 0;
-padding:13px 15px;margin-top:9px}
-.plnota p{font-size:12.5px;color:var(--muted);line-height:1.6;margin:0 0 7px}
-.plnota p:last-child{margin:0}
-.plnota b{color:var(--txt)}
 .plgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
 @media(max-width:700px){.plgrid{grid-template-columns:1fr}}
 .plcard{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:15px 14px}
@@ -338,7 +328,22 @@ border-radius:11px;padding:12px;font-family:inherit;font-size:14px;margin-bottom
 font-family:inherit;font-size:12.5px;line-height:1.55;white-space:pre-wrap;color:var(--txt);
 max-height:340px;overflow-y:auto;margin:0}
 .plbtns{display:flex;gap:8px;margin-top:11px;align-items:center}
+.stb{background:var(--card2);border:1px solid var(--border);color:var(--txt);
+  border-radius:9px;padding:7px 12px;font-family:inherit;font-size:12.5px;
+  font-weight:700;cursor:pointer;transition:border-color .15s,background .15s}
+.stb:hover{border-color:var(--gold)}
+/* bloqueio proposital tem de ser visivel: o "Gravar" so libera depois de
+   conferir, e o "Inicio" fica travado quando o contrato comeca no pagamento */
+.stb:disabled{opacity:.42;cursor:not-allowed;filter:grayscale(.6)}
+.stb:disabled:hover{border-color:var(--border)}
+.ncsec input:disabled,.ncsec select:disabled{opacity:.45;cursor:not-allowed}
 .stb.prim{background:var(--green);border-color:var(--green);color:#fff}
+.stb.prim:hover{border-color:var(--green-l)}
+.dica{font-size:12px;color:var(--muted);font-weight:600;line-height:1.55;
+  background:var(--card);border:1px solid var(--border);border-left:3px solid var(--gold);
+  border-radius:9px;padding:10px 12px;margin-top:9px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:12px 13px}
 .rgstat{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 button.rgs{cursor:pointer;font-family:inherit;text-align:center;transition:.15s}
 button.rgs:hover{border-color:var(--gold)}
@@ -670,7 +675,7 @@ white-space:normal;padding:0 2px}
 .ncerro ul{margin:6px 0 0;padding-left:18px;line-height:1.7}
 .ncok{border:1px solid var(--green-l);border-radius:11px;padding:11px 13px;margin-top:11px;font-size:12.5px;line-height:1.75}
 .uext{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.3px;
-  padding:1px 6px;border-radius:20px;margin-left:6px;vertical-align:middle;
+  padding:1px 6px;border-radius:20px;margin-left:6px;margin-right:6px;vertical-align:middle;
   background:rgba(214,175,88,.16);color:var(--gold);border:1px solid rgba(214,175,88,.35)}
 @media(max-width:480px){.urow{flex-direction:column;align-items:flex-start;gap:4px}
   .uright{text-align:left}}
@@ -893,11 +898,17 @@ function n(v){var x=Number(v);return isNaN(x)?0:x;}
 /* ---------- PLANOS DE MANUTENÇÃO ---------- */
 let PLN=null, PLSEL=null, PAI=null, PLABA='painel';
 let FICHA=null;   // a ficha aberta agora, para o formulario de usina achar as irmas
+let VIS=null;     // visitas do plano
 
 async function carregarPlanos(){
   const box=document.getElementById('plbox'); if(!box) return;
-  const [r,pp]=await Promise.all([sb.rpc('get_planos_envio'), sb.rpc('get_painel_planos')]);
+  const [r,pp,vv,al]=await Promise.all([sb.rpc('get_planos_envio'),
+                                       sb.rpc('get_painel_planos'),
+                                       sb.rpc('get_plano_visitas'),
+                                       sb.rpc('get_autoleitura')]);
   PAI=pp&&pp.data?pp.data:null;
+  VIS=vv&&vv.data?vv.data:null;
+  AUT=al&&al.data?al.data:null;
   if(r.error||!r.data){ box.innerHTML='<div class="vazio">Não foi possível carregar os planos.</div>'; return; }
   PLN=r.data;
   box.innerHTML=renderPlanos();
@@ -925,11 +936,6 @@ function adicionalEndereco(qtdEnderecos){
            anual: porAno*extras,
            mensal: Math.round(porAno/12*extras*100)/100,
            porAno: porAno };
-}
-function completoMaisBarato(){
-  return (PLN.planos||[])
-    .filter(function(p){ return p.nivel===3 && p.mensal!=null; })
-    .sort(function(a,b){ return Number(a.mensal)-Number(b.mensal); })[0] || null;
 }
 function moedaBR(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
 
@@ -1023,11 +1029,13 @@ function renderPlanos(){
   let nav='<div class="plnav">'
     +'<button class="'+(PLABA==='painel'?'on':'')+'" onclick="setPlaba(\'painel\')">📊 Acompanhamento</button>'
     +'<button class="'+(PLABA==='envio'?'on':'')+'" onclick="setPlaba(\'envio\')">📤 Enviar proposta</button>'
-    +'<button class="'+(PLABA==='fora'?'on':'')+'" onclick="setPlaba(\'fora\')">🏳️ Cliente de fora</button>'
+    +'<button class="'+(PLABA==='visitas'?'on':'')+'" onclick="setPlaba(\'visitas\')">🔧 Visitas</button>'
+    +'<button class="'+(PLABA==='leitura'?'on':'')+'" onclick="setPlaba(\'leitura\')">📷 Autoleitura</button>'
     +'<button class="'+(PLABA==='novo'?'on':'')+'" onclick="setPlaba(\'novo\')">➕ Novo cliente</button>'
     +'</div>';
   if(PLABA==='painel') return nav+renderPainelPlanos();
-  if(PLABA==='fora') return nav+renderForaPlanos();
+  if(PLABA==='visitas') return nav+renderVisitas();
+  if(PLABA==='leitura') return nav+renderAutoleitura();
   if(PLABA==='novo') return nav+renderNovoCliente();
   return nav+renderEnvioPlanos();
 }
@@ -1043,6 +1051,18 @@ function renderPainelPlanos(){
    +'<div class="rgs"><div class="n" style="color:var(--green-l)">'+n(R.pagos)+'</div><div class="l">Pagantes</div></div>'
    +'<div class="rgs"><div class="n">'+moedaBR(R.mrr)+'</div><div class="l">Receita mensal</div></div>'
    +'</div>';
+
+  // de quantas cortesias viraram cliente. Enquanto ninguem venceu fica oculto,
+  // porque "0 de 0" nao informa nada.
+  const CV = PAI.conversao||{};
+  if(n(CV.decididos)>0){
+    const taxa = Math.round(n(CV.renovaram)/n(CV.decididos)*100);
+    h+='<div class="plpot" style="border-color:rgba(88,184,104,.4)">'
+     +'<div class="lb">Fidelização</div>'
+     +'<div class="big" style="color:var(--green-l)">'+taxa+'<small>%</small></div>'
+     +'<div class="sb">'+n(CV.renovaram)+' de '+n(CV.decididos)
+     +' que chegaram ao fim viraram plano pago</div></div>';
+  }
 
   // contrato fechado que ainda nao teve o primeiro pagamento: nao e receita,
   // mas e a unica coisa da tela que pede acao hoje
@@ -1108,15 +1128,93 @@ function renderPainelPlanos(){
                  : 'vence '+dataBR(c.fim)+' · '+(d<0?'venceu':'em '+d+' dias');
     const valor = esperando ? moedaBR(c.valor)
                 : (c.completo_anual!=null ? moedaBR(c.completo_anual) : 'sob consulta');
-    h+='<div class="chkline" onclick="irEnviar(\''+c.obra_id+'\')">'
+    // clicar abre a ficha do cliente, como na Lista. A proposta pronta fica
+    // no botao ao lado, para quem quer o atalho.
+    h+='<div class="chkline" onclick="abrirFicha(\''+c.obra_id+'\')">'
       +'<div class="cn"><b>'+esc(c.cliente)+'</b>'
       +(c.externo?'<span class="uext">cliente de plano</span>':'')
       +'<span>'+(c.modulos||'?')+' módulos · <span style="color:'+cor+'">'+quando+'</span></span></div>'
       +'<span style="font-size:12px;font-weight:800;color:var(--green-l)">'+valor+'</span>'
-      +'<span style="color:var(--muted)">›</span></div>';
+      +'<button class="stb" style="margin-left:9px" '
+      +'onclick="event.stopPropagation();irEnviar(\''+c.obra_id+'\')">proposta</button>'
+      // A janela de decisao. `dias` so existe depois que o contrato comecou --
+      // n(null) devolve 0, entao testar o `d` ja convertido punha o botao em
+      // quem ainda espera o 1o pagamento, que nao tem desfecho nenhum.
+      +((c.contrato_id && !esperando && c.dias!=null && d<=90)
+         ? '<button class="stb" style="margin-left:6px" '
+           +'onclick="event.stopPropagation();formDesfecho(\''+c.contrato_id+'\')">fidelizou?</button>'
+         : '')
+      +'<span style="color:var(--muted)">›</span></div>'
+      +(c.contrato_id ? '<div id="fd'+c.contrato_id+'"></div>' : '');
   });
   h+='</div>';
   return h;
+}
+
+/* ---------- FIDELIZOU OU NAO ----------
+   O `status` dizia se o contrato esta valendo, nunca COMO terminou. Cortesia
+   que venceu e nao renovou ficava igual a cortesia que virou plano pago: as
+   duas viravam 'encerrado'. Sem isso nao da para responder "de 53 cortesias,
+   quantas viraram cliente?", que e a pergunta que importa nessa carteira. */
+function formDesfecho(contratoId){
+  const box=document.getElementById('fd'+contratoId); if(!box) return;
+  if(box.innerHTML){ box.innerHTML=''; return; }
+  const P=(PLN&&PLN.planos)||[];
+  let ops='<option value="">— escolha o plano —</option>';
+  P.forEach(function(p){
+    if(p.codigo==='essencial') return;   // a cortesia nao se renova em cortesia
+    ops+='<option value="'+esc(p.codigo)+'" data-anual="'+(p.anual!=null?p.anual:'')+'">'
+      +esc(p.nome)+(p.anual!=null?' · '+moedaBR(p.anual)+'/ano':' · sob consulta')+'</option>';
+  });
+  box.innerHTML='<div class="ncsec">'
+   +'<div class="nctit">Como terminou este contrato?</div>'
+   +'<div class="ncg2">'
+   +'<label>Fidelizou — plano novo<select id="df_plano'+contratoId+'" '
+     +'onchange="dfPreco(\''+contratoId+'\')">'+ops+'</select></label>'
+   +'<label>Valor (R$)<input id="df_valor'+contratoId+'" type="number" step="0.01" inputmode="decimal"></label>'
+   +'</div>'
+   +'<label class="ncck"><input type="checkbox" id="df_aguard'+contratoId+'" checked> '
+     +'começa no 1º pagamento</label>'
+   +'<div class="plbtns" style="margin-top:9px">'
+   +'<button class="stb prim" onclick="dfSalvar(\''+contratoId+'\',\'renovou\')">✓ Fidelizou</button>'
+   +'<button class="stb" onclick="dfSalvar(\''+contratoId+'\',\'nao_renovou\')">✗ Não fidelizou</button>'
+   +'</div>'
+   +'<div class="ncdica" style="margin-top:9px">Marcar "não fidelizou" encerra o '
+   +'contrato e pede o motivo — é o motivo que mostra, daqui a um ano, por que a '
+   +'carteira converteu pouco ou muito.</div>'
+   +'</div>';
+}
+
+function dfPreco(id){
+  const sel=document.getElementById('df_plano'+id), inp=document.getElementById('df_valor'+id);
+  if(!sel||!inp) return;
+  const op=sel.options[sel.selectedIndex];
+  const a=op?op.getAttribute('data-anual'):'';
+  if(a) inp.value=a;   // preenche pelo preco de tabela; da para editar
+}
+
+async function dfSalvar(id, desfecho){
+  const v=function(x){ return (((document.getElementById(x+id)||{}).value)||'').trim(); };
+  let motivo=null;
+  if(desfecho==='nao_renovou'){
+    motivo=prompt('Por que não fidelizou?\n\n(achou caro, não vê valor, trocou de empresa, sem resposta...)');
+    if(motivo===null) return;
+    if(!confirm('Encerrar o contrato como NÃO fidelizado?')) return;
+  } else {
+    if(!v('df_plano')){ toast('Escolha o plano da renovação'); return; }
+    if(!v('df_valor')){ toast('Informe o valor'); return; }
+    if(!confirm('Registrar como fidelizado e abrir o contrato novo?')) return;
+  }
+  const r=await sb.rpc('plano_desfecho',{
+    p_contrato:id, p_desfecho:desfecho, p_motivo:motivo,
+    p_plano_codigo: desfecho==='renovou' ? v('df_plano') : null,
+    p_valor: desfecho==='renovou' ? parseFloat(v('df_valor')) : null,
+    p_forma:'anual', p_meses:12,
+    p_aguardando: !!(document.getElementById('df_aguard'+id)||{}).checked });
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast(desfecho==='renovou' ? 'Fidelizado ✓ contrato novo aberto' : 'Registrado como não fidelizado');
+  carregarPlanos();
 }
 
 function irEnviar(id){ PLSEL=id; PLABA='envio';
@@ -1124,91 +1222,6 @@ function irEnviar(id){ PLSEL=id; PLABA='envio';
   setTimeout(function(){ const s=document.getElementById('plCli'); if(s){s.value=id; previaPlano();} },50);
 }
 
-
-/* ---------- CLIENTE DE FORA (sistema órfão) ---------- */
-function textoFora(nome, mods){
-  const P=PLN.planos||[];
-  const ess=P.find(function(p){return p.codigo==='essencial';});
-  const atv=P.find(function(p){return p.codigo==='ativo';});
-  const cmpMin=completoMaisBarato();
-  const pn=(nome||'').trim().split(' ')[0];
-  const pnc=pn?pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase():'';
-
-  let t='☀️ *'+(pnc||'Olá')+', quem cuida do seu sistema solar hoje?*\n\n';
-  t+='Muita gente instalou energia solar e ficou sem assistência — ou porque a empresa '
-   +'fechou, ou porque simplesmente ninguém mais apareceu depois da instalação.\n\n';
-  t+='Se esse é o seu caso, a *Polaris* assume o acompanhamento do seu sistema, '
-   +'mesmo que a instalação tenha sido feita por outra empresa.\n\n';
-  t+='━━━━━━━━━━━━━━━\n\n';
-  t+='*Por que isso importa*\n\n';
-  t+='O manual do inversor é claro: a garantia *não cobre falhas causadas por falta '
-   +'de manutenção*. Sem laudo técnico, o fabricante pode recusar a cobertura — '
-   +'e a troca de um inversor custa milhares de reais.\n\n';
-  t+='Além disso, um sistema sem acompanhamento perde geração aos poucos, e o dono '
-   +'só percebe quando a conta de luz sobe.\n\n';
-  t+='━━━━━━━━━━━━━━━\n\n';
-  t+='*Começamos com uma avaliação técnica*\n\n';
-  t+='Antes de qualquer plano, fazemos uma visita para conferir o estado real do seu sistema:\n'
-   +'• Leitura e diagnóstico do inversor\n'
-   +'• Inspeção da fixação e da estrutura\n'
-   +'• Conferência do quadro elétrico e do DPS\n'
-   +'• Medição de tensão e corrente por string\n'
-   +'• *Laudo com fotos e apontamentos*\n\n';
-  t+='Se houver algo a corrigir, você recebe o orçamento sem compromisso.\n\n';
-  t+='━━━━━━━━━━━━━━━\n\n';
-  t+='*Depois, o acompanhamento contínuo*\n\n';
-  t+='🥉 *Essencial* — '+moedaBR(ess.mensal)+'/mês\n'
-   +'Monitoramento, alerta se o sistema parar e suporte por WhatsApp\n\n';
-  t+='🥈 *Ativo* — '+moedaBR(atv.mensal)+'/mês\n'
-   +'Tudo do Essencial + análise da conta de luz e '+Number(atv.desconto)+'% de desconto em serviços\n\n';
-  t+='🥇 *Completo* — '+(cmpMin?'a partir de '+moedaBR(cmpMin.mensal)+'/mês':'valor sob consulta')+'\n'
-   +'Tudo do Ativo + *visita técnica anual*, limpeza, inspeção e *laudo assinado*\n\n';
-  t+='━━━━━━━━━━━━━━━\n\n';
-  t+='Somos de Araçatuba, com *mais de 400 sistemas instalados* na região. '
-   +'Qualquer dúvida, é só chamar aqui. 💚\n\n*Equipe Polaris Energia Solar* ☀️';
-  return t;
-}
-
-function renderForaPlanos(){
-  let h='<div class="sec"><h3>🏳️ Proposta para cliente de outra empresa</h3>'
-   +'<div class="dica">Para sistemas que ficaram sem assistência. A abordagem é diferente: '
-   +'começa pela avaliação técnica, não pelo plano.</div>';
-
-  h+='<div class="plfora">'
-   +'<div class="fl"><label>Nome do cliente</label>'
-   +'<input id="foNome" placeholder="Ex.: Maria" oninput="previaFora()"></div>'
-   +'<div class="fl"><label>Módulos (se souber)</label>'
-   +'<input id="foMods" type="number" inputmode="numeric" placeholder="8" oninput="previaFora()"></div>'
-   +'</div>';
-  h+='<div id="foPrev"></div></div>';
-
-  h+='<div class="sec"><h3>💡 Por que esse mercado importa</h3>'
-   +'<div class="plnota">'
-   +'<p>Sistemas instalados há 5 a 10 anos estão envelhecendo, e muitas das empresas '
-   +'que os instalaram fecharam. O dono não tem para quem ligar.</p>'
-   +'<p>Esse cliente <b>já tem sistema</b>, <b>já teve problema</b> e <b>não tem fornecedor</b>. '
-   +'É lead qualificado — e costuma virar venda de upgrade ou ampliação depois.</p>'
-   +'<p><b>A avaliação técnica é a porta de entrada.</b> Ela paga a visita, gera o laudo '
-   +'e mostra na prática o que o plano resolve.</p>'
-   +'</div></div>';
-  return h;
-}
-
-function previaFora(){
-  const el=document.getElementById('foPrev'); if(!el) return;
-  const nome=(document.getElementById('foNome')||{}).value||'';
-  const mods=(document.getElementById('foMods')||{}).value||8;
-  const txt=textoFora(nome,mods);
-  el.innerHTML='<pre class="plmsg" style="margin-top:11px">'+esc(txt)+'</pre>'
-    +'<div class="plbtns"><button class="stb" onclick="copiarFora()">📋 Copiar mensagem</button></div>';
-}
-function copiarFora(){
-  const nome=(document.getElementById('foNome')||{}).value||'';
-  const mods=(document.getElementById('foMods')||{}).value||8;
-  const t=textoFora(nome,mods);
-  if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ toast('Mensagem copiada ✓'); });
-  else toast('Selecione o texto e copie');
-}
 
 /* ---------- NOVO CLIENTE DE PLANO ----------
    Tudo numa chamada so. A gravacao e feita por plano_cadastrar_cliente(),
@@ -1280,6 +1293,342 @@ function ncMascara(){
     const i=document.getElementById(x[1]);
     if(i) i.placeholder = (t==='cnpj') ? '00.000.000/0000-00' : '000.000.000-00';
   });
+}
+
+/* ---------- VISITAS DO PLANO ----------
+   A visita e a unica parte do Completo que custa mao de obra, e ate 15/09 nao
+   havia onde registrar que tinha acontecido. Uma por ENDERECO, nao por usina:
+   o Gilberto tem 4 usinas num endereco so, e seria uma visita, nao quatro.
+
+   As previstas nascem quando o contrato e ativado, no meio do periodo. */
+/* ---------- AUTOLEITURA ----------
+   Cliente rural em que a CPFL nao le o relogio: quem informa e ele. Se
+   esquecer, a conta vem por media e a compensacao do sistema nao entra certa.
+
+   O aviso da vespera e ANTECIPADO para a sexta quando a leitura cai no fim de
+   semana -- a regra da casa e nao mandar mensagem para cliente sabado e
+   domingo, e avisar cedo e melhor que nao avisar.
+
+   NADA SAI SOZINHO AINDA: a tela mostra a fila do dia com o texto pronto e um
+   botao de copiar. O disparo automatico depende de tres decisoes do Vitor,
+   anotadas na migracao 2026-09-15_autoleitura.sql. */
+let AUT=null, ALSEL=null;
+
+function renderAutoleitura(){
+  if(!AUT) return '<div class="vazio">Não foi possível carregar as leituras.</div>';
+  const F=(AUT.fila||{}), hoje=F.hoje||[], prox=F.proximas||[], UCS=AUT.ucs||[];
+  let h='';
+
+  if(AUT.ligada!=='1'){
+    h+='<div class="dica" style="border-color:rgba(214,175,88,.4)">'
+     +'<b>O envio automático está desligado.</b> A fila do dia aparece aqui com o texto '
+     +'pronto — copie e mande no grupo. Ligar exige decidir o horário do aviso "no dia", '
+     +'porque a régua só dispara às 17h e quem lê o relógio faz de manhã.</div>';
+  }
+
+  h+='<div class="sec"><h3>📷 Para avisar hoje'+(hoje.length?' <span class="tag">'+hoje.length+'</span>':'')+'</h3>';
+  if(!hoje.length){
+    h+='<div class="vazio">Ninguém para avisar hoje.</div>';
+  } else {
+    hoje.forEach(function(x){
+      h+='<div class="card" style="margin-bottom:9px">'
+       +'<button class="uname" style="background:none;border:0;padding:0;font-size:13.5px;'
+       +'font-weight:800;color:var(--gold);cursor:pointer;font-family:inherit;text-align:left" '
+       +'onclick="abrirFicha(\''+x.obra_id+'\')">'+esc(x.cliente)+' ›</button>'
+       +'<div class="umeta">'+esc(x.uc)+' · leitura em '+dataBR(x.data)
+       +' · <b>'+(x.tipo==='dia'?'é hoje':'véspera')+'</b>'
+       +(x.tem_grupo?'':' · <span style="color:#e07070">sem grupo cadastrado</span>')+'</div>'
+       +'<pre class="plmsg" style="margin-top:8px">'+esc(x.texto||'')+'</pre>'
+       +'<div class="plbtns">'
+       +'<button class="stb" onclick="alCopiar(\''+x.leitura_id+'\')">📋 Copiar</button>'
+       +(x.tem_grupo
+          ? '<button class="stb prim" onclick="alEnviar(\''+x.leitura_id+'\')">📤 Enviar no grupo</button>'
+          : '')
+       +'<button class="stb" onclick="alMarcar(\''+x.leitura_id+'\',\''+x.tipo+'\')">✓ Já avisei por fora</button>'
+       +'</div></div>';
+    });
+  }
+  h+='</div>';
+
+  h+='<div class="sec"><h3>🗓️ Próximas leituras</h3>';
+  if(!prox.length){
+    h+='<div class="vazio">Nenhuma data cadastrada. Cadastre abaixo o que a conta de luz mostra '
+     +'em "Próximas Leituras" — só as que são de responsabilidade do cliente precisam de aviso.</div>';
+  } else {
+    h+='<table class="pltbl"><tr><th>Cliente</th><th>Unidade</th><th>Leitura</th><th>Avisar em</th><th></th></tr>';
+    prox.forEach(function(x){
+      h+='<tr><td>'+esc(x.cliente)+'</td><td>'+esc(x.uc)+'</td>'
+       +'<td>'+dataBR(x.data)+' <span style="color:var(--muted)">('+n(x.dias)+'d)</span></td>'
+       +'<td>'+dataBR(x.avisar_vespera)
+       +(x.antecipado?' <span class="uext">antecipado</span>':'')+'</td>'
+       +'<td>'+(x.ja_avisado?'<span style="color:var(--green-l)">avisado</span>':'')+'</td></tr>';
+    });
+    h+='</table>';
+  }
+  h+='</div>';
+
+  // cadastro
+  let ops='<option value="">— escolha o cliente —</option>';
+  (AUT.obras||[]).forEach(function(o){
+    ops+='<option value="'+esc(o.id)+'">'+esc(o.cliente)+'</option>';
+  });
+  h+='<div class="ncsec"><div class="nctit">Cadastrar unidade consumidora</div>'
+   +'<div class="ncdica">Uma por relógio. Marque autoleitura só quando a distribuidora '
+   +'não lê no local e quem informa é o cliente.</div>'
+   +'<label>Cliente<select id="al_obra">'+ops+'</select></label>'
+   +'<div class="ncg3">'
+   +'<label>Número da UC<input id="al_num" inputmode="numeric" placeholder="o número da conta"></label>'
+   +'<label>Apelido<input id="al_ap" placeholder="Rancho, Sítio..."></label>'
+   +'<label>Distribuidora<input id="al_dist" placeholder="CPFL"></label>'
+   +'</div>'
+   +'<label class="ncck"><input type="checkbox" id="al_auto" checked> quem informa a leitura é o cliente</label>'
+   +'<div class="plbtns" style="margin-top:11px">'
+   +'<button class="stb prim" onclick="alSalvarUC()">💾 Salvar unidade</button></div></div>';
+
+  if(UCS.length){
+    let uops='';
+    UCS.forEach(function(u){
+      uops+='<option value="'+esc(u.id)+'">'+esc(u.cliente)+' · '+esc(u.apelido||u.numero)+'</option>';
+    });
+    h+='<div class="ncsec"><div class="nctit">Datas de leitura</div>'
+     +'<div class="ncdica">Digite o que a conta mostra em "Próximas Leituras", com o '
+     +'responsável de cada uma. Se só souber o dia do mês, use a projeção — ela marca '
+     +'as datas como estimadas e cede lugar assim que a data real for digitada.</div>'
+     +'<label>Unidade<select id="al_uc">'+uops+'</select></label>'
+     +'<div class="ncg3">'
+     +'<label>Data prevista<input id="al_data" type="date"></label>'
+     +'<label>Responsável<select id="al_resp">'
+       +'<option value="cliente">Cliente</option>'
+       +'<option value="distribuidora">Distribuidora</option></select></label>'
+     +'<label>Ou dia-base do mês<input id="al_dia" type="number" min="1" max="31" placeholder="10"></label>'
+     +'</div>'
+     +'<label class="ncck"><input type="checkbox" id="al_alt" checked> '
+       +'alternar com a distribuidora a cada mês</label>'
+     +'<div class="plbtns" style="margin-top:11px">'
+     +'<button class="stb prim" onclick="alSalvarData()">💾 Salvar data</button>'
+     +'<button class="stb" onclick="alProjetar()">📅 Projetar 6 meses pelo dia-base</button>'
+     +'</div></div>';
+  }
+  return h;
+}
+
+function alCopiar(id){
+  const x=((AUT.fila||{}).hoje||[]).find(function(y){return y.leitura_id===id;});
+  if(!x) return;
+  if(navigator.clipboard) navigator.clipboard.writeText(x.texto||'').then(function(){ toast('Mensagem copiada ✓'); });
+  else toast('Selecione o texto e copie');
+}
+
+// Envia e marca numa tacada so. Mesma mecanica de enviarPlano: quem aperta o
+// botao e uma pessoa, entao nao fura a regra 3.5.
+async function alEnviar(id){
+  const x=((AUT.fila||{}).hoje||[]).find(function(y){return y.leitura_id===id;});
+  if(!x || !x.grupo){ toast('Este cliente não tem grupo cadastrado'); return; }
+  if(!confirm('Enviar o aviso de leitura no grupo de '+x.cliente+'?')) return;
+  try{
+    const { data:sess } = await sb.auth.getSession();
+    const r=await fetch(SB_URL+'/functions/v1/notificar-grupo',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+sess.session.access_token},
+      body:JSON.stringify({grupo_id:x.grupo, message:x.texto})
+    });
+    const res=await r.json().catch(function(){return {};});
+    if(!r.ok||res.error){ toast('Erro ao enviar: '+(res.error||r.status)); return; }
+  }catch(e){ toast('Falha de conexão'); return; }
+  // so marca depois que o envio deu certo (convencao 8: confere o erro antes de seguir)
+  const m=await sb.rpc('autoleitura_marcar',{p_leitura:id, p_tipo:x.tipo});
+  if(m.error){ toast('Enviado, mas não consegui marcar: '+m.error.message); return; }
+  // envio adiantado nao cancela o automatico da data certa
+  if(m.data && m.data.marcado===false && m.data.aviso) toast('📤 Enviado. '+m.data.aviso);
+  else toast('📤 Aviso enviado para '+x.cliente);
+  carregarPlanos();
+}
+
+async function alMarcar(id, tipo, silencioso){
+  const r=await sb.rpc('autoleitura_marcar',{p_leitura:id, p_tipo:tipo});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  if(!silencioso) toast('Marcado como avisado ✓');
+  carregarPlanos();
+}
+
+async function alSalvarUC(){
+  const v=function(x){ return (((document.getElementById(x)||{}).value)||'').trim(); };
+  if(!v('al_obra')){ toast('Escolha o cliente'); return; }
+  if(!v('al_num')){ toast('Informe o número da unidade consumidora'); return; }
+  const r=await sb.rpc('uc_salvar',{p:{
+    obra_id:v('al_obra'), numero:v('al_num'), apelido:v('al_ap'),
+    distribuidora:v('al_dist'),
+    autoleitura: !!(document.getElementById('al_auto')||{}).checked }});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast('Unidade salva ✓');
+  carregarPlanos();
+}
+
+async function alSalvarData(){
+  const v=function(x){ return (((document.getElementById(x)||{}).value)||'').trim(); };
+  if(!v('al_uc')){ toast('Escolha a unidade'); return; }
+  if(!v('al_data')){ toast('Informe a data'); return; }
+  const r=await sb.rpc('uc_leitura_salvar',{p_uc:v('al_uc'), p_data:v('al_data'),
+                                            p_responsavel:v('al_resp')||'cliente'});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast('Data salva ✓');
+  carregarPlanos();
+}
+
+async function alProjetar(){
+  const v=function(x){ return (((document.getElementById(x)||{}).value)||'').trim(); };
+  if(!v('al_uc')){ toast('Escolha a unidade'); return; }
+  const dia=parseInt(v('al_dia'),10);
+  if(!dia || dia<1 || dia>31){ toast('Informe o dia-base do mês, de 1 a 31'); return; }
+  const altc=!!(document.getElementById('al_alt')||{}).checked;
+  if(!confirm('Projetar os próximos 6 meses pelo dia '+dia+'?\n\n'
+             +(altc?'Vai alternar: o 1º mês como "'+(v('al_resp')||'cliente')+'" e daí em diante trocando.\n\n':'')
+             +'As datas entram como estimadas e são substituídas assim que você digitar '
+             +'a data real da conta.')) return;
+  const alt=!!(document.getElementById('al_alt')||{}).checked;
+  const r=await sb.rpc('uc_leituras_projetar',{p_uc:v('al_uc'), p_dia:dia, p_meses:6,
+                                               p_responsavel:v('al_resp')||'cliente',
+                                               p_alternar:alt});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast(n(r.data.criadas)+' datas projetadas ✓');
+  carregarPlanos();
+}
+
+function renderVisitas(){
+  if(!VIS) return '<div class="vazio">Não foi possível carregar as visitas.</div>';
+  const R=VIS.resumo||{}, L=VIS.lista||[];
+
+  let h='<div class="rgstat">'
+   +'<div class="rgs"><div class="n">'+n(R.previstas)+'</div><div class="l">Previstas</div></div>'
+   +'<div class="rgs"><div class="n" style="color:'+(n(R.atrasadas)>0?'#e07070':'var(--muted)')+'">'
+     +n(R.atrasadas)+'</div><div class="l">Atrasadas</div></div>'
+   +'<div class="rgs"><div class="n" style="color:var(--green-l)">'+n(R.realizadas)+'</div><div class="l">Realizadas</div></div>'
+   +'<div class="rgs"><div class="n" style="color:'+(n(R.sem_laudo)>0?'var(--gold)':'var(--muted)')+'">'
+     +n(R.sem_laudo)+'</div><div class="l">Sem laudo</div></div>'
+   +'</div>';
+
+  if(n(R.sem_laudo)>0){
+    h+='<div class="dica" style="margin-top:11px">O laudo com registro fotográfico é o que o '
+     +'fabricante pede quando há acionamento de garantia. Visita feita sem laudo anexado '
+     +'não serve para isso.</div>';
+  }
+
+  if(!L.length){
+    h+='<div class="sec"><div class="vazio">Nenhuma visita registrada ainda. '
+     +'Elas nascem sozinhas quando um contrato com visita inclusa é ativado — '
+     +'uma para cada endereço do cliente.</div></div>';
+    return h;
+  }
+
+  // lancar visita a mao. As automaticas nascem na ativacao do contrato, mas
+  // visita extra, remarcada ou de contrato antigo precisa entrar por aqui.
+  let cops='<option value="">— escolha o cliente —</option>';
+  (VIS.clientes||[]).forEach(function(c){
+    cops+='<option value="'+esc(c.obra_id)+'">'+esc(c.cliente)+'</option>';
+  });
+  h+='<div class="ncsec"><div class="nctit">Lançar visita</div>'
+   +'<div class="ncdica">Para visita extra, remarcada, ou de contrato que já existia '
+   +'antes deste controle.</div>'
+   +'<label>Cliente<select id="nv_obra" onchange="nvUsinas()">'+cops+'</select></label>'
+   +'<div class="ncg2">'
+   +'<label>Onde<select id="nv_usina" onchange="nvEndereco()"><option value="">— escolha o cliente primeiro —</option></select></label>'
+   +'<label>Prevista para<input id="nv_data" type="date"></label>'
+   +'</div>'
+   +'<label>Endereço<input id="nv_end" placeholder="preenche sozinho pela usina — edite se precisar"></label>'
+   +'<div class="plbtns" style="margin-top:11px">'
+   +'<button class="stb prim" onclick="nvCriar()">💾 Lançar visita</button></div></div>';
+
+  h+='<div class="sec"><h3>Agenda</h3>';
+  L.forEach(function(v){
+    const feita = v.status==='realizada';
+    const d=n(v.dias);
+    const cor = feita ? 'var(--green-l)' : (d<0?'#e07070':(d<=60?'var(--gold)':'var(--muted)'));
+    const quando = feita
+        ? 'feita em '+dataBR(v.realizada_em)+(v.tecnico?' por '+esc(v.tecnico):'')
+        : 'prevista para '+dataBR(v.prevista_para)+' · '
+          +(d<0?('atrasada há '+Math.abs(d)+' dias'):('em '+d+' dias'));
+    h+='<div class="chkline" style="cursor:default">'
+      +'<div class="cn"><b>'+esc(v.cliente||'')+'</b>'
+      +'<span>'+esc(v.endereco||v.usina||'endereço não informado')+'<br>'
+      +'<span style="color:'+cor+'">'+quando+'</span>'
+      +(feita && !v.laudo_url?' · <span style="color:var(--gold)">sem laudo</span>':'')
+      +(v.laudo_url?' · <a href="'+esc(v.laudo_url)+'" target="_blank" rel="noopener" '
+        +'style="color:var(--gold)">laudo</a>':'')
+      +'</span></div>'
+      +(feita?'':'<button class="stb" onclick="formVisita(\''+v.id+'\')">Dar baixa</button>')
+      +'</div><div id="fv'+v.id+'"></div>';
+  });
+  h+='</div>';
+  return h;
+}
+
+function nvUsinas(){
+  const ob=((document.getElementById('nv_obra')||{}).value)||'';
+  const c=(VIS.clientes||[]).find(function(x){return x.obra_id===ob;});
+  const sel=document.getElementById('nv_usina'); if(!sel) return;
+  let o='<option value="">— endereço avulso —</option>';
+  ((c&&c.usinas)||[]).forEach(function(u){
+    o+='<option value="'+esc(u.id)+'" data-onde="'+esc(u.onde||'')+'">'
+      +esc(u.apelido||'Usina')+(u.onde?' · '+esc(u.onde):'')+'</option>';
+  });
+  sel.innerHTML=o;
+  nvEndereco();
+}
+function nvEndereco(){
+  const sel=document.getElementById('nv_usina'), inp=document.getElementById('nv_end');
+  if(!sel||!inp) return;
+  const op=sel.options[sel.selectedIndex];
+  inp.value = (op && op.getAttribute('data-onde')) || '';
+}
+async function nvCriar(){
+  const v=function(x){ return (((document.getElementById(x)||{}).value)||'').trim(); };
+  if(!v('nv_obra')){ toast('Escolha o cliente'); return; }
+  if(!v('nv_data')){ toast('Informe a data prevista'); return; }
+  const r=await sb.rpc('plano_visita_criar',{p:{
+    obra_id:v('nv_obra'), usina_id:v('nv_usina')||null,
+    endereco:v('nv_end')||null, prevista_para:v('nv_data') }});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast('Visita lançada ✓');
+  carregarPlanos();
+}
+
+function formVisita(id){
+  const box=document.getElementById('fv'+id); if(!box) return;
+  if(box.innerHTML){ box.innerHTML=''; return; }
+  let ops='<option value="">— quem foi (opcional) —</option>';
+  (VIS.equipe||[]).forEach(function(e){
+    ops+='<option value="'+esc(e.id)+'">'+esc(e.nome)+'</option>';
+  });
+  box.innerHTML='<div class="ncsec">'
+   +'<div class="nctit">Registrar a visita</div>'
+   +'<div class="ncg2">'
+   +'<label>Feita em<input id="v_data'+id+'" type="date" value="'+new Date().toISOString().slice(0,10)+'"></label>'
+   +'<label>Técnico<select id="v_eq'+id+'">'+ops+'</select></label>'
+   +'</div>'
+   +'<label>Link do laudo com fotos<input id="v_laudo'+id+'" placeholder="cole o link do relatório"></label>'
+   +'<label>Observação<input id="v_obs'+id+'" placeholder="o que foi encontrado"></label>'
+   +'<div class="plbtns" style="margin-top:11px">'
+   +'<button class="stb prim" onclick="visitaGravar(\''+id+'\')">💾 Registrar</button>'
+   +'<button class="stb" onclick="formVisita(\''+id+'\')">Cancelar</button>'
+   +'</div></div>';
+}
+
+async function visitaGravar(id){
+  const v=function(x){ return (((document.getElementById(x+id)||{}).value)||'').trim(); };
+  if(!v('v_data')){ toast('Informe a data da visita'); return; }
+  const r=await sb.rpc('plano_visita_registrar',{
+    p_visita:id, p_data:v('v_data'),
+    p_equipe:v('v_eq')||null, p_laudo:v('v_laudo')||null, p_obs:v('v_obs')||null });
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  if(!v('v_laudo')) toast('Registrada ✓ — mas ficou sem laudo');
+  else toast('Visita registrada ✓');
+  carregarPlanos();
 }
 
 function renderNovoCliente(){
@@ -1528,7 +1877,7 @@ async function enviarPlano(){
   const t=textoPlano(c.cliente,c.modulos,c.enderecos);
   try{
     const { data:sess } = await sb.auth.getSession();
-    const r=await fetch(SUPABASE_URL+'/functions/v1/notificar-grupo',{
+    const r=await fetch(SB_URL+'/functions/v1/notificar-grupo',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+sess.session.access_token},
       body:JSON.stringify({grupo_id:c.grupo, message:t})
@@ -2246,6 +2595,91 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')fecharFicha();});
    Quem grava e usina_adicionar() no banco, que decide sozinha se mexe no
    total da obra: em cliente de plano soma, em obra de venda NAO -- ali a
    potencia e o projeto vendido e alimenta ficha, relatorio e margem. */
+/* ---------- AUTOLEITURA DENTRO DA FICHA ----------
+   O relogio do cliente aparece na ficha dele, junto das usinas e do plano, em
+   vez de so numa aba separada. Quem esta olhando o cliente ja avisa dali. */
+async function flAvisar(leituraId){
+  const u=((FICHA&&FICHA.autoleitura)||[]).find(function(x){return x.proxima_id===leituraId;});
+  if(!u){ toast('Não encontrei essa leitura'); return; }
+  if(!u.grupo){ toast('Este cliente não tem grupo cadastrado'); return; }
+  if(!confirm('Enviar o aviso da leitura de '+dataBR(u.proxima)+' no grupo?')) return;
+  try{
+    const { data:sess } = await sb.auth.getSession();
+    const r=await fetch(SB_URL+'/functions/v1/notificar-grupo',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+sess.session.access_token},
+      body:JSON.stringify({grupo_id:u.grupo, message:u.texto})
+    });
+    const res=await r.json().catch(function(){return {};});
+    if(!r.ok||res.error){ toast('Erro ao enviar: '+(res.error||r.status)); return; }
+  }catch(e){ toast('Falha de conexão'); return; }
+  // so marca depois que o envio deu certo
+  const m=await sb.rpc('autoleitura_marcar',{p_leitura:leituraId, p_tipo:'vespera'});
+  if(m.error){ toast('Enviado, mas não consegui marcar: '+m.error.message); return; }
+  if(m.data && m.data.marcado===false && m.data.aviso) toast('📤 Enviado. '+m.data.aviso);
+  else toast('📤 Aviso enviado');
+  abrirFicha(FICHA.obra.id);
+}
+
+function flFormAuto(obraId){
+  const box=document.getElementById('fauto'); if(!box) return;
+  if(box.innerHTML){ box.innerHTML=''; return; }
+  const UCS=(FICHA&&FICHA.autoleitura)||[];
+  let uops='';
+  UCS.forEach(function(u){
+    uops+='<option value="'+esc(u.uc_id)+'">'+esc(u.apelido||u.numero)+'</option>';
+  });
+  box.innerHTML='<div class="ncsec">'
+   +'<div class="nctit">Nova unidade consumidora</div>'
+   +'<div class="ncg3">'
+   +'<label>Número da UC<input id="fa_num" inputmode="numeric" placeholder="o número da conta"></label>'
+   +'<label>Apelido<input id="fa_ap" placeholder="Rancho, Sítio..."></label>'
+   +'<label>Distribuidora<input id="fa_dist" placeholder="CPFL"></label>'
+   +'</div>'
+   +'<label class="ncck"><input type="checkbox" id="fa_auto" checked> quem informa a leitura é o cliente</label>'
+   +'<div class="plbtns" style="margin-top:9px">'
+   +'<button class="stb prim" onclick="flSalvarUC(\''+obraId+'\')">💾 Salvar unidade</button></div>'
+   +(UCS.length
+      ? '<div class="nctit" style="margin-top:15px">Data de leitura</div>'
+        +'<div class="ncdica">Digite o que a conta mostra em "Próximas Leituras", '
+        +'com o responsável de cada uma.</div>'
+        +'<div class="ncg3">'
+        +'<label>Unidade<select id="fa_uc">'+uops+'</select></label>'
+        +'<label>Data prevista<input id="fa_data" type="date"></label>'
+        +'<label>Responsável<select id="fa_resp">'
+          +'<option value="cliente">Cliente</option>'
+          +'<option value="distribuidora">Distribuidora</option></select></label>'
+        +'</div>'
+        +'<div class="plbtns" style="margin-top:9px">'
+        +'<button class="stb prim" onclick="flSalvarData(\''+obraId+'\')">💾 Salvar data</button></div>'
+      : '')
+   +'</div>';
+}
+
+async function flSalvarUC(obraId){
+  const v=function(x){ return (((document.getElementById(x)||{}).value)||'').trim(); };
+  if(!v('fa_num')){ toast('Informe o número da unidade consumidora'); return; }
+  const r=await sb.rpc('uc_salvar',{p:{
+    obra_id:obraId, numero:v('fa_num'), apelido:v('fa_ap'), distribuidora:v('fa_dist'),
+    autoleitura: !!(document.getElementById('fa_auto')||{}).checked }});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast('Unidade salva ✓');
+  abrirFicha(obraId);
+}
+
+async function flSalvarData(obraId){
+  const v=function(x){ return (((document.getElementById(x)||{}).value)||'').trim(); };
+  if(!v('fa_uc')){ toast('Escolha a unidade'); return; }
+  if(!v('fa_data')){ toast('Informe a data'); return; }
+  const r=await sb.rpc('uc_leitura_salvar',{p_uc:v('fa_uc'), p_data:v('fa_data'),
+                                            p_responsavel:v('fa_resp')||'cliente'});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast('Data salva ✓');
+  abrirFicha(obraId);
+}
+
 function formUsina(obraId){
   const box=document.getElementById('fusina'); if(!box) return;
   if(box.innerHTML){ box.innerHTML=''; return; }   // clicar de novo fecha
@@ -2271,6 +2705,11 @@ function formUsina(obraId){
    +'<label>Instalada em<input id="nu_dti" type="date"></label>'
    +'<label class="ncck"><input type="checkbox" id="nu_est"> a data é estimada</label>'
    +'</div>'
+   +'<label>Quem instalou esta usina<select id="nu_papel">'
+     +'<option value="">— decidir pelo tipo de cliente —</option>'
+     +'<option value="expansao">A Polaris — é uma ampliação</option>'
+     +'<option value="herdada">Outra empresa — usina herdada</option>'
+   +'</select></label>'
    +(US.length?'<label>Manda os créditos para<select id="nu_comp">'+comp+'</select></label>':'')
    +'<div class="plbtns" style="margin-top:11px">'
    +'<button class="stb" onclick="nuSimular(\''+obraId+'\')">🔍 Conferir</button>'
@@ -2285,7 +2724,7 @@ function nuColeta(obraId){
     potencia_kwp:v('nu_kwp'), modulos:v('nu_mod'),
     endereco:v('nu_end'), data_instalacao:v('nu_dti'),
     data_estimada: !!(document.getElementById('nu_est')||{}).checked,
-    compensa_em:v('nu_comp') } };
+    papel:v('nu_papel'), compensa_em:v('nu_comp') } };
 }
 
 function nuErros(lista){
@@ -2308,6 +2747,10 @@ async function nuSimular(obraId){
     h+='<span style="color:var(--gold)">Vira um endereço novo — '
       +d.enderecos_hoje+' → <b>'+d.enderecos_depois+'</b>. '
       +'O plano Completo cobra uma visita técnica anual em cada um.</span><br>';
+  }
+  if(d.papel){
+    h+='Entra como <b>'+(d.papel==='herdada'?'herdada — instalada por outra empresa'
+        :(d.papel==='expansao'?'expansão — a Polaris vendeu depois':esc(d.papel)))+'</b><br>';
   }
   if(d.externo){
     h+='O total da ficha passa a <b>'+Number(d.kwp_obra_depois||0).toFixed(2)+' kWp</b>'
@@ -2418,10 +2861,15 @@ function renderFicha(D){
     h+=`<div class="ulist">`;
     US.forEach(function(u){
       var cor = (u.gravidade<=2) ? '#e07070' : ((u.gravidade==3) ? 'var(--gold)' : 'var(--green-l)');
+      // papel vem de obra_usina e ja existia desde sempre; so nunca tinha sido
+      // mostrado. 'propria' e o normal, entao nao ganha selo.
+      var selo = u.papel==='herdada' ? ' <span class="uext">herdada</span>'
+               : (u.papel==='expansao' ? ' <span class="tag">expansão</span>' : '');
       h+=`<button class="urow" onclick="abrirUsina('${u.id}')" title="${esc(u.motivo||'')}">
         <div>
-          <div class="uname">${esc(u.apelido||'Usina')}${u.principal?' <span class="tag">principal</span>':''}</div>
+          <div class="uname">${esc(u.apelido||'Usina')}${u.principal?' <span class="tag">principal</span>':''}${selo}</div>
           <div class="umeta">${u.kwp!=null?u.kwp+' kWp':'potência não informada'}${u.cidade?' · '+esc(u.cidade):''}</div>
+          ${u.endereco?`<div class="umeta">📍 ${esc(u.endereco)}</div>`:''}
         </div>
         <div class="uright">
           <div class="ust" style="color:${cor}">${esc(u.estado||'—')}</div>
@@ -2433,6 +2881,105 @@ function renderFicha(D){
     if(D.pode_agir){
       h+=`<button class="mini" style="margin-top:9px" onclick="formUsina('${o.id}')">➕ Adicionar usina</button>
           <div id="fusina"></div>`;
+    }
+    h+=`</div>`;
+  }
+
+  /* Plano de manutenção — quem chega pela aba Planos precisa ver isto aqui */
+  const PL = D.plano;
+  if(PL){
+    const esperando = PL.status==='aguardando_pagamento';
+    const dias = PL.dias==null?null:Number(PL.dias);
+    const corP = esperando ? 'var(--gold)'
+               : (dias!=null && dias<0 ? '#e07070'
+                 : (dias!=null && dias<=60 ? 'var(--gold)' : 'var(--green-l)'));
+    h+=`<div class="sec"><h3>Plano de manutenção</h3>`;
+    h+=`<div class="dados">
+      <div class="dado"><div class="k">Plano</div>
+        <div class="v" style="font-size:13.5px">${esc(PL.nome||'—')}</div></div>
+      <div class="dado"><div class="k">${esperando?'Valor combinado':'Valor'}</div>
+        <div class="v" style="font-size:15px">${moedaBR(PL.valor)}<small>/${PL.forma==='mensal'?'mês':'ano'}</small></div></div>
+      <div class="dado"><div class="k">Situação</div>
+        <div class="v" style="font-size:13.5px;color:${corP}">${
+          esperando ? 'aguardando o 1º pagamento'
+          : (dias==null ? 'ativo'
+             : (dias<0 ? 'venceu há '+Math.abs(dias)+' dias' : 'vence em '+dias+' dias'))
+        }</div></div>
+    </div>`;
+    if(!esperando && PL.inicio){
+      h+=`<div class="umeta" style="margin-top:7px">Vigência ${dataBR(PL.inicio)} a ${dataBR(PL.fim)}</div>`;
+    }
+    if(PL.nota_documento){
+      h+=`<div class="umeta">Nota no ${String(PL.nota_documento).replace(/\D/g,'').length===14?'CNPJ':'CPF'} ${esc(PL.nota_documento)}</div>`;
+    }
+    if(PL.observacao){
+      h+=`<div class="umeta" style="margin-top:6px;line-height:1.6">${esc(PL.observacao)}</div>`;
+    }
+
+    const VV = PL.visitas||[];
+    if(VV.length){
+      h+=`<div class="umeta" style="margin-top:11px;font-weight:800;color:var(--txt)">Visitas</div><div class="ulist">`;
+      VV.forEach(function(v){
+        const feita = v.status==='realizada';
+        const dv = Number(v.dias);
+        const cv = feita ? 'var(--green-l)' : (dv<0?'#e07070':(dv<=60?'var(--gold)':'var(--muted)'));
+        h+=`<div class="urow" style="cursor:default">
+          <div>
+            <div class="uname">${esc(v.endereco||'endereço não informado')}</div>
+            <div class="umeta" style="color:${cv}">${
+              feita ? 'feita em '+dataBR(v.realizada_em)+(v.laudo_url?'':' · sem laudo')
+                    : 'prevista para '+dataBR(v.prevista_para)+(dv<0?' · atrasada':'')
+            }</div>
+          </div>
+        </div>`;
+      });
+      h+=`</div>`;
+    } else if(esperando){
+      h+=`<div class="umeta" style="margin-top:9px">As visitas são marcadas quando o
+          primeiro pagamento entrar — uma para cada endereço.</div>`;
+    }
+    h+=`</div>`;
+  }
+
+  /* Autoleitura — o relógio do cliente, aqui dentro em vez de numa aba só dele */
+  const ALS = D.autoleitura||[];
+  if(ALS.length || D.pode_agir){
+    h+=`<div class="sec"><h3>Autoleitura${ALS.length>1?` <span class="tag">${ALS.length} unidades</span>`:''}</h3>`;
+    if(!ALS.length){
+      h+=`<div class="vazio">Nenhuma unidade consumidora cadastrada. Cadastre quando a
+          distribuidora não ler o relógio no local e quem informa for o cliente.</div>`;
+    } else {
+      h+=`<div class="ulist">`;
+      ALS.forEach(function(u){
+        const doCliente = u.responsavel==='cliente' && u.autoleitura;
+        const dd = u.dias==null?null:Number(u.dias);
+        const cor = !doCliente ? 'var(--muted)'
+                  : (u.ja_avisado ? 'var(--green-l)'
+                    : (dd!=null && dd<=1 ? 'var(--gold)' : 'var(--muted)'));
+        h+=`<div class="urow" style="cursor:default">
+          <div>
+            <div class="uname">${esc(u.apelido||u.numero)}${u.apelido?` <span class="umeta">nº ${esc(u.numero)}</span>`:''}</div>
+            <div class="umeta">${esc(u.distribuidora||'distribuidora não informada')}${
+              u.proxima ? ` · próxima leitura ${dataBR(u.proxima)}` : ' · sem data cadastrada'}</div>
+            <div class="umeta" style="color:${cor}">${
+              !u.proxima ? 'cadastre as datas que a conta mostra'
+              : (!doCliente ? 'leitura da distribuidora — o cliente não faz nada'
+                : (u.ja_avisado ? 'cliente já avisado'
+                  : `quem informa é o cliente · avisar em ${dataBR(u.avisar_em)}`))
+            }${u.origem==='projetada'?' · <span class="uext">data estimada</span>':''}</div>
+          </div>
+          <div class="uright">${
+            doCliente && !u.ja_avisado && u.texto && u.grupo
+              ? `<button class="stb" onclick="flAvisar('${u.proxima_id}')">📤 Avisar</button>`
+              : ''
+          }</div>
+        </div>`;
+      });
+      h+=`</div>`;
+    }
+    if(D.pode_agir){
+      h+=`<button class="mini" style="margin-top:9px" onclick="flFormAuto('${o.id}')">📷 Cadastrar unidade ou data</button>
+          <div id="fauto"></div>`;
     }
     h+=`</div>`;
   }
