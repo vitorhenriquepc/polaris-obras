@@ -170,6 +170,35 @@ quando `plano_registrar_pagamento()` ativa o contrato, **uma por endereço** e
 no meio do período. A tela conta separadamente as **realizadas sem laudo**:
 laudo com foto é o que o fabricante pede no acionamento de garantia.
 
+### Fim da cortesia
+Os 54 contratos ativos são **todos cortesia de um ano**, e o cliente não tem
+como adivinhar que ela acaba. `plano-vencimento` avisa em **D-30 e D-7** pela
+`contratos_para_avisar()`, e desde 15/09 o texto distingue cortesia de
+renovação paga: diz que foi cortesia, lista **o que para de acontecer**
+(monitoramento, aviso de parada, relatório) e só então traz o preço da faixa
+do porte dele. Ainda não disparou para ninguém — o **primeiro vencimento é
+17/04/2027**.
+
+⚠️ **Esse aviso sai direto para o cliente, sem passar pela régua e sem a
+aprovação da Lívia.** Já era assim antes de 15/09; o que mudou é que agora a
+mensagem carrega preço e oferta. A equipe recebe o resumo no mesmo disparo,
+**depois** do cliente. Se for para exigir aprovação, a mudança é na
+`plano-vencimento` e é decisão do Vitor.
+
+`plano_contratos.desfecho` guarda **como** o contrato terminou —
+`renovou` · `nao_renovou` · nulo enquanto aberto. Antes disso, cortesia que
+virou plano pago e cortesia que se perdeu ficavam as duas em `encerrado`, e
+não dava para responder "de 54 cortesias, quantas viraram cliente?".
+`plano_desfecho()` fecha a antiga e, quando renovou, **cria a nova na mesma
+chamada** (herdando obra, CPF/CNPJ e nome da nota), já em
+`aguardando_pagamento` — plano só começa quando o dinheiro entra. Não apaga
+nada: a antiga fica com o desfecho carimbado e a nova aponta para ela na
+observação. Fechar duas vezes é recusado com a data do primeiro fechamento.
+
+O botão "fidelizou?" no painel só aparece a **90 dias ou menos** do
+vencimento e **nunca** em contrato aguardando pagamento — ali `dias` é nulo, e
+`n(null)` devolve `0`, que passaria por "vence hoje".
+
 ### Autoleitura
 `unidade_consumidora` (o relógio; um cliente rural pode ter vários) +
 `uc_leitura_prevista` (o calendário que a conta de luz mostra, com
@@ -225,6 +254,8 @@ só para `whatsapp_grupo_id`. Mandar para o número do cliente exige mexer na
 | `plano_cadastrar_cliente(json, simular)` | **cadastra cliente de plano inteiro**: cliente + obra + usinas + contrato numa transação. Com `simular = true` (o padrão) não grava nada e devolve a prévia ou a lista de erros |
 | `plano_visitas_gerar(contrato)` | cria as visitas previstas, uma por endereço, no meio do contrato |
 | `plano_visita_registrar(visita, data, equipe, laudo, obs)` | dá baixa numa visita |
+| `plano_desfecho(contrato, desfecho, motivo, plano, valor, forma, meses, aguardando)` | fecha o contrato como `renovou`/`nao_renovou` e, se renovou, já abre o novo na mesma chamada |
+| `contratos_para_avisar()` | quem está a 30 ou 7 dias do fim, com módulos, faixa do Completo e quantos endereços |
 | `autoleitura_fila()` | quem avisar hoje, com o texto pronto |
 | `dia_util_ate(data)` | o último dia útil em `data` ou antes — é o que antecipa o aviso de fim de semana para a sexta |
 | `usina_adicionar(json, simular)` | acrescenta uma usina a um cliente que já existe. **Só soma no total da obra se ela for cliente de plano** — em obra de venda a potência é o projeto vendido, e mexer ali muda o tamanho de uma venda que já aconteceu |
@@ -238,6 +269,7 @@ só para `whatsapp_grupo_id`. Mandar para o número do cliente exige mexer na
 10h40 vincula usina nova · 11h resumo da régua (seg–sex) ·
 14h30 geração parcial (seg/qua/sex) · 17h dispara a régua (seg–sex) ·
 **9h aviso de autoleitura no dia · 18h aviso da véspera** (seg–sex) ·
+9h aviso de vencimento de plano, D-30 e D-7 (seg–sex) ·
 dia 2 fechamento · dia 5 resumo mensal · dia 6 marcos · dia 10 lembrete de
 tarifa · domingo 11h30 limpa órfãos
 
@@ -465,6 +497,10 @@ significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
       e o vínculo é manual porque ela não tem número de contrato no nome.
       O aniversário (31/10) ficou só em `clientes`, fora de `obras`, para a
       automação de aniversário não mandar texto de cliente de instalação.
+- [ ] **Decidir se o aviso de fim de cortesia passa por aprovação humana.**
+      A `plano-vencimento` envia direto ao cliente às 9h, e agora com preço e
+      oferta dentro. Tem folga para decidir: o primeiro vencimento é
+      **17/04/2027**, e nenhum contrato tem `aviso_30_em` preenchido.
 - [ ] Ligar proteção de senha vazada no Supabase
 - [ ] **Prospecção de sistema órfão, se virar rotina.** A aba "Cliente de fora"
       foi removida em 15/09: ela gerava um texto de abordagem e **não gravava

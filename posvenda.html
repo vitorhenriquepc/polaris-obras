@@ -1052,6 +1052,18 @@ function renderPainelPlanos(){
    +'<div class="rgs"><div class="n">'+moedaBR(R.mrr)+'</div><div class="l">Receita mensal</div></div>'
    +'</div>';
 
+  // de quantas cortesias viraram cliente. Enquanto ninguem venceu fica oculto,
+  // porque "0 de 0" nao informa nada.
+  const CV = PAI.conversao||{};
+  if(n(CV.decididos)>0){
+    const taxa = Math.round(n(CV.renovaram)/n(CV.decididos)*100);
+    h+='<div class="plpot" style="border-color:rgba(88,184,104,.4)">'
+     +'<div class="lb">Fidelização</div>'
+     +'<div class="big" style="color:var(--green-l)">'+taxa+'<small>%</small></div>'
+     +'<div class="sb">'+n(CV.renovaram)+' de '+n(CV.decididos)
+     +' que chegaram ao fim viraram plano pago</div></div>';
+  }
+
   // contrato fechado que ainda nao teve o primeiro pagamento: nao e receita,
   // mas e a unica coisa da tela que pede acao hoje
   if(n(R.aguardando)>0){
@@ -1125,10 +1137,84 @@ function renderPainelPlanos(){
       +'<span style="font-size:12px;font-weight:800;color:var(--green-l)">'+valor+'</span>'
       +'<button class="stb" style="margin-left:9px" '
       +'onclick="event.stopPropagation();irEnviar(\''+c.obra_id+'\')">proposta</button>'
-      +'<span style="color:var(--muted)">›</span></div>';
+      // A janela de decisao. `dias` so existe depois que o contrato comecou --
+      // n(null) devolve 0, entao testar o `d` ja convertido punha o botao em
+      // quem ainda espera o 1o pagamento, que nao tem desfecho nenhum.
+      +((c.contrato_id && !esperando && c.dias!=null && d<=90)
+         ? '<button class="stb" style="margin-left:6px" '
+           +'onclick="event.stopPropagation();formDesfecho(\''+c.contrato_id+'\')">fidelizou?</button>'
+         : '')
+      +'<span style="color:var(--muted)">›</span></div>'
+      +(c.contrato_id ? '<div id="fd'+c.contrato_id+'"></div>' : '');
   });
   h+='</div>';
   return h;
+}
+
+/* ---------- FIDELIZOU OU NAO ----------
+   O `status` dizia se o contrato esta valendo, nunca COMO terminou. Cortesia
+   que venceu e nao renovou ficava igual a cortesia que virou plano pago: as
+   duas viravam 'encerrado'. Sem isso nao da para responder "de 53 cortesias,
+   quantas viraram cliente?", que e a pergunta que importa nessa carteira. */
+function formDesfecho(contratoId){
+  const box=document.getElementById('fd'+contratoId); if(!box) return;
+  if(box.innerHTML){ box.innerHTML=''; return; }
+  const P=(PLN&&PLN.planos)||[];
+  let ops='<option value="">— escolha o plano —</option>';
+  P.forEach(function(p){
+    if(p.codigo==='essencial') return;   // a cortesia nao se renova em cortesia
+    ops+='<option value="'+esc(p.codigo)+'" data-anual="'+(p.anual!=null?p.anual:'')+'">'
+      +esc(p.nome)+(p.anual!=null?' · '+moedaBR(p.anual)+'/ano':' · sob consulta')+'</option>';
+  });
+  box.innerHTML='<div class="ncsec">'
+   +'<div class="nctit">Como terminou este contrato?</div>'
+   +'<div class="ncg2">'
+   +'<label>Fidelizou — plano novo<select id="df_plano'+contratoId+'" '
+     +'onchange="dfPreco(\''+contratoId+'\')">'+ops+'</select></label>'
+   +'<label>Valor (R$)<input id="df_valor'+contratoId+'" type="number" step="0.01" inputmode="decimal"></label>'
+   +'</div>'
+   +'<label class="ncck"><input type="checkbox" id="df_aguard'+contratoId+'" checked> '
+     +'começa no 1º pagamento</label>'
+   +'<div class="plbtns" style="margin-top:9px">'
+   +'<button class="stb prim" onclick="dfSalvar(\''+contratoId+'\',\'renovou\')">✓ Fidelizou</button>'
+   +'<button class="stb" onclick="dfSalvar(\''+contratoId+'\',\'nao_renovou\')">✗ Não fidelizou</button>'
+   +'</div>'
+   +'<div class="ncdica" style="margin-top:9px">Marcar "não fidelizou" encerra o '
+   +'contrato e pede o motivo — é o motivo que mostra, daqui a um ano, por que a '
+   +'carteira converteu pouco ou muito.</div>'
+   +'</div>';
+}
+
+function dfPreco(id){
+  const sel=document.getElementById('df_plano'+id), inp=document.getElementById('df_valor'+id);
+  if(!sel||!inp) return;
+  const op=sel.options[sel.selectedIndex];
+  const a=op?op.getAttribute('data-anual'):'';
+  if(a) inp.value=a;   // preenche pelo preco de tabela; da para editar
+}
+
+async function dfSalvar(id, desfecho){
+  const v=function(x){ return (((document.getElementById(x+id)||{}).value)||'').trim(); };
+  let motivo=null;
+  if(desfecho==='nao_renovou'){
+    motivo=prompt('Por que não fidelizou?\n\n(achou caro, não vê valor, trocou de empresa, sem resposta...)');
+    if(motivo===null) return;
+    if(!confirm('Encerrar o contrato como NÃO fidelizado?')) return;
+  } else {
+    if(!v('df_plano')){ toast('Escolha o plano da renovação'); return; }
+    if(!v('df_valor')){ toast('Informe o valor'); return; }
+    if(!confirm('Registrar como fidelizado e abrir o contrato novo?')) return;
+  }
+  const r=await sb.rpc('plano_desfecho',{
+    p_contrato:id, p_desfecho:desfecho, p_motivo:motivo,
+    p_plano_codigo: desfecho==='renovou' ? v('df_plano') : null,
+    p_valor: desfecho==='renovou' ? parseFloat(v('df_valor')) : null,
+    p_forma:'anual', p_meses:12,
+    p_aguardando: !!(document.getElementById('df_aguard'+id)||{}).checked });
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast(desfecho==='renovou' ? 'Fidelizado ✓ contrato novo aberto' : 'Registrado como não fidelizado');
+  carregarPlanos();
 }
 
 function irEnviar(id){ PLSEL=id; PLABA='envio';
