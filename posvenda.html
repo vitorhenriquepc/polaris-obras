@@ -1353,7 +1353,9 @@ function renderAutoleitura(){
   } else {
     hoje.forEach(function(x){
       h+='<div class="card" style="margin-bottom:9px">'
-       +'<div style="font-size:13.5px;font-weight:800">'+esc(x.cliente)+'</div>'
+       +'<button class="uname" style="background:none;border:0;padding:0;font-size:13.5px;'
+       +'font-weight:800;color:var(--gold);cursor:pointer;font-family:inherit;text-align:left" '
+       +'onclick="abrirFicha(\''+x.obra_id+'\')">'+esc(x.cliente)+' ›</button>'
        +'<div class="umeta">'+esc(x.uc)+' · leitura em '+dataBR(x.data)
        +' · <b>'+(x.tipo==='dia'?'é hoje':'véspera')+'</b>'
        +(x.tem_grupo?'':' · <span style="color:#e07070">sem grupo cadastrado</span>')+'</div>'
@@ -1421,6 +1423,8 @@ function renderAutoleitura(){
        +'<option value="distribuidora">Distribuidora</option></select></label>'
      +'<label>Ou dia-base do mês<input id="al_dia" type="number" min="1" max="31" placeholder="10"></label>'
      +'</div>'
+     +'<label class="ncck"><input type="checkbox" id="al_alt" checked> '
+       +'alternar com a distribuidora a cada mês</label>'
      +'<div class="plbtns" style="margin-top:11px">'
      +'<button class="stb prim" onclick="alSalvarData()">💾 Salvar data</button>'
      +'<button class="stb" onclick="alProjetar()">📅 Projetar 6 meses pelo dia-base</button>'
@@ -1496,10 +1500,15 @@ async function alProjetar(){
   if(!v('al_uc')){ toast('Escolha a unidade'); return; }
   const dia=parseInt(v('al_dia'),10);
   if(!dia || dia<1 || dia>31){ toast('Informe o dia-base do mês, de 1 a 31'); return; }
-  if(!confirm('Projetar os próximos 6 meses pelo dia '+dia+'?\n\nAs datas entram como estimadas '
-             +'e são substituídas assim que você digitar a data real da conta.')) return;
+  const altc=!!(document.getElementById('al_alt')||{}).checked;
+  if(!confirm('Projetar os próximos 6 meses pelo dia '+dia+'?\n\n'
+             +(altc?'Vai alternar: o 1º mês como "'+(v('al_resp')||'cliente')+'" e daí em diante trocando.\n\n':'')
+             +'As datas entram como estimadas e são substituídas assim que você digitar '
+             +'a data real da conta.')) return;
+  const alt=!!(document.getElementById('al_alt')||{}).checked;
   const r=await sb.rpc('uc_leituras_projetar',{p_uc:v('al_uc'), p_dia:dia, p_meses:6,
-                                               p_responsavel:v('al_resp')||'cliente'});
+                                               p_responsavel:v('al_resp')||'cliente',
+                                               p_alternar:alt});
   if(r.error){ toast('Erro: '+r.error.message); return; }
   if(r.data && r.data.erro){ toast(r.data.erro); return; }
   toast(n(r.data.criadas)+' datas projetadas ✓');
@@ -1532,6 +1541,24 @@ function renderVisitas(){
     return h;
   }
 
+  // lancar visita a mao. As automaticas nascem na ativacao do contrato, mas
+  // visita extra, remarcada ou de contrato antigo precisa entrar por aqui.
+  let cops='<option value="">— escolha o cliente —</option>';
+  (VIS.clientes||[]).forEach(function(c){
+    cops+='<option value="'+esc(c.obra_id)+'">'+esc(c.cliente)+'</option>';
+  });
+  h+='<div class="ncsec"><div class="nctit">Lançar visita</div>'
+   +'<div class="ncdica">Para visita extra, remarcada, ou de contrato que já existia '
+   +'antes deste controle.</div>'
+   +'<label>Cliente<select id="nv_obra" onchange="nvUsinas()">'+cops+'</select></label>'
+   +'<div class="ncg2">'
+   +'<label>Onde<select id="nv_usina" onchange="nvEndereco()"><option value="">— escolha o cliente primeiro —</option></select></label>'
+   +'<label>Prevista para<input id="nv_data" type="date"></label>'
+   +'</div>'
+   +'<label>Endereço<input id="nv_end" placeholder="preenche sozinho pela usina — edite se precisar"></label>'
+   +'<div class="plbtns" style="margin-top:11px">'
+   +'<button class="stb prim" onclick="nvCriar()">💾 Lançar visita</button></div></div>';
+
   h+='<div class="sec"><h3>Agenda</h3>';
   L.forEach(function(v){
     const feita = v.status==='realizada';
@@ -1554,6 +1581,37 @@ function renderVisitas(){
   });
   h+='</div>';
   return h;
+}
+
+function nvUsinas(){
+  const ob=((document.getElementById('nv_obra')||{}).value)||'';
+  const c=(VIS.clientes||[]).find(function(x){return x.obra_id===ob;});
+  const sel=document.getElementById('nv_usina'); if(!sel) return;
+  let o='<option value="">— endereço avulso —</option>';
+  ((c&&c.usinas)||[]).forEach(function(u){
+    o+='<option value="'+esc(u.id)+'" data-onde="'+esc(u.onde||'')+'">'
+      +esc(u.apelido||'Usina')+(u.onde?' · '+esc(u.onde):'')+'</option>';
+  });
+  sel.innerHTML=o;
+  nvEndereco();
+}
+function nvEndereco(){
+  const sel=document.getElementById('nv_usina'), inp=document.getElementById('nv_end');
+  if(!sel||!inp) return;
+  const op=sel.options[sel.selectedIndex];
+  inp.value = (op && op.getAttribute('data-onde')) || '';
+}
+async function nvCriar(){
+  const v=function(x){ return (((document.getElementById(x)||{}).value)||'').trim(); };
+  if(!v('nv_obra')){ toast('Escolha o cliente'); return; }
+  if(!v('nv_data')){ toast('Informe a data prevista'); return; }
+  const r=await sb.rpc('plano_visita_criar',{p:{
+    obra_id:v('nv_obra'), usina_id:v('nv_usina')||null,
+    endereco:v('nv_end')||null, prevista_para:v('nv_data') }});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast('Visita lançada ✓');
+  carregarPlanos();
 }
 
 function formVisita(id){
