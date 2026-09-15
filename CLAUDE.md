@@ -181,9 +181,21 @@ laudo com foto é o que o fabricante pede no acionamento de garantia.
 é isso que impede a régua de repetir boas-vindas. Autoleitura é mensal, então
 ou criaria um modelo por mês ou afrouxaria esse índice. Ganhou casa própria.
 
-**Nada sai sozinho**: `autoleitura_ativo` está em `0`. A tela mostra a fila do
-dia com o texto pronto e um botão de copiar. Ligar depende de três decisões
-que estão no fim de `migrations/2026-09-15_autoleitura.sql`.
+**Ligada desde 15/09**, com os horários que o Vitor definiu: **9h o aviso do
+dia** (quem lê o relógio faz de manhã) e **18h a véspera** (depois da régua das
+17h, para não disputar). Quem envia é a edge function `autoleitura-aviso`, no
+mesmo desenho do `regua-disparo`: `verify_jwt` false, autorizada pelo
+`cron_token`, e só marca como avisado **depois** que a Z-API aceita.
+
+Aceita `{"simular":true}`, que lista quem receberia sem enviar nada.
+
+Para desligar não se mexe em cron nem em código:
+`update config set valor='0' where chave='autoleitura_ativo'` — a função lê a
+chave em toda rodada.
+
+⚠️ O **canal pessoal continua não existindo**. A régua e a autoleitura mandam
+só para `whatsapp_grupo_id`. Mandar para o número do cliente exige mexer na
+`regua-disparo`, que é a trava dos 17h.
 
 ### Indicações
 `indicacoes` — nova → contatada → visita → fechada/perdida
@@ -225,6 +237,7 @@ que estão no fim de `migrations/2026-09-15_autoleitura.sql`.
 09h15/13h15/16h15 status das usinas · 10h20 gera mensagens (seg–sex) ·
 10h40 vincula usina nova · 11h resumo da régua (seg–sex) ·
 14h30 geração parcial (seg/qua/sex) · 17h dispara a régua (seg–sex) ·
+**9h aviso de autoleitura no dia · 18h aviso da véspera** (seg–sex) ·
 dia 2 fechamento · dia 5 resumo mensal · dia 6 marcos · dia 10 lembrete de
 tarifa · domingo 11h30 limpa órfãos
 
@@ -271,7 +284,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `recorde_margem` | 8% | quanto precisa superar o pico anterior |
 | `recorde_intervalo_meses` | 6 | descanso entre avisos de recorde |
 | `plano_endereco_adicional` | 200 | R$/ano por endereço além do primeiro no Completo — a visita técnica é em cada um |
-| `autoleitura_ativo` | **0** | envio automático do lembrete de autoleitura. Desligado até o Vitor decidir hora, fim de semana e canal |
+| `autoleitura_ativo` | 1 | envio automático do lembrete de autoleitura (9h no dia, 18h na véspera) |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -403,7 +416,7 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
 
 ## 10. Estado e pendências
 
-56 usinas · **50 normais, 6 sem comunicação** · 29 cron jobs, **todos
+56 usinas · **50 normais, 6 sem comunicação** · 31 cron jobs, **todos
 ativos** · 21 chaves de automação em `config`, 20 ligadas — a única
 desligada é `iptu_envio_ativo`, de propósito (ver pendência abaixo). A
 `solarview_ativo` foi **removida** em 12/09: estava em 0, ninguém lia, e fazia
