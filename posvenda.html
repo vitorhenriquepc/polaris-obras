@@ -298,17 +298,6 @@ letter-spacing:.8px;padding-bottom:6px;font-weight:800}
 .pltbl th.num,.pltbl td.num{text-align:right}
 .pltbl td{padding:7px 0;border-top:1px solid var(--border);color:var(--muted)}
 .pltbl td.num{color:var(--txt)}
-.plfora{display:grid;grid-template-columns:2fr 1fr;gap:9px;margin-top:11px}
-@media(max-width:600px){.plfora{grid-template-columns:1fr}}
-.plfora .fl label{display:block;font-size:11px;font-weight:800;color:var(--muted);
-text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
-.plfora input{width:100%;background:var(--card);border:1px solid var(--border);color:var(--txt);
-border-radius:10px;padding:11px;font-family:inherit;font-size:14px}
-.plnota{background:var(--card);border-left:3px solid var(--green);border-radius:0 11px 11px 0;
-padding:13px 15px;margin-top:9px}
-.plnota p{font-size:12.5px;color:var(--muted);line-height:1.6;margin:0 0 7px}
-.plnota p:last-child{margin:0}
-.plnota b{color:var(--txt)}
 .plgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
 @media(max-width:700px){.plgrid{grid-template-columns:1fr}}
 .plcard{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:15px 14px}
@@ -948,11 +937,6 @@ function adicionalEndereco(qtdEnderecos){
            mensal: Math.round(porAno/12*extras*100)/100,
            porAno: porAno };
 }
-function completoMaisBarato(){
-  return (PLN.planos||[])
-    .filter(function(p){ return p.nivel===3 && p.mensal!=null; })
-    .sort(function(a,b){ return Number(a.mensal)-Number(b.mensal); })[0] || null;
-}
 function moedaBR(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
 
 function textoPlano(cliente, mods, enderecos){
@@ -1045,13 +1029,11 @@ function renderPlanos(){
   let nav='<div class="plnav">'
     +'<button class="'+(PLABA==='painel'?'on':'')+'" onclick="setPlaba(\'painel\')">📊 Acompanhamento</button>'
     +'<button class="'+(PLABA==='envio'?'on':'')+'" onclick="setPlaba(\'envio\')">📤 Enviar proposta</button>'
-    +'<button class="'+(PLABA==='fora'?'on':'')+'" onclick="setPlaba(\'fora\')">🏳️ Cliente de fora</button>'
     +'<button class="'+(PLABA==='visitas'?'on':'')+'" onclick="setPlaba(\'visitas\')">🔧 Visitas</button>'
     +'<button class="'+(PLABA==='leitura'?'on':'')+'" onclick="setPlaba(\'leitura\')">📷 Autoleitura</button>'
     +'<button class="'+(PLABA==='novo'?'on':'')+'" onclick="setPlaba(\'novo\')">➕ Novo cliente</button>'
     +'</div>';
   if(PLABA==='painel') return nav+renderPainelPlanos();
-  if(PLABA==='fora') return nav+renderForaPlanos();
   if(PLABA==='visitas') return nav+renderVisitas();
   if(PLABA==='leitura') return nav+renderAutoleitura();
   if(PLABA==='novo') return nav+renderNovoCliente();
@@ -1154,91 +1136,6 @@ function irEnviar(id){ PLSEL=id; PLABA='envio';
   setTimeout(function(){ const s=document.getElementById('plCli'); if(s){s.value=id; previaPlano();} },50);
 }
 
-
-/* ---------- CLIENTE DE FORA (sistema órfão) ---------- */
-function textoFora(nome, mods){
-  const P=PLN.planos||[];
-  const ess=P.find(function(p){return p.codigo==='essencial';});
-  const atv=P.find(function(p){return p.codigo==='ativo';});
-  const cmpMin=completoMaisBarato();
-  const pn=(nome||'').trim().split(' ')[0];
-  const pnc=pn?pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase():'';
-
-  let t='☀️ *'+(pnc||'Olá')+', quem cuida do seu sistema solar hoje?*\n\n';
-  t+='Muita gente instalou energia solar e ficou sem assistência — ou porque a empresa '
-   +'fechou, ou porque simplesmente ninguém mais apareceu depois da instalação.\n\n';
-  t+='Se esse é o seu caso, a *Polaris* assume o acompanhamento do seu sistema, '
-   +'mesmo que a instalação tenha sido feita por outra empresa.\n\n';
-  t+='━━━━━━━━━━━━━━━\n\n';
-  t+='*Por que isso importa*\n\n';
-  t+='O manual do inversor é claro: a garantia *não cobre falhas causadas por falta '
-   +'de manutenção*. Sem laudo técnico, o fabricante pode recusar a cobertura — '
-   +'e a troca de um inversor custa milhares de reais.\n\n';
-  t+='Além disso, um sistema sem acompanhamento perde geração aos poucos, e o dono '
-   +'só percebe quando a conta de luz sobe.\n\n';
-  t+='━━━━━━━━━━━━━━━\n\n';
-  t+='*Começamos com uma avaliação técnica*\n\n';
-  t+='Antes de qualquer plano, fazemos uma visita para conferir o estado real do seu sistema:\n'
-   +'• Leitura e diagnóstico do inversor\n'
-   +'• Inspeção da fixação e da estrutura\n'
-   +'• Conferência do quadro elétrico e do DPS\n'
-   +'• Medição de tensão e corrente por string\n'
-   +'• *Laudo com fotos e apontamentos*\n\n';
-  t+='Se houver algo a corrigir, você recebe o orçamento sem compromisso.\n\n';
-  t+='━━━━━━━━━━━━━━━\n\n';
-  t+='*Depois, o acompanhamento contínuo*\n\n';
-  t+='🥉 *Essencial* — '+moedaBR(ess.mensal)+'/mês\n'
-   +'Monitoramento, alerta se o sistema parar e suporte por WhatsApp\n\n';
-  t+='🥈 *Ativo* — '+moedaBR(atv.mensal)+'/mês\n'
-   +'Tudo do Essencial + análise da conta de luz e '+Number(atv.desconto)+'% de desconto em serviços\n\n';
-  t+='🥇 *Completo* — '+(cmpMin?'a partir de '+moedaBR(cmpMin.mensal)+'/mês':'valor sob consulta')+'\n'
-   +'Tudo do Ativo + *visita técnica anual*, limpeza, inspeção e *laudo assinado*\n\n';
-  t+='━━━━━━━━━━━━━━━\n\n';
-  t+='Somos de Araçatuba, com *mais de 400 sistemas instalados* na região. '
-   +'Qualquer dúvida, é só chamar aqui. 💚\n\n*Equipe Polaris Energia Solar* ☀️';
-  return t;
-}
-
-function renderForaPlanos(){
-  let h='<div class="sec"><h3>🏳️ Proposta para cliente de outra empresa</h3>'
-   +'<div class="dica">Para sistemas que ficaram sem assistência. A abordagem é diferente: '
-   +'começa pela avaliação técnica, não pelo plano.</div>';
-
-  h+='<div class="plfora">'
-   +'<div class="fl"><label>Nome do cliente</label>'
-   +'<input id="foNome" placeholder="Ex.: Maria" oninput="previaFora()"></div>'
-   +'<div class="fl"><label>Módulos (se souber)</label>'
-   +'<input id="foMods" type="number" inputmode="numeric" placeholder="8" oninput="previaFora()"></div>'
-   +'</div>';
-  h+='<div id="foPrev"></div></div>';
-
-  h+='<div class="sec"><h3>💡 Por que esse mercado importa</h3>'
-   +'<div class="plnota">'
-   +'<p>Sistemas instalados há 5 a 10 anos estão envelhecendo, e muitas das empresas '
-   +'que os instalaram fecharam. O dono não tem para quem ligar.</p>'
-   +'<p>Esse cliente <b>já tem sistema</b>, <b>já teve problema</b> e <b>não tem fornecedor</b>. '
-   +'É lead qualificado — e costuma virar venda de upgrade ou ampliação depois.</p>'
-   +'<p><b>A avaliação técnica é a porta de entrada.</b> Ela paga a visita, gera o laudo '
-   +'e mostra na prática o que o plano resolve.</p>'
-   +'</div></div>';
-  return h;
-}
-
-function previaFora(){
-  const el=document.getElementById('foPrev'); if(!el) return;
-  const nome=(document.getElementById('foNome')||{}).value||'';
-  const mods=(document.getElementById('foMods')||{}).value||8;
-  const txt=textoFora(nome,mods);
-  el.innerHTML='<pre class="plmsg" style="margin-top:11px">'+esc(txt)+'</pre>'
-    +'<div class="plbtns"><button class="stb" onclick="copiarFora()">📋 Copiar mensagem</button></div>';
-}
-function copiarFora(){
-  const nome=(document.getElementById('foNome')||{}).value||'';
-  const mods=(document.getElementById('foMods')||{}).value||8;
-  const t=textoFora(nome,mods);
-  if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ toast('Mensagem copiada ✓'); });
-  else toast('Selecione o texto e copie');
-}
 
 /* ---------- NOVO CLIENTE DE PLANO ----------
    Tudo numa chamada so. A gravacao e feita por plano_cadastrar_cliente(),

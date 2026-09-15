@@ -466,6 +466,14 @@ significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
       O aniversário (31/10) ficou só em `clientes`, fora de `obras`, para a
       automação de aniversário não mandar texto de cliente de instalação.
 - [ ] Ligar proteção de senha vazada no Supabase
+- [ ] **Prospecção de sistema órfão, se virar rotina.** A aba "Cliente de fora"
+      foi removida em 15/09: ela gerava um texto de abordagem e **não gravava
+      nada** — nenhum `insert`, nenhum envio, só copiar. Sem registro de quem
+      foi abordado não havia o que mostrar, e por isso parecia parada. A ideia
+      é boa (a Tays é justamente um cliente de fora que converteu), mas a
+      versão certa guarda o prospect — nome, porte, quando foi abordado, o que
+      respondeu — e desemboca no cadastro de cliente de plano. O texto antigo
+      está no git.
 - [ ] Conferir cidades com IPTU Sustentável antes da última automação
 
 Próximos módulos: garantia e nota fiscal · tela de indicação com o funil novo ·
