@@ -1,0 +1,81 @@
+-- APLICADA em 15/09/2026, em duas migrações:
+--   `regua_le_a_geracao_de_verdade`
+--   `pendencias_e_trajetoria_leem_a_geracao_certa`
+--
+-- Continuação de `2026-09-15_geracao_le_a_fonte_certa.sql`. Lá a TELA passou a
+-- ler o `usina_geracao`; aqui é a vez da régua e dos painéis.
+
+-- ============================================================
+-- 1. A régua
+-- ============================================================
+--   regua_texto ....... trocava {kwh}, {economia}, {desempenho} e {arvores}
+--                       por "—" na mensagem que o CLIENTE lê
+--   regua_bloqueio .... travava com "geração não registrada"
+--
+-- NADA SAIU ERRADO, e vale registrar por quê: só dois modelos usam esses
+-- campos e os dois estão cobertos pelo bloqueio —
+--   `devolutiva` ......... inativo, zero contatos
+--   `d365_aniversario` ... 51 pendentes, o mais antigo vence em 17/04/2027
+-- O sistema falhou para o lado seguro. Era dívida com data, não estrago.
+
+-- ============================================================
+-- 2. Uma definição única: obra_geracao_total()
+-- ============================================================
+-- Mesmo padrão do obra_ativa(). Em vez de cada função montar a própria conta,
+-- todas leem daqui — e assim a mensagem que o cliente recebe bate com o que a
+-- equipe vê na tela. As mesmas regras:
+--   · soma TODAS as usinas da obra (o Gilberto tem 4)
+--   · cada usina só a partir do mês seguinte ao da instalação
+--   · mês corrente fora (armadilha 6)
+--   · desempenho contra a mediana da vizinhança, NULO quando o índice não
+--     cobre o mês
+
+-- ============================================================
+-- 3. Um erro meu, pego na simulação
+-- ============================================================
+-- Ao formatar os números usei to_char(v,'FM999G999') e a mensagem saiu com
+-- "8,538 kWh" e "R$ 6,803" — vírgula de milhar, padrão americano. Para um
+-- cliente brasileiro isso lê como "oito vírgula cinco". O código original
+-- usava ::text simples e não tinha o problema; fui eu que "melhorei".
+-- Corrigido com replace(',', '.'), que é seguro nos dois locales: onde o
+-- separador já é ponto, não existe vírgula para trocar.
+--
+-- Só vi porque simulei o texto final antes de aplicar. Renderizar a mensagem
+-- de verdade, e não só conferir que a função roda, é o que pega esse tipo
+-- de coisa.
+
+-- ============================================================
+-- 4. pendencias_posvenda — 9 falsos positivos por dia
+-- ============================================================
+-- A chave `geracao_faltando` listava obras concluídas há 31 a 60 dias "sem
+-- geração". Com a tabela vazia, listava TODAS as da janela. Medido:
+--   9 clientes listados, e os 9 TINHAM geração no SolarView.
+-- Isso ia todo dia útil no alerta das 11h para a Lívia. Agora: 0.
+--
+-- get_trajetoria_posvenda.qtd_geracao contava sempre 0 pelo mesmo motivo.
+--
+-- A troca foi cirúrgica: li o corpo com pg_get_functiondef, substituí só a
+-- cláusula da fonte errada e reexecutei — em vez de reescrever à mão duas
+-- funções longas, que é como se introduz erro de transcrição. Cada troca
+-- exige exatamente uma ocorrência do trecho, senão a migração falha.
+
+-- ============================================================
+-- CONFERIDO
+-- ============================================================
+--   GILBERTO ........... bloqueio = LIBERADO
+--                        "⚡ 8.538 kWh gerados · 💰 R$ 6.803 de economia
+--                         · 🌱 15 árvores" — formato brasileiro
+--   MARIA APARECIDA .... bloqueio = "geração não registrada" (sem usina
+--                        vinculada), então a mensagem com travessões não sai
+--   geracao_faltando ... 9 → 0
+--   funções ainda lendo a tabela vazia: só `get_geracao_bruta`
+
+-- ============================================================
+-- get_geracao_bruta: código morto
+-- ============================================================
+-- Não é chamado por nenhuma tela nem por nenhuma função do banco, e faz
+-- exatamente o mesmo que o obra_geracao_total() novo. Deixei de pé para não
+-- apagar no meio de tantas mudanças; candidato a remoção numa limpeza.
+
+-- (o corpo das funções está aplicado no banco; ver as duas migrações citadas
+--  no topo)
