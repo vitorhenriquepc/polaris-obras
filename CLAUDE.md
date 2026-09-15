@@ -82,6 +82,27 @@ processo. Nunca exija `cliente_id` numa trava.
 **A fonte da verdade do realizado é o extrato.** Os campos de custo da ficha
 são orçamento. Não some os dois.
 
+⚠️ **A conciliação automática não adivinha no empate.** `casar_na_hora` é um
+trigger em `extrato_rateio`: entrada de dinheiro apontada para uma obra procura
+a parcela aberta de valor parecido (`conciliacao_tolerancia`, R$ 1,00) com o
+vencimento mais próximo (`conciliacao_dias_max`, 90 dias), marca como recebida
+e cria o lançamento no DRE.
+
+**Medido em 15/09:** os 18 casamentos feitos até então estavam **todos** com
+diferença de R$ 0,00 e 0 dias. Zero falso positivo — e também o sinal de que a
+folga de R$ 1,00 e 90 dias nunca foi usada.
+
+O risco era o empate: com `limit 1`, duas parcelas igualmente plausíveis viravam
+cara ou coroa. O EDVALDO (4657) tem **4 parcelas abertas de R$ 1.500,00, duas
+vencendo no mesmo dia**. Desde 15/09 o trigger busca as **duas** melhores
+candidatas e, se empatarem na distância, **não casa** — o movimento vai para a
+fila humana. Não recusa todo empate de valor de propósito: o João Vitor (4425)
+tem duas parcelas de R$ 1.000,00 com vencimentos diferentes e o critério
+acertou as duas.
+
+O lançamento no DRE guarda a **evidência** do casamento (`diferença R$ X · Y
+dia(s) do vencimento`), para dar para revisar depois se foi certeiro ou chute.
+
 `valor_projeto` e `preco_negociado` são espelhados pelo trigger
 `trg_sincroniza_valor`. **Já existia — não crie outro.**
 
@@ -540,6 +561,17 @@ significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
       (diferença acima de R$ 1,00).
 - [ ] 5 cards incompletos: 4349, 4420, 4483, 4563, 4808
 - [ ] Confirmar se as parcelas de ~30% são entrada de financiamento
+- [ ] **EDVALDO MARCIO GONCALVES (4657): a 3ª e a 4ª parcela vencem no mesmo
+      dia (15/11), as duas de R$ 1.500,00.** Cheira a erro de cadastro — e é
+      o caso que faz a conciliação automática recusar o casamento. Enquanto
+      não for corrigido, o pagamento dele cai na fila manual. A 5ª parcela
+      (R$ 6.000, venc 01/09) também está marcada como recebida sem nenhum
+      movimento no extrato; a obra fechou em 27/07, antes do extrato começar.
+- [ ] **Quatro automações mensais nunca rodaram uma única vez.** Dia 2
+      (fechamento), dia 5 (resumo mensal), dia 6 (marcos) e dia 10 (lembrete de
+      tarifa) foram criadas em setembro **depois** da data delas, então a
+      primeira chance real é em outubro. Não estão quebradas — estão por
+      provar. Vale rodar cada uma em modo simular antes de outubro.
 - [ ] **Registrar o 1º pagamento da TAYS VALESE DIAS DO PRADO.** Primeiro
       contrato pago do sistema: Completo anual, R$ 2.990,00, duas usinas
       instaladas pela **Eco Solar** (açougue em Araçatuba 29,25 kWp, rancho em

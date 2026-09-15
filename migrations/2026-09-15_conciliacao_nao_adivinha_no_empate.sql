@@ -1,0 +1,87 @@
+-- Auditoria do financeiro, parte 2 (banco). Uma correcao de verdade.
+--
+-- MEDIDO ANTES DE MEXER
+-- ---------------------
+-- Os 18 casamentos que a conciliacao automatica ja fez estao TODOS perfeitos:
+-- diferenca de R$ 0,00 e 0 dias entre o vencimento e a data do banco. Zero
+-- falso positivo. A automacao funciona -- o que existe e risco latente.
+--
+-- Isso tambem diz que as tolerancias sao folgadas demais para o que a
+-- realidade pede: a regra aceita R$ 1,00 de diferenca e 90 dias de distancia,
+-- e nenhum casamento precisou de um centavo ou de um dia sequer dessa folga.
+--
+-- O RISCO
+-- -------
+-- O trigger `casar_na_hora` escolhe a parcela aberta de valor parecido com o
+-- vencimento mais proximo, `limit 1`. Quando duas parcelas empatam nessa
+-- distancia, o `limit 1` decide sozinho, sem criterio nenhum.
+--
+-- O caso vivo: EDVALDO MARCIO GONCALVES (4657) tem 4 parcelas abertas de
+-- R$ 1.500,00, e a 3a e a 4a vencem no MESMO dia (15/11). Quando ele pagar,
+-- o trigger marcaria uma das duas no cara ou coroa, e a outra ficaria aberta
+-- para sempre.
+--
+-- POR QUE NAO RECUSEI TODO EMPATE DE VALOR
+-- ----------------------------------------
+-- Porque o criterio de vencimento funciona quando existe criterio, e ha prova
+-- no proprio banco: Joao Vitor (4425) tambem tem duas parcelas de R$ 1.000,00,
+-- mas com vencimentos diferentes (04/08 e 05/08). Ele pagou nos dois dias e o
+-- trigger acertou as duas. Recusar todo empate de valor transformaria dois
+-- acertos em dois trabalhos manuais.
+--
+-- A regra certa e mais estreita: recusa so quando o desempate e IMPOSSIVEL --
+-- as duas melhores candidatas a mesma distancia do vencimento.
+--
+-- (a definicao da funcao esta aplicada no banco; ver
+--  mcp apply_migration "conciliacao_nao_adivinha_no_empate")
+--
+-- O QUE MUDOU, EM UMA LINHA CADA
+-- ------------------------------
+-- 1. Busca as DUAS melhores candidatas em vez de uma. Se a segunda estiver a
+--    mesma distancia da primeira, nao casa: o movimento cai na fila para
+--    alguem decidir.
+-- 2. O lancamento no DRE passa a guardar a EVIDENCIA do casamento --
+--    "diferenca R$ 0,00 · 0 dia(s) do vencimento". Sem isso nao da para
+--    revisar depois se a conciliacao foi certeira ou foi um chute que colou.
+--    E a recomendacao padrao para conciliacao automatica: guardar o porque,
+--    nao so o resultado.
+-- 3. Armadilha 10 ao contrario: a funcao nascera com EXECUTE para PUBLIC e
+--    para o anon. E funcao de gatilho (retorna `trigger`), entao o PostgREST
+--    nao a expoe como RPC e o risco pratico era nulo -- mas contrariava o
+--    padrao da casa. Revogado.
+--
+-- TESTADO
+-- -------
+-- Nos dois cenarios reais, em transacao desfeita:
+--   EDVALDO paga R$ 1.500 em 15/11 (3a e 4a empatam) -> NAO CASOU, foi para
+--     a fila humana. Antes teria marcado uma das duas no chute.
+--   EDVALDO paga R$ 1.500 em 15/09 (a 1a esta mais perto) -> casou com a 1a e
+--     gravou "diferenca R$ 0.00 · 0 dia(s) do vencimento".
+
+-- O RESTO DA AUDITORIA, PARA REGISTRO
+-- -----------------------------------
+-- Integridade do financeiro, conferida uma a uma:
+--   rateio que nao fecha com o valor do movimento ....... 0
+--   rateio sem lancamento no DRE ........................ 0
+--   lancamento do DRE com origem extrato e sem rateio ... 0
+--   movimento classificado sem destino .................. 0
+--   parcela recebida sem movimento no extrato ........... 1  (4657, 5a parcela)
+--   parcela com o mesmo vencimento na mesma obra ........ 2  (4599 sem risco,
+--                                                            valores diferentes;
+--                                                            4657 e o caso acima)
+--
+-- Crons: nenhum falhou nos ultimos 30 dias (30.912 execucoes registradas desde
+-- 23/07). Cinco jobs sem nenhuma execucao, e nenhum deles esta quebrado: sao
+-- os mensais (dia 2 fechamento, dia 5 resumo, dia 6 marcos, dia 10 tarifa) mais
+-- a autoleitura, todos criados DEPOIS da data deles em setembro. A primeira
+-- chance real e em outubro -- ou seja, sao automacoes que ainda nao foram
+-- provadas uma unica vez.
+--
+-- As 13 funcoes de leitura do financeiro foram chamadas de verdade, como
+-- usuario `authenticated`: as 13 responderam. Nenhum bug dormindo do tipo do
+-- `get_responsavel_posvenda`, que lia coluna inexistente.
+--
+-- `conferir_financeiro()` nao tem EXECUTE para `authenticated`, e isso e de
+-- proposito: quem a chama e a `conferir_saude()` das 7h30, pelo service role.
+-- Nao esta morta. Hoje ela acusa: 1 parcela recebida sem extrato (4657) e
+-- 14 fichas com parcelas que nao fecham com o preco.
