@@ -174,6 +174,7 @@ cliente — o Gilberto tem **4 usinas e 1 endereço** e não paga extra. Quando
 | `obra_ativa_em(obra)` | desde quando está ativa (cai no `etapas_historico` se `data_conclusao` for nula) |
 | `obra_geracao_total(obra)` | **quanto a obra já gerou**: kWh, economia, desempenho e meses — a fonte única |
 | `plano_registrar_pagamento(contrato, data)` | liga o contrato no dia em que o primeiro pagamento entrou; é ela que calcula `inicio` e `fim` |
+| `plano_cadastrar_cliente(json, simular)` | **cadastra cliente de plano inteiro**: cliente + obra + usinas + contrato numa transação. Com `simular = true` (o padrão) não grava nada e devolve a prévia ou a lista de erros |
 
 ---
 

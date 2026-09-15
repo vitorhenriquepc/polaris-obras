@@ -653,6 +653,22 @@ white-space:normal;padding:0 2px}
 .umeta{font-size:11.5px;color:var(--muted);margin-top:2px}
 .uright{text-align:right;flex-shrink:0}
 .ust{font-size:12px;font-weight:700}
+.ncsec{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:13px;margin-top:11px}
+.nctit{font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--gold);margin-bottom:9px}
+.ncdica{font-size:11.5px;color:var(--muted);font-weight:600;line-height:1.5;margin-bottom:9px}
+.ncsec label{display:block;font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:8px}
+.ncsec input,.ncsec select{width:100%;margin-top:3px;background:var(--card2);border:1px solid var(--border);
+  color:var(--txt);border-radius:8px;padding:8px 9px;font-family:inherit;font-size:13px;font-weight:600}
+.ncg2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.ncg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+@media(max-width:620px){.ncg2,.ncg3{grid-template-columns:1fr}}
+.ncu{border:1px solid var(--border);border-radius:11px;padding:11px;margin-bottom:9px;background:var(--card2)}
+.ncuh{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:13px}
+.ncck{display:flex!important;align-items:center;gap:7px;margin-top:8px}
+.ncck input{width:auto!important;margin-top:0}
+.ncerro{border:1px solid #e07070;border-radius:11px;padding:11px 13px;margin-top:11px;font-size:12.5px;color:#e07070}
+.ncerro ul{margin:6px 0 0;padding-left:18px;line-height:1.7}
+.ncok{border:1px solid var(--green-l);border-radius:11px;padding:11px 13px;margin-top:11px;font-size:12.5px;line-height:1.75}
 .uext{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.3px;
   padding:1px 6px;border-radius:20px;margin-left:6px;vertical-align:middle;
   background:rgba(214,175,88,.16);color:var(--gold);border:1px solid rgba(214,175,88,.35)}
@@ -1007,9 +1023,11 @@ function renderPlanos(){
     +'<button class="'+(PLABA==='painel'?'on':'')+'" onclick="setPlaba(\'painel\')">📊 Acompanhamento</button>'
     +'<button class="'+(PLABA==='envio'?'on':'')+'" onclick="setPlaba(\'envio\')">📤 Enviar proposta</button>'
     +'<button class="'+(PLABA==='fora'?'on':'')+'" onclick="setPlaba(\'fora\')">🏳️ Cliente de fora</button>'
+    +'<button class="'+(PLABA==='novo'?'on':'')+'" onclick="setPlaba(\'novo\')">➕ Novo cliente</button>'
     +'</div>';
   if(PLABA==='painel') return nav+renderPainelPlanos();
   if(PLABA==='fora') return nav+renderForaPlanos();
+  if(PLABA==='novo') return nav+renderNovoCliente();
   return nav+renderEnvioPlanos();
 }
 
@@ -1189,6 +1207,234 @@ function copiarFora(){
   const t=textoFora(nome,mods);
   if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ toast('Mensagem copiada ✓'); });
   else toast('Selecione o texto e copie');
+}
+
+/* ---------- NOVO CLIENTE DE PLANO ----------
+   Tudo numa chamada so. A gravacao e feita por plano_cadastrar_cliente(),
+   que cria cliente + obra + usinas + contrato numa transacao: ou entra
+   inteiro, ou nao entra nada. A tela nao decide regra nenhuma -- trilha,
+   etapa e cliente_externo sao definidos no banco.
+
+   O botao de gravar so libera depois de conferir (regra 3.2). */
+let NC = { usinas: [ {} ] };
+
+function ncLerUsinas(){
+  for(let i=0;i<NC.usinas.length;i++){
+    const g=function(id){ return ((document.getElementById(id+i)||{}).value||''); };
+    NC.usinas[i] = {
+      apelido:g('nc_u_ap'), potencia_kwp:g('nc_u_kwp'), modulos:g('nc_u_mod'),
+      cidade:g('nc_u_cid'), endereco:g('nc_u_end'),
+      data_instalacao:g('nc_u_dti'),
+      data_estimada: !!(document.getElementById('nc_u_est'+i)||{}).checked,
+      compensa_em_indice:g('nc_u_comp')
+    };
+  }
+}
+function ncRedesenha(){
+  const box=document.getElementById('ncUsinas');
+  if(box) box.innerHTML = NC.usinas.map(ncUsinaLinha).join('');
+}
+function ncAddUsina(){ ncLerUsinas(); NC.usinas.push({}); ncRedesenha(); }
+function ncDelUsina(i){
+  ncLerUsinas(); NC.usinas.splice(i,1);
+  if(!NC.usinas.length) NC.usinas=[{}];
+  ncRedesenha();
+}
+
+function ncUsinaLinha(u,i){
+  let opts='';
+  NC.usinas.forEach(function(x,j){
+    if(j===i) return;
+    opts+='<option value="'+(j+1)+'"'+(String(u.compensa_em_indice||'')===String(j+1)?' selected':'')+'>'
+        + esc(x.apelido||('Usina '+(j+1))) + '</option>';
+  });
+  return '<div class="ncu">'
+   +'<div class="ncuh"><b>Usina '+(i+1)+'</b>'
+   +(NC.usinas.length>1?'<button type="button" class="stb" onclick="ncDelUsina('+i+')">Remover</button>':'')
+   +'</div>'
+   +'<div class="ncg2">'
+   +'<label>Apelido<input id="nc_u_ap'+i+'" value="'+esc(u.apelido||'')+'" placeholder="Açougue — Araçatuba"></label>'
+   +'<label>Cidade<input id="nc_u_cid'+i+'" value="'+esc(u.cidade||'')+'" placeholder="Araçatuba"></label>'
+   +'</div>'
+   +'<div class="ncg2">'
+   +'<label>Potência (kWp)<input id="nc_u_kwp'+i+'" type="number" step="0.01" inputmode="decimal" value="'+esc(u.potencia_kwp||'')+'"></label>'
+   +'<label>Módulos<input id="nc_u_mod'+i+'" type="number" inputmode="numeric" value="'+esc(u.modulos||'')+'"></label>'
+   +'</div>'
+   +'<label>Endereço<input id="nc_u_end'+i+'" value="'+esc(u.endereco||'')+'" placeholder="onde o técnico vai na visita anual"></label>'
+   +'<div class="ncg2">'
+   +'<label>Instalada em<input id="nc_u_dti'+i+'" type="date" value="'+esc(u.data_instalacao||'')+'"></label>'
+   +'<label class="ncck"><input type="checkbox" id="nc_u_est'+i+'"'+(u.data_estimada?' checked':'')+'> a data é estimada</label>'
+   +'</div>'
+   +(NC.usinas.length>1
+      ? '<label>Manda os créditos para<select id="nc_u_comp'+i+'">'
+        +'<option value="">— compensa no próprio relógio —</option>'+opts+'</select></label>'
+      : '')
+   +'</div>';
+}
+
+function ncMascara(){
+  const par=[['nc_doctipo','nc_doc'],['nc_notatipo','nc_notadoc']];
+  par.forEach(function(x){
+    const t=(document.getElementById(x[0])||{}).value;
+    const i=document.getElementById(x[1]);
+    if(i) i.placeholder = (t==='cnpj') ? '00.000.000/0000-00' : '000.000.000-00';
+  });
+}
+
+function renderNovoCliente(){
+  const P=PLN.planos||[];
+  let ops='<option value="">— sem plano por enquanto —</option>';
+  P.forEach(function(p){
+    ops+='<option value="'+esc(p.codigo)+'">'+esc(p.nome)
+      +(p.anual!=null?' · '+moedaBR(p.anual)+'/ano':' · sob consulta')+'</option>';
+  });
+
+  let h='<div class="sec"><h3>➕ Novo cliente de plano</h3>'
+   +'<div class="dica">Para quem paga o acompanhamento sem ter comprado a usina com a gente. '
+   +'Cria o cliente, a ficha, as usinas e o contrato de uma vez só — ou tudo, ou nada. '
+   +'Não entra em conversão, margem nem funil, porque não é venda.</div>';
+
+  h+='<div class="ncsec"><div class="nctit">Cliente</div>'
+   +'<div class="ncg2">'
+   +'<label>Nome completo<input id="nc_nome" placeholder="Tays Valese Dias do Prado"></label>'
+   +'<label>WhatsApp (com DDD)<input id="nc_tel" inputmode="numeric" placeholder="18999887766"></label>'
+   +'</div>'
+   +'<div class="ncg3">'
+   +'<label>Documento<select id="nc_doctipo" onchange="ncMascara()">'
+     +'<option value="cpf">CPF</option><option value="cnpj">CNPJ</option></select></label>'
+   +'<label>Número<input id="nc_doc" inputmode="numeric" placeholder="000.000.000-00"></label>'
+   +'<label>Cidade<input id="nc_cid" placeholder="Araçatuba"></label>'
+   +'</div>'
+   +'<div class="ncg3">'
+   +'<label>Aniversário — dia<input id="nc_dia" type="number" min="1" max="31" inputmode="numeric"></label>'
+   +'<label>mês<input id="nc_mes" type="number" min="1" max="12" inputmode="numeric"></label>'
+   +'<label>Quem instalou o sistema<input id="nc_origem" placeholder="Eco Solar, ou &quot;não sabe&quot;"></label>'
+   +'</div>'
+   +'<div class="ncg2">'
+   +'<label>Endereço principal<input id="nc_end" placeholder="rua, número, bairro, cidade"></label>'
+   +'<label>Link do grupo de WhatsApp<input id="nc_grupo" placeholder="cole o convite — o ID se resolve sozinho"></label>'
+   +'</div>'
+   +'<div class="ncg2">'
+   +'<label>Categoria<select id="nc_cat"><option value="">—</option>'
+     +'<option value="residencial">Residencial</option><option value="comercial">Comercial</option>'
+     +'<option value="rural">Rural</option></select></label>'
+   +'<label>Ramo<input id="nc_ramo" placeholder="açougue, padaria, sítio..."></label>'
+   +'</div></div>';
+
+  h+='<div class="ncsec"><div class="nctit">Usinas</div>'
+   +'<div class="ncdica">O endereço não é detalhe: o Completo vende uma visita técnica anual '
+   +'em <b>cada endereço</b>, e é isso que define o preço. Várias usinas no mesmo lugar '
+   +'contam como um só.</div>'
+   +'<div id="ncUsinas">'+NC.usinas.map(ncUsinaLinha).join('')+'</div>'
+   +'<button type="button" class="stb" onclick="ncAddUsina()">+ Adicionar usina</button></div>';
+
+  h+='<div class="ncsec"><div class="nctit">Plano</div>'
+   +'<div class="ncg2">'
+   +'<label>Plano<select id="nc_plano">'+ops+'</select></label>'
+   +'<label>Valor combinado (R$)<input id="nc_valor" type="number" step="0.01" inputmode="decimal"></label>'
+   +'</div>'
+   +'<div class="ncg3">'
+   +'<label>Cobrança<select id="nc_forma"><option value="anual">Anual</option>'
+     +'<option value="mensal">Mensal</option><option value="cortesia">Cortesia</option></select></label>'
+   +'<label>Duração<select id="nc_meses"><option value="12">12 meses</option>'
+     +'<option value="6">6 meses</option><option value="24">24 meses</option>'
+     +'<option value="36">36 meses</option></select></label>'
+   +'<label>Início<input id="nc_inicio" type="date" disabled></label>'
+   +'</div>'
+   +'<label class="ncck"><input type="checkbox" id="nc_aguard" checked '
+     +'onchange="document.getElementById(\'nc_inicio\').disabled=this.checked"> '
+     +'Começa no 1º pagamento</label>'
+   +'<div class="ncg3" style="margin-top:9px">'
+   +'<label>Nota fiscal<select id="nc_notatipo" onchange="ncMascara()">'
+     +'<option value="cpf">No CPF</option><option value="cnpj">No CNPJ</option></select></label>'
+   +'<label>Documento da nota<input id="nc_notadoc" inputmode="numeric" placeholder="vazio = usa o do cliente"></label>'
+   +'<label>Nome na nota<input id="nc_notanome" placeholder="se for diferente"></label>'
+   +'</div>'
+   +'<label>O que foi combinado<input id="nc_obs" placeholder="visita anual em cada endereço, laudo, 20% em serviços..."></label>'
+   +'</div>';
+
+  h+='<div class="plbtns" style="margin-top:13px">'
+   +'<button class="stb" onclick="ncSimular()">🔍 Conferir antes de gravar</button>'
+   +'<button class="stb prim" id="ncBtnGrava" onclick="ncGravar()" disabled>💾 Gravar cadastro</button>'
+   +'</div><div id="ncPrev"></div></div>';
+  return h;
+}
+
+function ncColeta(){
+  ncLerUsinas();
+  const v=function(id){ return (((document.getElementById(id)||{}).value)||'').trim(); };
+  const dig=function(x){ return String(x||'').replace(/\D/g,''); };
+  return {
+    cliente:{ nome:v('nc_nome'), telefone:dig(v('nc_tel')), documento:dig(v('nc_doc')),
+              cidade:v('nc_cid'), nascimento_dia:v('nc_dia'), nascimento_mes:v('nc_mes') },
+    obra:{ sistema_origem:v('nc_origem'), endereco:v('nc_end'), cidade:v('nc_cid'),
+           grupo:v('nc_grupo'), categoria:v('nc_cat'), ramo:v('nc_ramo') },
+    usinas: NC.usinas.map(function(u){ return {
+        apelido:(u.apelido||'').trim(), potencia_kwp:u.potencia_kwp||'',
+        modulos:u.modulos||'', cidade:(u.cidade||'').trim(),
+        endereco:(u.endereco||'').trim(), data_instalacao:u.data_instalacao||'',
+        data_estimada:!!u.data_estimada, compensa_em_indice:u.compensa_em_indice||'' }; }),
+    contrato:{ plano_codigo:v('nc_plano'), valor:v('nc_valor'), forma:v('nc_forma'),
+               meses:v('nc_meses'),
+               aguardando: !!(document.getElementById('nc_aguard')||{}).checked,
+               inicio:v('nc_inicio'),
+               nota_documento: dig(v('nc_notadoc')) || dig(v('nc_doc')),
+               nota_nome:v('nc_notanome'), observacao:v('nc_obs') }
+  };
+}
+
+function ncErros(lista){
+  document.getElementById('ncBtnGrava').disabled=true;
+  document.getElementById('ncPrev').innerHTML =
+    '<div class="ncerro"><b>Falta corrigir antes de gravar:</b><ul>'
+    + (lista||[]).map(function(e){ return '<li>'+esc(e)+'</li>'; }).join('')
+    + '</ul></div>';
+}
+
+async function ncSimular(){
+  const r=await sb.rpc('plano_cadastrar_cliente',{ p:ncColeta(), p_simular:true });
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  const d=r.data||{};
+  if(!d.ok){ ncErros(d.erros); return; }
+
+  const nEnd=Number(d.enderecos)||1;
+  const ad=adicionalEndereco(nEnd);
+  let h='<div class="ncok"><b>Confira antes de gravar</b><br>'
+   +(d.cliente_novo?'Cliente <b>novo</b>':'<b>Reaproveita</b> um cliente que já existe')+'<br>'
+   +d.usinas+(d.usinas===1?' usina':' usinas')+' · '+Number(d.kwp||0).toFixed(2)+' kWp'
+   +(d.modulos?' · '+d.modulos+' módulos':'')
+   +' · <b>'+nEnd+(nEnd===1?' endereço':' endereços')+'</b><br>';
+  if(d.plano){
+    h+='Plano: <b>'+esc(d.plano)+'</b> · '+moedaBR(d.valor)
+      +(d.status_contrato==='aguardando_pagamento'
+          ? ' · <span style="color:var(--gold)">só começa no 1º pagamento</span>'
+          : ' · ativo')+'<br>';
+    if(ad.extras>0){
+      h+='<span style="color:var(--muted)">A tabela cobra '+moedaBR(ad.anual)
+        +'/ano pelo endereço extra — confira se o valor combinado já inclui.</span><br>';
+    }
+  } else {
+    h+='<span style="color:var(--muted)">Sem contrato de plano por enquanto.</span><br>';
+  }
+  h+='<span style="color:var(--muted)">Link público: '+esc(d.slug)+'</span>';
+  (d.avisos||[]).forEach(function(a){
+    h+='<br><span style="color:var(--gold)">⚠️ '+esc(a)+'</span>';
+  });
+  h+='</div>';
+  document.getElementById('ncPrev').innerHTML=h;
+  document.getElementById('ncBtnGrava').disabled=false;
+}
+
+async function ncGravar(){
+  if(!confirm('Gravar este cadastro?')) return;
+  const r=await sb.rpc('plano_cadastrar_cliente',{ p:ncColeta(), p_simular:false });
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  const d=r.data||{};
+  if(!d.ok){ ncErros(d.erros); return; }
+  toast('Cadastrado ✓ ' + d.usinas + (d.usinas===1?' usina':' usinas'));
+  NC={usinas:[{}]};
+  PLN=null; PAI=null; PLABA='painel';
+  carregarPlanos();
 }
 
 function renderEnvioPlanos(){
