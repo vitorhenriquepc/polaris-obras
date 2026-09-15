@@ -811,7 +811,6 @@ function render(){
       <button class="vtab ${VISAO==='indic'?'on':''}" onclick="setVisao('indic')">Indicações</button>
       <button class="vtab ${VISAO==='planos'?'on':''}" onclick="setVisao('planos')">Planos</button>
       <button class="vtab ${VISAO==='usinas'?'on':''}" onclick="setVisao('usinas')">Usinas</button>
-      <button class="vtab ${VISAO==='leitura'?'on':''}" onclick="setVisao('leitura')">Autoleitura</button>
       <button class="vtab ${VISAO==='auto'?'on':''}" onclick="setVisao('auto')">Automações</button>
     </div>
     <div class="search">🔍<input id="q" placeholder="Buscar cliente ou contrato..." value="${esc(BUSCA)}" oninput="setBusca(this.value)"></div>
@@ -837,11 +836,6 @@ function render(){
   if(VISAO==='planos'){
     document.getElementById('app').innerHTML=h+'<div id="plbox"><div class="center"><div class="spin"></div>Carregando planos...</div></div>';
     carregarPlanos();
-    return;
-  }
-  if(VISAO==='leitura'){
-    document.getElementById('app').innerHTML=h+'<div id="albox"><div class="center"><div class="spin"></div>Carregando o calendário de leituras...</div></div>';
-    carregarAutoleitura();
     return;
   }
   if(VISAO==='brindes'){
@@ -919,11 +913,13 @@ let VIS=null;     // visitas do plano
 
 async function carregarPlanos(){
   const box=document.getElementById('plbox'); if(!box) return;
-  const [r,pp,vv]=await Promise.all([sb.rpc('get_planos_envio'),
-                                    sb.rpc('get_painel_planos'),
-                                    sb.rpc('get_plano_visitas')]);
+  const [r,pp,vv,al]=await Promise.all([sb.rpc('get_planos_envio'),
+                                       sb.rpc('get_painel_planos'),
+                                       sb.rpc('get_plano_visitas'),
+                                       sb.rpc('get_autoleitura')]);
   PAI=pp&&pp.data?pp.data:null;
   VIS=vv&&vv.data?vv.data:null;
+  AUT=al&&al.data?al.data:null;
   if(r.error||!r.data){ box.innerHTML='<div class="vazio">Não foi possível carregar os planos.</div>'; return; }
   PLN=r.data;
   box.innerHTML=renderPlanos();
@@ -1051,11 +1047,13 @@ function renderPlanos(){
     +'<button class="'+(PLABA==='envio'?'on':'')+'" onclick="setPlaba(\'envio\')">📤 Enviar proposta</button>'
     +'<button class="'+(PLABA==='fora'?'on':'')+'" onclick="setPlaba(\'fora\')">🏳️ Cliente de fora</button>'
     +'<button class="'+(PLABA==='visitas'?'on':'')+'" onclick="setPlaba(\'visitas\')">🔧 Visitas</button>'
+    +'<button class="'+(PLABA==='leitura'?'on':'')+'" onclick="setPlaba(\'leitura\')">📷 Autoleitura</button>'
     +'<button class="'+(PLABA==='novo'?'on':'')+'" onclick="setPlaba(\'novo\')">➕ Novo cliente</button>'
     +'</div>';
   if(PLABA==='painel') return nav+renderPainelPlanos();
   if(PLABA==='fora') return nav+renderForaPlanos();
   if(PLABA==='visitas') return nav+renderVisitas();
+  if(PLABA==='leitura') return nav+renderAutoleitura();
   if(PLABA==='novo') return nav+renderNovoCliente();
   return nav+renderEnvioPlanos();
 }
@@ -1333,15 +1331,8 @@ function ncMascara(){
    anotadas na migracao 2026-09-15_autoleitura.sql. */
 let AUT=null, ALSEL=null;
 
-async function carregarAutoleitura(){
-  const box=document.getElementById('albox'); if(!box) return;
-  const r=await sb.rpc('get_autoleitura');
-  if(r.error||!r.data){ box.innerHTML='<div class="vazio">Não foi possível carregar.</div>'; return; }
-  AUT=r.data;
-  box.innerHTML=renderAutoleitura();
-}
-
 function renderAutoleitura(){
+  if(!AUT) return '<div class="vazio">Não foi possível carregar as leituras.</div>';
   const F=(AUT.fila||{}), hoje=F.hoje||[], prox=F.proximas||[], UCS=AUT.ucs||[];
   let h='';
 
@@ -1471,7 +1462,7 @@ async function alMarcar(id, tipo, silencioso){
   if(r.error){ toast('Erro: '+r.error.message); return; }
   if(r.data && r.data.erro){ toast(r.data.erro); return; }
   if(!silencioso) toast('Marcado como avisado ✓');
-  carregarAutoleitura();
+  carregarPlanos();
 }
 
 async function alSalvarUC(){
@@ -1485,7 +1476,7 @@ async function alSalvarUC(){
   if(r.error){ toast('Erro: '+r.error.message); return; }
   if(r.data && r.data.erro){ toast(r.data.erro); return; }
   toast('Unidade salva ✓');
-  carregarAutoleitura();
+  carregarPlanos();
 }
 
 async function alSalvarData(){
@@ -1497,7 +1488,7 @@ async function alSalvarData(){
   if(r.error){ toast('Erro: '+r.error.message); return; }
   if(r.data && r.data.erro){ toast(r.data.erro); return; }
   toast('Data salva ✓');
-  carregarAutoleitura();
+  carregarPlanos();
 }
 
 async function alProjetar(){
@@ -1517,7 +1508,7 @@ async function alProjetar(){
   if(r.error){ toast('Erro: '+r.error.message); return; }
   if(r.data && r.data.erro){ toast(r.data.erro); return; }
   toast(n(r.data.criadas)+' datas projetadas ✓');
-  carregarAutoleitura();
+  carregarPlanos();
 }
 
 function renderVisitas(){
@@ -2617,6 +2608,90 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')fecharFicha();});
    Quem grava e usina_adicionar() no banco, que decide sozinha se mexe no
    total da obra: em cliente de plano soma, em obra de venda NAO -- ali a
    potencia e o projeto vendido e alimenta ficha, relatorio e margem. */
+/* ---------- AUTOLEITURA DENTRO DA FICHA ----------
+   O relogio do cliente aparece na ficha dele, junto das usinas e do plano, em
+   vez de so numa aba separada. Quem esta olhando o cliente ja avisa dali. */
+async function flAvisar(leituraId){
+  const u=((FICHA&&FICHA.autoleitura)||[]).find(function(x){return x.proxima_id===leituraId;});
+  if(!u){ toast('Não encontrei essa leitura'); return; }
+  if(!u.grupo){ toast('Este cliente não tem grupo cadastrado'); return; }
+  if(!confirm('Enviar o aviso da leitura de '+dataBR(u.proxima)+' no grupo?')) return;
+  try{
+    const { data:sess } = await sb.auth.getSession();
+    const r=await fetch(SB_URL+'/functions/v1/notificar-grupo',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+sess.session.access_token},
+      body:JSON.stringify({grupo_id:u.grupo, message:u.texto})
+    });
+    const res=await r.json().catch(function(){return {};});
+    if(!r.ok||res.error){ toast('Erro ao enviar: '+(res.error||r.status)); return; }
+  }catch(e){ toast('Falha de conexão'); return; }
+  // so marca depois que o envio deu certo
+  const m=await sb.rpc('autoleitura_marcar',{p_leitura:leituraId, p_tipo:'vespera'});
+  if(m.error){ toast('Enviado, mas não consegui marcar: '+m.error.message); return; }
+  toast('📤 Aviso enviado');
+  abrirFicha(FICHA.obra.id);
+}
+
+function flFormAuto(obraId){
+  const box=document.getElementById('fauto'); if(!box) return;
+  if(box.innerHTML){ box.innerHTML=''; return; }
+  const UCS=(FICHA&&FICHA.autoleitura)||[];
+  let uops='';
+  UCS.forEach(function(u){
+    uops+='<option value="'+esc(u.uc_id)+'">'+esc(u.apelido||u.numero)+'</option>';
+  });
+  box.innerHTML='<div class="ncsec">'
+   +'<div class="nctit">Nova unidade consumidora</div>'
+   +'<div class="ncg3">'
+   +'<label>Número da UC<input id="fa_num" inputmode="numeric" placeholder="o número da conta"></label>'
+   +'<label>Apelido<input id="fa_ap" placeholder="Rancho, Sítio..."></label>'
+   +'<label>Distribuidora<input id="fa_dist" placeholder="CPFL"></label>'
+   +'</div>'
+   +'<label class="ncck"><input type="checkbox" id="fa_auto" checked> quem informa a leitura é o cliente</label>'
+   +'<div class="plbtns" style="margin-top:9px">'
+   +'<button class="stb prim" onclick="flSalvarUC(\''+obraId+'\')">💾 Salvar unidade</button></div>'
+   +(UCS.length
+      ? '<div class="nctit" style="margin-top:15px">Data de leitura</div>'
+        +'<div class="ncdica">Digite o que a conta mostra em "Próximas Leituras", '
+        +'com o responsável de cada uma.</div>'
+        +'<div class="ncg3">'
+        +'<label>Unidade<select id="fa_uc">'+uops+'</select></label>'
+        +'<label>Data prevista<input id="fa_data" type="date"></label>'
+        +'<label>Responsável<select id="fa_resp">'
+          +'<option value="cliente">Cliente</option>'
+          +'<option value="distribuidora">Distribuidora</option></select></label>'
+        +'</div>'
+        +'<div class="plbtns" style="margin-top:9px">'
+        +'<button class="stb prim" onclick="flSalvarData(\''+obraId+'\')">💾 Salvar data</button></div>'
+      : '')
+   +'</div>';
+}
+
+async function flSalvarUC(obraId){
+  const v=function(x){ return (((document.getElementById(x)||{}).value)||'').trim(); };
+  if(!v('fa_num')){ toast('Informe o número da unidade consumidora'); return; }
+  const r=await sb.rpc('uc_salvar',{p:{
+    obra_id:obraId, numero:v('fa_num'), apelido:v('fa_ap'), distribuidora:v('fa_dist'),
+    autoleitura: !!(document.getElementById('fa_auto')||{}).checked }});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast('Unidade salva ✓');
+  abrirFicha(obraId);
+}
+
+async function flSalvarData(obraId){
+  const v=function(x){ return (((document.getElementById(x)||{}).value)||'').trim(); };
+  if(!v('fa_uc')){ toast('Escolha a unidade'); return; }
+  if(!v('fa_data')){ toast('Informe a data'); return; }
+  const r=await sb.rpc('uc_leitura_salvar',{p_uc:v('fa_uc'), p_data:v('fa_data'),
+                                            p_responsavel:v('fa_resp')||'cliente'});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast('Data salva ✓');
+  abrirFicha(obraId);
+}
+
 function formUsina(obraId){
   const box=document.getElementById('fusina'); if(!box) return;
   if(box.innerHTML){ box.innerHTML=''; return; }   // clicar de novo fecha
@@ -2874,6 +2949,49 @@ function renderFicha(D){
     } else if(esperando){
       h+=`<div class="umeta" style="margin-top:9px">As visitas são marcadas quando o
           primeiro pagamento entrar — uma para cada endereço.</div>`;
+    }
+    h+=`</div>`;
+  }
+
+  /* Autoleitura — o relógio do cliente, aqui dentro em vez de numa aba só dele */
+  const ALS = D.autoleitura||[];
+  if(ALS.length || D.pode_agir){
+    h+=`<div class="sec"><h3>Autoleitura${ALS.length>1?` <span class="tag">${ALS.length} unidades</span>`:''}</h3>`;
+    if(!ALS.length){
+      h+=`<div class="vazio">Nenhuma unidade consumidora cadastrada. Cadastre quando a
+          distribuidora não ler o relógio no local e quem informa for o cliente.</div>`;
+    } else {
+      h+=`<div class="ulist">`;
+      ALS.forEach(function(u){
+        const doCliente = u.responsavel==='cliente' && u.autoleitura;
+        const dd = u.dias==null?null:Number(u.dias);
+        const cor = !doCliente ? 'var(--muted)'
+                  : (u.ja_avisado ? 'var(--green-l)'
+                    : (dd!=null && dd<=1 ? 'var(--gold)' : 'var(--muted)'));
+        h+=`<div class="urow" style="cursor:default">
+          <div>
+            <div class="uname">${esc(u.apelido||u.numero)}${u.apelido?` <span class="umeta">nº ${esc(u.numero)}</span>`:''}</div>
+            <div class="umeta">${esc(u.distribuidora||'distribuidora não informada')}${
+              u.proxima ? ` · próxima leitura ${dataBR(u.proxima)}` : ' · sem data cadastrada'}</div>
+            <div class="umeta" style="color:${cor}">${
+              !u.proxima ? 'cadastre as datas que a conta mostra'
+              : (!doCliente ? 'leitura da distribuidora — o cliente não faz nada'
+                : (u.ja_avisado ? 'cliente já avisado'
+                  : `quem informa é o cliente · avisar em ${dataBR(u.avisar_em)}`))
+            }${u.origem==='projetada'?' · <span class="uext">data estimada</span>':''}</div>
+          </div>
+          <div class="uright">${
+            doCliente && !u.ja_avisado && u.texto && u.grupo
+              ? `<button class="stb" onclick="flAvisar('${u.proxima_id}')">📤 Avisar</button>`
+              : ''
+          }</div>
+        </div>`;
+      });
+      h+=`</div>`;
+    }
+    if(D.pode_agir){
+      h+=`<button class="mini" style="margin-top:9px" onclick="flFormAuto('${o.id}')">📷 Cadastrar unidade ou data</button>
+          <div id="fauto"></div>`;
     }
     h+=`</div>`;
   }

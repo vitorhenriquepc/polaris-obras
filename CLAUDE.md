@@ -328,6 +328,24 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
    que existia há meses.
 2. **`rollback` desfaz DDL** — se testar em transação, aplique a correção da
    função fora do bloco `begin/rollback`.
+
+   Em 15/09 eu caí nisso **duas vezes seguidas** e quase não percebi. O padrão
+   perigoso é mandar, no mesmo comando:
+
+   ```sql
+   do $do$ ... execute replace(definicao, velho, novo); end $do$;   -- DDL
+   begin;  select minha_funcao(...);  rollback;                     -- teste
+   ```
+
+   O teste **passa** — dentro da transação a função já está corrigida — e o
+   `rollback` no fim desfaz a correção junto. `get_ficha_cliente` perdeu três
+   alterações assim (`papel`, `plano`, `autoleitura`) e `get_plano_visitas`
+   perdeu uma, e as duas continuaram *parecendo* aplicadas porque o resultado
+   do teste tinha sido verdadeiro.
+
+   O que pegou: conferir **num comando separado**, depois, se o trecho novo
+   está na `pg_get_functiondef`. Teste que roda junto com o DDL não prova
+   nada sobre o que ficou gravado.
 3. **Trigger adiado só age no commit** — `constraint trigger deferrable` não
    reflete dentro da mesma transação.
 4. **CDN do GitHub leva ~3 min** — validar o arquivo publicado e esperar.
