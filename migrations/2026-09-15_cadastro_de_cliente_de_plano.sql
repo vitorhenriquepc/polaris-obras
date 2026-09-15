@@ -194,6 +194,13 @@ begin
             v_origem, true)
     returning id into v_uid;
     v_ids := v_ids || v_uid;
+
+    -- a usina tambem precisa do vinculo com a obra. 24 funcoes do pos-venda
+    -- leem obra_usina, e nao usinas.cliente_id: sem esta linha a usina nasce
+    -- meio conectada e some da geracao, da lista e das pendencias.
+    insert into obra_usina (obra_id, usina_id, papel, medicao, principal, entrou_em)
+    values (v_obra_id, v_uid, 'herdada', 'inversor_proprio', v_i = 0,
+            nullif(v_u->>'data_instalacao','')::date);
   end loop;
 
   -- quem manda credito para quem. So depois de todas criadas, porque o alvo
