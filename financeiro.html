@@ -220,6 +220,25 @@ color:var(--muted);margin:14px 0 7px}
 .thead{font-size:11px;font-weight:800;color:var(--gold);background:rgba(245,166,35,.12);
 border:1px solid rgba(245,166,35,.3);border-radius:5px;padding:2px 7px;margin-left:7px;vertical-align:middle}
 .cpd{display:block;font-size:10.5px;color:var(--muted);margin-top:3px;line-height:1.3}
+/* o realizado que vem do extrato, embaixo de cada campo de custo */
+.exlin{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:10.5px;
+  color:var(--muted);font-weight:600;line-height:1.3;flex-wrap:wrap}
+.exlin.ok{color:#58b868}
+.exlin.dif{color:#d6af58}
+.exlin b{font-weight:800}
+.exb{background:var(--card2);border:1px solid var(--border);color:var(--txt);
+  border-radius:7px;padding:1px 7px;font-size:10.5px;font-weight:700;cursor:pointer;
+  font-family:inherit;line-height:1.6}
+.exb:hover{border-color:#58b868;color:#58b868}
+.exb.big{padding:6px 12px;font-size:12px;white-space:nowrap}
+.exbox{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--card2);border:1px solid var(--border);border-radius:10px;
+  padding:9px 11px;margin-bottom:11px;flex-wrap:wrap}
+.exbox .ext{font-size:12.5px;color:var(--muted);font-weight:600}
+.exbox .ext b{color:var(--txt);font-weight:800;font-size:14px}
+.exav{background:rgba(214,175,88,.12);border:1px solid rgba(214,175,88,.4);
+  border-radius:10px;padding:9px 11px;margin-bottom:11px;
+  font-size:11.5px;line-height:1.5;color:var(--txt);font-weight:600}
 .fbusca{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--txt);
 border-radius:11px;padding:11px 13px;font-family:inherit;font-size:14px;margin:4px 0 9px}
 .fbusca::placeholder{color:var(--muted)}
@@ -861,6 +880,90 @@ const CAMPOS=[
   ['custo_operacional','Custo operacional',0],
   ['provisao_posvenda','Provisão pós-venda',0]
 ];
+/* ---------- O REALIZADO VEM DO EXTRATO ----------
+   A Ana classificava o movimento no extrato (que ja vincula a obra) e depois
+   digitava o mesmo valor aqui. Nada trazia o numero de volta -- nenhuma funcao
+   do banco lia a extrato_rateio por obra. Agora traz, e com um clique.
+
+   Nao sobrescreve sozinho, de proposito: o extrato so comeca em 03/08/2026, e
+   de 27 obras com custo lancado 14 fecharam ANTES disso. Nessas, o que o
+   extrato mostra e so um pedaco -- puxar por cima apagaria dinheiro real. */
+function realDoCampo(campo){
+  const R=EDIT&&EDIT.real&&EDIT.real.por_campo;
+  const v=R?Number(R[campo]):NaN;
+  return (isFinite(v)&&v>0)?v:null;
+}
+// Desenhado junto com o campo, entao recebe o valor atual em vez de ler o DOM
+// (na hora do render o input ainda nao existe).
+function seloExtratoHTML(campo, atualRaw){
+  const v=realDoCampo(campo); if(v==null) return '';
+  const atual=Number(String(atualRaw==null?'':atualRaw).replace(',','.'));
+  const bate=isFinite(atual)&&Math.abs(atual-v)<0.02;
+  const vazio=!isFinite(atual)||atual===0;
+  if(bate) return '<div class="exlin ok">✓ bate com o extrato</div>';
+  return '<div class="exlin'+(vazio?'':' dif')+'">'+
+    '<span>'+(vazio?'extrato: ':'extrato diz ')+'<b>'+moeda2(v)+'</b></span>'+
+    '<button type="button" class="exb" onclick="puxaCampo(\''+campo+'\')">usar</button>'+
+    '</div>';
+}
+// Dinheiro que o extrato tem mas esta ficha nao tem campo para mostrar: a
+// trilha da obra define quais campos aparecem, entao um custo classificado numa
+// conta fora dessa lista ficaria invisivel aqui. Melhor dizer do que sumir.
+function naoCabeNaFicha(){
+  const R=EDIT&&EDIT.real&&EDIT.real.por_campo; if(!R) return '';
+  // roda DURANTE o render, entao nao da para perguntar ao DOM: os inputs ainda
+  // nao existem. A lista de campos vem da mesma fonte que desenha a ficha.
+  const naTela={imposto_valor:1, comissao_valor:1};
+  if(EDIT.campos && EDIT.campos.length) EDIT.campos.forEach(function(c){ naTela[c.campo]=1; });
+  else CAMPOS.forEach(function(c){ naTela[c[0]]=1; });
+  const fora=Object.keys(R).filter(function(c){
+    return Number(R[c])>0 && !naTela[c]; });
+  if(!fora.length) return '';
+  // usa o nome da conta do DRE, nao o nome da coluna do banco
+  const nomes={};
+  ((EDIT.real&&EDIT.real.linhas)||[]).forEach(function(l){ if(l.campo) nomes[l.campo]=l.nome; });
+  let soma=0; fora.forEach(function(c){ soma+=Number(R[c]); });
+  return '<div class="mut" style="font-size:11px;margin-top:4px">'+
+    moeda2(soma)+' em '+fora.map(function(c){ return nomes[c]||c; }).join(', ')+
+    ' — sem campo nesta ficha, mas conta no total</div>';
+}
+function puxaCampo(campo){
+  const v=realDoCampo(campo); if(v==null) return;
+  const el=document.getElementById('e_'+campo); if(!el) return;
+  el.value=v.toFixed(2);
+  recalcFin();
+}
+// Preenche de uma vez. So mexe no que esta vazio; divergente pergunta.
+function puxaTudoDoExtrato(){
+  const R=EDIT&&EDIT.real&&EDIT.real.por_campo; if(!R) return;
+  const vazios=[], divergentes=[];
+  Object.keys(R).forEach(function(campo){
+    const el=document.getElementById('e_'+campo); if(!el) return;
+    const v=Number(R[campo]); if(!(v>0)) return;
+    const atual=Number(String(el.value).replace(',','.'));
+    if(!isFinite(atual)||atual===0) vazios.push(campo);
+    else if(Math.abs(atual-v)>=0.02) divergentes.push(campo);
+  });
+  if(!vazios.length && !divergentes.length){ toastFin('Ja esta tudo igual ao extrato'); return; }
+  vazios.forEach(puxaCampo);
+  if(divergentes.length){
+    const lista=divergentes.map(function(c){
+      const el=document.getElementById('e_'+c);
+      return '· '+c+': ficha '+moeda2(Number(String(el.value).replace(',','.')))+
+             '  →  extrato '+moeda2(Number(R[c]));
+    }).join('\n');
+    const aviso = (EDIT.real && EDIT.real.cobre_periodo===false)
+      ? '\n\nATENÇÃO: esta obra fechou antes de '+fmtD(EDIT.real.extrato_desde)+
+        ', quando o extrato começa. O que já está na ficha pode ser um pagamento '+
+        'anterior que o extrato não tem. Sobrescrever apaga esse valor.'
+      : '';
+    if(confirm('Estes campos já têm valor diferente do extrato:\n\n'+lista+aviso+
+               '\n\nSubstituir pelo valor do extrato?')) divergentes.forEach(puxaCampo);
+  }
+  renderFin();
+}
+function toastFin(m){ if(typeof toast==='function') toast(m); else alert(m); }
+
 async function abrirFin(id){
   const ov=document.getElementById('ov'), d=document.getElementById('dw');
   d.innerHTML='<div class="center"><div class="spin"></div>Abrindo...</div>';
@@ -874,7 +977,14 @@ async function abrirFin(id){
     const cf=await sb.rpc('get_campos_fin',{p_trilha:(o.data&&o.data.trilha)||'padrao'});
     if(cf && cf.data) campos=cf.data;
   }catch(e){}
-  EDIT={fin:r.data||{obra_id:id}, obra:o.data, campos:campos};
+  // o que ja saiu do banco para esta obra, campo a campo. A Ana classifica o
+  // movimento uma vez no extrato e o numero aparece aqui -- ela nao redigita.
+  let real=null;
+  try{
+    const rr=await sb.rpc('obra_custos_realizados',{p_obra:id});
+    if(rr && rr.data) real=rr.data;
+  }catch(e){}
+  EDIT={fin:r.data||{obra_id:id}, obra:o.data, campos:campos, real:real};
   PARC=(pp.data||[]).map(function(x){return {numero:x.numero,valor:x.valor,
     vencimento:x.vencimento,recebida:x.recebida};});
   const F0=EDIT.fin;
@@ -916,6 +1026,24 @@ function renderFin(){
   const tri = (O.trilha && O.trilha!=='padrao' && _t) ? (_t[0]+' '+_t[1]) : '';
   h+='<div class="reg"><h3>Preço e custos'+(tri?' <span class="thead">'+tri+'</span>':'')+'</h3>';
 
+  // O que ja saiu do banco para esta obra. Aparece so quando ha algo.
+  const RE=EDIT.real;
+  if(RE && n(RE.total)>0){
+    h+='<div class="exbox">'+
+       '<div class="ext"><b>'+moeda2(RE.total)+'</b> já saiu do banco para esta obra'+
+       (n(RE.outros)>0?' <span class="mut">('+moeda2(RE.outros)+' em contas sem campo aqui)</span>':'')+
+       naoCabeNaFicha()+
+       '</div>'+
+       '<button type="button" class="exb big" onclick="puxaTudoDoExtrato()">↓ Puxar do extrato</button>'+
+       '</div>';
+    if(RE.cobre_periodo===false){
+      h+='<div class="exav">⚠️ Esta obra fechou antes de <b>'+fmtD(RE.extrato_desde)+
+         '</b>, que é onde o extrato começa. O que aparece aqui é só a parte que '+
+         'caiu no banco de lá para cá — o resto foi pago antes e ainda não foi importado. '+
+         '<b>Não substitua um valor que já está preenchido</b> sem conferir.</div>';
+    }
+  }
+
   h+='<div class="lin">'+
      '<div class="cp"><label>Preço negociado</label>'+
      '<input type="number" step="0.01" inputmode="decimal" id="e_preco_negociado" readonly '+
@@ -927,7 +1055,8 @@ function renderFin(){
      'value="'+(F.imposto_valor!=null?F.imposto_valor:'')+'" oninput="recalcFin()" placeholder="0,00"></div>'+
      '<div class="cp"><label>Comissão</label>'+
      '<input type="number" step="0.01" inputmode="decimal" id="e_comissao_valor" '+
-     'value="'+(F.comissao_valor!=null?F.comissao_valor:'')+'" oninput="recalcFin()" placeholder="0,00"></div>'+
+     'value="'+(F.comissao_valor!=null?F.comissao_valor:'')+'" oninput="recalcFin()" placeholder="0,00">'+
+     seloExtratoHTML('comissao_valor', F.comissao_valor)+'</div>'+
      '</div>';
 
   if(cfg){
@@ -943,6 +1072,7 @@ function renderFin(){
       h+='<div class="cp"><label>'+esc(c.rotulo)+'</label>'+
         '<input type="number" step="0.01" inputmode="decimal" id="e_'+c.campo+'" value="'+val+'" '+
         'oninput="recalcFin()" placeholder="0,00">'+
+        seloExtratoHTML(c.campo, val)+
         (c.dica?'<span class="cpd">'+esc(c.dica)+'</span>':'')+'</div>';
     });
     if(grupoAtual) h+='</div>';
@@ -954,7 +1084,7 @@ function renderFin(){
       let val=(F[c[0]]!=null?F[c[0]]:'');
       h+='<div class="cp"><label>'+esc(c[1])+'</label>'+
         '<input type="number" step="0.01" inputmode="decimal" id="e_'+c[0]+'" value="'+val+'" '+
-        'oninput="recalcFin()" placeholder="0,00"></div>';
+        'oninput="recalcFin()" placeholder="0,00">'+seloExtratoHTML(c[0], val)+'</div>';
     }
     h+='</div>';
   }

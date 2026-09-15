@@ -85,6 +85,26 @@ são orçamento. Não some os dois.
 `valor_projeto` e `preco_negociado` são espelhados pelo trigger
 `trg_sincroniza_valor`. **Já existia — não crie outro.**
 
+⚠️ **A ficha não repete o extrato: ela lê.** Até 15/09 a Ana classificava o
+movimento no extrato (o que **já vincula a obra** — 55 dos 60 custos estão
+ligados) e depois digitava o mesmo valor na ficha, porque nada trazia o número
+de volta. Medido: **6 campos digitados duas vezes**, **39 só no extrato** com a
+ficha zerada, e **5 divergentes**. Hoje `obra_custos_realizados(obra)` soma por
+obra e por campo, e a ficha mostra o valor com um botão "usar".
+
+O mapa conta → campo vive em **`dre_plano_contas.campo_ficha`**, não no código:
+`03.1.01 → valor_kit`, `03.2.01 → instalacao`, `04.1.01 → comissao_valor`… Conta
+nova ganha o campo dela sem mexer em tela.
+
+⚠️ **Não sobrescreva a ficha pelo extrato em lote.** O extrato cobre
+**03/08 a 08/09/2026**, e de 27 obras com custo lançado **14 fecharam antes de
+03/08** — o custo delas foi pago fora da janela. O caso que prova: o carport do
+Jose Antonio (4674), ficha R$ 9.386,01 contra R$ 268,65 no extrato, obra
+fechada em 28/07. Puxar por cima apagaria R$ 9.117,36 de custo real e inflaria
+a margem. Por isso o "Puxar do extrato" só mexe sozinho no que está **vazio**,
+divergente pergunta antes, e obra fora da janela ganha aviso próprio. Some
+quando o extrato anterior a agosto for importado (pendência no §10).
+
 ### Pós-venda
 ⚠️ **Geração mora em `usina_geracao` (por usina), não em `geracao` (por obra).**
 A `geracao` existe para entrada manual e está **vazia**. Até 15/09 a tela lia
@@ -276,6 +296,7 @@ nenhuma delas. Ver pendência no §10.
 | `autoleitura_fila()` | quem avisar hoje, com o texto pronto |
 | `get_responsavel_posvenda()` | quem é o `resp_posvenda` e o `resp_alertas` hoje |
 | `definir_responsavel(equipe, funcao)` | troca a pessoa de um dos dois papéis; só admin |
+| `obra_custos_realizados(obra)` | o realizado da obra vindo do extrato, campo a campo; diz também se o extrato cobre o período da obra |
 | `dia_util_ate(data)` | o último dia útil em `data` ou antes — é o que antecipa o aviso de fim de semana para a sexta |
 | `usina_adicionar(json, simular)` | acrescenta uma usina a um cliente que já existe. **Só soma no total da obra se ela for cliente de plano** — em obra de venda a potência é o projeto vendido, e mexer ali muda o tamanho de uma venda que já aconteceu |
 
@@ -503,6 +524,9 @@ significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
       julho com a de agosto é comparar orçado com realizado. Bloqueante para
       análise de margem, e a causa é esta, não "faltam despesas": junho tem
       R$ 124.167 e julho R$ 120.328 lançados, só que pela ficha.
+      **Também é isto que trava a ficha de ler o extrato sozinha:** 14 das 27
+      obras com custo lançado fecharam antes de 03/08, então o realizado delas
+      é parcial e a digitação manual ainda precisa existir.
 - [ ] **Calibrar `economia_por_kwh` com uma conta de luz de verdade.** Está em
       0,7968 desde 12/09, mas é **provisório**: saiu de 0,73 × 1,0915, e não de
       uma conta. Basta uma conta pós-abril de qualquer cliente — total em R$
