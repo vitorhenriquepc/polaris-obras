@@ -1453,8 +1453,12 @@ async function alEnviar(id){
     if(!r.ok||res.error){ toast('Erro ao enviar: '+(res.error||r.status)); return; }
   }catch(e){ toast('Falha de conexão'); return; }
   // so marca depois que o envio deu certo (convencao 8: confere o erro antes de seguir)
-  await alMarcar(id, x.tipo, true);
-  toast('📤 Aviso enviado para '+x.cliente);
+  const m=await sb.rpc('autoleitura_marcar',{p_leitura:id, p_tipo:x.tipo});
+  if(m.error){ toast('Enviado, mas não consegui marcar: '+m.error.message); return; }
+  // envio adiantado nao cancela o automatico da data certa
+  if(m.data && m.data.marcado===false && m.data.aviso) toast('📤 Enviado. '+m.data.aviso);
+  else toast('📤 Aviso enviado para '+x.cliente);
+  carregarPlanos();
 }
 
 async function alMarcar(id, tipo, silencioso){
@@ -2629,7 +2633,8 @@ async function flAvisar(leituraId){
   // so marca depois que o envio deu certo
   const m=await sb.rpc('autoleitura_marcar',{p_leitura:leituraId, p_tipo:'vespera'});
   if(m.error){ toast('Enviado, mas não consegui marcar: '+m.error.message); return; }
-  toast('📤 Aviso enviado');
+  if(m.data && m.data.marcado===false && m.data.aviso) toast('📤 Enviado. '+m.data.aviso);
+  else toast('📤 Aviso enviado');
   abrirFicha(FICHA.obra.id);
 }
 

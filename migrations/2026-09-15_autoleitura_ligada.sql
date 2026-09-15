@@ -45,3 +45,16 @@ update config set valor = '1' where chave = 'autoleitura_ativo';
 -- PARA DESLIGAR, sem mexer em cron nem em codigo:
 --   update config set valor = '0' where chave = 'autoleitura_ativo';
 -- A edge function le essa chave em toda rodada e volta na hora.
+
+-- ---------------------------------------------------------------------------
+-- CORRECAO no mesmo dia: aviso adiantado nao cancela o automatico.
+--
+-- Achado confirmando outra coisa. Clicar em "Enviar no grupo" dez dias antes
+-- marcava a vespera como avisada, e o cron das 18h na data certa pulava esse
+-- cliente. O aviso adiantado CANCELAVA o aviso na hora certa -- o contrario
+-- do que se espera de um "forcar envio".
+--
+-- Agora autoleitura_marcar() so marca a partir do dia devido. Adiantado,
+-- a mensagem sai e o automatico continua programado; a tela mostra
+-- "O aviso automatico continua programado para DD/MM".
+-- ---------------------------------------------------------------------------
