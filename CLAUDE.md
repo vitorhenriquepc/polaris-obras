@@ -89,10 +89,13 @@ são orçamento. Não some os dois.
 ⚠️ **Geração mora em `usina_geracao` (por usina), não em `geracao` (por obra).**
 A `geracao` existe para entrada manual e está **vazia**. Até 15/09 a tela lia
 dela, e por isso "Geração e desempenho" aparecia vazia para todos os clientes.
-Seis funções ainda leem da tabela vazia — `regua_bloqueio`, `regua_texto`,
-`get_geracao_bruta`, `get_trajetoria_posvenda`, `pendencias_posvenda` e
-`conferir_saude_base`. Uma obra pode ter **várias usinas** (o Gilberto tem 4),
-então sempre **some por obra**.
+Uma obra pode ter **várias usinas** (o Gilberto tem 4), então **nunca some
+sozinho**: use `obra_geracao_total(obra)`, que é a definição única — soma as
+usinas, ignora os meses de zero que o SolarView devolve antes da instalação,
+deixa o mês corrente de fora e compara contra a mediana da vizinhança.
+A tela, a régua e os painéis leem todos dali, então o que o cliente recebe
+bate com o que a equipe vê. Só `get_geracao_bruta` ainda lê a tabela vazia —
+é código morto, sem nenhum chamador.
 
 `usinas`, `usina_dia`, `usina_geracao` · `clima_dia` · `v_indice_dia` ·
 `v_indice_regiao` (cidade com 5+ usinas ganha grupo próprio) ·
@@ -121,6 +124,7 @@ então sempre **some por obra**.
 | `nps_para_lembrete_google()` | quem recebe o convite do Google — mesma trava |
 | `obra_ativa(obra)` | **a definição única de "está ativa"**: chegou na última etapa da própria trilha |
 | `obra_ativa_em(obra)` | desde quando está ativa (cai no `etapas_historico` se `data_conclusao` for nula) |
+| `obra_geracao_total(obra)` | **quanto a obra já gerou**: kWh, economia, desempenho e meses — a fonte única |
 
 ---
 
