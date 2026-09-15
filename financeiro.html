@@ -1192,7 +1192,8 @@ function renderParc(){
   const sit = rec===PARC.length ? ['Quitado','var(--green-l)']
             : ['Parcelado em '+PARC.length+'x — '+rec+' recebida(s)','var(--gold)'];
   let h='<div class="resumoCalc" style="margin:0 0 10px"><div class="r tot">'+
-    '<span style="color:'+sit[1]+'">'+sit[0]+'</span><span>'+moeda2(tot)+'</span></div></div>';
+    '<span style="color:'+sit[1]+'">'+sit[0]+'</span><span>'+moeda2(tot)+'</span></div>'+
+    fechaComPreco(tot)+'</div>';
   for(let i=0;i<PARC.length;i++){
     const p=PARC[i];
     h+='<div class="lin" style="align-items:center">'+
@@ -1208,10 +1209,35 @@ function renderParc(){
   }
   box.innerHTML=h;
 }
+/* As parcelas tem de somar o preco negociado. A tela mostrava o total e nao
+   dizia com o que ele deveria bater -- e por isso existem 13 obras cujas
+   parcelas nao fecham com o preco. Nao trava o salvamento de proposito:
+   entrada de financiamento e caso legitimo de nao fechar. */
+function fechaComPreco(tot){
+  const preco=n(gv('e_preco_negociado'));
+  if(!(preco>0)) return '';
+  const falta=Math.round((preco-tot)*100)/100;
+  if(Math.abs(falta)<0.02)
+    return '<div class="r"><span style="color:var(--green-l)">✓ fecha com o preço negociado</span>'+
+           '<span style="color:var(--green-l)">'+moeda2(preco)+'</span></div>';
+  return '<div class="r"><span style="color:var(--gold)">'+
+         (falta>0?'faltam ':'passou ')+'<b>'+moeda2(Math.abs(falta))+'</b> para fechar com o preço</span>'+
+         '<span style="color:var(--muted)">preço: '+moeda2(preco)+'</span></div>';
+}
 function renderParcResumo(){ /* recalcula só o cabeçalho sem perder foco */
   const box=document.getElementById('parcBox'); if(!box) return;
-  const el=box.querySelector('.resumoCalc .r.tot span:last-child'); if(!el) return;
-  el.textContent=moeda2(PARC.reduce(function(a,p){return a+n(p.valor);},0));
+  const tot=PARC.reduce(function(a,p){return a+n(p.valor);},0);
+  const el=box.querySelector('.resumoCalc .r.tot span:last-child');
+  if(el) el.textContent=moeda2(tot);
+  // a linha da conferencia e a que vem logo depois do total
+  const linhas=box.querySelectorAll('.resumoCalc .r');
+  const conf=linhas.length>1?linhas[1]:null;
+  if(conf){
+    const novo=fechaComPreco(tot);
+    if(novo){ const d=document.createElement('div'); d.innerHTML=novo;
+              conf.replaceWith(d.firstChild); }
+    else conf.remove();
+  }
 }
 function renumerar(){ for(let i=0;i<PARC.length;i++) PARC[i].numero=i+1; }
 function addParcela(){
@@ -1291,23 +1317,43 @@ async function salvarFin(){
   const recT=PARC.filter(function(p){return p.recebida;}).length;
   payload.status_pagamento = PARC.length===0 ? 'aberto'
                            : (recT===PARC.length ? 'quitado' : 'parcelado');
+  const solta=function(){ b.disabled=false; b.textContent='Salvar'; };
   const r=await sb.from('obra_financeiro').upsert(payload,{onConflict:'obra_id'});
-  if(r.error){toast(r.error.message);return;}
-  // parcelas: apaga e regrava
-  await sb.from('obra_parcelas').delete().eq('obra_id',EDIT.obra.id);
+  // antes o return aqui deixava o botao preso em "Salvando..." para sempre
+  if(r.error){ solta(); toast('Não salvou: '+r.error.message); return; }
+
+  /* Parcelas: apaga e regrava. As duas chamadas corriam SEM CONFERIR ERRO --
+     e a armadilha 8 do CLAUDE.md diz que ja houve perda de dados exatamente
+     assim. Se o insert falhasse depois do delete, as parcelas iam embora e a
+     tela ainda dizia "salvo".
+     Agora: o delete que falha para tudo antes de apagar de verdade, e o insert
+     que falha grita e NAO fecha a ficha -- as parcelas continuam na tela, entao
+     da para tentar de novo sem redigitar. */
+  const del=await sb.from('obra_parcelas').delete().eq('obra_id',EDIT.obra.id);
+  if(del.error){ solta(); toast('Não consegui atualizar as parcelas: '+del.error.message); return; }
   if(PARC.length){
-    await sb.from('obra_parcelas').insert(PARC.map(function(p){
+    const ins=await sb.from('obra_parcelas').insert(PARC.map(function(p){
       return {obra_id:EDIT.obra.id, numero:p.numero, valor:p.valor,
               vencimento:p.vencimento||null, recebida:!!p.recebida};}));
+    if(ins.error){
+      solta();
+      toast('ATENÇÃO: as parcelas não foram gravadas ('+ins.error.message+
+            '). Elas ainda estão na tela — clique em Salvar de novo.');
+      return;
+    }
   }
+
   const og=document.getElementById('eOrigem').value||null;
   const vd=document.getElementById('eVend').value||null;
   const upd={};
   if(og!==EDIT.obra.origem_lead) upd.origem_lead=og;
   if(vd!==EDIT.obra.vendedor_id) upd.vendedor_id=vd;
-  if(Object.keys(upd).length) await sb.from('obras').update(upd).eq('id',EDIT.obra.id);
-  b.disabled=false; b.textContent='Salvar';
-  if(r.error){toast('Erro: '+r.error.message);return;}
+  if(Object.keys(upd).length){
+    const ro=await sb.from('obras').update(upd).eq('id',EDIT.obra.id);
+    // nao perde o resto do salvamento por causa disso, mas nao mente tambem
+    if(ro.error) toast('Financeiro salvo, mas vendedor/origem não: '+ro.error.message);
+  }
+  solta();
   toast('Financeiro da obra salvo');
   fecharFin();
   await carregar();
