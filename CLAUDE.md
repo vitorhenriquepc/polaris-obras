@@ -114,6 +114,17 @@ entra como obra de trilha `manutencao` com `cliente_externo = true` e
 `valor_projeto` nulo. Não é venda: fica fora de conversão, margem e funil,
 mas ganha régua, monitoramento e contrato.
 
+Para quem a nota é emitida vive no **contrato**, não em `clientes`:
+`nota_documento` aceita CPF (11 dígitos) ou CNPJ (14) e o tipo se deduz do
+tamanho — não existe campo separado, para não divergir do número.
+
+⚠️ **A ficha financeira de cliente de plano nasce `dispensado = true`.**
+`abre_financeiro_obra()` cria ficha para toda obra com etapa >= 1, e
+`trava_campos_financeiro()` exige `preco_negociado` e `distancia_km`. Um
+cliente de plano não tem nenhum dos dois e o cadastro ficava **impossível** —
+descoberto na simulação, antes de gravar. A ficha continua existindo (o plano
+gera receita e ela vai precisar de lugar), mas não cobra campo de venda.
+
 A faixa `completo_especial` (acima de 45 módulos) existe **sem preço de
 tabela de propósito** — o valor é negociado por sistema e vive no contrato.
 Quem lê `planos` tem de tratar `preco_mensal`/`preco_anual` nulos como "sob
@@ -338,6 +349,17 @@ significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
       (diferença acima de R$ 1,00).
 - [ ] 5 cards incompletos: 4349, 4420, 4483, 4563, 4808
 - [ ] Confirmar se as parcelas de ~30% são entrada de financiamento
+- [ ] **Registrar o 1º pagamento da TAYS VALESE DIAS DO PRADO.** Primeiro
+      contrato pago do sistema: Completo anual, R$ 2.990,00, duas usinas
+      instaladas pela **Eco Solar** (açougue em Araçatuba 29,25 kWp, rancho em
+      Birigui 40,95 kWp — o rancho manda os créditos para o açougue). Está em
+      `aguardando_pagamento`, sem início nem fim. Quando o dinheiro entrar,
+      botão "Registrar 1º pagamento" no card da obra. Aí vira **R$ 249,17 de
+      receita mensal**, o primeiro número diferente de zero desse painel.
+      As duas usinas ainda **não estão no SolarView** — o Vitor vai cadastrar,
+      e o vínculo é manual porque ela não tem número de contrato no nome.
+      O aniversário (31/10) ficou só em `clientes`, fora de `obras`, para a
+      automação de aniversário não mandar texto de cliente de instalação.
 - [ ] Ligar proteção de senha vazada no Supabase
 - [ ] Conferir cidades com IPTU Sustentável antes da última automação
 
