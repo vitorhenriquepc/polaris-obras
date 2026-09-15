@@ -343,6 +343,11 @@ max-height:340px;overflow-y:auto;margin:0}
   border-radius:9px;padding:7px 12px;font-family:inherit;font-size:12.5px;
   font-weight:700;cursor:pointer;transition:border-color .15s,background .15s}
 .stb:hover{border-color:var(--gold)}
+/* bloqueio proposital tem de ser visivel: o "Gravar" so libera depois de
+   conferir, e o "Inicio" fica travado quando o contrato comeca no pagamento */
+.stb:disabled{opacity:.42;cursor:not-allowed;filter:grayscale(.6)}
+.stb:disabled:hover{border-color:var(--border)}
+.ncsec input:disabled,.ncsec select:disabled{opacity:.45;cursor:not-allowed}
 .stb.prim{background:var(--green);border-color:var(--green);color:#fff}
 .stb.prim:hover{border-color:var(--green-l)}
 .dica{font-size:12px;color:var(--muted);font-weight:600;line-height:1.55;
