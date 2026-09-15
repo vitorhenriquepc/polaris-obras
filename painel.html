@@ -628,11 +628,59 @@ async function loadPlanos(){
   const r=await sb.from('planos').select('codigo,nome,preco_anual,preco_mensal,nivel').eq('ativo',true).order('ordem');
   PLANOS=r.data||[];
 }
+// CPF com 11 digitos, CNPJ com 14. O tipo se deduz do numero, nunca se guarda
+// ao lado dele -- foi assim que a coluna nasceu no banco.
+function docFmt(d){
+  const s=String(d||'').replace(/\D/g,'');
+  if(s.length===11) return s.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4');
+  if(s.length===14) return s.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5');
+  return s;
+}
+function docTipo(d){
+  const s=String(d||'').replace(/\D/g,'');
+  return s.length===11?'CPF':(s.length===14?'CNPJ':'');
+}
+function planoMoeda(v){
+  return Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+}
+function camposNota(){
+  return '<div style="margin-top:9px;font-size:11.5px;color:#8fa6b8;font-weight:700">Nota fiscal</div>'+
+    '<div class="grid2" style="gap:8px;margin-top:5px">'+
+    '<select id="p_nota_tipo" onchange="trocaNotaTipo()">'+
+      '<option value="cpf">No CPF</option><option value="cnpj">No CNPJ</option></select>'+
+    '<input id="p_nota_doc" inputmode="numeric" placeholder="000.000.000-00"></div>'+
+    '<input id="p_nota_nome" style="margin-top:7px;width:100%" placeholder="Nome ou razão social na nota (se diferente)">';
+}
+function trocaNotaTipo(){
+  const t=(document.getElementById('p_nota_tipo')||{}).value;
+  const i=document.getElementById('p_nota_doc'); if(!i) return;
+  i.placeholder = t==='cnpj' ? '00.000.000/0000-00' : '000.000.000-00';
+}
+
 async function carregarPlano(obraId){
   const box=document.getElementById('planoBox'); if(!box||!obraId) return;
-  const r=await sb.from('plano_contratos').select('*').eq('obra_id',obraId).eq('status','ativo')
-    .order('fim',{ascending:false}).limit(1).maybeSingle();
+  const r=await sb.from('plano_contratos').select('*').eq('obra_id',obraId)
+    .in('status',['ativo','aguardando_pagamento'])
+    .order('criado_em',{ascending:false}).limit(1).maybeSingle();
   const c=r.data;
+
+  // contrato fechado e ainda nao pago: nao tem inicio nem fim, entao mostrar
+  // "venceu ha X dias" seria mentira. O que ele precisa e do botao de baixa.
+  if(c && c.status==='aguardando_pagamento'){
+    const p=PLANOS.find(x=>x.codigo===c.plano_codigo);
+    box.innerHTML='<div style="border:1px solid #F5A623;border-radius:9px;padding:10px 12px;font-size:12.5px">'+
+      '<b style="color:#F5A623">'+esc(p?p.nome:c.plano_codigo)+'</b><br>'+
+      '<span style="color:#8fa6b8;font-weight:600">Aguardando o 1º pagamento'+
+      (c.valor?' · '+planoMoeda(c.valor):'')+' · '+(c.meses||12)+' meses<br>'+
+      'Os meses só começam a contar quando o pagamento entrar.'+
+      (c.nota_documento?'<br>Nota no '+docTipo(c.nota_documento)+' '+esc(docFmt(c.nota_documento))+
+        (c.nota_nome?' · '+esc(c.nota_nome):''):'')+
+      '</span>'+
+      '<button type="button" class="tbtn" style="margin-top:8px;width:100%" onclick="registrarPagamento(\''+c.id+'\')">Registrar 1º pagamento</button>'+
+      '<button type="button" class="tbtn" style="margin-top:6px" onclick="encerrarPlano(\''+c.id+'\',\'cancelado\')">Cancelar contrato</button></div>';
+    return;
+  }
+
   if(c){
     const dias=Math.round((new Date(c.fim)-new Date())/864e5);
     const p=PLANOS.find(x=>x.codigo===c.plano_codigo);
@@ -641,7 +689,9 @@ async function carregarPlano(obraId){
       '<b style="color:'+cor+'">'+esc(p?p.nome:c.plano_codigo)+'</b><br>'+
       '<span style="color:#8fa6b8;font-weight:600">'+fmtD(c.inicio)+' a '+fmtD(c.fim)+' · '+
       (dias<0?('venceu há '+Math.abs(dias)+' dias'):(dias+' dias restantes'))+
-      (c.valor?' · '+Number(c.valor).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):'')+'</span>'+
+      (c.valor?' · '+planoMoeda(c.valor):'')+
+      (c.nota_documento?'<br>Nota no '+docTipo(c.nota_documento)+' '+esc(docFmt(c.nota_documento)):'')+
+      '</span>'+
       '<button type="button" class="tbtn" style="margin-top:8px" onclick="encerrarPlano(\''+c.id+'\')">Encerrar plano</button></div>';
   } else {
     let ops='<option value="">— Sem plano —</option>';
@@ -653,26 +703,61 @@ async function carregarPlano(obraId){
       '<div class="grid2" style="gap:8px;margin-top:7px">'+
       '<input id="p_inicio" type="date" value="'+new Date().toISOString().slice(0,10)+'">'+
       '<input id="p_valor" type="number" step="0.01" inputmode="decimal" placeholder="Valor (R$)"></div>'+
+      '<label style="display:flex;align-items:center;gap:7px;margin-top:8px;font-size:12px;color:#8fa6b8;font-weight:600">'+
+      '<input type="checkbox" id="p_aguardando" onchange="document.getElementById(\'p_inicio\').disabled=this.checked">'+
+      'Começa no 1º pagamento</label>'+
+      camposNota()+
       '<button type="button" class="tbtn" style="margin-top:8px;width:100%" onclick="salvarPlano(\''+obraId+'\')">Vincular plano</button>';
   }
 }
 async function salvarPlano(obraId){
   const cod=document.getElementById('p_cod').value;
   if(!cod){ toast('Escolha o plano'); return; }
+
+  const esperando=!!(document.getElementById('p_aguardando')||{}).checked;
+  const tipo=((document.getElementById('p_nota_tipo')||{}).value)||'cpf';
+  const doc=(((document.getElementById('p_nota_doc')||{}).value)||'').replace(/\D/g,'');
+  // o banco recusa documento com tamanho errado; avisar aqui evita o erro cru
+  if(doc && doc.length !== (tipo==='cnpj'?14:11)){
+    toast(tipo==='cnpj'?'CNPJ tem 14 dígitos':'CPF tem 11 dígitos'); return;
+  }
+  const inicio=(document.getElementById('p_inicio')||{}).value;
+  if(!esperando && !inicio){ toast('Informe o início, ou marque "começa no 1º pagamento"'); return; }
+
   const r=await sb.from('plano_contratos').insert({
     obra_id:obraId, plano_codigo:cod,
-    inicio:document.getElementById('p_inicio').value,
+    inicio: esperando ? null : inicio,
+    status: esperando ? 'aguardando_pagamento' : 'ativo',
     meses:parseInt(document.getElementById('p_meses').value,10),
     valor:parseFloat(document.getElementById('p_valor').value)||null,
+    nota_documento: doc||null,
+    nota_nome: (((document.getElementById('p_nota_nome')||{}).value)||'').trim()||null,
     forma:'anual'
   });
   if(r.error){ toast('Erro: '+r.error.message); return; }
-  toast('Plano vinculado ✓');
+  toast(esperando?'Contrato registrado — aguardando o 1º pagamento ✓':'Plano vinculado ✓');
   carregarPlano(obraId);
 }
-async function encerrarPlano(id){
-  if(!confirm('Encerrar este plano? Ele para de gerar avisos de vencimento.')) return;
-  const r=await sb.from('plano_contratos').update({status:'encerrado'}).eq('id',id);
+
+// A data do pagamento e que define inicio e fim. Quem calcula e a funcao no
+// banco, para a conta dos meses nao existir em dois lugares.
+async function registrarPagamento(id){
+  const hoje=new Date().toISOString().slice(0,10);
+  const d=prompt('Data do 1º pagamento (AAAA-MM-DD):', hoje);
+  if(!d) return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ toast('Data inválida'); return; }
+  const r=await sb.rpc('plano_registrar_pagamento',{p_contrato:id, p_data:d});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast('Contrato ativo até '+fmtD(r.data.fim)+' ✓');
+  if(FORM_ID) carregarPlano(FORM_ID);
+}
+async function encerrarPlano(id, novoStatus){
+  const st=novoStatus||'encerrado';
+  if(!confirm(st==='cancelado'
+      ? 'Cancelar este contrato? Ele nunca chegou a ser pago.'
+      : 'Encerrar este plano? Ele para de gerar avisos de vencimento.')) return;
+  const r=await sb.from('plano_contratos').update({status:st}).eq('id',id);
   if(r.error){ toast('Erro'); return; }
   toast('Plano encerrado');
   if(FORM_ID) carregarPlano(FORM_ID);
@@ -2067,6 +2152,10 @@ ${o.trilha==='manutencao'?`
 </div>
 <div class="fld"><label>Inversor(es)</label><input id="f_inv" value="${esc(o.inversor_descricao||'')}" placeholder="2x Huawei 6kW"></div>
 </div></details>
+${novo?'':`
+<div class="fld"><label>Plano de manutenção e acompanhamento</label>
+<div id="planoBox"><span class="mut">Carregando o plano...</span></div></div>
+`}
 <div class="row">
 <button class="cancel" onclick="fecharForm()">Cancelar</button>
 <button class="save" id="f_save">${novo?'Criar obra':'Salvar'}</button>

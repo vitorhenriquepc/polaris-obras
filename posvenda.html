@@ -653,6 +653,25 @@ white-space:normal;padding:0 2px}
 .umeta{font-size:11.5px;color:var(--muted);margin-top:2px}
 .uright{text-align:right;flex-shrink:0}
 .ust{font-size:12px;font-weight:700}
+.ncsec{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:13px;margin-top:11px}
+.nctit{font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--gold);margin-bottom:9px}
+.ncdica{font-size:11.5px;color:var(--muted);font-weight:600;line-height:1.5;margin-bottom:9px}
+.ncsec label{display:block;font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:8px}
+.ncsec input,.ncsec select{width:100%;margin-top:3px;background:var(--card2);border:1px solid var(--border);
+  color:var(--txt);border-radius:8px;padding:8px 9px;font-family:inherit;font-size:13px;font-weight:600}
+.ncg2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.ncg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+@media(max-width:620px){.ncg2,.ncg3{grid-template-columns:1fr}}
+.ncu{border:1px solid var(--border);border-radius:11px;padding:11px;margin-bottom:9px;background:var(--card2)}
+.ncuh{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:13px}
+.ncck{display:flex!important;align-items:center;gap:7px;margin-top:8px}
+.ncck input{width:auto!important;margin-top:0}
+.ncerro{border:1px solid #e07070;border-radius:11px;padding:11px 13px;margin-top:11px;font-size:12.5px;color:#e07070}
+.ncerro ul{margin:6px 0 0;padding-left:18px;line-height:1.7}
+.ncok{border:1px solid var(--green-l);border-radius:11px;padding:11px 13px;margin-top:11px;font-size:12.5px;line-height:1.75}
+.uext{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.3px;
+  padding:1px 6px;border-radius:20px;margin-left:6px;vertical-align:middle;
+  background:rgba(214,175,88,.16);color:var(--gold);border:1px solid rgba(214,175,88,.35)}
 @media(max-width:480px){.urow{flex-direction:column;align-items:flex-start;gap:4px}
   .uright{text-align:left}}
 </style>
@@ -873,6 +892,7 @@ function n(v){var x=Number(v);return isNaN(x)?0:x;}
 
 /* ---------- PLANOS DE MANUTENÇÃO ---------- */
 let PLN=null, PLSEL=null, PAI=null, PLABA='painel';
+let FICHA=null;   // a ficha aberta agora, para o formulario de usina achar as irmas
 
 async function carregarPlanos(){
   const box=document.getElementById('plbox'); if(!box) return;
@@ -886,11 +906,34 @@ async function carregarPlanos(){
 function planoCompletoPara(mods){
   const lista=(PLN.planos||[]).filter(p=>p.nivel===3);
   const m=Number(mods)||0;
-  return lista.find(p=>m>=Number(p.mod_min||0) && m<=Number(p.mod_max||999)) || lista[lista.length-1];
+  // sem saber o tamanho do sistema nao da para dizer a faixa. Devolver o
+  // ultimo da lista, como era antes, fazia a tela anunciar um preco que nao
+  // vale para aquele cliente.
+  if(!m) return null;
+  return lista.find(p=>m>=Number(p.mod_min||0) && m<=Number(p.mod_max||9999)) || null;
+}
+// Faixa acima de 45 modulos existe sem preco de tabela de proposito: o valor
+// e negociado por sistema. Nunca imprimir moedaBR(null), que vira "R$ 0,00".
+function temPrecoTabela(p){ return !!(p && p.mensal!=null && p.anual!=null); }
+// O Completo vende uma visita anual em CADA endereco, entao quem tem duas
+// propriedades paga o extra. O valor vem da config, nunca chumbado aqui.
+function adicionalEndereco(qtdEnderecos){
+  const nEnd = Math.max(1, Number(qtdEnderecos)||1);
+  const porAno = Number(PLN.endereco_adicional!=null?PLN.endereco_adicional:0);
+  const extras = nEnd - 1;
+  return { extras: extras,
+           anual: porAno*extras,
+           mensal: Math.round(porAno/12*extras*100)/100,
+           porAno: porAno };
+}
+function completoMaisBarato(){
+  return (PLN.planos||[])
+    .filter(function(p){ return p.nivel===3 && p.mensal!=null; })
+    .sort(function(a,b){ return Number(a.mensal)-Number(b.mensal); })[0] || null;
 }
 function moedaBR(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
 
-function textoPlano(cliente, mods){
+function textoPlano(cliente, mods, enderecos){
   const P=PLN.planos||[];
   const ess=P.find(p=>p.codigo==='essencial');
   const atv=P.find(p=>p.codigo==='ativo');
@@ -919,14 +962,31 @@ function textoPlano(cliente, mods){
    +'• '+Number(atv.desconto)+'% de desconto em serviços\n'
    +'• Apoio na relação com a distribuidora\n\n';
 
-  t+='🥇 *COMPLETO* — '+moedaBR(cmp.mensal)+'/mês\n'
-   +'_ou '+moedaBR(cmp.anual)+' no ano_\n'
-   +'• Tudo do Ativo\n'
-   +'• *Visita técnica anual inclusa*\n'
+  const ad = adicionalEndereco(enderecos);
+  if(temPrecoTabela(cmp)){
+    t+='🥇 *COMPLETO* — '+moedaBR(Number(cmp.mensal)+ad.mensal)+'/mês\n'
+      +'_ou '+moedaBR(Number(cmp.anual)+ad.anual)+' no ano_\n';
+    if(ad.extras>0){
+      t+='_já inclui '+moedaBR(ad.anual)+'/ano de '+(ad.extras===1?'1 endereço':ad.extras+' endereços')
+        +' além do primeiro — a visita técnica é em cada um_\n';
+    }
+  } else {
+    t+='🥇 *COMPLETO* — valor sob consulta\n'
+      +'_seu sistema é maior que as faixas de tabela; preparamos uma proposta '
+      +'para ele_\n';
+  }
+  t+='• Tudo do Ativo\n'
+   +(ad.extras>0
+      ? '• *Uma visita técnica anual em cada endereço*\n'
+      : '• *Visita técnica anual inclusa*\n')
    +'• Limpeza dos módulos\n'
    +'• Inspeção elétrica e de fixação\n'
-   +'• *Laudo técnico assinado*\n'
-   +'• '+Number(cmp.desconto)+'% de desconto em serviços\n\n';
+   +'• *Laudo técnico assinado*\n';
+  // o desconto sai da tabela, nunca de um numero fixo aqui
+  var _desc = (cmp && cmp.desconto!=null) ? cmp.desconto
+            : (P.filter(function(p){return p.nivel===3 && p.desconto!=null;})[0]||{}).desconto;
+  if(_desc!=null) t+='• '+Number(_desc)+'% de desconto em serviços\n';
+  t+='\n';
 
   t+='━━━━━━━━━━━━━━━\n\n';
   t+='O *Laudo técnico* é o documento que o fabricante pede quando há acionamento '
@@ -964,9 +1024,11 @@ function renderPlanos(){
     +'<button class="'+(PLABA==='painel'?'on':'')+'" onclick="setPlaba(\'painel\')">📊 Acompanhamento</button>'
     +'<button class="'+(PLABA==='envio'?'on':'')+'" onclick="setPlaba(\'envio\')">📤 Enviar proposta</button>'
     +'<button class="'+(PLABA==='fora'?'on':'')+'" onclick="setPlaba(\'fora\')">🏳️ Cliente de fora</button>'
+    +'<button class="'+(PLABA==='novo'?'on':'')+'" onclick="setPlaba(\'novo\')">➕ Novo cliente</button>'
     +'</div>';
   if(PLABA==='painel') return nav+renderPainelPlanos();
   if(PLABA==='fora') return nav+renderForaPlanos();
+  if(PLABA==='novo') return nav+renderNovoCliente();
   return nav+renderEnvioPlanos();
 }
 
@@ -981,6 +1043,17 @@ function renderPainelPlanos(){
    +'<div class="rgs"><div class="n" style="color:var(--green-l)">'+n(R.pagos)+'</div><div class="l">Pagantes</div></div>'
    +'<div class="rgs"><div class="n">'+moedaBR(R.mrr)+'</div><div class="l">Receita mensal</div></div>'
    +'</div>';
+
+  // contrato fechado que ainda nao teve o primeiro pagamento: nao e receita,
+  // mas e a unica coisa da tela que pede acao hoje
+  if(n(R.aguardando)>0){
+    h+='<div class="plpot" style="border-color:rgba(214,175,88,.45)">'
+     +'<div class="lb">Aguardando o 1º pagamento</div>'
+     +'<div class="big" style="color:var(--gold)">'+n(R.aguardando)
+     +'<small>'+(n(R.aguardando)===1?' contrato':' contratos')+'</small></div>'
+     +'<div class="sb">os 12 meses só começam a contar quando o pagamento entrar</div>'
+     +'</div>';
+  }
 
   // o potencial, que é o número que interessa
   h+='<div class="plpot">'
@@ -1014,24 +1087,32 @@ function renderPainelPlanos(){
     h+='<div class="sec"><h3>📐 Por porte do sistema</h3><table class="pltbl">'
      +'<tr><th>Porte</th><th class="num">Clientes</th><th class="num">Anual</th><th class="num">Potencial</th></tr>';
     portes.forEach(function(p){
+      const semTab = n(p.anual)===0;
       h+='<tr><td>'+esc(p.porte)+'</td><td class="num">'+n(p.clientes)+'</td>'
-        +'<td class="num">'+moedaBR(p.anual)+'</td>'
-        +'<td class="num"><b>'+moedaBR(p.potencial)+'</b></td></tr>';
+        +'<td class="num">'+(semTab?'<span style="color:var(--muted)">sob consulta</span>':moedaBR(p.anual))+'</td>'
+        +'<td class="num">'+(semTab?'<span style="color:var(--muted)">—</span>':'<b>'+moedaBR(p.potencial)+'</b>')+'</td></tr>';
     });
     h+='</table></div>';
   }
 
   // quem vence primeiro
   const prox=L.slice(0,12);
-  h+='<div class="sec"><h3>⏳ Vencem primeiro</h3>';
+  h+='<div class="sec"><h3>⏳ Para acompanhar</h3>';
   prox.forEach(function(c){
+    const esperando = c.status==='aguardando_pagamento';
     const d=n(c.dias);
-    const cor = d<0?'#e07070':(d<=60?'var(--gold)':'var(--muted)');
+    const cor = esperando ? 'var(--gold)'
+              : (d<0?'#e07070':(d<=60?'var(--gold)':'var(--muted)'));
+    // sem pagamento nao existe `fim`: dataBR(null) e "em 0 dias" seriam mentira
+    const quando = esperando ? 'aguardando o 1º pagamento'
+                 : 'vence '+dataBR(c.fim)+' · '+(d<0?'venceu':'em '+d+' dias');
+    const valor = esperando ? moedaBR(c.valor)
+                : (c.completo_anual!=null ? moedaBR(c.completo_anual) : 'sob consulta');
     h+='<div class="chkline" onclick="irEnviar(\''+c.obra_id+'\')">'
       +'<div class="cn"><b>'+esc(c.cliente)+'</b>'
-      +'<span>'+(c.modulos||'?')+' módulos · vence '+dataBR(c.fim)
-      +' · <span style="color:'+cor+'">'+(d<0?'venceu':'em '+d+' dias')+'</span></span></div>'
-      +'<span style="font-size:12px;font-weight:800;color:var(--green-l)">'+moedaBR(c.completo_anual)+'</span>'
+      +(c.externo?'<span class="uext">cliente de plano</span>':'')
+      +'<span>'+(c.modulos||'?')+' módulos · <span style="color:'+cor+'">'+quando+'</span></span></div>'
+      +'<span style="font-size:12px;font-weight:800;color:var(--green-l)">'+valor+'</span>'
       +'<span style="color:var(--muted)">›</span></div>';
   });
   h+='</div>';
@@ -1049,7 +1130,7 @@ function textoFora(nome, mods){
   const P=PLN.planos||[];
   const ess=P.find(function(p){return p.codigo==='essencial';});
   const atv=P.find(function(p){return p.codigo==='ativo';});
-  const cmp=planoCompletoPara(mods);
+  const cmpMin=completoMaisBarato();
   const pn=(nome||'').trim().split(' ')[0];
   const pnc=pn?pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase():'';
 
@@ -1080,7 +1161,7 @@ function textoFora(nome, mods){
    +'Monitoramento, alerta se o sistema parar e suporte por WhatsApp\n\n';
   t+='🥈 *Ativo* — '+moedaBR(atv.mensal)+'/mês\n'
    +'Tudo do Essencial + análise da conta de luz e '+Number(atv.desconto)+'% de desconto em serviços\n\n';
-  t+='🥇 *Completo* — a partir de '+moedaBR(cmp.mensal)+'/mês\n'
+  t+='🥇 *Completo* — '+(cmpMin?'a partir de '+moedaBR(cmpMin.mensal)+'/mês':'valor sob consulta')+'\n'
    +'Tudo do Ativo + *visita técnica anual*, limpeza, inspeção e *laudo assinado*\n\n';
   t+='━━━━━━━━━━━━━━━\n\n';
   t+='Somos de Araçatuba, com *mais de 400 sistemas instalados* na região. '
@@ -1127,6 +1208,234 @@ function copiarFora(){
   const t=textoFora(nome,mods);
   if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ toast('Mensagem copiada ✓'); });
   else toast('Selecione o texto e copie');
+}
+
+/* ---------- NOVO CLIENTE DE PLANO ----------
+   Tudo numa chamada so. A gravacao e feita por plano_cadastrar_cliente(),
+   que cria cliente + obra + usinas + contrato numa transacao: ou entra
+   inteiro, ou nao entra nada. A tela nao decide regra nenhuma -- trilha,
+   etapa e cliente_externo sao definidos no banco.
+
+   O botao de gravar so libera depois de conferir (regra 3.2). */
+let NC = { usinas: [ {} ] };
+
+function ncLerUsinas(){
+  for(let i=0;i<NC.usinas.length;i++){
+    const g=function(id){ return ((document.getElementById(id+i)||{}).value||''); };
+    NC.usinas[i] = {
+      apelido:g('nc_u_ap'), potencia_kwp:g('nc_u_kwp'), modulos:g('nc_u_mod'),
+      cidade:g('nc_u_cid'), endereco:g('nc_u_end'),
+      data_instalacao:g('nc_u_dti'),
+      data_estimada: !!(document.getElementById('nc_u_est'+i)||{}).checked,
+      compensa_em_indice:g('nc_u_comp')
+    };
+  }
+}
+function ncRedesenha(){
+  const box=document.getElementById('ncUsinas');
+  if(box) box.innerHTML = NC.usinas.map(ncUsinaLinha).join('');
+}
+function ncAddUsina(){ ncLerUsinas(); NC.usinas.push({}); ncRedesenha(); }
+function ncDelUsina(i){
+  ncLerUsinas(); NC.usinas.splice(i,1);
+  if(!NC.usinas.length) NC.usinas=[{}];
+  ncRedesenha();
+}
+
+function ncUsinaLinha(u,i){
+  let opts='';
+  NC.usinas.forEach(function(x,j){
+    if(j===i) return;
+    opts+='<option value="'+(j+1)+'"'+(String(u.compensa_em_indice||'')===String(j+1)?' selected':'')+'>'
+        + esc(x.apelido||('Usina '+(j+1))) + '</option>';
+  });
+  return '<div class="ncu">'
+   +'<div class="ncuh"><b>Usina '+(i+1)+'</b>'
+   +(NC.usinas.length>1?'<button type="button" class="stb" onclick="ncDelUsina('+i+')">Remover</button>':'')
+   +'</div>'
+   +'<div class="ncg2">'
+   +'<label>Apelido<input id="nc_u_ap'+i+'" value="'+esc(u.apelido||'')+'" placeholder="Açougue — Araçatuba"></label>'
+   +'<label>Cidade<input id="nc_u_cid'+i+'" value="'+esc(u.cidade||'')+'" placeholder="Araçatuba"></label>'
+   +'</div>'
+   +'<div class="ncg2">'
+   +'<label>Potência (kWp)<input id="nc_u_kwp'+i+'" type="number" step="0.01" inputmode="decimal" value="'+esc(u.potencia_kwp||'')+'"></label>'
+   +'<label>Módulos<input id="nc_u_mod'+i+'" type="number" inputmode="numeric" value="'+esc(u.modulos||'')+'"></label>'
+   +'</div>'
+   +'<label>Endereço<input id="nc_u_end'+i+'" value="'+esc(u.endereco||'')+'" placeholder="onde o técnico vai na visita anual"></label>'
+   +'<div class="ncg2">'
+   +'<label>Instalada em<input id="nc_u_dti'+i+'" type="date" value="'+esc(u.data_instalacao||'')+'"></label>'
+   +'<label class="ncck"><input type="checkbox" id="nc_u_est'+i+'"'+(u.data_estimada?' checked':'')+'> a data é estimada</label>'
+   +'</div>'
+   +(NC.usinas.length>1
+      ? '<label>Manda os créditos para<select id="nc_u_comp'+i+'">'
+        +'<option value="">— compensa no próprio relógio —</option>'+opts+'</select></label>'
+      : '')
+   +'</div>';
+}
+
+function ncMascara(){
+  const par=[['nc_doctipo','nc_doc'],['nc_notatipo','nc_notadoc']];
+  par.forEach(function(x){
+    const t=(document.getElementById(x[0])||{}).value;
+    const i=document.getElementById(x[1]);
+    if(i) i.placeholder = (t==='cnpj') ? '00.000.000/0000-00' : '000.000.000-00';
+  });
+}
+
+function renderNovoCliente(){
+  const P=PLN.planos||[];
+  let ops='<option value="">— sem plano por enquanto —</option>';
+  P.forEach(function(p){
+    ops+='<option value="'+esc(p.codigo)+'">'+esc(p.nome)
+      +(p.anual!=null?' · '+moedaBR(p.anual)+'/ano':' · sob consulta')+'</option>';
+  });
+
+  let h='<div class="sec"><h3>➕ Novo cliente de plano</h3>'
+   +'<div class="dica">Para quem paga o acompanhamento sem ter comprado a usina com a gente. '
+   +'Cria o cliente, a ficha, as usinas e o contrato de uma vez só — ou tudo, ou nada. '
+   +'Não entra em conversão, margem nem funil, porque não é venda.</div>';
+
+  h+='<div class="ncsec"><div class="nctit">Cliente</div>'
+   +'<div class="ncg2">'
+   +'<label>Nome completo<input id="nc_nome" placeholder="Tays Valese Dias do Prado"></label>'
+   +'<label>WhatsApp (com DDD)<input id="nc_tel" inputmode="numeric" placeholder="18999887766"></label>'
+   +'</div>'
+   +'<div class="ncg3">'
+   +'<label>Documento<select id="nc_doctipo" onchange="ncMascara()">'
+     +'<option value="cpf">CPF</option><option value="cnpj">CNPJ</option></select></label>'
+   +'<label>Número<input id="nc_doc" inputmode="numeric" placeholder="000.000.000-00"></label>'
+   +'<label>Cidade<input id="nc_cid" placeholder="Araçatuba"></label>'
+   +'</div>'
+   +'<div class="ncg3">'
+   +'<label>Aniversário — dia<input id="nc_dia" type="number" min="1" max="31" inputmode="numeric"></label>'
+   +'<label>mês<input id="nc_mes" type="number" min="1" max="12" inputmode="numeric"></label>'
+   +'<label>Quem instalou o sistema<input id="nc_origem" placeholder="Eco Solar, ou &quot;não sabe&quot;"></label>'
+   +'</div>'
+   +'<div class="ncg2">'
+   +'<label>Endereço principal<input id="nc_end" placeholder="rua, número, bairro, cidade"></label>'
+   +'<label>Link do grupo de WhatsApp<input id="nc_grupo" placeholder="cole o convite — o ID se resolve sozinho"></label>'
+   +'</div>'
+   +'<div class="ncg2">'
+   +'<label>Categoria<select id="nc_cat"><option value="">—</option>'
+     +'<option value="residencial">Residencial</option><option value="comercial">Comercial</option>'
+     +'<option value="rural">Rural</option></select></label>'
+   +'<label>Ramo<input id="nc_ramo" placeholder="açougue, padaria, sítio..."></label>'
+   +'</div></div>';
+
+  h+='<div class="ncsec"><div class="nctit">Usinas</div>'
+   +'<div class="ncdica">O endereço não é detalhe: o Completo vende uma visita técnica anual '
+   +'em <b>cada endereço</b>, e é isso que define o preço. Várias usinas no mesmo lugar '
+   +'contam como um só.</div>'
+   +'<div id="ncUsinas">'+NC.usinas.map(ncUsinaLinha).join('')+'</div>'
+   +'<button type="button" class="stb" onclick="ncAddUsina()">+ Adicionar usina</button></div>';
+
+  h+='<div class="ncsec"><div class="nctit">Plano</div>'
+   +'<div class="ncg2">'
+   +'<label>Plano<select id="nc_plano">'+ops+'</select></label>'
+   +'<label>Valor combinado (R$)<input id="nc_valor" type="number" step="0.01" inputmode="decimal"></label>'
+   +'</div>'
+   +'<div class="ncg3">'
+   +'<label>Cobrança<select id="nc_forma"><option value="anual">Anual</option>'
+     +'<option value="mensal">Mensal</option><option value="cortesia">Cortesia</option></select></label>'
+   +'<label>Duração<select id="nc_meses"><option value="12">12 meses</option>'
+     +'<option value="6">6 meses</option><option value="24">24 meses</option>'
+     +'<option value="36">36 meses</option></select></label>'
+   +'<label>Início<input id="nc_inicio" type="date" disabled></label>'
+   +'</div>'
+   +'<label class="ncck"><input type="checkbox" id="nc_aguard" checked '
+     +'onchange="document.getElementById(\'nc_inicio\').disabled=this.checked"> '
+     +'Começa no 1º pagamento</label>'
+   +'<div class="ncg3" style="margin-top:9px">'
+   +'<label>Nota fiscal<select id="nc_notatipo" onchange="ncMascara()">'
+     +'<option value="cpf">No CPF</option><option value="cnpj">No CNPJ</option></select></label>'
+   +'<label>Documento da nota<input id="nc_notadoc" inputmode="numeric" placeholder="vazio = usa o do cliente"></label>'
+   +'<label>Nome na nota<input id="nc_notanome" placeholder="se for diferente"></label>'
+   +'</div>'
+   +'<label>O que foi combinado<input id="nc_obs" placeholder="visita anual em cada endereço, laudo, 20% em serviços..."></label>'
+   +'</div>';
+
+  h+='<div class="plbtns" style="margin-top:13px">'
+   +'<button class="stb" onclick="ncSimular()">🔍 Conferir antes de gravar</button>'
+   +'<button class="stb prim" id="ncBtnGrava" onclick="ncGravar()" disabled>💾 Gravar cadastro</button>'
+   +'</div><div id="ncPrev"></div></div>';
+  return h;
+}
+
+function ncColeta(){
+  ncLerUsinas();
+  const v=function(id){ return (((document.getElementById(id)||{}).value)||'').trim(); };
+  const dig=function(x){ return String(x||'').replace(/\D/g,''); };
+  return {
+    cliente:{ nome:v('nc_nome'), telefone:dig(v('nc_tel')), documento:dig(v('nc_doc')),
+              cidade:v('nc_cid'), nascimento_dia:v('nc_dia'), nascimento_mes:v('nc_mes') },
+    obra:{ sistema_origem:v('nc_origem'), endereco:v('nc_end'), cidade:v('nc_cid'),
+           grupo:v('nc_grupo'), categoria:v('nc_cat'), ramo:v('nc_ramo') },
+    usinas: NC.usinas.map(function(u){ return {
+        apelido:(u.apelido||'').trim(), potencia_kwp:u.potencia_kwp||'',
+        modulos:u.modulos||'', cidade:(u.cidade||'').trim(),
+        endereco:(u.endereco||'').trim(), data_instalacao:u.data_instalacao||'',
+        data_estimada:!!u.data_estimada, compensa_em_indice:u.compensa_em_indice||'' }; }),
+    contrato:{ plano_codigo:v('nc_plano'), valor:v('nc_valor'), forma:v('nc_forma'),
+               meses:v('nc_meses'),
+               aguardando: !!(document.getElementById('nc_aguard')||{}).checked,
+               inicio:v('nc_inicio'),
+               nota_documento: dig(v('nc_notadoc')) || dig(v('nc_doc')),
+               nota_nome:v('nc_notanome'), observacao:v('nc_obs') }
+  };
+}
+
+function ncErros(lista){
+  document.getElementById('ncBtnGrava').disabled=true;
+  document.getElementById('ncPrev').innerHTML =
+    '<div class="ncerro"><b>Falta corrigir antes de gravar:</b><ul>'
+    + (lista||[]).map(function(e){ return '<li>'+esc(e)+'</li>'; }).join('')
+    + '</ul></div>';
+}
+
+async function ncSimular(){
+  const r=await sb.rpc('plano_cadastrar_cliente',{ p:ncColeta(), p_simular:true });
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  const d=r.data||{};
+  if(!d.ok){ ncErros(d.erros); return; }
+
+  const nEnd=Number(d.enderecos)||1;
+  const ad=adicionalEndereco(nEnd);
+  let h='<div class="ncok"><b>Confira antes de gravar</b><br>'
+   +(d.cliente_novo?'Cliente <b>novo</b>':'<b>Reaproveita</b> um cliente que já existe')+'<br>'
+   +d.usinas+(d.usinas===1?' usina':' usinas')+' · '+Number(d.kwp||0).toFixed(2)+' kWp'
+   +(d.modulos?' · '+d.modulos+' módulos':'')
+   +' · <b>'+nEnd+(nEnd===1?' endereço':' endereços')+'</b><br>';
+  if(d.plano){
+    h+='Plano: <b>'+esc(d.plano)+'</b> · '+moedaBR(d.valor)
+      +(d.status_contrato==='aguardando_pagamento'
+          ? ' · <span style="color:var(--gold)">só começa no 1º pagamento</span>'
+          : ' · ativo')+'<br>';
+    if(ad.extras>0){
+      h+='<span style="color:var(--muted)">A tabela cobra '+moedaBR(ad.anual)
+        +'/ano pelo endereço extra — confira se o valor combinado já inclui.</span><br>';
+    }
+  } else {
+    h+='<span style="color:var(--muted)">Sem contrato de plano por enquanto.</span><br>';
+  }
+  h+='<span style="color:var(--muted)">Link público: '+esc(d.slug)+'</span>';
+  (d.avisos||[]).forEach(function(a){
+    h+='<br><span style="color:var(--gold)">⚠️ '+esc(a)+'</span>';
+  });
+  h+='</div>';
+  document.getElementById('ncPrev').innerHTML=h;
+  document.getElementById('ncBtnGrava').disabled=false;
+}
+
+async function ncGravar(){
+  if(!confirm('Gravar este cadastro?')) return;
+  const r=await sb.rpc('plano_cadastrar_cliente',{ p:ncColeta(), p_simular:false });
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  const d=r.data||{};
+  if(!d.ok){ ncErros(d.erros); return; }
+  toast('Cadastrado ✓ ' + d.usinas + (d.usinas===1?' usina':' usinas'));
+  NC={usinas:[{}]};
+  PLN=null; PAI=null; PLABA='painel';
+  carregarPlanos();
 }
 
 function renderEnvioPlanos(){
@@ -1183,10 +1492,17 @@ function previaPlano(){
   const c=(PLN.clientes||[]).find(function(x){return x.id===PLSEL;});
   if(!c){ el.innerHTML=''; return; }
   const cmp=planoCompletoPara(c.modulos);
-  const txt=textoPlano(c.cliente, c.modulos);
+  const ad=adicionalEndereco(c.enderecos);
+  const txt=textoPlano(c.cliente, c.modulos, c.enderecos);
   let h='<div class="plprev">';
-  h+='<div class="plinfo">Sistema de <b>'+(c.modulos||'?')+' módulos</b> → Completo por '
-    +'<b>'+moedaBR(cmp.mensal)+'/mês</b>'
+  h+='<div class="plinfo">Sistema de <b>'+(c.modulos||'?')+' módulos</b>'
+    +(ad.extras>0?' em <b>'+(ad.extras+1)+' endereços</b>':'')+' → '
+    +(temPrecoTabela(cmp)
+        ? 'Completo por <b>'+moedaBR(Number(cmp.mensal)+ad.mensal)+'/mês</b>'
+          +(ad.extras>0?' <span style="color:var(--muted)">('+moedaBR(cmp.mensal)
+            +' + '+moedaBR(ad.mensal)+' de endereço extra)</span>':'')
+        : 'Completo <b>sob consulta</b> (porte fora da tabela)')
+    +(c.externo?' · <span class="uext">cliente de plano</span>':'')
     +(c.plano_atual?' · hoje no plano <b>'+esc(c.plano_atual)+'</b>':'')+'</div>';
   h+='<pre class="plmsg">'+esc(txt)+'</pre>';
   h+='<div class="plbtns">'
@@ -1200,7 +1516,7 @@ function previaPlano(){
 function copiarPlano(){
   const c=(PLN.clientes||[]).find(function(x){return x.id===PLSEL;});
   if(!c) return;
-  const t=textoPlano(c.cliente,c.modulos);
+  const t=textoPlano(c.cliente,c.modulos,c.enderecos);
   if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ toast('Mensagem copiada ✓'); });
   else toast('Selecione o texto e copie');
 }
@@ -1209,7 +1525,7 @@ async function enviarPlano(){
   const c=(PLN.clientes||[]).find(function(x){return x.id===PLSEL;});
   if(!c||!c.grupo) return;
   if(!confirm('Enviar a proposta de planos no grupo de '+c.cliente+'?')) return;
-  const t=textoPlano(c.cliente,c.modulos);
+  const t=textoPlano(c.cliente,c.modulos,c.enderecos);
   try{
     const { data:sess } = await sb.auth.getSession();
     const r=await fetch(SUPABASE_URL+'/functions/v1/notificar-grupo',{
@@ -1923,7 +2239,99 @@ function fecharFicha(){document.getElementById('ov').classList.remove('on');}
 document.getElementById('ov').addEventListener('click',e=>{if(e.target.id==='ov')fecharFicha();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')fecharFicha();});
 
+/* ---------- ADICIONAR USINA A UM CLIENTE QUE JA EXISTE ----------
+   O caso e o rural com propriedade nova, ou quem ampliou. Ate aqui usina so
+   nascia do casamento com o SolarView.
+
+   Quem grava e usina_adicionar() no banco, que decide sozinha se mexe no
+   total da obra: em cliente de plano soma, em obra de venda NAO -- ali a
+   potencia e o projeto vendido e alimenta ficha, relatorio e margem. */
+function formUsina(obraId){
+  const box=document.getElementById('fusina'); if(!box) return;
+  if(box.innerHTML){ box.innerHTML=''; return; }   // clicar de novo fecha
+
+  const US=(FICHA&&FICHA.usinas)||[];
+  let comp='<option value="">— compensa no próprio relógio —</option>';
+  US.forEach(function(u){
+    comp+='<option value="'+esc(u.id)+'">'+esc(u.apelido||'Usina')+'</option>';
+  });
+
+  box.innerHTML='<div class="ncsec">'
+   +'<div class="nctit">Nova usina deste cliente</div>'
+   +'<div class="ncg2">'
+   +'<label>Apelido<input id="nu_ap" placeholder="Sítio — Birigui"></label>'
+   +'<label>Cidade<input id="nu_cid" placeholder="Birigui"></label>'
+   +'</div>'
+   +'<div class="ncg2">'
+   +'<label>Potência (kWp)<input id="nu_kwp" type="number" step="0.01" inputmode="decimal"></label>'
+   +'<label>Módulos<input id="nu_mod" type="number" inputmode="numeric"></label>'
+   +'</div>'
+   +'<label>Endereço<input id="nu_end" placeholder="onde o técnico vai na visita anual"></label>'
+   +'<div class="ncg2">'
+   +'<label>Instalada em<input id="nu_dti" type="date"></label>'
+   +'<label class="ncck"><input type="checkbox" id="nu_est"> a data é estimada</label>'
+   +'</div>'
+   +(US.length?'<label>Manda os créditos para<select id="nu_comp">'+comp+'</select></label>':'')
+   +'<div class="plbtns" style="margin-top:11px">'
+   +'<button class="stb" onclick="nuSimular(\''+obraId+'\')">🔍 Conferir</button>'
+   +'<button class="stb prim" id="nuBtn" onclick="nuGravar(\''+obraId+'\')" disabled>💾 Adicionar</button>'
+   +'</div><div id="nuPrev"></div></div>';
+}
+
+function nuColeta(obraId){
+  const v=function(id){ return (((document.getElementById(id)||{}).value)||'').trim(); };
+  return { obra_id: obraId, usina: {
+    apelido:v('nu_ap'), cidade:v('nu_cid'),
+    potencia_kwp:v('nu_kwp'), modulos:v('nu_mod'),
+    endereco:v('nu_end'), data_instalacao:v('nu_dti'),
+    data_estimada: !!(document.getElementById('nu_est')||{}).checked,
+    compensa_em:v('nu_comp') } };
+}
+
+function nuErros(lista){
+  const b=document.getElementById('nuBtn'); if(b) b.disabled=true;
+  document.getElementById('nuPrev').innerHTML=
+    '<div class="ncerro"><b>Falta corrigir:</b><ul>'
+    +(lista||[]).map(function(e){ return '<li>'+esc(e)+'</li>'; }).join('')+'</ul></div>';
+}
+
+async function nuSimular(obraId){
+  const r=await sb.rpc('usina_adicionar',{ p:nuColeta(obraId), p_simular:true });
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  const d=r.data||{};
+  if(!d.ok){ nuErros(d.erros); return; }
+
+  let h='<div class="ncok">'
+   +'<b>'+esc(d.cliente||'')+'</b> passa de '+d.usinas_hoje
+   +(d.usinas_hoje===1?' usina':' usinas')+' para '+(Number(d.usinas_hoje)+1)+'<br>';
+  if(Number(d.enderecos_depois) > Number(d.enderecos_hoje)){
+    h+='<span style="color:var(--gold)">Vira um endereço novo — '
+      +d.enderecos_hoje+' → <b>'+d.enderecos_depois+'</b>. '
+      +'O plano Completo cobra uma visita técnica anual em cada um.</span><br>';
+  }
+  if(d.externo){
+    h+='O total da ficha passa a <b>'+Number(d.kwp_obra_depois||0).toFixed(2)+' kWp</b>'
+      +(d.modulos_obra_depois?' · '+d.modulos_obra_depois+' módulos':'')+'<br>';
+  }
+  (d.avisos||[]).forEach(function(a){
+    h+='<span style="color:var(--gold)">⚠️ '+esc(a)+'</span><br>';
+  });
+  h+='</div>';
+  document.getElementById('nuPrev').innerHTML=h;
+  document.getElementById('nuBtn').disabled=false;
+}
+
+async function nuGravar(obraId){
+  const r=await sb.rpc('usina_adicionar',{ p:nuColeta(obraId), p_simular:false });
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  const d=r.data||{};
+  if(!d.ok){ nuErros(d.erros); return; }
+  toast('Usina adicionada ✓');
+  abrirFicha(obraId);
+}
+
 function renderFicha(D){
+  FICHA=D;
   const o=D.obra, n=D.nps, msgs=D.mensagens||[];
   const bits=[];
   if(o.contrato) bits.push('#'+esc(o.contrato));
@@ -1999,10 +2407,15 @@ function renderFicha(D){
 
   /* Usinas do cliente — quem tem mais de uma chega no detalhe de cada uma daqui */
   const US = D.usinas || [];
-  if(US.length){
-    h+=`<div class="sec"><h3>Usina${US.length>1?'s':''}`
+  if(US.length || D.pode_agir){
+    h+=`<div class="sec"><h3>Usina${US.length===1?'':'s'}`
       + (US.length>1?` <span class="tag">${US.length} medidores</span>`:'')
-      + `</h3><div class="ulist">`;
+      + `</h3>`;
+    if(!US.length){
+      h+=`<div class="vazio">Nenhuma usina ligada a este cliente ainda. Sem usina não há
+          monitoramento — e é a usina que traz a geração para esta tela.</div>`;
+    }
+    h+=`<div class="ulist">`;
     US.forEach(function(u){
       var cor = (u.gravidade<=2) ? '#e07070' : ((u.gravidade==3) ? 'var(--gold)' : 'var(--green-l)');
       h+=`<button class="urow" onclick="abrirUsina('${u.id}')" title="${esc(u.motivo||'')}">
@@ -2016,7 +2429,12 @@ function renderFicha(D){
         </div>
       </button>`;
     });
-    h+=`</div></div>`;
+    h+=`</div>`;
+    if(D.pode_agir){
+      h+=`<button class="mini" style="margin-top:9px" onclick="formUsina('${o.id}')">➕ Adicionar usina</button>
+          <div id="fusina"></div>`;
+    }
+    h+=`</div>`;
   }
 
   /* Geração */

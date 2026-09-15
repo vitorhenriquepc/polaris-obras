@@ -101,6 +101,54 @@ bate com o que a equipe vê. Só `get_geracao_bruta` ainda lê a tabela vazia �
 `v_indice_regiao` (cidade com 5+ usinas ganha grupo próprio) ·
 `regua_contatos` + `regua_modelos` · `usina_marco` · `nps`
 
+### Planos
+`planos` (tabela de preço por faixa de módulos) · `plano_contratos` (o que
+cada cliente assinou). Os **53 contratos até 15/09 eram todos cortesia de
+R$ 0,00** — o módulo nunca tinha registrado dinheiro, e os painéis de receita
+mostravam zero desde abril.
+
+⚠️ **`plano_contratos.obra_id` e `regua_contatos.obra_id` são NOT NULL.** A
+obra é a espinha: sem ela não existe contrato nem régua. É por isso que um
+**cliente de plano** — quem paga o acompanhamento sem ter comprado a usina —
+entra como obra de trilha `manutencao` com `cliente_externo = true` e
+`valor_projeto` nulo. Não é venda: fica fora de conversão, margem e funil,
+mas ganha régua, monitoramento e contrato.
+
+Para quem a nota é emitida vive no **contrato**, não em `clientes`:
+`nota_documento` aceita CPF (11 dígitos) ou CNPJ (14) e o tipo se deduz do
+tamanho — não existe campo separado, para não divergir do número.
+
+⚠️ **A ficha financeira de cliente de plano nasce `dispensado = true`.**
+`abre_financeiro_obra()` cria ficha para toda obra com etapa >= 1, e
+`trava_campos_financeiro()` exige `preco_negociado` e `distancia_km`. Um
+cliente de plano não tem nenhum dos dois e o cadastro ficava **impossível** —
+descoberto na simulação, antes de gravar. A ficha continua existindo (o plano
+gera receita e ela vai precisar de lugar), mas não cobra campo de venda.
+
+A tabela do Completo vai até **125 módulos**. As faixas acima de 45 foram
+criadas em 15/09 a partir da regra que a própria tabela já seguia — as duas
+últimas faixas antigas sobem **exatamente R$ 20,00 por módulo/ano**, e o
+preço é sempre o do **topo da faixa**:
+
+`anual = 1.290 + 20 × (topo − 45)` · `mensal = anual ÷ 10,716`
+
+Conferido contra o contrato real da Tays (120 módulos, R$ 2.990/ano e
+R$ 279/mês): a razão da tabela devolve R$ 279,02, e a regra dos módulos dá
+R$ 2.790 — os R$ 200 que faltam são o segundo endereço.
+
+Acima de 125 fica a `completo_especial`, **sem preço de tabela de propósito**:
+o valor é negociado e vive no contrato. Quem lê `planos` tem de tratar
+`preco_mensal`/`preco_anual` nulos como "sob consulta"; `moedaBR(null)`
+imprime `R$ 0,00`, que é número inventado indo para o cliente.
+
+⚠️ **Endereço, não usina.** O Completo vende uma visita anual em cada
+endereço, então a proposta soma `plano_endereco_adicional` por endereço além
+do primeiro. A conta é
+`count(distinct coalesce(endereco, cidade))` entre as usinas ativas do
+cliente — o Gilberto tem **4 usinas e 1 endereço** e não paga extra. Quando
+`endereco` está vazio a conta cai para a cidade, então ela **subestima**, que
+é o lado seguro: nunca cobra a mais, e se corrige quando alguém preencher.
+
 ### Indicações
 `indicacoes` — nova → contatada → visita → fechada/perdida
 
@@ -125,6 +173,9 @@ bate com o que a equipe vê. Só `get_geracao_bruta` ainda lê a tabela vazia �
 | `obra_ativa(obra)` | **a definição única de "está ativa"**: chegou na última etapa da própria trilha |
 | `obra_ativa_em(obra)` | desde quando está ativa (cai no `etapas_historico` se `data_conclusao` for nula) |
 | `obra_geracao_total(obra)` | **quanto a obra já gerou**: kWh, economia, desempenho e meses — a fonte única |
+| `plano_registrar_pagamento(contrato, data)` | liga o contrato no dia em que o primeiro pagamento entrou; é ela que calcula `inicio` e `fim` |
+| `plano_cadastrar_cliente(json, simular)` | **cadastra cliente de plano inteiro**: cliente + obra + usinas + contrato numa transação. Com `simular = true` (o padrão) não grava nada e devolve a prévia ou a lista de erros |
+| `usina_adicionar(json, simular)` | acrescenta uma usina a um cliente que já existe. **Só soma no total da obra se ela for cliente de plano** — em obra de venda a potência é o projeto vendido, e mexer ali muda o tamanho de uma venda que já aconteceu |
 
 ---
 
@@ -150,6 +201,13 @@ e uma já estava na fila do Google com a usina desligada. Desde então existe
 em vez de escrever `etapa_numero >= 8` à mão. As outras automações foram
 conferidas uma a uma e nenhuma dispara cedo.
 
+⚠️ **Cliente de plano não recebe NPS nem convite do Google.** Uma obra de
+trilha `manutencao` na etapa 4 é a última da própria trilha, então
+`obra_ativa()` devolve **true** — e sem trava a Tays receberia uma pesquisa
+perguntando como foi a instalação que a **Eco Solar** fez. Desde 15/09
+`obras_para_nps()` e `nps_para_lembrete_google()` cortam por
+`not coalesce(cliente_externo, false)`.
+
 ---
 
 ## 7. Parâmetros (tabela `config`)
@@ -172,6 +230,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `recorde_min_dias` | 90 | histórico mínimo para avisar recorde |
 | `recorde_margem` | 8% | quanto precisa superar o pico anterior |
 | `recorde_intervalo_meses` | 6 | descanso entre avisos de recorde |
+| `plano_endereco_adicional` | 200 | R$/ano por endereço além do primeiro no Completo — a visita técnica é em cada um |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -246,11 +305,28 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
    Hoje 17 tabelas têm esse formato, mas nenhuma tela grava direto nelas
    (conferido) — a escrita passa por função `security definer`. Antes de criar
    gravação direta numa tabela nova, confira se existe policy de escrita.
-10. **`revoke ... from anon` não tira o que foi concedido a `public`.** O
-    Supabase concede EXECUTE a PUBLIC por padrão, e PUBLIC inclui o anon. O
-    revoke passa sem erro e não faz nada. O certo é
-    `revoke execute ... from public` e depois `grant` a quem precisa —
-    e conferir com `has_function_privilege('anon', ...)`.
+10. **Função nova precisa de DOIS revokes, não de um.** São duas concessões
+    diferentes e cada uma exige o seu:
+    - EXECUTE a **PUBLIC**, que inclui o anon — `revoke ... from anon` não
+      tira essa, passa sem erro e não faz nada;
+    - EXECUTE **direto ao `anon`**, que o Supabase dá a toda função nova por
+      `alter default privileges` — e essa o `revoke ... from public` não tira.
+
+    Em 15/09 apliquei só o revoke de `public` na
+    `plano_registrar_pagamento` e conferi: `proacl` continuava com
+    `anon=X/postgres` e `has_function_privilege('anon', ...)` era **true**.
+    O certo é:
+
+    ```sql
+    revoke execute on function public.f(args) from public;
+    revoke execute on function public.f(args) from anon;
+    grant  execute on function public.f(args) to authenticated;
+    ```
+
+    Confira sempre pela ACL, não pelo comando ter passado. O gabarito são
+    `calibrar_tarifa`, `ligar_automacao` e `regua_toggle`:
+    `{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}`
+    — sem anon nenhum.
 
 ---
 
@@ -294,6 +370,17 @@ significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
       (diferença acima de R$ 1,00).
 - [ ] 5 cards incompletos: 4349, 4420, 4483, 4563, 4808
 - [ ] Confirmar se as parcelas de ~30% são entrada de financiamento
+- [ ] **Registrar o 1º pagamento da TAYS VALESE DIAS DO PRADO.** Primeiro
+      contrato pago do sistema: Completo anual, R$ 2.990,00, duas usinas
+      instaladas pela **Eco Solar** (açougue em Araçatuba 29,25 kWp, rancho em
+      Birigui 40,95 kWp — o rancho manda os créditos para o açougue). Está em
+      `aguardando_pagamento`, sem início nem fim. Quando o dinheiro entrar,
+      botão "Registrar 1º pagamento" no card da obra. Aí vira **R$ 249,17 de
+      receita mensal**, o primeiro número diferente de zero desse painel.
+      As duas usinas ainda **não estão no SolarView** — o Vitor vai cadastrar,
+      e o vínculo é manual porque ela não tem número de contrato no nome.
+      O aniversário (31/10) ficou só em `clientes`, fora de `obras`, para a
+      automação de aniversário não mandar texto de cliente de instalação.
 - [ ] Ligar proteção de senha vazada no Supabase
 - [ ] Conferir cidades com IPTU Sustentável antes da última automação
 
