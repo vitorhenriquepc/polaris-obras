@@ -2152,6 +2152,10 @@ ${o.trilha==='manutencao'?`
 </div>
 <div class="fld"><label>Inversor(es)</label><input id="f_inv" value="${esc(o.inversor_descricao||'')}" placeholder="2x Huawei 6kW"></div>
 </div></details>
+${novo?'':`
+<div class="fld"><label>Plano de manutenção e acompanhamento</label>
+<div id="planoBox"><span class="mut">Carregando o plano...</span></div></div>
+`}
 <div class="row">
 <button class="cancel" onclick="fecharForm()">Cancelar</button>
 <button class="save" id="f_save">${novo?'Criar obra':'Salvar'}</button>
