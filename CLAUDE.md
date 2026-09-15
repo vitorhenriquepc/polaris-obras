@@ -101,6 +101,25 @@ bate com o que a equipe vê. Só `get_geracao_bruta` ainda lê a tabela vazia �
 `v_indice_regiao` (cidade com 5+ usinas ganha grupo próprio) ·
 `regua_contatos` + `regua_modelos` · `usina_marco` · `nps`
 
+### Planos
+`planos` (tabela de preço por faixa de módulos) · `plano_contratos` (o que
+cada cliente assinou). Os **53 contratos até 15/09 eram todos cortesia de
+R$ 0,00** — o módulo nunca tinha registrado dinheiro, e os painéis de receita
+mostravam zero desde abril.
+
+⚠️ **`plano_contratos.obra_id` e `regua_contatos.obra_id` são NOT NULL.** A
+obra é a espinha: sem ela não existe contrato nem régua. É por isso que um
+**cliente de plano** — quem paga o acompanhamento sem ter comprado a usina —
+entra como obra de trilha `manutencao` com `cliente_externo = true` e
+`valor_projeto` nulo. Não é venda: fica fora de conversão, margem e funil,
+mas ganha régua, monitoramento e contrato.
+
+A faixa `completo_especial` (acima de 45 módulos) existe **sem preço de
+tabela de propósito** — o valor é negociado por sistema e vive no contrato.
+Quem lê `planos` tem de tratar `preco_mensal`/`preco_anual` nulos como "sob
+consulta"; `moedaBR(null)` imprime `R$ 0,00`, que é número inventado indo
+para o cliente.
+
 ### Indicações
 `indicacoes` — nova → contatada → visita → fechada/perdida
 
@@ -125,6 +144,7 @@ bate com o que a equipe vê. Só `get_geracao_bruta` ainda lê a tabela vazia �
 | `obra_ativa(obra)` | **a definição única de "está ativa"**: chegou na última etapa da própria trilha |
 | `obra_ativa_em(obra)` | desde quando está ativa (cai no `etapas_historico` se `data_conclusao` for nula) |
 | `obra_geracao_total(obra)` | **quanto a obra já gerou**: kWh, economia, desempenho e meses — a fonte única |
+| `plano_registrar_pagamento(contrato, data)` | liga o contrato no dia em que o primeiro pagamento entrou; é ela que calcula `inicio` e `fim` |
 
 ---
 
@@ -149,6 +169,13 @@ e uma já estava na fila do Google com a usina desligada. Desde então existe
 `obra_ativa()`: **toda automação que fala com o cliente deve passar por ela**,
 em vez de escrever `etapa_numero >= 8` à mão. As outras automações foram
 conferidas uma a uma e nenhuma dispara cedo.
+
+⚠️ **Cliente de plano não recebe NPS nem convite do Google.** Uma obra de
+trilha `manutencao` na etapa 4 é a última da própria trilha, então
+`obra_ativa()` devolve **true** — e sem trava a Tays receberia uma pesquisa
+perguntando como foi a instalação que a **Eco Solar** fez. Desde 15/09
+`obras_para_nps()` e `nps_para_lembrete_google()` cortam por
+`not coalesce(cliente_externo, false)`.
 
 ---
 
@@ -246,11 +273,28 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
    Hoje 17 tabelas têm esse formato, mas nenhuma tela grava direto nelas
    (conferido) — a escrita passa por função `security definer`. Antes de criar
    gravação direta numa tabela nova, confira se existe policy de escrita.
-10. **`revoke ... from anon` não tira o que foi concedido a `public`.** O
-    Supabase concede EXECUTE a PUBLIC por padrão, e PUBLIC inclui o anon. O
-    revoke passa sem erro e não faz nada. O certo é
-    `revoke execute ... from public` e depois `grant` a quem precisa —
-    e conferir com `has_function_privilege('anon', ...)`.
+10. **Função nova precisa de DOIS revokes, não de um.** São duas concessões
+    diferentes e cada uma exige o seu:
+    - EXECUTE a **PUBLIC**, que inclui o anon — `revoke ... from anon` não
+      tira essa, passa sem erro e não faz nada;
+    - EXECUTE **direto ao `anon`**, que o Supabase dá a toda função nova por
+      `alter default privileges` — e essa o `revoke ... from public` não tira.
+
+    Em 15/09 apliquei só o revoke de `public` na
+    `plano_registrar_pagamento` e conferi: `proacl` continuava com
+    `anon=X/postgres` e `has_function_privilege('anon', ...)` era **true**.
+    O certo é:
+
+    ```sql
+    revoke execute on function public.f(args) from public;
+    revoke execute on function public.f(args) from anon;
+    grant  execute on function public.f(args) to authenticated;
+    ```
+
+    Confira sempre pela ACL, não pelo comando ter passado. O gabarito são
+    `calibrar_tarifa`, `ligar_automacao` e `regua_toggle`:
+    `{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}`
+    — sem anon nenhum.
 
 ---
 

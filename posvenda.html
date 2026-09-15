@@ -653,6 +653,9 @@ white-space:normal;padding:0 2px}
 .umeta{font-size:11.5px;color:var(--muted);margin-top:2px}
 .uright{text-align:right;flex-shrink:0}
 .ust{font-size:12px;font-weight:700}
+.uext{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.3px;
+  padding:1px 6px;border-radius:20px;margin-left:6px;vertical-align:middle;
+  background:rgba(214,175,88,.16);color:var(--gold);border:1px solid rgba(214,175,88,.35)}
 @media(max-width:480px){.urow{flex-direction:column;align-items:flex-start;gap:4px}
   .uright{text-align:left}}
 </style>
@@ -886,7 +889,19 @@ async function carregarPlanos(){
 function planoCompletoPara(mods){
   const lista=(PLN.planos||[]).filter(p=>p.nivel===3);
   const m=Number(mods)||0;
-  return lista.find(p=>m>=Number(p.mod_min||0) && m<=Number(p.mod_max||999)) || lista[lista.length-1];
+  // sem saber o tamanho do sistema nao da para dizer a faixa. Devolver o
+  // ultimo da lista, como era antes, fazia a tela anunciar um preco que nao
+  // vale para aquele cliente.
+  if(!m) return null;
+  return lista.find(p=>m>=Number(p.mod_min||0) && m<=Number(p.mod_max||9999)) || null;
+}
+// Faixa acima de 45 modulos existe sem preco de tabela de proposito: o valor
+// e negociado por sistema. Nunca imprimir moedaBR(null), que vira "R$ 0,00".
+function temPrecoTabela(p){ return !!(p && p.mensal!=null && p.anual!=null); }
+function completoMaisBarato(){
+  return (PLN.planos||[])
+    .filter(function(p){ return p.nivel===3 && p.mensal!=null; })
+    .sort(function(a,b){ return Number(a.mensal)-Number(b.mensal); })[0] || null;
 }
 function moedaBR(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
 
@@ -919,14 +934,22 @@ function textoPlano(cliente, mods){
    +'• '+Number(atv.desconto)+'% de desconto em serviços\n'
    +'• Apoio na relação com a distribuidora\n\n';
 
-  t+='🥇 *COMPLETO* — '+moedaBR(cmp.mensal)+'/mês\n'
-   +'_ou '+moedaBR(cmp.anual)+' no ano_\n'
-   +'• Tudo do Ativo\n'
+  t+= temPrecoTabela(cmp)
+      ? ('🥇 *COMPLETO* — '+moedaBR(cmp.mensal)+'/mês\n'
+        +'_ou '+moedaBR(cmp.anual)+' no ano_\n')
+      : ('🥇 *COMPLETO* — valor sob consulta\n'
+        +'_seu sistema é maior que as faixas de tabela; preparamos uma proposta '
+        +'para ele_\n');
+  t+='• Tudo do Ativo\n'
    +'• *Visita técnica anual inclusa*\n'
    +'• Limpeza dos módulos\n'
    +'• Inspeção elétrica e de fixação\n'
-   +'• *Laudo técnico assinado*\n'
-   +'• '+Number(cmp.desconto)+'% de desconto em serviços\n\n';
+   +'• *Laudo técnico assinado*\n';
+  // o desconto sai da tabela, nunca de um numero fixo aqui
+  var _desc = (cmp && cmp.desconto!=null) ? cmp.desconto
+            : (P.filter(function(p){return p.nivel===3 && p.desconto!=null;})[0]||{}).desconto;
+  if(_desc!=null) t+='• '+Number(_desc)+'% de desconto em serviços\n';
+  t+='\n';
 
   t+='━━━━━━━━━━━━━━━\n\n';
   t+='O *Laudo técnico* é o documento que o fabricante pede quando há acionamento '
@@ -982,6 +1005,17 @@ function renderPainelPlanos(){
    +'<div class="rgs"><div class="n">'+moedaBR(R.mrr)+'</div><div class="l">Receita mensal</div></div>'
    +'</div>';
 
+  // contrato fechado que ainda nao teve o primeiro pagamento: nao e receita,
+  // mas e a unica coisa da tela que pede acao hoje
+  if(n(R.aguardando)>0){
+    h+='<div class="plpot" style="border-color:rgba(214,175,88,.45)">'
+     +'<div class="lb">Aguardando o 1º pagamento</div>'
+     +'<div class="big" style="color:var(--gold)">'+n(R.aguardando)
+     +'<small>'+(n(R.aguardando)===1?' contrato':' contratos')+'</small></div>'
+     +'<div class="sb">os 12 meses só começam a contar quando o pagamento entrar</div>'
+     +'</div>';
+  }
+
   // o potencial, que é o número que interessa
   h+='<div class="plpot">'
    +'<div class="lb">Potencial da carteira</div>'
@@ -1014,24 +1048,32 @@ function renderPainelPlanos(){
     h+='<div class="sec"><h3>📐 Por porte do sistema</h3><table class="pltbl">'
      +'<tr><th>Porte</th><th class="num">Clientes</th><th class="num">Anual</th><th class="num">Potencial</th></tr>';
     portes.forEach(function(p){
+      const semTab = n(p.anual)===0;
       h+='<tr><td>'+esc(p.porte)+'</td><td class="num">'+n(p.clientes)+'</td>'
-        +'<td class="num">'+moedaBR(p.anual)+'</td>'
-        +'<td class="num"><b>'+moedaBR(p.potencial)+'</b></td></tr>';
+        +'<td class="num">'+(semTab?'<span style="color:var(--muted)">sob consulta</span>':moedaBR(p.anual))+'</td>'
+        +'<td class="num">'+(semTab?'<span style="color:var(--muted)">—</span>':'<b>'+moedaBR(p.potencial)+'</b>')+'</td></tr>';
     });
     h+='</table></div>';
   }
 
   // quem vence primeiro
   const prox=L.slice(0,12);
-  h+='<div class="sec"><h3>⏳ Vencem primeiro</h3>';
+  h+='<div class="sec"><h3>⏳ Para acompanhar</h3>';
   prox.forEach(function(c){
+    const esperando = c.status==='aguardando_pagamento';
     const d=n(c.dias);
-    const cor = d<0?'#e07070':(d<=60?'var(--gold)':'var(--muted)');
+    const cor = esperando ? 'var(--gold)'
+              : (d<0?'#e07070':(d<=60?'var(--gold)':'var(--muted)'));
+    // sem pagamento nao existe `fim`: dataBR(null) e "em 0 dias" seriam mentira
+    const quando = esperando ? 'aguardando o 1º pagamento'
+                 : 'vence '+dataBR(c.fim)+' · '+(d<0?'venceu':'em '+d+' dias');
+    const valor = esperando ? moedaBR(c.valor)
+                : (c.completo_anual!=null ? moedaBR(c.completo_anual) : 'sob consulta');
     h+='<div class="chkline" onclick="irEnviar(\''+c.obra_id+'\')">'
       +'<div class="cn"><b>'+esc(c.cliente)+'</b>'
-      +'<span>'+(c.modulos||'?')+' módulos · vence '+dataBR(c.fim)
-      +' · <span style="color:'+cor+'">'+(d<0?'venceu':'em '+d+' dias')+'</span></span></div>'
-      +'<span style="font-size:12px;font-weight:800;color:var(--green-l)">'+moedaBR(c.completo_anual)+'</span>'
+      +(c.externo?'<span class="uext">cliente de plano</span>':'')
+      +'<span>'+(c.modulos||'?')+' módulos · <span style="color:'+cor+'">'+quando+'</span></span></div>'
+      +'<span style="font-size:12px;font-weight:800;color:var(--green-l)">'+valor+'</span>'
       +'<span style="color:var(--muted)">›</span></div>';
   });
   h+='</div>';
@@ -1049,7 +1091,7 @@ function textoFora(nome, mods){
   const P=PLN.planos||[];
   const ess=P.find(function(p){return p.codigo==='essencial';});
   const atv=P.find(function(p){return p.codigo==='ativo';});
-  const cmp=planoCompletoPara(mods);
+  const cmpMin=completoMaisBarato();
   const pn=(nome||'').trim().split(' ')[0];
   const pnc=pn?pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase():'';
 
@@ -1080,7 +1122,7 @@ function textoFora(nome, mods){
    +'Monitoramento, alerta se o sistema parar e suporte por WhatsApp\n\n';
   t+='🥈 *Ativo* — '+moedaBR(atv.mensal)+'/mês\n'
    +'Tudo do Essencial + análise da conta de luz e '+Number(atv.desconto)+'% de desconto em serviços\n\n';
-  t+='🥇 *Completo* — a partir de '+moedaBR(cmp.mensal)+'/mês\n'
+  t+='🥇 *Completo* — '+(cmpMin?'a partir de '+moedaBR(cmpMin.mensal)+'/mês':'valor sob consulta')+'\n'
    +'Tudo do Ativo + *visita técnica anual*, limpeza, inspeção e *laudo assinado*\n\n';
   t+='━━━━━━━━━━━━━━━\n\n';
   t+='Somos de Araçatuba, com *mais de 400 sistemas instalados* na região. '
@@ -1185,8 +1227,11 @@ function previaPlano(){
   const cmp=planoCompletoPara(c.modulos);
   const txt=textoPlano(c.cliente, c.modulos);
   let h='<div class="plprev">';
-  h+='<div class="plinfo">Sistema de <b>'+(c.modulos||'?')+' módulos</b> → Completo por '
-    +'<b>'+moedaBR(cmp.mensal)+'/mês</b>'
+  h+='<div class="plinfo">Sistema de <b>'+(c.modulos||'?')+' módulos</b> → '
+    +(temPrecoTabela(cmp)
+        ? 'Completo por <b>'+moedaBR(cmp.mensal)+'/mês</b>'
+        : 'Completo <b>sob consulta</b> (porte fora da tabela)')
+    +(c.externo?' · <span class="uext">cliente de plano</span>':'')
     +(c.plano_atual?' · hoje no plano <b>'+esc(c.plano_atual)+'</b>':'')+'</div>';
   h+='<pre class="plmsg">'+esc(txt)+'</pre>';
   h+='<div class="plbtns">'
