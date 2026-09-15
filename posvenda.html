@@ -154,7 +154,8 @@ padding:8px 0}
 .reg .salvar{width:100%;background:var(--green);border:none;color:#fff;border-radius:10px;
 padding:12px;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;margin-top:4px}
 .reg .salvar:active{transform:scale(.99)}
-.reg .dica{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.45;font-weight:600}
+.reg .dica{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.45;font-weight:600;
+  background:none;border:0;padding:0}
 .mini{background:none;border:1px dashed var(--border);color:var(--muted);border-radius:9px;
 padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;width:100%}
 .mini:hover{border-color:var(--gold);color:var(--gold)}
@@ -338,7 +339,17 @@ border-radius:11px;padding:12px;font-family:inherit;font-size:14px;margin-bottom
 font-family:inherit;font-size:12.5px;line-height:1.55;white-space:pre-wrap;color:var(--txt);
 max-height:340px;overflow-y:auto;margin:0}
 .plbtns{display:flex;gap:8px;margin-top:11px;align-items:center}
+.stb{background:var(--card2);border:1px solid var(--border);color:var(--txt);
+  border-radius:9px;padding:7px 12px;font-family:inherit;font-size:12.5px;
+  font-weight:700;cursor:pointer;transition:border-color .15s,background .15s}
+.stb:hover{border-color:var(--gold)}
 .stb.prim{background:var(--green);border-color:var(--green);color:#fff}
+.stb.prim:hover{border-color:var(--green-l)}
+.dica{font-size:12px;color:var(--muted);font-weight:600;line-height:1.55;
+  background:var(--card);border:1px solid var(--border);border-left:3px solid var(--gold);
+  border-radius:9px;padding:10px 12px;margin-top:9px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:12px 13px}
 .rgstat{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 button.rgs{cursor:pointer;font-family:inherit;text-align:center;transition:.15s}
 button.rgs:hover{border-color:var(--gold)}
@@ -1349,7 +1360,10 @@ function renderAutoleitura(){
        +'<pre class="plmsg" style="margin-top:8px">'+esc(x.texto||'')+'</pre>'
        +'<div class="plbtns">'
        +'<button class="stb" onclick="alCopiar(\''+x.leitura_id+'\')">📋 Copiar</button>'
-       +'<button class="stb prim" onclick="alMarcar(\''+x.leitura_id+'\',\''+x.tipo+'\')">✓ Já avisei</button>'
+       +(x.tem_grupo
+          ? '<button class="stb prim" onclick="alEnviar(\''+x.leitura_id+'\')">📤 Enviar no grupo</button>'
+          : '')
+       +'<button class="stb" onclick="alMarcar(\''+x.leitura_id+'\',\''+x.tipo+'\')">✓ Já avisei por fora</button>'
        +'</div></div>';
     });
   }
@@ -1422,11 +1436,32 @@ function alCopiar(id){
   else toast('Selecione o texto e copie');
 }
 
-async function alMarcar(id, tipo){
+// Envia e marca numa tacada so. Mesma mecanica de enviarPlano: quem aperta o
+// botao e uma pessoa, entao nao fura a regra 3.5.
+async function alEnviar(id){
+  const x=((AUT.fila||{}).hoje||[]).find(function(y){return y.leitura_id===id;});
+  if(!x || !x.grupo){ toast('Este cliente não tem grupo cadastrado'); return; }
+  if(!confirm('Enviar o aviso de leitura no grupo de '+x.cliente+'?')) return;
+  try{
+    const { data:sess } = await sb.auth.getSession();
+    const r=await fetch(SB_URL+'/functions/v1/notificar-grupo',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+sess.session.access_token},
+      body:JSON.stringify({grupo_id:x.grupo, message:x.texto})
+    });
+    const res=await r.json().catch(function(){return {};});
+    if(!r.ok||res.error){ toast('Erro ao enviar: '+(res.error||r.status)); return; }
+  }catch(e){ toast('Falha de conexão'); return; }
+  // so marca depois que o envio deu certo (convencao 8: confere o erro antes de seguir)
+  await alMarcar(id, x.tipo, true);
+  toast('📤 Aviso enviado para '+x.cliente);
+}
+
+async function alMarcar(id, tipo, silencioso){
   const r=await sb.rpc('autoleitura_marcar',{p_leitura:id, p_tipo:tipo});
   if(r.error){ toast('Erro: '+r.error.message); return; }
   if(r.data && r.data.erro){ toast(r.data.erro); return; }
-  toast('Marcado como avisado ✓');
+  if(!silencioso) toast('Marcado como avisado ✓');
   carregarAutoleitura();
 }
 
@@ -1801,7 +1836,7 @@ async function enviarPlano(){
   const t=textoPlano(c.cliente,c.modulos,c.enderecos);
   try{
     const { data:sess } = await sb.auth.getSession();
-    const r=await fetch(SUPABASE_URL+'/functions/v1/notificar-grupo',{
+    const r=await fetch(SB_URL+'/functions/v1/notificar-grupo',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+sess.session.access_token},
       body:JSON.stringify({grupo_id:c.grupo, message:t})
