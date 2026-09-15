@@ -97,6 +97,21 @@ A tela, a régua e os painéis leem todos dali, então o que o cliente recebe
 bate com o que a equipe vê. Só `get_geracao_bruta` ainda lê a tabela vazia —
 é código morto, sem nenhum chamador.
 
+⚠️ **`obra_usina` é a ligação obra ↔ usina, não `usinas.cliente_id`.**
+**Vinte e quatro funções** leem essa tabela — `obra_geracao_total`,
+`get_geracao`, `get_ficha_cliente`, `get_posvenda_lista`, `usina_estado`,
+`pendencias_posvenda`, `linha_do_tempo` entre elas. Usina criada sem essa
+linha nasce meio conectada e some de tudo. Aconteceu em 15/09 com as duas da
+Tays, e o achado **"usina sem obra"** da `conferir_saude_base()` é a rede que
+pega isso.
+
+| coluna | o que guarda |
+|---|---|
+| `papel` | `propria` · `expansao` · `herdada` (instalou outra empresa) |
+| `medicao` | `inversor_proprio` · `compartilhado` (aí `kwp_parte` é obrigatório) |
+| `principal` | uma só por obra, garantido por índice único parcial |
+| `entrou_em` / `saiu_em` | vigência |
+
 `usinas`, `usina_dia`, `usina_geracao` · `clima_dia` · `v_indice_dia` ·
 `v_indice_regiao` (cidade com 5+ usinas ganha grupo próprio) ·
 `regua_contatos` + `regua_modelos` · `usina_marco` · `nps`
@@ -149,6 +164,27 @@ cliente — o Gilberto tem **4 usinas e 1 endereço** e não paga extra. Quando
 `endereco` está vazio a conta cai para a cidade, então ela **subestima**, que
 é o lado seguro: nunca cobra a mais, e se corrige quando alguém preencher.
 
+### Visitas do plano
+`plano_visita` (contrato → endereço → prevista/realizada, com laudo). Nascem
+quando `plano_registrar_pagamento()` ativa o contrato, **uma por endereço** e
+no meio do período. A tela conta separadamente as **realizadas sem laudo**:
+laudo com foto é o que o fabricante pede no acionamento de garantia.
+
+### Autoleitura
+`unidade_consumidora` (o relógio; um cliente rural pode ter vários) +
+`uc_leitura_prevista` (o calendário que a conta de luz mostra, com
+`responsavel` = cliente ou distribuidora). Só as de responsabilidade do
+**cliente** geram aviso.
+
+⚠️ **Não entrou na régua de propósito.** `regua_contatos` tem
+`UNIQUE (obra_id, modelo)` — uma mensagem por modelo por obra, para sempre, e
+é isso que impede a régua de repetir boas-vindas. Autoleitura é mensal, então
+ou criaria um modelo por mês ou afrouxaria esse índice. Ganhou casa própria.
+
+**Nada sai sozinho**: `autoleitura_ativo` está em `0`. A tela mostra a fila do
+dia com o texto pronto e um botão de copiar. Ligar depende de três decisões
+que estão no fim de `migrations/2026-09-15_autoleitura.sql`.
+
 ### Indicações
 `indicacoes` — nova → contatada → visita → fechada/perdida
 
@@ -175,6 +211,10 @@ cliente — o Gilberto tem **4 usinas e 1 endereço** e não paga extra. Quando
 | `obra_geracao_total(obra)` | **quanto a obra já gerou**: kWh, economia, desempenho e meses — a fonte única |
 | `plano_registrar_pagamento(contrato, data)` | liga o contrato no dia em que o primeiro pagamento entrou; é ela que calcula `inicio` e `fim` |
 | `plano_cadastrar_cliente(json, simular)` | **cadastra cliente de plano inteiro**: cliente + obra + usinas + contrato numa transação. Com `simular = true` (o padrão) não grava nada e devolve a prévia ou a lista de erros |
+| `plano_visitas_gerar(contrato)` | cria as visitas previstas, uma por endereço, no meio do contrato |
+| `plano_visita_registrar(visita, data, equipe, laudo, obs)` | dá baixa numa visita |
+| `autoleitura_fila()` | quem avisar hoje, com o texto pronto |
+| `dia_util_ate(data)` | o último dia útil em `data` ou antes — é o que antecipa o aviso de fim de semana para a sexta |
 | `usina_adicionar(json, simular)` | acrescenta uma usina a um cliente que já existe. **Só soma no total da obra se ela for cliente de plano** — em obra de venda a potência é o projeto vendido, e mexer ali muda o tamanho de uma venda que já aconteceu |
 
 ---
@@ -231,6 +271,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `recorde_margem` | 8% | quanto precisa superar o pico anterior |
 | `recorde_intervalo_meses` | 6 | descanso entre avisos de recorde |
 | `plano_endereco_adicional` | 200 | R$/ano por endereço além do primeiro no Completo — a visita técnica é em cada um |
+| `autoleitura_ativo` | **0** | envio automático do lembrete de autoleitura. Desligado até o Vitor decidir hora, fim de semana e canal |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela

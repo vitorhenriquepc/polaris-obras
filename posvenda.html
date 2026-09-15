@@ -795,6 +795,7 @@ function render(){
       <button class="vtab ${VISAO==='indic'?'on':''}" onclick="setVisao('indic')">Indicações</button>
       <button class="vtab ${VISAO==='planos'?'on':''}" onclick="setVisao('planos')">Planos</button>
       <button class="vtab ${VISAO==='usinas'?'on':''}" onclick="setVisao('usinas')">Usinas</button>
+      <button class="vtab ${VISAO==='leitura'?'on':''}" onclick="setVisao('leitura')">Autoleitura</button>
       <button class="vtab ${VISAO==='auto'?'on':''}" onclick="setVisao('auto')">Automações</button>
     </div>
     <div class="search">🔍<input id="q" placeholder="Buscar cliente ou contrato..." value="${esc(BUSCA)}" oninput="setBusca(this.value)"></div>
@@ -820,6 +821,11 @@ function render(){
   if(VISAO==='planos'){
     document.getElementById('app').innerHTML=h+'<div id="plbox"><div class="center"><div class="spin"></div>Carregando planos...</div></div>';
     carregarPlanos();
+    return;
+  }
+  if(VISAO==='leitura'){
+    document.getElementById('app').innerHTML=h+'<div id="albox"><div class="center"><div class="spin"></div>Carregando o calendário de leituras...</div></div>';
+    carregarAutoleitura();
     return;
   }
   if(VISAO==='brindes'){
@@ -1114,11 +1120,15 @@ function renderPainelPlanos(){
                  : 'vence '+dataBR(c.fim)+' · '+(d<0?'venceu':'em '+d+' dias');
     const valor = esperando ? moedaBR(c.valor)
                 : (c.completo_anual!=null ? moedaBR(c.completo_anual) : 'sob consulta');
-    h+='<div class="chkline" onclick="irEnviar(\''+c.obra_id+'\')">'
+    // clicar abre a ficha do cliente, como na Lista. A proposta pronta fica
+    // no botao ao lado, para quem quer o atalho.
+    h+='<div class="chkline" onclick="abrirFicha(\''+c.obra_id+'\')">'
       +'<div class="cn"><b>'+esc(c.cliente)+'</b>'
       +(c.externo?'<span class="uext">cliente de plano</span>':'')
       +'<span>'+(c.modulos||'?')+' módulos · <span style="color:'+cor+'">'+quando+'</span></span></div>'
       +'<span style="font-size:12px;font-weight:800;color:var(--green-l)">'+valor+'</span>'
+      +'<button class="stb" style="margin-left:9px" '
+      +'onclick="event.stopPropagation();irEnviar(\''+c.obra_id+'\')">proposta</button>'
       +'<span style="color:var(--muted)">›</span></div>';
   });
   h+='</div>';
@@ -1294,6 +1304,173 @@ function ncMascara(){
    o Gilberto tem 4 usinas num endereco so, e seria uma visita, nao quatro.
 
    As previstas nascem quando o contrato e ativado, no meio do periodo. */
+/* ---------- AUTOLEITURA ----------
+   Cliente rural em que a CPFL nao le o relogio: quem informa e ele. Se
+   esquecer, a conta vem por media e a compensacao do sistema nao entra certa.
+
+   O aviso da vespera e ANTECIPADO para a sexta quando a leitura cai no fim de
+   semana -- a regra da casa e nao mandar mensagem para cliente sabado e
+   domingo, e avisar cedo e melhor que nao avisar.
+
+   NADA SAI SOZINHO AINDA: a tela mostra a fila do dia com o texto pronto e um
+   botao de copiar. O disparo automatico depende de tres decisoes do Vitor,
+   anotadas na migracao 2026-09-15_autoleitura.sql. */
+let AUT=null, ALSEL=null;
+
+async function carregarAutoleitura(){
+  const box=document.getElementById('albox'); if(!box) return;
+  const r=await sb.rpc('get_autoleitura');
+  if(r.error||!r.data){ box.innerHTML='<div class="vazio">Não foi possível carregar.</div>'; return; }
+  AUT=r.data;
+  box.innerHTML=renderAutoleitura();
+}
+
+function renderAutoleitura(){
+  const F=(AUT.fila||{}), hoje=F.hoje||[], prox=F.proximas||[], UCS=AUT.ucs||[];
+  let h='';
+
+  if(AUT.ligada!=='1'){
+    h+='<div class="dica" style="border-color:rgba(214,175,88,.4)">'
+     +'<b>O envio automático está desligado.</b> A fila do dia aparece aqui com o texto '
+     +'pronto — copie e mande no grupo. Ligar exige decidir o horário do aviso "no dia", '
+     +'porque a régua só dispara às 17h e quem lê o relógio faz de manhã.</div>';
+  }
+
+  h+='<div class="sec"><h3>📷 Para avisar hoje'+(hoje.length?' <span class="tag">'+hoje.length+'</span>':'')+'</h3>';
+  if(!hoje.length){
+    h+='<div class="vazio">Ninguém para avisar hoje.</div>';
+  } else {
+    hoje.forEach(function(x){
+      h+='<div class="card" style="margin-bottom:9px">'
+       +'<div style="font-size:13.5px;font-weight:800">'+esc(x.cliente)+'</div>'
+       +'<div class="umeta">'+esc(x.uc)+' · leitura em '+dataBR(x.data)
+       +' · <b>'+(x.tipo==='dia'?'é hoje':'véspera')+'</b>'
+       +(x.tem_grupo?'':' · <span style="color:#e07070">sem grupo cadastrado</span>')+'</div>'
+       +'<pre class="plmsg" style="margin-top:8px">'+esc(x.texto||'')+'</pre>'
+       +'<div class="plbtns">'
+       +'<button class="stb" onclick="alCopiar(\''+x.leitura_id+'\')">📋 Copiar</button>'
+       +'<button class="stb prim" onclick="alMarcar(\''+x.leitura_id+'\',\''+x.tipo+'\')">✓ Já avisei</button>'
+       +'</div></div>';
+    });
+  }
+  h+='</div>';
+
+  h+='<div class="sec"><h3>🗓️ Próximas leituras</h3>';
+  if(!prox.length){
+    h+='<div class="vazio">Nenhuma data cadastrada. Cadastre abaixo o que a conta de luz mostra '
+     +'em "Próximas Leituras" — só as que são de responsabilidade do cliente precisam de aviso.</div>';
+  } else {
+    h+='<table class="pltbl"><tr><th>Cliente</th><th>Unidade</th><th>Leitura</th><th>Avisar em</th><th></th></tr>';
+    prox.forEach(function(x){
+      h+='<tr><td>'+esc(x.cliente)+'</td><td>'+esc(x.uc)+'</td>'
+       +'<td>'+dataBR(x.data)+' <span style="color:var(--muted)">('+n(x.dias)+'d)</span></td>'
+       +'<td>'+dataBR(x.avisar_vespera)
+       +(x.antecipado?' <span class="uext">antecipado</span>':'')+'</td>'
+       +'<td>'+(x.ja_avisado?'<span style="color:var(--green-l)">avisado</span>':'')+'</td></tr>';
+    });
+    h+='</table>';
+  }
+  h+='</div>';
+
+  // cadastro
+  let ops='<option value="">— escolha o cliente —</option>';
+  (AUT.obras||[]).forEach(function(o){
+    ops+='<option value="'+esc(o.id)+'">'+esc(o.cliente)+'</option>';
+  });
+  h+='<div class="ncsec"><div class="nctit">Cadastrar unidade consumidora</div>'
+   +'<div class="ncdica">Uma por relógio. Marque autoleitura só quando a distribuidora '
+   +'não lê no local e quem informa é o cliente.</div>'
+   +'<label>Cliente<select id="al_obra">'+ops+'</select></label>'
+   +'<div class="ncg3">'
+   +'<label>Número da UC<input id="al_num" inputmode="numeric" placeholder="o número da conta"></label>'
+   +'<label>Apelido<input id="al_ap" placeholder="Rancho, Sítio..."></label>'
+   +'<label>Distribuidora<input id="al_dist" placeholder="CPFL"></label>'
+   +'</div>'
+   +'<label class="ncck"><input type="checkbox" id="al_auto" checked> quem informa a leitura é o cliente</label>'
+   +'<div class="plbtns" style="margin-top:11px">'
+   +'<button class="stb prim" onclick="alSalvarUC()">💾 Salvar unidade</button></div></div>';
+
+  if(UCS.length){
+    let uops='';
+    UCS.forEach(function(u){
+      uops+='<option value="'+esc(u.id)+'">'+esc(u.cliente)+' · '+esc(u.apelido||u.numero)+'</option>';
+    });
+    h+='<div class="ncsec"><div class="nctit">Datas de leitura</div>'
+     +'<div class="ncdica">Digite o que a conta mostra em "Próximas Leituras", com o '
+     +'responsável de cada uma. Se só souber o dia do mês, use a projeção — ela marca '
+     +'as datas como estimadas e cede lugar assim que a data real for digitada.</div>'
+     +'<label>Unidade<select id="al_uc">'+uops+'</select></label>'
+     +'<div class="ncg3">'
+     +'<label>Data prevista<input id="al_data" type="date"></label>'
+     +'<label>Responsável<select id="al_resp">'
+       +'<option value="cliente">Cliente</option>'
+       +'<option value="distribuidora">Distribuidora</option></select></label>'
+     +'<label>Ou dia-base do mês<input id="al_dia" type="number" min="1" max="31" placeholder="10"></label>'
+     +'</div>'
+     +'<div class="plbtns" style="margin-top:11px">'
+     +'<button class="stb prim" onclick="alSalvarData()">💾 Salvar data</button>'
+     +'<button class="stb" onclick="alProjetar()">📅 Projetar 6 meses pelo dia-base</button>'
+     +'</div></div>';
+  }
+  return h;
+}
+
+function alCopiar(id){
+  const x=((AUT.fila||{}).hoje||[]).find(function(y){return y.leitura_id===id;});
+  if(!x) return;
+  if(navigator.clipboard) navigator.clipboard.writeText(x.texto||'').then(function(){ toast('Mensagem copiada ✓'); });
+  else toast('Selecione o texto e copie');
+}
+
+async function alMarcar(id, tipo){
+  const r=await sb.rpc('autoleitura_marcar',{p_leitura:id, p_tipo:tipo});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast('Marcado como avisado ✓');
+  carregarAutoleitura();
+}
+
+async function alSalvarUC(){
+  const v=function(x){ return (((document.getElementById(x)||{}).value)||'').trim(); };
+  if(!v('al_obra')){ toast('Escolha o cliente'); return; }
+  if(!v('al_num')){ toast('Informe o número da unidade consumidora'); return; }
+  const r=await sb.rpc('uc_salvar',{p:{
+    obra_id:v('al_obra'), numero:v('al_num'), apelido:v('al_ap'),
+    distribuidora:v('al_dist'),
+    autoleitura: !!(document.getElementById('al_auto')||{}).checked }});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast('Unidade salva ✓');
+  carregarAutoleitura();
+}
+
+async function alSalvarData(){
+  const v=function(x){ return (((document.getElementById(x)||{}).value)||'').trim(); };
+  if(!v('al_uc')){ toast('Escolha a unidade'); return; }
+  if(!v('al_data')){ toast('Informe a data'); return; }
+  const r=await sb.rpc('uc_leitura_salvar',{p_uc:v('al_uc'), p_data:v('al_data'),
+                                            p_responsavel:v('al_resp')||'cliente'});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast('Data salva ✓');
+  carregarAutoleitura();
+}
+
+async function alProjetar(){
+  const v=function(x){ return (((document.getElementById(x)||{}).value)||'').trim(); };
+  if(!v('al_uc')){ toast('Escolha a unidade'); return; }
+  const dia=parseInt(v('al_dia'),10);
+  if(!dia || dia<1 || dia>31){ toast('Informe o dia-base do mês, de 1 a 31'); return; }
+  if(!confirm('Projetar os próximos 6 meses pelo dia '+dia+'?\n\nAs datas entram como estimadas '
+             +'e são substituídas assim que você digitar a data real da conta.')) return;
+  const r=await sb.rpc('uc_leituras_projetar',{p_uc:v('al_uc'), p_dia:dia, p_meses:6,
+                                               p_responsavel:v('al_resp')||'cliente'});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast(n(r.data.criadas)+' datas projetadas ✓');
+  carregarAutoleitura();
+}
+
 function renderVisitas(){
   if(!VIS) return '<div class="vazio">Não foi possível carregar as visitas.</div>';
   const R=VIS.resumo||{}, L=VIS.lista||[];
@@ -2543,6 +2720,62 @@ function renderFicha(D){
     if(D.pode_agir){
       h+=`<button class="mini" style="margin-top:9px" onclick="formUsina('${o.id}')">➕ Adicionar usina</button>
           <div id="fusina"></div>`;
+    }
+    h+=`</div>`;
+  }
+
+  /* Plano de manutenção — quem chega pela aba Planos precisa ver isto aqui */
+  const PL = D.plano;
+  if(PL){
+    const esperando = PL.status==='aguardando_pagamento';
+    const dias = PL.dias==null?null:Number(PL.dias);
+    const corP = esperando ? 'var(--gold)'
+               : (dias!=null && dias<0 ? '#e07070'
+                 : (dias!=null && dias<=60 ? 'var(--gold)' : 'var(--green-l)'));
+    h+=`<div class="sec"><h3>Plano de manutenção</h3>`;
+    h+=`<div class="dados">
+      <div class="dado"><div class="k">Plano</div>
+        <div class="v" style="font-size:13.5px">${esc(PL.nome||'—')}</div></div>
+      <div class="dado"><div class="k">${esperando?'Valor combinado':'Valor'}</div>
+        <div class="v" style="font-size:15px">${moedaBR(PL.valor)}<small>/${PL.forma==='mensal'?'mês':'ano'}</small></div></div>
+      <div class="dado"><div class="k">Situação</div>
+        <div class="v" style="font-size:13.5px;color:${corP}">${
+          esperando ? 'aguardando o 1º pagamento'
+          : (dias==null ? 'ativo'
+             : (dias<0 ? 'venceu há '+Math.abs(dias)+' dias' : 'vence em '+dias+' dias'))
+        }</div></div>
+    </div>`;
+    if(!esperando && PL.inicio){
+      h+=`<div class="umeta" style="margin-top:7px">Vigência ${dataBR(PL.inicio)} a ${dataBR(PL.fim)}</div>`;
+    }
+    if(PL.nota_documento){
+      h+=`<div class="umeta">Nota no ${String(PL.nota_documento).replace(/\D/g,'').length===14?'CNPJ':'CPF'} ${esc(PL.nota_documento)}</div>`;
+    }
+    if(PL.observacao){
+      h+=`<div class="umeta" style="margin-top:6px;line-height:1.6">${esc(PL.observacao)}</div>`;
+    }
+
+    const VV = PL.visitas||[];
+    if(VV.length){
+      h+=`<div class="umeta" style="margin-top:11px;font-weight:800;color:var(--txt)">Visitas</div><div class="ulist">`;
+      VV.forEach(function(v){
+        const feita = v.status==='realizada';
+        const dv = Number(v.dias);
+        const cv = feita ? 'var(--green-l)' : (dv<0?'#e07070':(dv<=60?'var(--gold)':'var(--muted)'));
+        h+=`<div class="urow" style="cursor:default">
+          <div>
+            <div class="uname">${esc(v.endereco||'endereço não informado')}</div>
+            <div class="umeta" style="color:${cv}">${
+              feita ? 'feita em '+dataBR(v.realizada_em)+(v.laudo_url?'':' · sem laudo')
+                    : 'prevista para '+dataBR(v.prevista_para)+(dv<0?' · atrasada':'')
+            }</div>
+          </div>
+        </div>`;
+      });
+      h+=`</div>`;
+    } else if(esperando){
+      h+=`<div class="umeta" style="margin-top:9px">As visitas são marcadas quando o
+          primeiro pagamento entrar — uma para cada endereço.</div>`;
     }
     h+=`</div>`;
   }
