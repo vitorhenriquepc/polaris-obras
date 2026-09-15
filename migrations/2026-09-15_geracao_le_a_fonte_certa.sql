@@ -1,0 +1,78 @@
+-- APLICADA em 15/09/2026, em duas migrações:
+--   `get_geracao_le_do_usina_geracao` e `ficha_cliente_carrega_as_usinas`
+
+-- ============================================================
+-- O achado: a tela lia a tabela errada
+-- ============================================================
+--   `geracao`       (por obra)  →  0 linhas      ← a tela lia daqui
+--   `usina_geracao` (por usina) →  812 linhas, 55 usinas, 14 meses
+--
+-- Por isso "Geração e desempenho" aparecia vazia — e não só para um cliente,
+-- mas para os 53. Todo mundo via a estimativa pela potência.
+--
+-- Consequência adiante: `regua_bloqueio` trava com "geração não registrada" os
+-- modelos que exigem geração. O "Aniversário de 1 ano" tem 51 contatos
+-- pendentes; o mais antigo vence em 17/04/2027 — nada se perdeu ainda.
+
+-- ============================================================
+-- Três armadilhas que a função nova precisou desviar
+-- ============================================================
+-- 1. Uma obra pode ter VÁRIAS usinas. O GILBERTO tem 4 medidores numa obra só,
+--    44,53 kWp somados. Tem de somar, não pegar a principal.
+--
+-- 2. O SolarView devolve a janela inteira de 13 meses, inclusive meses em que
+--    a usina não existia — e grava 0. O Gilberto tinha 10 meses de zero antes
+--    da instalação. Contar isso arrasaria o desempenho dele. Cada usina só
+--    entra a partir do mês SEGUINTE ao da instalação (armadilha 5: zero aqui
+--    é "não existia", não "não gerou").
+--
+-- 3. O mês corrente não vira desempenho (armadilha 6). Aparece com kWh e
+--    economia, marcado `parcial`.
+
+-- ============================================================
+-- De onde vem o "previsto" — e por que não é kWp × HSP × PR
+-- ============================================================
+-- Vem da mediana da vizinhança (`v_indice_dia`), que é o padrão que o sistema
+-- já usa. A diferença importa: com HSP anual fixo o Gilberto dava 48% de
+-- média, porque junho e julho são inverno e a fórmula não sabe disso. Contra a
+-- vizinhança ele dá 76% — mesma região, mesmo mês, mesmo clima.
+--
+-- Quando o índice não cobre o mês inteiro, previsto e desempenho ficam NULOS.
+-- kWh e economia continuam, porque são medidos. Hoje o índice só existe de
+-- agosto para cá (o `usina_dia` começa em 25/07), então os meses anteriores
+-- mostram o fato sem a nota.
+
+-- (o corpo das duas funções está aplicado no banco; ver as migrações
+--  `get_geracao_le_do_usina_geracao` e `ficha_cliente_carrega_as_usinas`)
+
+-- ============================================================
+-- CONFERIDO, no GILBERTO (o caso difícil)
+-- ============================================================
+--   4 usinas somadas, 4 meses fechados
+--   acumulado ......... 9.808 kWh · R$ 7.815
+--   agosto ............ 3.923 kWh · 76% da vizinhança
+--   setembro .......... parcial, sem desempenho
+--   maio .............. 1 medidor só (os outros 3 ainda não contavam)
+--   MARIA APARECIDA ... motivo_vazio = 'sem_usina'
+--   JOÃO VITOR POZZETI  motivo_vazio = 'usina_sem_dado'
+--
+-- E que nada mais quebrou no get_ficha_cliente: contrato, mensagens e
+-- pode_agir continuam vindo iguais.
+
+-- ============================================================
+-- AINDA LEEM A TABELA VAZIA `geracao` — próxima rodada
+-- ============================================================
+--   regua_bloqueio, regua_texto, get_geracao_bruta, get_trajetoria_posvenda,
+--   pendencias_posvenda, conferir_saude_base
+--
+-- O `regua_texto` escreve o que o cliente lê, então vale tratar com calma e
+-- simulando cada modelo antes.
+
+-- ============================================================
+-- Erro meu, de 12/09, registrado aqui
+-- ============================================================
+-- Criei a chave `hsp` sem procurar antes, e já existia `hsp_regiao` com o
+-- mesmo 4,9 — exatamente a armadilha 1. A `get_geracao` usa `hsp_regiao`.
+-- A edge function `conferencia-geracao` lê `hsp` com fallback '4.9' no código,
+-- então os dois valores batem e nada quebrou; mas é chave duplicada e vale
+-- unificar em `hsp_regiao` quando alguém mexer naquela função.
