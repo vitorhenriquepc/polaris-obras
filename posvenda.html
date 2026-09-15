@@ -641,6 +641,20 @@ white-space:normal;padding:0 2px}
 .uhl:last-child{border-bottom:none}
 .ubtn{background:var(--card2);border:1px solid var(--border);color:var(--txt);border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .ubtn:hover{border-color:var(--gold)}
+
+/* Usinas do cliente, dentro do card do pós-venda */
+.ulist{display:flex;flex-direction:column;gap:6px}
+.urow{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;
+  text-align:left;background:var(--card2,rgba(255,255,255,.03));border:1px solid var(--bord,rgba(255,255,255,.08));
+  border-radius:9px;padding:10px 12px;cursor:pointer;font:inherit;color:inherit}
+.urow:hover{border-color:var(--green-l)}
+.urow:focus-visible{outline:2px solid var(--green-l);outline-offset:2px}
+.uname{font-size:13px;font-weight:700}
+.umeta{font-size:11.5px;color:var(--muted);margin-top:2px}
+.uright{text-align:right;flex-shrink:0}
+.ust{font-size:12px;font-weight:700}
+@media(max-width:480px){.urow{flex-direction:column;align-items:flex-start;gap:4px}
+  .uright{text-align:left}}
 </style>
 </head>
 <body>
@@ -1983,6 +1997,28 @@ function renderFicha(D){
   }
   h+=`</div>`;
 
+  /* Usinas do cliente — quem tem mais de uma chega no detalhe de cada uma daqui */
+  const US = D.usinas || [];
+  if(US.length){
+    h+=`<div class="sec"><h3>Usina${US.length>1?'s':''}`
+      + (US.length>1?` <span class="tag">${US.length} medidores</span>`:'')
+      + `</h3><div class="ulist">`;
+    US.forEach(function(u){
+      var cor = (u.gravidade<=2) ? '#e07070' : ((u.gravidade==3) ? 'var(--gold)' : 'var(--green-l)');
+      h+=`<button class="urow" onclick="abrirUsina('${u.id}')" title="${esc(u.motivo||'')}">
+        <div>
+          <div class="uname">${esc(u.apelido||'Usina')}${u.principal?' <span class="tag">principal</span>':''}</div>
+          <div class="umeta">${u.kwp!=null?u.kwp+' kWp':'potência não informada'}${u.cidade?' · '+esc(u.cidade):''}</div>
+        </div>
+        <div class="uright">
+          <div class="ust" style="color:${cor}">${esc(u.estado||'—')}</div>
+          <div class="umeta">${u.kwh_ultimo_mes!=null?u.kwh_ultimo_mes+' kWh no mês passado':'sem leitura ainda'}</div>
+        </div>
+      </button>`;
+    });
+    h+=`</div></div>`;
+  }
+
   /* Geração */
   const G=D.geracao;
   h+=`<div class="sec"><h3>Geração e desempenho</h3>`;
@@ -1991,21 +2027,32 @@ function renderFicha(D){
     h+=`<div class="dados">
       <div class="dado"><div class="k">Acumulado</div><div class="v">${a.kwh||0} <small>kWh</small></div></div>
       <div class="dado"><div class="k">Economia</div><div class="v">R$ ${a.economia||0}</div></div>
-      <div class="dado"><div class="k">Desempenho médio</div><div class="v" style="color:${(a.desempenho_medio>=90)?'var(--green-l)':((a.desempenho_medio>=75)?'var(--gold)':'#e07070')}">${a.desempenho_medio||'—'}<small>%</small></div></div>
+      <div class="dado"><div class="k">Desempenho médio</div><div class="v" style="color:${a.desempenho_medio==null?'var(--muted)':((a.desempenho_medio>=90)?'var(--green-l)':((a.desempenho_medio>=75)?'var(--gold)':'#e07070'))}">${a.desempenho_medio!=null?a.desempenho_medio:'—'}${a.desempenho_medio!=null?'<small>%</small>':''}</div></div>
       <div class="dado"><div class="k">Meses registrados</div><div class="v">${a.meses}</div></div>
     </div>`;
     h+=`<table class="gtab"><tr><th>Mês</th><th class="num">kWh</th><th class="num">Desemp.</th><th class="num">Economia</th></tr>`;
     (G.meses||[]).slice(0,6).forEach(m=>{
       const p=m.referencia.split('-');
-      const cor=m.desempenho>=90?'var(--green-l)':(m.desempenho>=75?'var(--gold)':'#e07070');
-      h+=`<tr><td>${p[1]}/${p[0]}</td><td class="num">${m.kwh||'—'}</td>
-        <td class="num" style="color:${cor};font-weight:800">${m.desempenho!=null?m.desempenho+'%':'—'}</td>
+      /* sem desempenho apurado nao pinta de vermelho: falta base de comparacao,
+         nao e mau desempenho */
+      const cor = m.desempenho==null ? 'var(--muted)'
+                : (m.desempenho>=90?'var(--green-l)':(m.desempenho>=75?'var(--gold)':'#e07070'));
+      const rot = m.desempenho!=null ? m.desempenho+'%'
+                : (m.parcial ? 'mês em curso' : 'sem base');
+      h+=`<tr><td>${p[1]}/${p[0]}${m.parcial?' <span class="tag">parcial</span>':''}</td>
+        <td class="num">${m.kwh||'—'}</td>
+        <td class="num" style="color:${cor};font-weight:${m.desempenho!=null?800:500};font-size:${m.desempenho!=null?'inherit':'11px'}">${rot}</td>
         <td class="num">R$ ${m.economia||'—'}</td></tr>`;
     });
     h+=`</table>`;
   } else {
-    h+=`<div class="vazio">Nenhum mês registrado.<br>
-      <span style="font-size:11.5px;opacity:.8">Estimativa pela potência: <b>${G?G.estimativa_mensal:'—'} kWh/mês</b> · ~R$ ${G?G.estimativa_economia:'—'}</span></div>`;
+    var mv = G && G.motivo_vazio;
+    var txt = (mv==='sem_usina')
+      ? 'Esta obra não tem usina vinculada ao monitoramento — por isso não há geração aqui.'
+      : (mv==='usina_sem_dado')
+        ? 'A usina está cadastrada, mas ainda não enviou nenhuma leitura.'
+        : 'Ainda não há um mês fechado de geração.';
+    h+=`<div class="vazio">${txt}</div>`;
   }
   if(D.pode_agir){
     h+=`<button class="mini" style="margin-top:8px" onclick="formGeracao('${o.id}')">➕ Registrar geração do mês</button>

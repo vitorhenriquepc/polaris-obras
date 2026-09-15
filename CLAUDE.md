@@ -86,6 +86,14 @@ são orçamento. Não some os dois.
 `trg_sincroniza_valor`. **Já existia — não crie outro.**
 
 ### Pós-venda
+⚠️ **Geração mora em `usina_geracao` (por usina), não em `geracao` (por obra).**
+A `geracao` existe para entrada manual e está **vazia**. Até 15/09 a tela lia
+dela, e por isso "Geração e desempenho" aparecia vazia para todos os clientes.
+Seis funções ainda leem da tabela vazia — `regua_bloqueio`, `regua_texto`,
+`get_geracao_bruta`, `get_trajetoria_posvenda`, `pendencias_posvenda` e
+`conferir_saude_base`. Uma obra pode ter **várias usinas** (o Gilberto tem 4),
+então sempre **some por obra**.
+
 `usinas`, `usina_dia`, `usina_geracao` · `clima_dia` · `v_indice_dia` ·
 `v_indice_regiao` (cidade com 5+ usinas ganha grupo próprio) ·
 `regua_contatos` + `regua_modelos` · `usina_marco` · `nps`
