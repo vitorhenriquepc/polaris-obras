@@ -125,11 +125,29 @@ cliente de plano não tem nenhum dos dois e o cadastro ficava **impossível** �
 descoberto na simulação, antes de gravar. A ficha continua existindo (o plano
 gera receita e ela vai precisar de lugar), mas não cobra campo de venda.
 
-A faixa `completo_especial` (acima de 45 módulos) existe **sem preço de
-tabela de propósito** — o valor é negociado por sistema e vive no contrato.
-Quem lê `planos` tem de tratar `preco_mensal`/`preco_anual` nulos como "sob
-consulta"; `moedaBR(null)` imprime `R$ 0,00`, que é número inventado indo
-para o cliente.
+A tabela do Completo vai até **125 módulos**. As faixas acima de 45 foram
+criadas em 15/09 a partir da regra que a própria tabela já seguia — as duas
+últimas faixas antigas sobem **exatamente R$ 20,00 por módulo/ano**, e o
+preço é sempre o do **topo da faixa**:
+
+`anual = 1.290 + 20 × (topo − 45)` · `mensal = anual ÷ 10,716`
+
+Conferido contra o contrato real da Tays (120 módulos, R$ 2.990/ano e
+R$ 279/mês): a razão da tabela devolve R$ 279,02, e a regra dos módulos dá
+R$ 2.790 — os R$ 200 que faltam são o segundo endereço.
+
+Acima de 125 fica a `completo_especial`, **sem preço de tabela de propósito**:
+o valor é negociado e vive no contrato. Quem lê `planos` tem de tratar
+`preco_mensal`/`preco_anual` nulos como "sob consulta"; `moedaBR(null)`
+imprime `R$ 0,00`, que é número inventado indo para o cliente.
+
+⚠️ **Endereço, não usina.** O Completo vende uma visita anual em cada
+endereço, então a proposta soma `plano_endereco_adicional` por endereço além
+do primeiro. A conta é
+`count(distinct coalesce(endereco, cidade))` entre as usinas ativas do
+cliente — o Gilberto tem **4 usinas e 1 endereço** e não paga extra. Quando
+`endereco` está vazio a conta cai para a cidade, então ela **subestima**, que
+é o lado seguro: nunca cobra a mais, e se corrige quando alguém preencher.
 
 ### Indicações
 `indicacoes` — nova → contatada → visita → fechada/perdida
@@ -210,6 +228,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `recorde_min_dias` | 90 | histórico mínimo para avisar recorde |
 | `recorde_margem` | 8% | quanto precisa superar o pico anterior |
 | `recorde_intervalo_meses` | 6 | descanso entre avisos de recorde |
+| `plano_endereco_adicional` | 200 | R$/ano por endereço além do primeiro no Completo — a visita técnica é em cada um |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela

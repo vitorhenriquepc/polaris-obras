@@ -898,6 +898,17 @@ function planoCompletoPara(mods){
 // Faixa acima de 45 modulos existe sem preco de tabela de proposito: o valor
 // e negociado por sistema. Nunca imprimir moedaBR(null), que vira "R$ 0,00".
 function temPrecoTabela(p){ return !!(p && p.mensal!=null && p.anual!=null); }
+// O Completo vende uma visita anual em CADA endereco, entao quem tem duas
+// propriedades paga o extra. O valor vem da config, nunca chumbado aqui.
+function adicionalEndereco(qtdEnderecos){
+  const nEnd = Math.max(1, Number(qtdEnderecos)||1);
+  const porAno = Number(PLN.endereco_adicional!=null?PLN.endereco_adicional:0);
+  const extras = nEnd - 1;
+  return { extras: extras,
+           anual: porAno*extras,
+           mensal: Math.round(porAno/12*extras*100)/100,
+           porAno: porAno };
+}
 function completoMaisBarato(){
   return (PLN.planos||[])
     .filter(function(p){ return p.nivel===3 && p.mensal!=null; })
@@ -905,7 +916,7 @@ function completoMaisBarato(){
 }
 function moedaBR(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
 
-function textoPlano(cliente, mods){
+function textoPlano(cliente, mods, enderecos){
   const P=PLN.planos||[];
   const ess=P.find(p=>p.codigo==='essencial');
   const atv=P.find(p=>p.codigo==='ativo');
@@ -934,14 +945,23 @@ function textoPlano(cliente, mods){
    +'• '+Number(atv.desconto)+'% de desconto em serviços\n'
    +'• Apoio na relação com a distribuidora\n\n';
 
-  t+= temPrecoTabela(cmp)
-      ? ('🥇 *COMPLETO* — '+moedaBR(cmp.mensal)+'/mês\n'
-        +'_ou '+moedaBR(cmp.anual)+' no ano_\n')
-      : ('🥇 *COMPLETO* — valor sob consulta\n'
-        +'_seu sistema é maior que as faixas de tabela; preparamos uma proposta '
-        +'para ele_\n');
+  const ad = adicionalEndereco(enderecos);
+  if(temPrecoTabela(cmp)){
+    t+='🥇 *COMPLETO* — '+moedaBR(Number(cmp.mensal)+ad.mensal)+'/mês\n'
+      +'_ou '+moedaBR(Number(cmp.anual)+ad.anual)+' no ano_\n';
+    if(ad.extras>0){
+      t+='_já inclui '+moedaBR(ad.anual)+'/ano de '+(ad.extras===1?'1 endereço':ad.extras+' endereços')
+        +' além do primeiro — a visita técnica é em cada um_\n';
+    }
+  } else {
+    t+='🥇 *COMPLETO* — valor sob consulta\n'
+      +'_seu sistema é maior que as faixas de tabela; preparamos uma proposta '
+      +'para ele_\n';
+  }
   t+='• Tudo do Ativo\n'
-   +'• *Visita técnica anual inclusa*\n'
+   +(ad.extras>0
+      ? '• *Uma visita técnica anual em cada endereço*\n'
+      : '• *Visita técnica anual inclusa*\n')
    +'• Limpeza dos módulos\n'
    +'• Inspeção elétrica e de fixação\n'
    +'• *Laudo técnico assinado*\n';
@@ -1225,11 +1245,15 @@ function previaPlano(){
   const c=(PLN.clientes||[]).find(function(x){return x.id===PLSEL;});
   if(!c){ el.innerHTML=''; return; }
   const cmp=planoCompletoPara(c.modulos);
-  const txt=textoPlano(c.cliente, c.modulos);
+  const ad=adicionalEndereco(c.enderecos);
+  const txt=textoPlano(c.cliente, c.modulos, c.enderecos);
   let h='<div class="plprev">';
-  h+='<div class="plinfo">Sistema de <b>'+(c.modulos||'?')+' módulos</b> → '
+  h+='<div class="plinfo">Sistema de <b>'+(c.modulos||'?')+' módulos</b>'
+    +(ad.extras>0?' em <b>'+(ad.extras+1)+' endereços</b>':'')+' → '
     +(temPrecoTabela(cmp)
-        ? 'Completo por <b>'+moedaBR(cmp.mensal)+'/mês</b>'
+        ? 'Completo por <b>'+moedaBR(Number(cmp.mensal)+ad.mensal)+'/mês</b>'
+          +(ad.extras>0?' <span style="color:var(--muted)">('+moedaBR(cmp.mensal)
+            +' + '+moedaBR(ad.mensal)+' de endereço extra)</span>':'')
         : 'Completo <b>sob consulta</b> (porte fora da tabela)')
     +(c.externo?' · <span class="uext">cliente de plano</span>':'')
     +(c.plano_atual?' · hoje no plano <b>'+esc(c.plano_atual)+'</b>':'')+'</div>';
@@ -1245,7 +1269,7 @@ function previaPlano(){
 function copiarPlano(){
   const c=(PLN.clientes||[]).find(function(x){return x.id===PLSEL;});
   if(!c) return;
-  const t=textoPlano(c.cliente,c.modulos);
+  const t=textoPlano(c.cliente,c.modulos,c.enderecos);
   if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ toast('Mensagem copiada ✓'); });
   else toast('Selecione o texto e copie');
 }
@@ -1254,7 +1278,7 @@ async function enviarPlano(){
   const c=(PLN.clientes||[]).find(function(x){return x.id===PLSEL;});
   if(!c||!c.grupo) return;
   if(!confirm('Enviar a proposta de planos no grupo de '+c.cliente+'?')) return;
-  const t=textoPlano(c.cliente,c.modulos);
+  const t=textoPlano(c.cliente,c.modulos,c.enderecos);
   try{
     const { data:sess } = await sb.auth.getSession();
     const r=await fetch(SUPABASE_URL+'/functions/v1/notificar-grupo',{
