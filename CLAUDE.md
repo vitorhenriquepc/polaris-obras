@@ -463,6 +463,17 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     `{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}`
     — sem anon nenhum.
 
+11. **Existem DOIS caminhos para mudar a etapa, e só um avisava o cliente.**
+    Arrastar o card no kanban passa por `mudarEtapa()`, que chama o
+    `notificar-grupo`. Trocar a etapa **dentro do card** e salvar passa por
+    `salvarForm()`, que gravava `etapa_numero` junto com o resto do `rec` e
+    **não avisava ninguém** — a tela dizia "Obra salva ✓" e a pessoa ia embora
+    achando que o cliente tinha sido avisado. Quatro obras mudaram de etapa em
+    15/09 sem nenhuma mensagem sair, e o log das edge functions foi o que
+    provou: zero chamadas ao `notificar-grupo` nos horários das mudanças.
+    Corrigido em 15/09. Antes de acrescentar efeito colateral a uma mudança de
+    campo, **procure se o campo não é gravado por mais de um caminho**.
+
 ---
 
 ## 10. Estado e pendências
