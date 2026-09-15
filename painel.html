@@ -2170,6 +2170,7 @@ if(focoFone) setTimeout(()=>document.getElementById('f_tel').focus(),50);
 if(id) setTimeout(()=>carregarPlano(id),60);
 window._dtiAntes = o.data_instalacao || null;
 window._instAntes = o.instalador_id || null;
+window._etapaAntes = id ? o.etapa_numero : null;   // obra nova nao tem etapa de antes
 if(id) sb.rpc('is_admin').then(r=>{ const rd=document.getElementById('rowDel'); if(r.data&&rd) rd.style.display=''; });
 document.getElementById('f_save').onclick = ()=> salvarForm(id);
 }
@@ -2251,11 +2252,12 @@ if(id && rec.trilha==='manutencao'){
   }
 }
 // CPFL: se a data foi preenchida ou mudou nesta gravação, avisa o cliente sozinho
+let avisouCpfl = false;
 if(id){
   const cpflNovo = document.getElementById('f_cpfl') ? (document.getElementById('f_cpfl').value||null) : null;
   if(cpflNovo && cpflNovo !== CPFL_ANTES){
     document.getElementById('f_save').textContent='Avisando o cliente...';
-    await avisarCpfl(id);
+    avisouCpfl = await avisarCpfl(id);
   }
 }
 fecharForm();
@@ -2268,6 +2270,26 @@ const instAntes = window._instAntes || null;
 // Recarrega ANTES de avisar, para usar os dados já salvos
 await loadObras();
 const oAtual = id ? getObra(id) : OBRAS.find(o => o.slug === rec.slug);
+
+// Etapa trocada aqui dentro do card avisa o cliente igual a arrastar no kanban.
+// Ate 15/09 so o kanban avisava: mudarEtapa() chamava o notificar-grupo, e este
+// caminho gravava etapa_numero direto e passava calado. Quem trocasse a etapa
+// pelo formulario via "Obra salva" e ia embora achando que o cliente soube.
+if(id && oAtual && window._etapaAntes != null && rec.etapa_numero !== window._etapaAntes){
+  if(!oAtual.whatsapp_grupo_id){
+    toast('Etapa salva, mas o cliente nao foi avisado: esta obra nao tem grupo');
+  } else if(avisouCpfl){
+    // o aviso da CPFL saiu nesta mesma gravacao e diz a mesma coisa da etapa 7;
+    // mandar os dois seria a mesma noticia duas vezes no grupo do cliente
+    toast('Cliente avisado da vistoria no grupo');
+  } else {
+    toast('Etapa atualizada. Avisando o grupo...');
+    const rEt = await invokeFn('notificar-grupo',
+      { grupo_id:oAtual.whatsapp_grupo_id, message:buildWA(oAtual) });
+    if(rEt.error) toast('Etapa salva, mas o aviso no grupo falhou - use o botao de megafone pra reenviar');
+    else toast('Cliente avisado da nova etapa no grupo');
+  }
+}
 
 if(oAtual && dtiDepois){
   const mudouData = (dtiDepois !== dtiAntes);

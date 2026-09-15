@@ -226,6 +226,23 @@ chave em toda rodada.
 só para `whatsapp_grupo_id`. Mandar para o número do cliente exige mexer na
 `regua-disparo`, que é a trava dos 17h.
 
+### Quem recebe o quê
+`equipe` tem dois papéis, e é por eles que as automações escolhem o destino —
+não pelo nome nem pelo número:
+
+| coluna | quem é hoje | o que chega |
+|---|---|---|
+| `resp_posvenda` | Lívia de Paula | vínculo de usina pendente, conferência das 7h30, resumo da autoleitura |
+| `resp_alertas` | Vitor | vencimento de plano |
+
+`definir_responsavel(equipe, funcao)` troca a pessoa (`is_admin()`), e
+`get_responsavel_posvenda()` diz quem são os dois. **Nenhuma das duas tem tela**
+— a troca é na mão, no banco.
+
+⚠️ **Nem tudo segue o papel.** `alerta_destinos`, `alerta_credito_destinos` e
+`grupo_fixos` guardam **número**, e trocar a pessoa em `equipe` não muda
+nenhuma delas. Ver pendência no §10.
+
 ### Indicações
 `indicacoes` — nova → contatada → visita → fechada/perdida
 
@@ -257,6 +274,8 @@ só para `whatsapp_grupo_id`. Mandar para o número do cliente exige mexer na
 | `plano_desfecho(contrato, desfecho, motivo, plano, valor, forma, meses, aguardando)` | fecha o contrato como `renovou`/`nao_renovou` e, se renovou, já abre o novo na mesma chamada |
 | `contratos_para_avisar()` | quem está a 30 ou 7 dias do fim, com módulos, faixa do Completo e quantos endereços |
 | `autoleitura_fila()` | quem avisar hoje, com o texto pronto |
+| `get_responsavel_posvenda()` | quem é o `resp_posvenda` e o `resp_alertas` hoje |
+| `definir_responsavel(equipe, funcao)` | troca a pessoa de um dos dois papéis; só admin |
 | `dia_util_ate(data)` | o último dia útil em `data` ou antes — é o que antecipa o aviso de fim de semana para a sexta |
 | `usina_adicionar(json, simular)` | acrescenta uma usina a um cliente que já existe. **Só soma no total da obra se ela for cliente de plano** — em obra de venda a potência é o projeto vendido, e mexer ali muda o tamanho de uma venda que já aconteceu |
 
@@ -444,6 +463,17 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     `{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}`
     — sem anon nenhum.
 
+11. **Existem DOIS caminhos para mudar a etapa, e só um avisava o cliente.**
+    Arrastar o card no kanban passa por `mudarEtapa()`, que chama o
+    `notificar-grupo`. Trocar a etapa **dentro do card** e salvar passa por
+    `salvarForm()`, que gravava `etapa_numero` junto com o resto do `rec` e
+    **não avisava ninguém** — a tela dizia "Obra salva ✓" e a pessoa ia embora
+    achando que o cliente tinha sido avisado. Quatro obras mudaram de etapa em
+    15/09 sem nenhuma mensagem sair, e o log das edge functions foi o que
+    provou: zero chamadas ao `notificar-grupo` nos horários das mudanças.
+    Corrigido em 15/09. Antes de acrescentar efeito colateral a uma mudança de
+    campo, **procure se o campo não é gravado por mais de um caminho**.
+
 ---
 
 ## 10. Estado e pendências
@@ -501,6 +531,20 @@ significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
       A `plano-vencimento` envia direto ao cliente às 9h, e agora com preço e
       oferta dentro. Tem folga para decidir: o primeiro vencimento é
       **17/04/2027**, e nenhum contrato tem `aviso_30_em` preenchido.
+- [ ] **Tirar o número chumbado de três chaves da `config`.** A decisão do
+      Vitor é endereçar por **papel**, para que trocar a pessoa do pós-venda
+      seja só trocar o número. O aviso de vínculo já faz isso
+      (`solarview-vincular` → `resp_posvenda`), e também a `conferencia-diaria`,
+      a `autoleitura-aviso` e a `plano-vencimento` (essa por `resp_alertas`).
+      Mas `alerta_destinos`, `alerta_credito_destinos` e `grupo_fixos` guardam
+      **número**, não papel — conferido cruzando contra `equipe.telefone`: são
+      a Lívia (...2573) e o Vitor (...2812). Se a Lívia sair, trocar a `equipe`
+      **não muda essas três**. Nenhuma função do banco e nenhuma tela as lê —
+      só edge function (`alerta-prazos` lê `alerta_destinos`). Mudar quem
+      recebe alerta é decisão do Vitor, não varredura.
+- [ ] **Não existe tela para trocar o responsável.** `definir_responsavel(equipe,
+      funcao)` existe, é `is_admin()` e funciona — mas nenhuma tela chama.
+      Hoje a troca só acontece pelo banco, na mão.
 - [ ] Ligar proteção de senha vazada no Supabase
 - [ ] **Prospecção de sistema órfão, se virar rotina.** A aba "Cliente de fora"
       foi removida em 15/09: ela gerava um texto de abordagem e **não gravava
