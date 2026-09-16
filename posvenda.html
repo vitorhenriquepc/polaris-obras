@@ -920,7 +920,7 @@ async function carregarPlanos(){
   AUT=al&&al.data?al.data:null;
   if(r.error||!r.data){ box.innerHTML='<div class="vazio">Não foi possível carregar os planos.</div>'; return; }
   PLN=r.data;
-  box.innerHTML=renderPlanos();
+  pintaPlanos();
 }
 
 function planoCompletoPara(mods){
@@ -1031,7 +1031,16 @@ function ligaKb(){
   window.addEventListener('resize', ajustaSetasKb);
   ajustaSetasKb();
 }
-function setPlaba(v){ PLABA=v; document.getElementById('plbox').innerHTML=renderPlanos(); }
+function setPlaba(v){ PLABA=v; pintaPlanos(); }
+
+/* renderPlanos() devolve string; as linhas de data da autoleitura vivem num
+   array em memoria e so podem ser desenhadas DEPOIS que o HTML entrou no DOM.
+   Por isso todo mundo que pinta o plbox passa por aqui. */
+function pintaPlanos(){
+  const box=document.getElementById('plbox'); if(!box) return;
+  box.innerHTML=renderPlanos();
+  if(PLABA==='leitura'){ FLBOX='al_linhas'; flDesenhaLinhas(); }
+}
 
 function renderPlanos(){
   const P=PLN.planos||[], C=PLN.clientes||[];
@@ -1227,7 +1236,7 @@ async function dfSalvar(id, desfecho){
 }
 
 function irEnviar(id){ PLSEL=id; PLABA='envio';
-  document.getElementById('plbox').innerHTML=renderPlanos();
+  pintaPlanos();
   setTimeout(function(){ const s=document.getElementById('plCli'); if(s){s.value=id; previaPlano();} },50);
 }
 
@@ -1318,9 +1327,10 @@ function ncMascara(){
    semana -- a regra da casa e nao mandar mensagem para cliente sabado e
    domingo, e avisar cedo e melhor que nao avisar.
 
-   NADA SAI SOZINHO AINDA: a tela mostra a fila do dia com o texto pronto e um
-   botao de copiar. O disparo automatico depende de tres decisoes do Vitor,
-   anotadas na migracao 2026-09-15_autoleitura.sql. */
+   O disparo automatico esta LIGADO desde 15/09 (autoleitura-aviso: 9h no dia,
+   18h a vespera, seg-sex). A tela continua mostrando a fila com o texto pronto
+   porque adiantar na mao e legitimo -- quem aperta o botao e uma pessoa, entao
+   nao fura a regra 3.5. Para desligar tudo: config.autoleitura_ativo = '0'. */
 let AUT=null, ALSEL=null;
 
 function renderAutoleitura(){
@@ -1395,30 +1405,62 @@ function renderAutoleitura(){
    +'<button class="stb prim" onclick="alSalvarUC()">💾 Salvar unidade</button></div></div>';
 
   if(UCS.length){
+    if(!ALSEL || !UCS.some(function(u){return u.id===ALSEL;})) ALSEL=UCS[0].id;
+    const sel=UCS.find(function(u){return u.id===ALSEL;});
     let uops='';
     UCS.forEach(function(u){
-      uops+='<option value="'+esc(u.id)+'">'+esc(u.cliente)+' · '+esc(u.apelido||u.numero)+'</option>';
+      uops+='<option value="'+esc(u.id)+'"'+(u.id===ALSEL?' selected':'')+'>'
+           +esc(u.cliente)+' · '+esc(u.apelido||u.numero)+'</option>';
     });
     h+='<div class="ncsec"><div class="nctit">Datas de leitura</div>'
-     +'<div class="ncdica">Digite o que a conta mostra em "Próximas Leituras", com o '
-     +'responsável de cada uma. Se só souber o dia do mês, use a projeção — ela marca '
-     +'as datas como estimadas e cede lugar assim que a data real for digitada.</div>'
-     +'<label>Unidade<select id="al_uc">'+uops+'</select></label>'
+     +'<div class="ncdica">Digite de uma vez o que a conta mostra em "Próximas Leituras" — '
+     +'a CPFL costuma listar três ou quatro. Data já salva se corrige clicando em '
+     +'"editar". Se só souber o dia do mês, use a projeção: ela marca as datas como '
+     +'estimadas e cede lugar assim que a data real for digitada.</div>'
+     +'<label style="display:block;margin-bottom:9px">Unidade'
+       +'<select id="al_uc" onchange="alTrocaUC(this.value)">'+uops+'</select></label>'
+     + listaDatas({uc_id:sel.id, datas:sel.datas}, 'aba')
+     +'<div id="al_linhas"></div>'
+     +'<div class="plbtns" style="margin-top:9px">'
+     +'<button class="stb" onclick="flMaisLinha()">+ outra data</button>'
+     +'<button class="stb prim" onclick="alSalvarDatas()">💾 Salvar as datas</button>'
+     +'</div>'
+     +'<div class="nctit" style="margin-top:15px">Ou projetar pelo dia-base</div>'
      +'<div class="ncg3">'
-     +'<label>Data prevista<input id="al_data" type="date"></label>'
-     +'<label>Responsável<select id="al_resp">'
+     +'<label>Dia do mês<input id="al_dia" type="number" min="1" max="31" placeholder="10"></label>'
+     +'<label>Começa como<select id="al_resp">'
        +'<option value="cliente">Cliente</option>'
        +'<option value="distribuidora">Distribuidora</option></select></label>'
-     +'<label>Ou dia-base do mês<input id="al_dia" type="number" min="1" max="31" placeholder="10"></label>'
+     +'<label>&nbsp;<button class="stb" style="width:100%" onclick="alProjetar()">'
+       +'📅 Projetar 6 meses</button></label>'
      +'</div>'
      +'<label class="ncck"><input type="checkbox" id="al_alt" checked> '
        +'alternar com a distribuidora a cada mês</label>'
-     +'<div class="plbtns" style="margin-top:11px">'
-     +'<button class="stb prim" onclick="alSalvarData()">💾 Salvar data</button>'
-     +'<button class="stb" onclick="alProjetar()">📅 Projetar 6 meses pelo dia-base</button>'
-     +'</div></div>';
+     +'</div>';
   }
   return h;
+}
+
+/* Trocar de unidade zera as linhas em branco de proposito: data digitada para
+   um relogio nao deve escorregar para o outro. */
+function alTrocaUC(id){ ALSEL=id; FLDATAS=[]; pintaPlanos(); }
+
+async function alSalvarDatas(){
+  if(!ALSEL){ toast('Escolha a unidade'); return; }
+  const itens=FLDATAS.filter(function(l){ return (l.data||'').trim(); })
+                     .map(function(l){ return {data:l.data, responsavel:l.resp||'cliente'}; });
+  if(!itens.length){ toast('Preencha pelo menos uma data'); return; }
+  const r=await sb.rpc('uc_leituras_salvar_lote',{p_uc:ALSEL, p_itens:itens});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  const d=r.data||{};
+  const erros=(d.erros||[]);
+  let msg=n(d.novas)+' data(s) nova(s)';
+  if(n(d.atualizadas)>0) msg+=' e '+n(d.atualizadas)+' atualizada(s)';
+  if(erros.length) msg+=' · ⚠️ '+erros.length+' com problema: '+erros.join('; ');
+  toast(msg);
+  FLDATAS=[];
+  carregarPlanos();
 }
 
 function alCopiar(id){
@@ -1472,18 +1514,6 @@ async function alSalvarUC(){
   if(r.error){ toast('Erro: '+r.error.message); return; }
   if(r.data && r.data.erro){ toast(r.data.erro); return; }
   toast('Unidade salva ✓');
-  carregarPlanos();
-}
-
-async function alSalvarData(){
-  const v=function(x){ return (((document.getElementById(x)||{}).value)||'').trim(); };
-  if(!v('al_uc')){ toast('Escolha a unidade'); return; }
-  if(!v('al_data')){ toast('Informe a data'); return; }
-  const r=await sb.rpc('uc_leitura_salvar',{p_uc:v('al_uc'), p_data:v('al_data'),
-                                            p_responsavel:v('al_resp')||'cliente'});
-  if(r.error){ toast('Erro: '+r.error.message); return; }
-  if(r.data && r.data.erro){ toast(r.data.erro); return; }
-  toast('Data salva ✓');
   carregarPlanos();
 }
 
@@ -2633,9 +2663,11 @@ async function flAvisar(leituraId){
 /* ---------- AS DATAS DA UNIDADE, UMA A UMA ----------
    Antes a ficha mostrava so a PROXIMA leitura, e nao havia como corrigir uma
    data digitada errada. Agora lista todas as futuras, cada uma clicavel. */
-function listaDatas(u){
+function listaDatas(u, ctx){
   const DS=(u.datas)||[];
-  const podeAgir = !!(FICHA && FICHA.pode_agir);
+  // na aba de autoleitura nao existe FICHA; quem guarda o portao ali e o
+  // is_autorizado() dentro das proprias funcoes, igual aos outros botoes da aba
+  const podeAgir = ctx==='aba' ? true : !!(FICHA && FICHA.pode_agir);
   let h='<div class="dtlist">';
   if(!DS.length){
     h+='<div class="dtvazio">Nenhuma data cadastrada para esta unidade.</div>';
@@ -2647,7 +2679,7 @@ function listaDatas(u){
        '<span class="dtq" style="color:'+(doCliente?'var(--gold)':'var(--muted)')+'">'+
          (doCliente?'📷 o cliente informa':'a distribuidora lê')+'</span>'+
        (d.avisado?'<span class="uext">já avisado</span>':'')+
-       (podeAgir?'<button class="stb dtb" onclick="dtEditar(\''+d.id+'\',\''+u.uc_id+'\')">editar</button>':'')+
+       (podeAgir?'<button class="stb dtb" onclick="dtEditar(\''+d.id+'\',\''+u.uc_id+'\',\''+(ctx||'ficha')+'\')">editar</button>':'')+
        '</div>'+
        '<div id="dt'+d.id+'"></div>';
   });
@@ -2661,13 +2693,29 @@ function listaDatas(u){
   return h+'</div>';
 }
 
-function dtEditar(leituraId, ucId){
-  const box=document.getElementById('dt'+leituraId); if(!box) return;
-  if(box.innerHTML){ box.innerHTML=''; return; }
+/* A edicao de data serve a ficha e a aba. O que muda entre as duas e so onde
+   procurar a leitura e o que recarregar depois. */
+let DTCTX='ficha';
+function dtAcha(leituraId){
   let d=null;
   ((FICHA&&FICHA.autoleitura)||[]).forEach(function(u){
     ((u.datas)||[]).forEach(function(x){ if(x.id===leituraId) d=x; });
   });
+  if(!d) ((AUT&&AUT.ucs)||[]).forEach(function(u){
+    ((u.datas)||[]).forEach(function(x){ if(x.id===leituraId) d=x; });
+  });
+  return d;
+}
+function dtRecarrega(){
+  if(DTCTX==='aba'){ carregarPlanos(); return; }
+  if(FICHA && FICHA.obra) abrirFicha(FICHA.obra.id);
+}
+
+function dtEditar(leituraId, ucId, ctx){
+  DTCTX = ctx||'ficha';
+  const box=document.getElementById('dt'+leituraId); if(!box) return;
+  if(box.innerHTML){ box.innerHTML=''; return; }
+  const d=dtAcha(leituraId);
   if(!d) return;
   box.innerHTML='<div class="ncsec" style="margin-top:6px">'
    +'<div class="ncg2">'
@@ -2693,7 +2741,7 @@ async function dtSalvarEdicao(leituraId){
   if(r.error){ toast('Erro: '+r.error.message); return; }
   if(r.data && r.data.erro){ toast(r.data.erro); return; }
   toast('Data corrigida ✓');
-  abrirFicha(FICHA.obra.id);
+  dtRecarrega();
 }
 
 async function dtApagar(leituraId){
@@ -2702,7 +2750,7 @@ async function dtApagar(leituraId){
   if(r.error){ toast('Erro: '+r.error.message); return; }
   if(r.data && r.data.erro){ toast(r.data.erro); return; }
   toast('Data apagada');
-  abrirFicha(FICHA.obra.id);
+  dtRecarrega();
 }
 
 async function dtAvisarCalendario(ucId){
@@ -2756,14 +2804,14 @@ function flFormAuto(obraId){
         +'<button class="stb prim" onclick="flSalvarDatas(\''+obraId+'\')">💾 Salvar as datas</button></div>'
       : '')
    +'</div>';
-  if(UCS.length) flDesenhaLinhas();
+  if(UCS.length){ FLBOX='fa_linhas'; FLDATAS=[]; flDesenhaLinhas(); }
 }
 
 /* As linhas de data. Ficam num array em memoria para "+ outra data" nao perder
    o que ja foi digitado -- era esse o custo de salvar uma por uma. */
-let FLDATAS=[];
+let FLDATAS=[], FLBOX='fa_linhas';
 function flDesenhaLinhas(){
-  const box=document.getElementById('fa_linhas'); if(!box) return;
+  const box=document.getElementById(FLBOX); if(!box) return;
   if(!FLDATAS.length) FLDATAS=[{data:'',resp:'cliente'},{data:'',resp:'distribuidora'}];
   let h='';
   FLDATAS.forEach(function(l,i){
