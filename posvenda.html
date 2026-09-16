@@ -73,6 +73,12 @@ font-family:inherit;font-size:14px;padding:11px 0}
 .chip{background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:20px;
 padding:8px 13px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
 .chip:hover{border-color:var(--gold)}
+.esc{margin-top:11px}
+.escl{display:block;font-size:11px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.escb{display:flex;gap:7px;flex-wrap:wrap}
+.escb .chip{padding:6px 13px;font-size:12px}
+.escb .chip:disabled{opacity:.45;cursor:not-allowed}
 .chip.on{border-color:var(--gold);color:var(--gold);background:var(--card2)}
 
 .lista{display:grid;gap:9px}
@@ -1206,6 +1212,31 @@ function renderPainelPlanos(){
   return h;
 }
 
+/* ---------- ESCOLHA VISIVEL ----------
+   Um select fechado mostra so a opcao atual e esconde as outras. No formulario
+   de contrato isso custou caro: o Vitor procurou "cortesia" e "6 meses" e viu
+   "Anual" e "12 meses", porque as duas palavras que ele queria estavam dentro
+   de dropdowns fechados. Sao duas decisoes de tres ou quatro opcoes cada --
+   cabem na tela inteiras, e no celular botao e mais facil de acertar que
+   select. */
+const FORMAS=[{v:'anual',t:'Anual'},{v:'mensal',t:'Mensal'},{v:'cortesia',t:'🎁 Cortesia (teste)'}];
+const MESES =[{v:6,t:'6 meses'},{v:12,t:'12 meses'},{v:24,t:'24 meses'},{v:36,t:'36 meses'}];
+
+function escolhas(lista, atual, chamada){
+  return lista.map(function(o){
+    return '<button type="button" class="chip'+(o.v===atual?' on':'')+'" '
+      +'data-v="'+esc(String(o.v))+'" onclick="'+chamada
+      +(typeof o.v==='number'?o.v:'\''+o.v+'\'')+')">'+o.t+'</button>';
+  }).join('');
+}
+
+function marcaEscolha(boxId, valor){
+  const box=document.getElementById(boxId); if(!box) return;
+  [].forEach.call(box.querySelectorAll('.chip'), function(b){
+    b.classList.toggle('on', b.getAttribute('data-v')===String(valor));
+  });
+}
+
 /* ---------- DAR BAIXA NO 1o PAGAMENTO ----------
    O contrato fica em `aguardando_pagamento` ate o dinheiro entrar, e e a data
    do pagamento que define inicio e fim. Quem calcula e plano_registrar_pagamento
@@ -1264,18 +1295,19 @@ function formContrato(obraId){
    +'<label>Valor (R$)<input id="ct_valor'+obraId+'" type="number" step="0.01" inputmode="decimal"'
      +(SC && SC.completo_anual!=null?' value="'+SC.completo_anual+'"':'')+'></label>'
    +'</div>'
-   +'<div class="ncg3">'
-   +'<label>Cobrança<select id="ct_forma'+obraId+'" onchange="ctForma(\''+obraId+'\')">'
-     +'<option value="anual">Anual</option><option value="mensal">Mensal</option>'
-     +'<option value="cortesia">Cortesia</option></select></label>'
-   +'<label>Duração<select id="ct_meses'+obraId+'">'
-     +'<option value="12">12 meses</option><option value="6">6 meses</option>'
-     +'<option value="24">24 meses</option><option value="36">36 meses</option></select></label>'
+   +'<div class="esc"><span class="escl">Cobrança</span><div class="escb" id="ct_formab'+obraId+'">'
+     + escolhas(FORMAS, 'anual', "ctForma('"+obraId+"',") + '</div></div>'
+   +'<div class="esc"><span class="escl">Duração</span><div class="escb" id="ct_mesesb'+obraId+'">'
+     + escolhas(MESES, 12, "ctMeses('"+obraId+"',") + '</div></div>'
+   +'<input type="hidden" id="ct_forma'+obraId+'" value="anual">'
+   +'<input type="hidden" id="ct_meses'+obraId+'" value="12">'
+   +'<div class="ncg2">'
    +'<label>Início<input id="ct_inicio'+obraId+'" type="date" disabled></label>'
-   +'</div>'
-   +'<label class="ncck"><input type="checkbox" id="ct_aguard'+obraId+'" checked '
+   +'<label class="ncck" style="align-self:end;padding-bottom:9px">'
+     +'<input type="checkbox" id="ct_aguard'+obraId+'" checked '
      +'onchange="document.getElementById(\'ct_inicio'+obraId+'\').disabled=this.checked"> '
      +'Começa no 1º pagamento</label>'
+   +'</div>'
    +'<label style="display:block;margin-top:9px">O que foi combinado'
      +'<input id="ct_obs'+obraId+'" placeholder="teste de 6 meses, visita anual, laudo..."></label>'
    +'<div class="plbtns" style="margin-top:9px">'
@@ -1289,8 +1321,10 @@ function formContrato(obraId){
    marcado punha o contrato em aguardando_pagamento para sempre: sem inicio,
    sem fim, sem contar em lugar nenhum e sem ninguem para dar baixa. O banco
    recusa; aqui a tela ja resolve em vez de deixar errar. */
-function ctForma(obraId){
-  const f=(document.getElementById('ct_forma'+obraId)||{}).value;
+function ctForma(obraId, f){
+  const hid=document.getElementById('ct_forma'+obraId);
+  if(hid && f!=null){ hid.value=f; marcaEscolha('ct_formab'+obraId, f); }
+  if(f==null) f=(hid||{}).value;
   const ck=document.getElementById('ct_aguard'+obraId);
   const dt=document.getElementById('ct_inicio'+obraId);
   const vl=document.getElementById('ct_valor'+obraId);
@@ -1305,6 +1339,11 @@ function ctForma(obraId){
     dt.disabled=ck.checked;
     if(vl) vl.disabled=false;
   }
+}
+
+function ctMeses(obraId, m){
+  const hid=document.getElementById('ct_meses'+obraId);
+  if(hid){ hid.value=m; marcaEscolha('ct_mesesb'+obraId, m); }
 }
 
 function ctPreco(obraId){
@@ -1899,18 +1938,19 @@ function renderNovoCliente(){
    +'<label>Plano<select id="nc_plano">'+ops+'</select></label>'
    +'<label>Valor combinado (R$)<input id="nc_valor" type="number" step="0.01" inputmode="decimal"></label>'
    +'</div>'
-   +'<div class="ncg3">'
-   +'<label>Cobrança<select id="nc_forma" onchange="ncForma()">'
-     +'<option value="anual">Anual</option>'
-     +'<option value="mensal">Mensal</option><option value="cortesia">Cortesia</option></select></label>'
-   +'<label>Duração<select id="nc_meses"><option value="12">12 meses</option>'
-     +'<option value="6">6 meses</option><option value="24">24 meses</option>'
-     +'<option value="36">36 meses</option></select></label>'
+   +'<div class="esc"><span class="escl">Cobrança</span>'
+     +'<div class="escb" id="nc_formab">'+escolhas(FORMAS,'anual',"ncForma(")+'</div></div>'
+   +'<div class="esc"><span class="escl">Duração</span>'
+     +'<div class="escb" id="nc_mesesb">'+escolhas(MESES,12,"ncMeses(")+'</div></div>'
+   +'<input type="hidden" id="nc_forma" value="anual">'
+   +'<input type="hidden" id="nc_meses" value="12">'
+   +'<div class="ncg2">'
    +'<label>Início<input id="nc_inicio" type="date" disabled></label>'
-   +'</div>'
-   +'<label class="ncck"><input type="checkbox" id="nc_aguard" checked '
+   +'<label class="ncck" style="align-self:end;padding-bottom:9px">'
+     +'<input type="checkbox" id="nc_aguard" checked '
      +'onchange="document.getElementById(\'nc_inicio\').disabled=this.checked"> '
      +'Começa no 1º pagamento</label>'
+   +'</div>'
    +'<div class="ncg3" style="margin-top:9px">'
    +'<label>Nota fiscal<select id="nc_notatipo" onchange="ncMascara()">'
      +'<option value="cpf">No CPF</option><option value="cnpj">No CNPJ</option></select></label>'
@@ -1928,8 +1968,15 @@ function renderNovoCliente(){
 }
 
 /* mesma trava do ctForma, no cadastro de cliente novo */
-function ncForma(){
-  const f=((document.getElementById('nc_forma')||{}).value)||'';
+function ncMeses(m){
+  const hid=document.getElementById('nc_meses');
+  if(hid){ hid.value=m; marcaEscolha('nc_mesesb', m); }
+}
+
+function ncForma(f){
+  const hid=document.getElementById('nc_forma');
+  if(hid && f!=null){ hid.value=f; marcaEscolha('nc_formab', f); }
+  if(f==null) f=((hid||{}).value)||'';
   const ck=document.getElementById('nc_aguard');
   const dt=document.getElementById('nc_inicio');
   const vl=document.getElementById('nc_valor');
