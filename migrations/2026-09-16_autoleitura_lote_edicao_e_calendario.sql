@@ -1,0 +1,72 @@
+-- Autoleitura: as tres adequacoes que o Vitor pediu em 16/09.
+--
+-- 1. VARIAS DATAS NO MESMO BLOCO
+--    A conta de luz mostra as "Proximas Leituras" em bloco -- a CPFL lista tres
+--    ou quatro de uma vez. A tela pedia UMA por vez e, a cada salvamento,
+--    recarregava a ficha e fechava o formulario. Lançar o que a conta mostra
+--    dava tres idas e voltas.
+--    `uc_leituras_salvar_lote(uc, itens)` grava todas numa transacao. Linha em
+--    branco e ignorada sem virar erro; data invalida vira aviso e as outras
+--    passam mesmo assim.
+--
+-- 2. EDITAR DEPOIS
+--    Nao havia como corrigir uma data digitada errada. Agora cada data futura
+--    aparece na ficha e abre para edicao.
+--    `uc_leitura_atualizar(leitura, data, responsavel)` recusa mover para uma
+--    data que ja existe na mesma unidade (o indice `leitura_unica` ja impedia,
+--    mas o erro cru nao dizia nada).
+--    `uc_leitura_apagar(leitura)` RECUSA apagar o que ja virou mensagem para o
+--    cliente -- regra 3.6: data futura digitada errada nao e historico, aviso
+--    que ja saiu e. Nesse caso manda corrigir a data em vez de apagar.
+--
+-- 3. A MENSAGEM DO CALENDARIO
+--    `autoleitura_resumo_texto(uc)` monta o texto com TODAS as datas futuras,
+--    marcando quais sao de responsabilidade do cliente, e explicando que ele
+--    sera avisado na vespera e no dia.
+--
+-- O QUE PRECISOU SER CONSTRUIDO PARA A MENSAGEM NAO MENTIR
+-- -------------------------------------------------------
+-- O Vitor pediu que a mensagem dissesse que o cliente sera avisado "pelo grupo
+-- e pelo celular pessoal cadastrado". So que o canal pessoal NAO EXISTIA: a
+-- `autoleitura-aviso` mandava so para `whatsapp_grupo_id`.
+--
+-- O CLAUDE.md dizia que mandar no numero do cliente "exige mexer na
+-- regua-disparo, que e a trava dos 17h". Isso vale para a REGUA. A autoleitura
+-- tem edge function propria, entao o canal pessoal aqui nao encosta na regua --
+-- faltava so a fila devolver o telefone.
+--
+-- Entao:
+--   `autoleitura_fila_svc` passou a devolver `telefone`, e a aceitar quem tem
+--   grupo OU celular (antes exigia grupo).
+--   `autoleitura-aviso` (v2) manda nos dois canais e so marca como avisado se
+--   PELO MENOS UM aceitou.
+--   O texto do calendario so promete o canal pessoal quando a obra TEM celular
+--   cadastrado; sem numero, diz apenas "aqui no grupo".
+--
+-- Cobertura medida: 72 das 73 obras ativas tem celular, 73 tem grupo.
+--
+-- `get_ficha_cliente` ganhou, em cada unidade, `datas` (todas as futuras, com
+-- id e se ja foi avisada) e `resumo` (a mensagem pronta). Editada no lugar com
+-- pg_get_functiondef + replace, e conferida numa chamada SEPARADA -- armadilha 2.
+--
+-- ⚠️ O botao "Enviar o calendario no grupo" NAO marca as leituras como
+-- avisadas, de proposito: o calendario e informativo e sai quando a pessoa
+-- quiser; os lembretes da vespera e do dia continuam saindo normalmente. Marcar
+-- aqui calaria os lembretes, que e o oposto do que ele serve.
+--
+-- A sub-aba Autoleitura (a lista) continua com o formulario de uma data por
+-- vez, porque ela tem a projecao de 6 meses pelo dia-base, que resolve o lote
+-- de outro jeito. Quem lanca o que a conta mostra trabalha pela ficha.
+--
+-- TESTADO
+--   lote com data nova + data existente + data invalida + linha vazia:
+--     {"ok":true,"novas":1,"atualizadas":1,"erros":["data invalida: nao-e-data"]}
+--   lote so com linha vazia: {"erro":"Nenhuma data preenchida."}
+--   a fila com uma leitura deslocada para amanha (em transacao desfeita):
+--     devolveu grupo E celular da Tays, texto certo
+--   a ficha no Chromium: 3 datas listadas, "ja avisado" na certa, edicao abrindo
+--     com os valores certos, "+ outra data" acumulando sem perder o digitado,
+--     e o lote mandando 3 itens (pulou a linha vazia) com os responsaveis certos
+--
+-- NAO TESTADO: o envio real pela Z-API nos dois canais. O modo simular retorna
+-- antes de tocar nela, e nao ha leitura vencendo hoje para exercitar o cron.

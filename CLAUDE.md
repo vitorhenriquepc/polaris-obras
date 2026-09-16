@@ -285,9 +285,32 @@ Para desligar não se mexe em cron nem em código:
 `update config set valor='0' where chave='autoleitura_ativo'` — a função lê a
 chave em toda rodada.
 
-⚠️ O **canal pessoal continua não existindo**. A régua e a autoleitura mandam
-só para `whatsapp_grupo_id`. Mandar para o número do cliente exige mexer na
-`regua-disparo`, que é a trava dos 17h.
+⚠️ **A autoleitura é o único lugar com canal pessoal.** Desde 16/09 ela manda
+no grupo **e** no WhatsApp pessoal do cliente, e só marca como avisado se pelo
+menos um dos dois aceitou. Isso **não encosta na régua**: a autoleitura tem
+edge function própria, então o canal pessoal aqui não passa pela
+`regua-disparo`. **A régua continua só no grupo** — ali sim mexer no canal
+significa mexer na trava dos 17h.
+
+Cobertura: **72 das 73** obras ativas têm celular cadastrado, 73 têm grupo. A
+fila aceita quem tem grupo **ou** celular.
+
+### Lançar e corrigir as datas
+A conta de luz mostra as "Próximas Leituras" em bloco. `uc_leituras_salvar_lote`
+grava todas de uma vez; linha em branco é ignorada sem virar erro, e data
+inválida vira aviso sem derrubar as outras.
+
+`uc_leitura_atualizar` corrige uma data. `uc_leitura_apagar` **recusa apagar o
+que já virou mensagem para o cliente** — regra 3.6: data futura digitada errada
+não é histórico, aviso que já saiu é.
+
+`autoleitura_resumo_texto(uc)` monta o calendário inteiro para mandar no grupo,
+e **só promete o canal pessoal quando a obra tem celular** — sem número, diz
+apenas "aqui no grupo".
+
+⚠️ O botão "Enviar o calendário no grupo" **não marca as leituras como
+avisadas**, de propósito. O calendário é informativo; marcar ali calaria os
+lembretes da véspera e do dia, que é o oposto do que ele serve.
 
 ### Quem recebe o quê
 `equipe` tem dois papéis, e é por eles que as automações escolhem o destino —
@@ -337,6 +360,9 @@ nenhuma delas. Ver pendência no §10.
 | `plano_desfecho(contrato, desfecho, motivo, plano, valor, forma, meses, aguardando)` | fecha o contrato como `renovou`/`nao_renovou` e, se renovou, já abre o novo na mesma chamada |
 | `contratos_para_avisar()` | quem está a 30 ou 7 dias do fim, com módulos, faixa do Completo e quantos endereços |
 | `autoleitura_fila()` | quem avisar hoje, com o texto pronto |
+| `uc_leituras_salvar_lote(uc, itens)` | lança várias datas de leitura numa transação só |
+| `uc_leitura_atualizar` · `uc_leitura_apagar` | corrigem uma data; apagar é recusado se o cliente já foi avisado |
+| `autoleitura_resumo_texto(uc)` | o calendário inteiro para mandar no grupo, com os canais que de fato existem |
 | `get_responsavel_posvenda()` | quem é o `resp_posvenda` e o `resp_alertas` hoje |
 | `definir_responsavel(equipe, funcao)` | troca a pessoa de um dos dois papéis; só admin |
 | `get_kpis_financeiro(ini, fim)` | R$/Wp e execução × faturamento, **com a cobertura junto** — quantas obras sustentam cada número e o que falta para as outras |
