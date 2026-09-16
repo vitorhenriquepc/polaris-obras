@@ -128,6 +128,21 @@ poder dizer isso em vez de fingir retrato da carteira.
 semanas — o número sairia com cara de autoridade e sem lastro. Nasce sozinho
 quando o extrato anterior a agosto entrar.
 
+⚠️ **Todo custo de obra tem até TRÊS números, e eles moram em lugares
+diferentes:** o **previsto** (`obra_financeiro.previsto_*`, calculado por
+telhado/km/módulos), o **no banco** (`extrato_rateio` → `dre_lancamentos`, via
+`obra_custos_realizados`) e o **na ficha** (digitado). Até 16/09 a ficha
+mostrava os três em blocos separados que nunca se encontravam, e a margem lia
+**só a ficha** — por isso o GILSON (4678), com a ficha zerada, aparecia com
+*"margem 100,0%"* enquanto o banco já tinha pago R$ 1.151,09 e o orçamento era
+R$ 8.195,83. Pior: a tabela "Orçado × Realizado" lia a ficha na coluna
+*Realizado* e pintava **−R$ 7.836 de verde**, como economia.
+
+Hoje é **uma linha por item com as três colunas**, e a margem segue a **ordem
+de confiança `ficha → banco → previsto`**: dinheiro confirmado nunca perde para
+palpite, e o veredito diz em voz alta quanto do custo ainda é estimativa. Obra
+de ficha zerada não aparece mais com 100% de lucro.
+
 ⚠️ **A ficha não repete o extrato: ela lê.** Até 15/09 a Ana classificava o
 movimento no extrato (o que **já vincula a obra** — 55 dos 60 custos estão
 ligados) e depois digitava o mesmo valor na ficha, porque nada trazia o número
@@ -626,6 +641,23 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     de acertar que select. O helper é `escolhas()` + `marcaEscolha()`, e o valor
     fica num `input hidden` para o resto do código não mudar. **Select só quando
     a lista é longa** — os 11 planos continuam em select, e está certo.
+
+15. **Botão que escreve só no DOM morre no próximo render.** O "Puxar do
+    extrato" preenchia os inputs e, na linha seguinte, chamava `renderFin()` —
+    que redesenha a partir do `EDIT.fin` e jogava tudo fora. **O botão nunca
+    funcionou**, desde que nasceu, e ninguém percebeu porque ele não dava erro:
+    só não fazia nada. Provado no Chromium — `material_ca`, `instalacao` e `art`
+    continuavam vazios depois do clique. Onde a tela tem um modelo em memória
+    (`EDIT`, `FICHA`, `PLN`), **escrever no input não basta**: ou escreve nos
+    dois, ou sincroniza o DOM para o modelo antes de qualquer redesenho. Aqui
+    ficou `poeNoCampo()` e `sincronizaFicha()`.
+
+16. **Zero gravado não é "custou zero", é "ninguém preencheu".** A ficha do
+    Gilson tinha `0` em todos os campos de custo, e a tela mostrava `0` em cada
+    um — o que lê como afirmação de que o item foi de graça. Campo zerado agora
+    mostra o placeholder e salva `null`. Antes de exibir um número vindo do
+    banco, pergunte se o zero dele é medição ou ausência (é a mesma lição da
+    armadilha 5, do datalogger).
 
 14. **Botão que só existe numa tela não existe para quem trabalha na outra.** O
     "Registrar 1º pagamento" morava só no card da obra, no `painel.html`. Quem
