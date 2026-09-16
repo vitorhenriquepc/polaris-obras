@@ -666,6 +666,15 @@ white-space:normal;padding:0 2px}
   color:var(--txt);border-radius:8px;padding:8px 9px;font-family:inherit;font-size:13px;font-weight:600}
 .ncg2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .ncg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+/* as datas de leitura de uma unidade, dentro da ficha */
+.dtlist{margin:4px 0 12px 0;padding-left:11px;border-left:2px solid var(--border)}
+.dtrow{display:flex;align-items:center;gap:9px;padding:4px 0;font-size:12px;flex-wrap:wrap}
+.dtd{font-weight:800;color:var(--txt);min-width:74px}
+.dtq{font-weight:600}
+.dtvazio{font-size:11.5px;color:var(--muted);font-weight:600;padding:4px 0}
+.dtfoot{display:flex;align-items:center;gap:9px;margin-top:8px;flex-wrap:wrap}
+.dthint{font-size:11px;color:var(--muted);font-weight:600;line-height:1.4}
+.dtb{padding:1px 8px!important;font-size:10.5px!important;line-height:1.7!important}
 @media(max-width:620px){.ncg2,.ncg3{grid-template-columns:1fr}}
 .ncu{border:1px solid var(--border);border-radius:11px;padding:11px;margin-bottom:9px;background:var(--card2)}
 .ncuh{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:13px}
@@ -2621,6 +2630,102 @@ async function flAvisar(leituraId){
   abrirFicha(FICHA.obra.id);
 }
 
+/* ---------- AS DATAS DA UNIDADE, UMA A UMA ----------
+   Antes a ficha mostrava so a PROXIMA leitura, e nao havia como corrigir uma
+   data digitada errada. Agora lista todas as futuras, cada uma clicavel. */
+function listaDatas(u){
+  const DS=(u.datas)||[];
+  const podeAgir = !!(FICHA && FICHA.pode_agir);
+  let h='<div class="dtlist">';
+  if(!DS.length){
+    h+='<div class="dtvazio">Nenhuma data cadastrada para esta unidade.</div>';
+  }
+  DS.forEach(function(d){
+    const doCliente = d.responsavel==='cliente';
+    h+='<div class="dtrow">'+
+       '<span class="dtd">'+dataBR(d.data)+'</span>'+
+       '<span class="dtq" style="color:'+(doCliente?'var(--gold)':'var(--muted)')+'">'+
+         (doCliente?'📷 o cliente informa':'a distribuidora lê')+'</span>'+
+       (d.avisado?'<span class="uext">já avisado</span>':'')+
+       (podeAgir?'<button class="stb dtb" onclick="dtEditar(\''+d.id+'\',\''+u.uc_id+'\')">editar</button>':'')+
+       '</div>'+
+       '<div id="dt'+d.id+'"></div>';
+  });
+  if(podeAgir && DS.length && u.resumo && u.grupo){
+    h+='<div class="dtfoot">'+
+       '<button class="stb" onclick="dtAvisarCalendario(\''+u.uc_id+'\')">'+
+       '📅 Enviar o calendário no grupo</button>'+
+       '<span class="dthint">manda as '+DS.length+' data'+(DS.length>1?'s':'')+
+       ' de uma vez e explica que ele será avisado na véspera e no dia</span></div>';
+  }
+  return h+'</div>';
+}
+
+function dtEditar(leituraId, ucId){
+  const box=document.getElementById('dt'+leituraId); if(!box) return;
+  if(box.innerHTML){ box.innerHTML=''; return; }
+  let d=null;
+  ((FICHA&&FICHA.autoleitura)||[]).forEach(function(u){
+    ((u.datas)||[]).forEach(function(x){ if(x.id===leituraId) d=x; });
+  });
+  if(!d) return;
+  box.innerHTML='<div class="ncsec" style="margin-top:6px">'
+   +'<div class="ncg2">'
+   +'<label>Data<input id="de_data'+leituraId+'" type="date" value="'+esc(d.data)+'"></label>'
+   +'<label>Responsável<select id="de_resp'+leituraId+'">'
+     +'<option value="cliente"'+(d.responsavel==='cliente'?' selected':'')+'>Cliente</option>'
+     +'<option value="distribuidora"'+(d.responsavel==='distribuidora'?' selected':'')+'>Distribuidora</option>'
+   +'</select></label></div>'
+   +'<div class="plbtns" style="margin-top:9px">'
+   +'<button class="stb prim" onclick="dtSalvarEdicao(\''+leituraId+'\')">💾 Salvar</button>'
+   +'<button class="stb" onclick="dtApagar(\''+leituraId+'\')">🗑 Apagar</button>'
+   +'</div>'
+   +(d.avisado?'<div class="ncdica" style="margin-top:8px">Esta data já virou mensagem para o '
+     +'cliente. Dá para corrigir, mas não dá para apagar.</div>':'')
+   +'</div>';
+}
+
+async function dtSalvarEdicao(leituraId){
+  const dt=(document.getElementById('de_data'+leituraId)||{}).value||'';
+  const rp=(document.getElementById('de_resp'+leituraId)||{}).value||'cliente';
+  if(!dt){ toast('Informe a data'); return; }
+  const r=await sb.rpc('uc_leitura_atualizar',{p_leitura:leituraId, p_data:dt, p_responsavel:rp});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast('Data corrigida ✓');
+  abrirFicha(FICHA.obra.id);
+}
+
+async function dtApagar(leituraId){
+  if(!confirm('Apagar esta data?')) return;
+  const r=await sb.rpc('uc_leitura_apagar',{p_leitura:leituraId});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast('Data apagada');
+  abrirFicha(FICHA.obra.id);
+}
+
+async function dtAvisarCalendario(ucId){
+  const u=((FICHA&&FICHA.autoleitura)||[]).find(function(x){return x.uc_id===ucId;});
+  if(!u){ toast('Não encontrei a unidade'); return; }
+  if(!u.grupo){ toast('Este cliente não tem grupo cadastrado'); return; }
+  if(!u.resumo){ toast('Sem datas futuras para avisar'); return; }
+  if(!confirm('Enviar o calendário com '+((u.datas||[]).length)+' data(s) no grupo do cliente?')) return;
+  try{
+    const { data:sess } = await sb.auth.getSession();
+    const r=await fetch(SB_URL+'/functions/v1/notificar-grupo',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+sess.session.access_token},
+      body:JSON.stringify({grupo_id:u.grupo, message:u.resumo})
+    });
+    const res=await r.json().catch(function(){return {};});
+    if(!r.ok||res.error){ toast('Erro ao enviar: '+(res.error||r.status)); return; }
+  }catch(e){ toast('Falha de conexão'); return; }
+  // o calendario e informativo: NAO marca as leituras como avisadas, senao os
+  // lembretes da vespera e do dia deixariam de sair
+  toast('📅 Calendário enviado no grupo');
+}
+
 function flFormAuto(obraId){
   const box=document.getElementById('fauto'); if(!box) return;
   if(box.innerHTML){ box.innerHTML=''; return; }
@@ -2640,21 +2745,47 @@ function flFormAuto(obraId){
    +'<div class="plbtns" style="margin-top:9px">'
    +'<button class="stb prim" onclick="flSalvarUC(\''+obraId+'\')">💾 Salvar unidade</button></div>'
    +(UCS.length
-      ? '<div class="nctit" style="margin-top:15px">Data de leitura</div>'
-        +'<div class="ncdica">Digite o que a conta mostra em "Próximas Leituras", '
-        +'com o responsável de cada uma.</div>'
-        +'<div class="ncg3">'
-        +'<label>Unidade<select id="fa_uc">'+uops+'</select></label>'
-        +'<label>Data prevista<input id="fa_data" type="date"></label>'
-        +'<label>Responsável<select id="fa_resp">'
-          +'<option value="cliente">Cliente</option>'
-          +'<option value="distribuidora">Distribuidora</option></select></label>'
-        +'</div>'
+      ? '<div class="nctit" style="margin-top:15px">Datas de leitura</div>'
+        +'<div class="ncdica">Digite de uma vez o que a conta mostra em "Próximas Leituras". '
+        +'A CPFL costuma listar três ou quatro — dá para lançar todas e salvar uma vez só.</div>'
+        +'<label style="display:block;margin-bottom:8px">Unidade'
+          +'<select id="fa_uc">'+uops+'</select></label>'
+        +'<div id="fa_linhas"></div>'
         +'<div class="plbtns" style="margin-top:9px">'
-        +'<button class="stb prim" onclick="flSalvarData(\''+obraId+'\')">💾 Salvar data</button></div>'
+        +'<button class="stb" onclick="flMaisLinha()">+ outra data</button>'
+        +'<button class="stb prim" onclick="flSalvarDatas(\''+obraId+'\')">💾 Salvar as datas</button></div>'
       : '')
    +'</div>';
+  if(UCS.length) flDesenhaLinhas();
 }
+
+/* As linhas de data. Ficam num array em memoria para "+ outra data" nao perder
+   o que ja foi digitado -- era esse o custo de salvar uma por uma. */
+let FLDATAS=[];
+function flDesenhaLinhas(){
+  const box=document.getElementById('fa_linhas'); if(!box) return;
+  if(!FLDATAS.length) FLDATAS=[{data:'',resp:'cliente'},{data:'',resp:'distribuidora'}];
+  let h='';
+  FLDATAS.forEach(function(l,i){
+    h+='<div class="ncg3" style="margin-bottom:7px">'
+     +'<label>'+(i===0?'Data prevista':'&nbsp;')
+       +'<input type="date" value="'+esc(l.data||'')+'" '
+       +'onchange="FLDATAS['+i+'].data=this.value"></label>'
+     +'<label>'+(i===0?'Responsável':'&nbsp;')
+       +'<select onchange="FLDATAS['+i+'].resp=this.value">'
+       +'<option value="cliente"'+(l.resp==='cliente'?' selected':'')+'>Cliente</option>'
+       +'<option value="distribuidora"'+(l.resp==='distribuidora'?' selected':'')+'>Distribuidora</option>'
+       +'</select></label>'
+     +'<label>'+(i===0?'&nbsp;':'&nbsp;')
+       +(FLDATAS.length>1
+          ? '<button class="stb" style="width:100%" onclick="flTiraLinha('+i+')">✕ tirar</button>'
+          : '<span></span>')+'</label>'
+     +'</div>';
+  });
+  box.innerHTML=h;
+}
+function flMaisLinha(){ FLDATAS.push({data:'',resp:'cliente'}); flDesenhaLinhas(); }
+function flTiraLinha(i){ FLDATAS.splice(i,1); flDesenhaLinhas(); }
 
 async function flSalvarUC(obraId){
   const v=function(x){ return (((document.getElementById(x)||{}).value)||'').trim(); };
@@ -2668,15 +2799,22 @@ async function flSalvarUC(obraId){
   abrirFicha(obraId);
 }
 
-async function flSalvarData(obraId){
-  const v=function(x){ return (((document.getElementById(x)||{}).value)||'').trim(); };
-  if(!v('fa_uc')){ toast('Escolha a unidade'); return; }
-  if(!v('fa_data')){ toast('Informe a data'); return; }
-  const r=await sb.rpc('uc_leitura_salvar',{p_uc:v('fa_uc'), p_data:v('fa_data'),
-                                            p_responsavel:v('fa_resp')||'cliente'});
+async function flSalvarDatas(obraId){
+  const uc=(((document.getElementById('fa_uc')||{}).value)||'').trim();
+  if(!uc){ toast('Escolha a unidade'); return; }
+  const itens=FLDATAS.filter(function(l){ return (l.data||'').trim(); })
+                     .map(function(l){ return {data:l.data, responsavel:l.resp||'cliente'}; });
+  if(!itens.length){ toast('Preencha pelo menos uma data'); return; }
+  const r=await sb.rpc('uc_leituras_salvar_lote',{p_uc:uc, p_itens:itens});
   if(r.error){ toast('Erro: '+r.error.message); return; }
   if(r.data && r.data.erro){ toast(r.data.erro); return; }
-  toast('Data salva ✓');
+  const d=r.data||{};
+  const erros=(d.erros||[]);
+  let msg=n(d.novas)+' data(s) nova(s)';
+  if(n(d.atualizadas)>0) msg+=' e '+n(d.atualizadas)+' atualizada(s)';
+  if(erros.length) msg+=' · ⚠️ '+erros.length+' com problema: '+erros.join('; ');
+  toast(msg);
+  FLDATAS=[];
   abrirFicha(obraId);
 }
 
@@ -2973,12 +3111,13 @@ function renderFicha(D){
               ? `<button class="stb" onclick="flAvisar('${u.proxima_id}')">📤 Avisar</button>`
               : ''
           }</div>
-        </div>`;
+        </div>
+        ${listaDatas(u)}`;
       });
       h+=`</div>`;
     }
     if(D.pode_agir){
-      h+=`<button class="mini" style="margin-top:9px" onclick="flFormAuto('${o.id}')">📷 Cadastrar unidade ou data</button>
+      h+=`<button class="mini" style="margin-top:9px" onclick="flFormAuto('${o.id}')">📷 Cadastrar unidade ou datas</button>
           <div id="fauto"></div>`;
     }
     h+=`</div>`;
