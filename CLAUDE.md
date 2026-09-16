@@ -595,6 +595,16 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     Antes de deixar um campo opcional, pergunte: sem ele, esse registro ainda é
     visível em alguma tela?
 
+14. **Select fechado esconde a opção que a pessoa está procurando.** O
+    formulário de contrato tinha "Cobrança" e "Duração" como `select`, abrindo
+    em *Anual* e *12 meses*. O Vitor foi fechar uma cortesia de 6 meses, olhou a
+    tela e disse que faltavam as duas coisas — elas estavam lá, dentro dos
+    dropdowns fechados. Escolha de três ou quatro opções cabe na tela inteira,
+    como `.chip`: a palavra aparece sem clicar, e no celular botão é mais fácil
+    de acertar que select. O helper é `escolhas()` + `marcaEscolha()`, e o valor
+    fica num `input hidden` para o resto do código não mudar. **Select só quando
+    a lista é longa** — os 11 planos continuam em select, e está certo.
+
 13. **Botão que só existe numa tela não existe para quem trabalha na outra.** O
     "Registrar 1º pagamento" morava só no card da obra, no `painel.html`. Quem
     cuida do pós-venda vivia no `posvenda.html`, via "aguardando o 1º pagamento"
