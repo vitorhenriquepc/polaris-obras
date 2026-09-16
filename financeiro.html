@@ -221,24 +221,68 @@ color:var(--muted);margin:14px 0 7px}
 border:1px solid rgba(245,166,35,.3);border-radius:5px;padding:2px 7px;margin-left:7px;vertical-align:middle}
 .cpd{display:block;font-size:10.5px;color:var(--muted);margin-top:3px;line-height:1.3}
 /* o realizado que vem do extrato, embaixo de cada campo de custo */
-.exlin{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:10.5px;
-  color:var(--muted);font-weight:600;line-height:1.3;flex-wrap:wrap}
-.exlin.ok{color:#58b868}
-.exlin.dif{color:#d6af58}
-.exlin b{font-weight:800}
-.exb{background:var(--card2);border:1px solid var(--border);color:var(--txt);
-  border-radius:7px;padding:1px 7px;font-size:10.5px;font-weight:700;cursor:pointer;
-  font-family:inherit;line-height:1.6}
-.exb:hover{border-color:#58b868;color:#58b868}
-.exb.big{padding:6px 12px;font-size:12px;white-space:nowrap}
-.exbox{display:flex;align-items:center;justify-content:space-between;gap:10px;
-  background:var(--card2);border:1px solid var(--border);border-radius:10px;
-  padding:9px 11px;margin-bottom:11px;flex-wrap:wrap}
-.exbox .ext{font-size:12.5px;color:var(--muted);font-weight:600}
-.exbox .ext b{color:var(--txt);font-weight:800;font-size:14px}
-.exav{background:rgba(214,175,88,.12);border:1px solid rgba(214,175,88,.4);
-  border-radius:10px;padding:9px 11px;margin-bottom:11px;
-  font-size:11.5px;line-height:1.5;color:var(--txt);font-weight:600}
+/* ---------- CUSTO DA OBRA, ITEM A ITEM ----------
+   Antes eram tres lugares dizendo coisas diferentes sobre o mesmo custo: a
+   caixa do extrato em cima, os 14 inputs soltos no meio, e a tabela
+   "Orcado x Realizado" embaixo -- que lia a FICHA e nao o extrato, e por isso
+   pintava de verde, como "economia", custo que ninguem tinha digitado.
+   Agora e uma linha por item, com as tres fontes lado a lado. */
+.vd{border-radius:12px;padding:13px 15px;margin-bottom:13px;border:1px solid var(--border);
+  background:var(--card2)}
+.vd.lucro{border-color:rgba(88,184,104,.45);background:rgba(88,184,104,.08)}
+.vd.prej{border-color:rgba(224,112,112,.5);background:rgba(224,112,112,.09)}
+.vd .vdt{font-size:10.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:5px}
+.vd .vdn{font-size:27px;font-weight:800;line-height:1.05;letter-spacing:-.5px}
+.vd .vdn small{font-size:15px;font-weight:800;opacity:.85;margin-left:6px}
+.vd .vdc{font-size:12px;color:var(--muted);font-weight:600;margin-top:5px;line-height:1.5}
+.vd .vdc b{color:var(--txt)}
+.vd .vde{display:flex;align-items:flex-start;gap:7px;margin-top:9px;padding-top:9px;
+  border-top:1px solid var(--border);font-size:11.5px;font-weight:600;color:var(--gold);
+  line-height:1.45}
+.cih,.ci{display:grid;grid-template-columns:1fr 104px 104px 118px;gap:10px;align-items:center}
+.cih{font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;
+  color:var(--muted);padding:0 2px 6px;border-bottom:1px solid var(--border)}
+.cih span:not(:first-child){text-align:right}
+.ci{padding:9px 2px;border-bottom:1px solid var(--border)}
+.ci:last-child{border-bottom:0}
+.ci-n{font-size:13px;font-weight:700;color:var(--txt);min-width:0}
+.ci-n small{display:block;font-size:10.5px;font-weight:600;color:var(--muted);margin-top:2px}
+.ci-v{text-align:right;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.ci-v.sem{color:var(--muted);font-weight:600}
+.ci-v.prev{color:var(--muted)}
+.ci-v.banco{color:var(--green-l)}
+.ci-f input{width:100%;text-align:right;font-variant-numeric:tabular-nums}
+.ci-lb{display:none}
+.ciac{grid-column:1/-1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin-top:7px;font-size:11px;font-weight:600;color:var(--muted)}
+.ciac.ok{color:var(--green-l)}
+.ciac.dif{color:var(--gold)}
+.cib{background:var(--card2);border:1px solid var(--border);color:var(--txt);
+  border-radius:8px;padding:3px 10px;font-family:inherit;font-size:11px;
+  font-weight:700;cursor:pointer;white-space:nowrap}
+.cib:hover{border-color:var(--green-l);color:var(--green-l)}
+.cib.prev:hover{border-color:var(--gold);color:var(--gold)}
+.cit{display:grid;grid-template-columns:1fr 104px 104px 118px;gap:10px;align-items:center;
+  padding:11px 2px 2px;border-top:2px solid var(--gold);margin-top:4px;font-weight:800;font-size:13px}
+.cit span:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+.cigr{font-size:10.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+  color:var(--gold);margin:15px 0 3px}
+@media(max-width:760px){
+  .cih{display:none}
+  .ci{grid-template-columns:1fr 1fr;gap:6px 10px;padding:11px 2px}
+  .ci-n{grid-column:1/-1}
+  .ci-v,.ci-f{text-align:left}
+  .ci-v{display:flex;justify-content:space-between;align-items:baseline}
+  .ci-lb{display:inline;font-size:10px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.5px;color:var(--muted)}
+  .ci-f{grid-column:1/-1}
+  .ci-f input{text-align:left}
+  .ci.so-ficha .ci-v{display:none}
+  .ci.so-ficha{grid-template-columns:1fr;gap:5px}
+  .ci.so-ficha .ci-f .ci-lb{display:none}
+  .cit{grid-template-columns:1fr auto;gap:4px 10px}
+}
 .fbusca{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--txt);
 border-radius:11px;padding:11px 13px;font-family:inherit;font-size:14px;margin:4px 0 9px}
 .fbusca::placeholder{color:var(--muted)}
@@ -895,19 +939,6 @@ function realDoCampo(campo){
   const v=R?Number(R[campo]):NaN;
   return (isFinite(v)&&v>0)?v:null;
 }
-// Desenhado junto com o campo, entao recebe o valor atual em vez de ler o DOM
-// (na hora do render o input ainda nao existe).
-function seloExtratoHTML(campo, atualRaw){
-  const v=realDoCampo(campo); if(v==null) return '';
-  const atual=Number(String(atualRaw==null?'':atualRaw).replace(',','.'));
-  const bate=isFinite(atual)&&Math.abs(atual-v)<0.02;
-  const vazio=!isFinite(atual)||atual===0;
-  if(bate) return '<div class="exlin ok">✓ bate com o extrato</div>';
-  return '<div class="exlin'+(vazio?'':' dif')+'">'+
-    '<span>'+(vazio?'extrato: ':'extrato diz ')+'<b>'+moeda2(v)+'</b></span>'+
-    '<button type="button" class="exb" onclick="puxaCampo(\''+campo+'\')">usar</button>'+
-    '</div>';
-}
 // Dinheiro que o extrato tem mas esta ficha nao tem campo para mostrar: a
 // trilha da obra define quais campos aparecem, entao um custo classificado numa
 // conta fora dessa lista ficaria invisivel aqui. Melhor dizer do que sumir.
@@ -929,15 +960,151 @@ function naoCabeNaFicha(){
     moeda2(soma)+' em '+fora.map(function(c){ return nomes[c]||c; }).join(', ')+
     ' — sem campo nesta ficha, mas conta no total</div>';
 }
+/* ---------- AS TRES FONTES, LADO A LADO ----------
+   Todo custo de obra tem ate tres numeros, e ate 16/09 eles viviam em lugares
+   diferentes da mesma tela sem nunca se encontrar:
+
+     PREVISTO  o orcamento calculado por telhado/km/modulos (obra_financeiro.previsto_*)
+     NO BANCO  o que a conta pagou de verdade (extrato_rateio -> dre_lancamentos)
+     NA FICHA  o que alguem digitou aqui
+
+   A margem so lia a FICHA. No Gilson (4678), com a ficha zerada, ela dizia
+   "margem 100,0%" -- e a tabela de desvio pintava -R$ 7.836 de VERDE, como se
+   nao gastar nada fosse economia. Agora as tres aparecem na mesma linha e a
+   margem usa a ficha, caindo no previsto onde a ficha esta vazia, dizendo em
+   voz alta quanto do custo ainda e estimativa. */
+
+// o previsto e calculado por grupo, nao por campo: previsto_estrutura cobre o
+// cabo, e os outros nao tem orcamento proprio. Mapa unico, para nao divergir.
+const PREVISTO_DE={valor_kit:'previsto_kit', cabo:'previsto_estrutura',
+  material_ca:'previsto_material_ca', instalacao:'previsto_instalacao',
+  deslocamento:'previsto_deslocamento'};
+function previstoDoCampo(campo){
+  const k=PREVISTO_DE[campo]; if(!k) return null;
+  const v=Number(EDIT&&EDIT.fin?EDIT.fin[k]:NaN);
+  return (isFinite(v)&&v>0)?v:null;
+}
+
+// A lista de itens de custo da obra, na ordem em que a pessoa pensa neles.
+// Encargos ficam por ultimo porque nao sao compra: saem do preco.
+function itensDeCusto(){
+  const cfg=(EDIT.campos && EDIT.campos.length)?EDIT.campos:null;
+  const itens=[];
+  if(cfg){
+    cfg.forEach(function(c){
+      itens.push({campo:c.campo, rotulo:c.rotulo, dica:c.dica,
+                  grupo:(c.grupo==='material'?'material':'servico')});
+    });
+  } else {
+    for(let i=1;i<CAMPOS.length;i++){
+      const c=CAMPOS[i];
+      if(['imposto_valor','comissao_valor'].indexOf(c[0])>=0) continue;
+      itens.push({campo:c[0], rotulo:c[1], dica:null, grupo:'servico'});
+    }
+  }
+  itens.push({campo:'imposto_valor', rotulo:'Imposto', dica:'Sobre o preço', grupo:'encargo'});
+  itens.push({campo:'comissao_valor', rotulo:'Comissão', dica:'Do vendedor', grupo:'encargo'});
+  // a trilha manutencao devolve os grupos intercalados (servico, servico,
+  // material, servico) -- sem agrupar, o cabecalho "Serviços" apareceria duas
+  // vezes. Ordena por grupo mantendo a ordem de dentro de cada um.
+  const ordem={material:0, servico:1, encargo:2};
+  return itens.map(function(it,i){ return {it:it,i:i}; })
+              .sort(function(a,b){
+                const d=ordem[a.it.grupo]-ordem[b.it.grupo];
+                return d!==0?d:(a.i-b.i);
+              })
+              .map(function(x){ return x.it; });
+}
+
+function linhaCusto(it){
+  const F=EDIT.fin;
+  const prev=previstoDoCampo(it.campo);
+  const banco=realDoCampo(it.campo);
+  let val=(F[it.campo]!=null && Number(F[it.campo])!==0)?F[it.campo]:'';
+  if(it.campo==='custo_operacional' && val==='' && EDIT.sugereOper) val=EDIT.sugereOper.toFixed(2);
+  const ficha=Number(String(val).replace(',','.'));
+  const temFicha=isFinite(ficha)&&ficha>0;
+
+  let h='<div class="ci'+((prev==null&&banco==null)?' so-ficha':'')+'">'+
+    '<div class="ci-n">'+esc(it.rotulo)+(it.dica?'<small>'+esc(it.dica)+'</small>':'')+'</div>'+
+    '<div class="ci-v prev'+(prev==null?' sem':'')+'"><span class="ci-lb">previsto</span>'+
+      '<span>'+(prev==null?'—':moeda2(prev))+'</span></div>'+
+    '<div class="ci-v banco'+(banco==null?' sem':'')+'"><span class="ci-lb">no banco</span>'+
+      '<span>'+(banco==null?'—':moeda2(banco))+'</span></div>'+
+    '<div class="ci-f"><span class="ci-lb">na ficha</span>'+
+      '<input type="number" step="0.01" inputmode="decimal" id="e_'+it.campo+'" '+
+      'value="'+val+'" oninput="recalcFin()" placeholder="0,00"></div>';
+
+  // uma acao por linha, e so quando ha o que fazer
+  if(banco!=null && temFicha && Math.abs(ficha-banco)<0.02){
+    h+='<div class="ciac ok">✓ confere com o que o banco pagou</div>';
+  } else if(banco!=null && temFicha){
+    const d=banco-ficha;
+    h+='<div class="ciac dif">⚠ o banco pagou '+moeda2(banco)+' — '+
+       (d>0?moeda2(d)+' a mais':moeda2(-d)+' a menos')+' que a ficha'+
+       '<button type="button" class="cib" onclick="puxaCampo(\''+it.campo+'\')">trocar pelo banco</button></div>';
+  } else if(banco!=null){
+    h+='<div class="ciac ok">✓ contando os '+moeda2(banco)+' que o banco pagou'+
+       '<button type="button" class="cib" onclick="puxaCampo(\''+it.campo+'\')">trazer para a ficha</button></div>';
+  } else if(prev!=null && !temFicha){
+    h+='<div class="ciac">sem lançamento no banco — entra na margem como <b>estimativa</b>'+
+       '<button type="button" class="cib prev" onclick="puxaPrevisto(\''+it.campo+'\')">usar o previsto</button></div>';
+  }
+  return h+'</div>';
+}
+
+function blocoCustos(){
+  const itens=itensDeCusto();
+  const titulos={material:'📦 Material', servico:'🔧 Serviços e outros', encargo:'💰 Impostos e comissão'};
+  let h='<div class="cih"><span>Item</span><span>Previsto</span><span>No banco</span><span>Na ficha</span></div>';
+  let g='';
+  itens.forEach(function(it){
+    if(it.grupo!==g){ g=it.grupo; h+='<div class="cigr">'+titulos[g]+'</div>'; }
+    h+=linhaCusto(it);
+  });
+  h+='<div class="cit" id="citot"></div>';
+  return h;
+}
+
+// Preenche a ficha com o orcamento. Marca como estimativa no proprio numero?
+// Nao da -- o campo e numerico. Quem decide e o veredito, que conta quantos
+// itens ainda nao tem lancamento no banco.
+function puxaPrevisto(campo){
+  const v=previstoDoCampo(campo); if(v==null) return;
+  if(poeNoCampo(campo,v)) recalcFin();
+}
+
+/* ---------- A TELA E O MODELO TEM DE ANDAR JUNTOS ----------
+   Os botoes escreviam so no input, e o renderFin() redesenha a partir do
+   EDIT.fin. Resultado: o "Puxar do extrato" preenchia os campos e, na linha
+   seguinte, o proprio renderFin() jogava tudo fora -- o botao NUNCA funcionou.
+   Testado no Chromium: material_ca, instalacao e art continuavam vazios depois
+   de clicar. Defeito anterior a 16/09, nao veio da reforma da tela.
+
+   A correcao e sincronizar nos dois sentidos: o que esta no DOM vai para o
+   EDIT.fin antes de qualquer redesenho, e o que os botoes escrevem vai para
+   os dois. Assim nada digitado a mao se perde tambem. */
+function sincronizaFicha(){
+  if(!EDIT||!EDIT.fin) return;
+  itensDeCusto().forEach(function(it){
+    const el=document.getElementById('e_'+it.campo);
+    if(el) EDIT.fin[it.campo] = (el.value==='' ? null : parseFloat(el.value));
+  });
+}
+function poeNoCampo(campo, v){
+  const el=document.getElementById('e_'+campo); if(!el) return false;
+  el.value=v.toFixed(2);
+  if(EDIT&&EDIT.fin) EDIT.fin[campo]=v;
+  return true;
+}
 function puxaCampo(campo){
   const v=realDoCampo(campo); if(v==null) return;
-  const el=document.getElementById('e_'+campo); if(!el) return;
-  el.value=v.toFixed(2);
-  recalcFin();
+  if(poeNoCampo(campo,v)) recalcFin();
 }
 // Preenche de uma vez. So mexe no que esta vazio; divergente pergunta.
 function puxaTudoDoExtrato(){
   const R=EDIT&&EDIT.real&&EDIT.real.por_campo; if(!R) return;
+  sincronizaFicha();   // o que a pessoa digitou a mao nao pode se perder
   const vazios=[], divergentes=[];
   Object.keys(R).forEach(function(campo){
     const el=document.getElementById('e_'+campo); if(!el) return;
@@ -962,6 +1129,7 @@ function puxaTudoDoExtrato(){
     if(confirm('Estes campos já têm valor diferente do extrato:\n\n'+lista+aviso+
                '\n\nSubstituir pelo valor do extrato?')) divergentes.forEach(puxaCampo);
   }
+  toastFin(vazios.length+' campo(s) preenchido(s) com o que o banco pagou');
   renderFin();
 }
 function toastFin(m){ if(typeof toast==='function') toast(m); else alert(m); }
@@ -1028,69 +1196,26 @@ function renderFin(){
   const tri = (O.trilha && O.trilha!=='padrao' && _t) ? (_t[0]+' '+_t[1]) : '';
   h+='<div class="reg"><h3>Preço e custos'+(tri?' <span class="thead">'+tri+'</span>':'')+'</h3>';
 
-  // O que ja saiu do banco para esta obra. Aparece so quando ha algo.
-  const RE=EDIT.real;
-  if(RE && n(RE.total)>0){
-    h+='<div class="exbox">'+
-       '<div class="ext"><b>'+moeda2(RE.total)+'</b> já saiu do banco para esta obra'+
-       (n(RE.outros)>0?' <span class="mut">('+moeda2(RE.outros)+' em contas sem campo aqui)</span>':'')+
-       naoCabeNaFicha()+
-       '</div>'+
-       '<button type="button" class="exb big" onclick="puxaTudoDoExtrato()">↓ Puxar do extrato</button>'+
-       '</div>';
-    if(RE.cobre_periodo===false){
-      h+='<div class="exav">⚠️ Esta obra fechou antes de <b>'+fmtD(RE.extrato_desde)+
-         '</b>, que é onde o extrato começa. O que aparece aqui é só a parte que '+
-         'caiu no banco de lá para cá — o resto foi pago antes e ainda não foi importado. '+
-         '<b>Não substitua um valor que já está preenchido</b> sem conferir.</div>';
-    }
-  }
+  // O veredito primeiro: a pergunta e "deu lucro ou nao". O resto e detalhe.
+  h+='<div id="calcBox"></div>';
 
+  const RE=EDIT.real;
   h+='<div class="lin">'+
      '<div class="cp"><label>Preço negociado</label>'+
      '<input type="number" step="0.01" inputmode="decimal" id="e_preco_negociado" readonly '+
      'style="opacity:.75;cursor:not-allowed" title="Este valor vem do campo Valor do projeto, na ficha da obra" '+
      'value="'+(F.preco_negociado!=null?F.preco_negociado:'')+'" placeholder="0,00">'+
      '<div class="mut" style="font-size:11px;margin-top:3px">vem do Valor do projeto, na obra</div></div>'+
-     '<div class="cp"><label>Imposto</label>'+
-     '<input type="number" step="0.01" inputmode="decimal" id="e_imposto_valor" '+
-     'value="'+(F.imposto_valor!=null?F.imposto_valor:'')+'" oninput="recalcFin()" placeholder="0,00"></div>'+
-     '<div class="cp"><label>Comissão</label>'+
-     '<input type="number" step="0.01" inputmode="decimal" id="e_comissao_valor" '+
-     'value="'+(F.comissao_valor!=null?F.comissao_valor:'')+'" oninput="recalcFin()" placeholder="0,00">'+
-     seloExtratoHTML('comissao_valor', F.comissao_valor)+'</div>'+
+     '<div class="cp"><label>&nbsp;</label>'+
+     '<button type="button" class="cib" style="padding:10px;font-size:12px" '+
+     'onclick="puxaTudoDoExtrato()">↓ Trazer o que o banco pagou</button>'+
+     '<div class="mut" style="font-size:11px;margin-top:3px">' +
+     (RE && n(RE.total)>0 ? moeda2(RE.total)+' lançados no banco — preenche só o que está vazio'
+                          : 'nenhum lançamento no banco ainda')+'</div></div>'+
      '</div>';
 
-  if(cfg){
-    let grupoAtual='';
-    cfg.forEach(function(c,i){
-      if(c.grupo!==grupoAtual){
-        if(grupoAtual) h+='</div>';
-        grupoAtual=c.grupo;
-        h+='<div class="subt">'+(c.grupo==='material'?'📦 Material':'🔧 Serviços e outros')+'</div><div class="lin">';
-      }
-      let val=(F[c.campo]!=null?F[c.campo]:'');
-      if(c.campo==='custo_operacional' && val==='' && EDIT.sugereOper) val=EDIT.sugereOper.toFixed(2);
-      h+='<div class="cp"><label>'+esc(c.rotulo)+'</label>'+
-        '<input type="number" step="0.01" inputmode="decimal" id="e_'+c.campo+'" value="'+val+'" '+
-        'oninput="recalcFin()" placeholder="0,00">'+
-        seloExtratoHTML(c.campo, val)+
-        (c.dica?'<span class="cpd">'+esc(c.dica)+'</span>':'')+'</div>';
-    });
-    if(grupoAtual) h+='</div>';
-  } else {
-    h+='<div class="lin">';
-    for(let i=1;i<CAMPOS.length;i++){
-      const c=CAMPOS[i];
-      if(['imposto_valor','comissao_valor'].indexOf(c[0])>=0) continue;
-      let val=(F[c[0]]!=null?F[c[0]]:'');
-      h+='<div class="cp"><label>'+esc(c[1])+'</label>'+
-        '<input type="number" step="0.01" inputmode="decimal" id="e_'+c[0]+'" value="'+val+'" '+
-        'oninput="recalcFin()" placeholder="0,00">'+seloExtratoHTML(c[0], val)+'</div>';
-    }
-    h+='</div>';
-  }
-  h+='<div id="calcBox"></div>';
+  h+=blocoCustos();
+  if(RE) h+=naoCabeNaFicha();
   const _fe=O.data_fechamento;
   if(PROV_DESDE && (!_fe || _fe < PROV_DESDE))
     h+='<div class="dica">📌 Contrato fechado antes de '+dataBR(PROV_DESDE)+
@@ -1101,7 +1226,9 @@ function renderFin(){
   h+='<button class="bmini" style="width:100%;margin-top:8px" onclick="sugerirFin()">'+
      'Sugerir imposto e comissão pelos parâmetros</button></div>';
 
-  h+='<div class="reg"><h3>Orçado × Realizado</h3>'+
+  h+='<div class="reg"><h3>Orçamento da obra</h3>'+
+     '<div class="dica" style="margin:0 0 10px">O previsto sai daqui: telhado, distância e '+
+     'quantidade de módulos. Ele aparece item a item lá em cima, na coluna <b>Previsto</b>.</div>'+
      '<div class="lin"><div class="cp"><label>Telhado</label><select id="eEstr">';
   for(let i=0;i<ESTRUTURAS.length;i++){
     h+='<option value="'+esc(ESTRUTURAS[i].tipo_telhado)+'"'+
@@ -1133,31 +1260,28 @@ function renderPrevisto(){
     return;
   }
   const linhas=[
-    ['Kit', F.previsto_kit, n(gv('e_valor_kit'))],
-    ['Estrutura e cabo', F.previsto_estrutura, n(gv('e_cabo'))],
-    ['Material CA', F.previsto_material_ca, n(gv('e_material_ca'))],
-    ['Instalação', F.previsto_instalacao, n(gv('e_instalacao'))],
-    ['Deslocamento', F.previsto_deslocamento, n(gv('e_deslocamento'))]
+    ['Kit fotovoltaico', F.previsto_kit],
+    ['Estrutura e cabo', F.previsto_estrutura],
+    ['Material CA', F.previsto_material_ca],
+    ['Instalação', F.previsto_instalacao],
+    ['Deslocamento', F.previsto_deslocamento]
   ];
   let h='<table class="gtab" style="margin-top:4px"><thead><tr><th>Item</th>'+
-    '<th class="num">Previsto</th><th class="num">Realizado</th><th class="num">Desvio</th></tr></thead><tbody>';
-  let tp=0, tr=0;
+    '<th class="num">Orçado</th></tr></thead><tbody>';
+  let tp=0;
   for(let i=0;i<linhas.length;i++){
-    const p=n(linhas[i][1]), r=n(linhas[i][2]); tp+=p; tr+=r;
-    const d=r-p;
-    const cor = Math.abs(d)<1 ? 'var(--muted)' : (d>0?'var(--red)':'var(--green-l)');
-    const sinal = Math.abs(d)<1 ? '—' : (d>0?'+':'')+moeda(d);
-    h+='<tr><td>'+esc(linhas[i][0])+'</td><td class="num">'+moeda(p)+'</td>'+
-      '<td class="num">'+(r>0?moeda(r):'—')+'</td>'+
-      '<td class="num" style="color:'+cor+';font-weight:800">'+sinal+'</td></tr>';
+    const v=n(linhas[i][1]); tp+=v;
+    h+='<tr><td>'+esc(linhas[i][0])+'</td><td class="num">'+moeda(v)+'</td></tr>';
   }
-  const dt=tr-tp;
-  h+='<tr style="border-top:2px solid var(--gold)"><td><b>Total</b></td>'+
-    '<td class="num"><b>'+moeda(tp)+'</b></td><td class="num"><b>'+moeda(tr)+'</b></td>'+
-    '<td class="num" style="color:'+(Math.abs(dt)<1?'var(--muted)':(dt>0?'var(--red)':'var(--green-l)'))+
-    ';font-weight:800">'+(Math.abs(dt)<1?'—':(dt>0?'+':'')+moeda(dt))+'</b></td></tr>';
-  h+='</tbody></table><div class="dica">Vermelho é custo acima do orçado. '+
-     'Verde é economia. Só compara o que já foi lançado.</div>';
+  const resto=n(F.previsto_total)-tp;
+  if(Math.abs(resto)>=1)
+    h+='<tr><td>Homologação e pós-venda<br><span class="mut" style="font-size:10.5px">'+
+       'entra no orçado e não tem campo na ficha</span></td>'+
+       '<td class="num">'+moeda(resto)+'</td></tr>';
+  h+='<tr style="border-top:2px solid var(--gold)"><td><b>Total orçado</b></td>'+
+     '<td class="num"><b>'+moeda(n(F.previsto_total))+'</b></td></tr></tbody></table>'+
+     '<div class="dica">Calculado em '+(F.previsto_em?dataBR(String(F.previsto_em).slice(0,10)):'—')+
+     '. A comparação com o que foi pago está lá em cima, item a item.</div>';
   box.innerHTML=h;
 }
 async function calcPrevistoLote(){
@@ -1263,28 +1387,95 @@ function gerarParcelas(){
 }
 function gv(id){const e=document.getElementById(id);if(!e)return null;
   const v=e.value;return v===''?null:parseFloat(v);}
+/* ---------- DEU LUCRO OU NAO ----------
+   Uma pergunta, uma resposta, no topo. O que sustenta a resposta vem logo
+   abaixo, com a honestidade junto: quanto do custo e dinheiro confirmado no
+   banco, quanto e digitado na ficha, e quanto ainda e so orcamento.
+
+   A regra da margem: usa a FICHA e, onde a ficha esta vazia, cai no PREVISTO.
+   Sem isso a obra de ficha zerada aparecia com 100% de lucro -- foi o que a
+   ficha do Gilson (4678) mostrava ate 16/09. */
+function somaCustos(){
+  const itens=itensDeCusto();
+  let ficha=0, usado=0, estimado=0, confirmado=0, itensEstimados=0, itensSemNada=0;
+  itens.forEach(function(it){
+    const el=document.getElementById('e_'+it.campo);
+    if(!el) return;
+    const v=n(el.value);
+    const prev=previstoDoCampo(it.campo);
+    const banco=realDoCampo(it.campo);
+    // ordem de confianca: o que alguem digitou, depois o que o banco PAGOU,
+    // e so por ultimo o orcamento. Dinheiro confirmado nunca perde para palpite.
+    if(v>0){
+      ficha+=v; usado+=v;
+      if(banco!=null && Math.abs(v-banco)<0.02) confirmado+=v;
+    } else if(banco!=null){
+      usado+=banco; confirmado+=banco;
+    } else if(prev!=null){
+      usado+=prev; estimado+=prev; itensEstimados++;
+    } else {
+      itensSemNada++;
+    }
+  });
+  return {ficha:ficha, usado:usado, estimado:estimado, confirmado:confirmado,
+          itensEstimados:itensEstimados, itensSemNada:itensSemNada};
+}
+
 function recalcFin(){
   const box=document.getElementById('calcBox'); if(!box) return;
   const p=n(gv('e_preco_negociado'));
-  let dir=0;
-  const diretos=['valor_kit','material_ca','material_eletrico','cabo','instalacao','deslocamento',
-                 'art','seguro','frete','estrutura_carport','carregador','obra_civil','pecas'];
-  for(let i=0;i<diretos.length;i++) dir+=n(gv('e_'+diretos[i]));
-  const imp=n(gv('e_imposto_valor')), com=n(gv('e_comissao_valor')), op=n(gv('e_custo_operacional'));
-  const prv=n(gv('e_provisao_posvenda'));
-  const mc=p-dir-imp-com-op-prv;
+  const C=somaCustos();
+  const mc=p-C.usado;
   const rat=n(DRE&&DRE.rateio&&DRE.rateio.por_obra);
   const ml=mc-rat;
-  if(document.getElementById('prevBox')&&EDIT&&EDIT.fin&&EDIT.fin.previsto_total!=null) setTimeout(renderPrevisto,0);
-  box.innerHTML='<div class="resumoCalc">'+
-    lr('Preço',p)+lr('Custos diretos',-dir)+lr('Imposto + comissão + operacional',-(imp+com+op))+
-    (prv>0?lr('Provisão de pós-venda',-prv):'')+
-    '<div class="r tot"><span>Margem de contribuição</span><span style="color:'+
-      (mc>=0?'var(--green-l)':'var(--red)')+'">'+moeda2(mc)+(p>0?' · '+pct(mc/p):'')+'</span></div>'+
-    (rat>0?('<div class="r"><span>Rateio do mês (por obra)</span><span>'+moeda2(-rat)+'</span></div>'+
-    '<div class="r tot"><span>Margem líquida real</span><span style="color:'+
-      (ml>=0?'var(--green-l)':'var(--red)')+'">'+moeda2(ml)+(p>0?' · '+pct(ml/p):'')+'</span></div>'):'')+
-    '</div>';
+  const RE=EDIT&&EDIT.real;
+
+  // o total da tabela, na mesma linha das colunas
+  const tot=document.getElementById('citot');
+  if(tot){
+    let tp=0; itensDeCusto().forEach(function(it){ const v=previstoDoCampo(it.campo); if(v) tp+=v; });
+    tot.innerHTML='<span>Total dos custos</span>'+
+      '<span style="color:var(--muted)">'+(tp>0?moeda2(tp):'—')+'</span>'+
+      '<span style="color:var(--green-l)">'+(RE&&n(RE.total)>0?moeda2(RE.total):'—')+'</span>'+
+      '<span>'+moeda2(C.ficha)+'</span>';
+  }
+
+  const lucro=ml>=0;
+  const semPreco=!(p>0);
+  let h='<div class="vd '+(semPreco?'':(lucro?'lucro':'prej'))+'">';
+  if(semPreco){
+    h+='<div class="vdt">Resultado da obra</div>'+
+       '<div class="vdn" style="color:var(--muted);font-size:19px">Sem preço negociado</div>'+
+       '<div class="vdc">Preencha o <b>Valor do projeto</b> na ficha da obra para esta conta existir.</div>';
+  } else {
+    h+='<div class="vdt">Resultado da obra</div>'+
+       '<div class="vdn" style="color:'+(lucro?'var(--green-l)':'var(--red)')+'">'+
+       (lucro?'Lucro de ':'Prejuízo de ')+moeda2(Math.abs(ml))+
+       '<small>'+pct(Math.abs(ml)/p)+'</small></div>'+
+       '<div class="vdc">Preço <b>'+moeda2(p)+'</b> − custos <b>'+moeda2(C.usado)+'</b>'+
+       (rat>0?' − rateio do mês <b>'+moeda2(rat)+'</b>':'')+'</div>';
+
+    // a parte que o numero acima nao conta sozinho
+    if(C.estimado>0){
+      h+='<div class="vde">⚠️ <span><b>'+moeda2(C.estimado)+'</b> desse custo ('+
+         pct(C.estimado/C.usado)+') ainda é <b>orçamento</b>, não gasto real — '+
+         C.itensEstimados+(C.itensEstimados===1?' item sem valor':' itens sem valor')+
+         ' na ficha e sem lançamento no banco.</span></div>';
+    } else if(C.usado>0 && C.confirmado>0){
+      h+='<div class="vde" style="color:var(--green-l)">✓ <span><b>'+
+         pct(C.confirmado/C.usado)+'</b> do custo confere com o que o banco pagou.</span></div>';
+    }
+    if(RE && RE.cobre_periodo===false){
+      h+='<div class="vde"><span>Esta obra fechou antes de <b>'+fmtD(RE.extrato_desde)+
+         '</b>, quando o extrato começa. O que o banco mostra aqui é só um pedaço — '+
+         'o resto foi pago antes e ainda não foi importado.</span></div>';
+    }
+    if(C.usado===0){
+      h+='<div class="vde"><span>Nenhum custo lançado ainda. Este número é o preço inteiro, '+
+         'não o lucro.</span></div>';
+    }
+  }
+  box.innerHTML=h+'</div>';
 }
 function lr(l,v){return '<div class="r"><span>'+esc(l)+'</span><span>'+moeda2(v)+'</span></div>';}
 function sugerirFin(){
