@@ -106,6 +106,28 @@ dia(s) do vencimento`), para dar para revisar depois se foi certeiro ou chute.
 `valor_projeto` e `preco_negociado` são espelhados pelo trigger
 `trg_sincroniza_valor`. **Já existia — não crie outro.**
 
+### Indicadores (`get_kpis_financeiro`)
+**R$ por Watt-pico** é a métrica que compara com o mercado — margem em reais
+não compara com ninguém. A mediana da casa é **R$ 2,54/Wp** (R$ 2.540 por kWp)
+em 50 das 52 obras de venda. Levantamentos de 2026 põem o residencial
+brasileiro entre **R$ 3,50 e 5,50/Wp**; é referência, não meta, porque escopo e
+região mudam o número. O que vale seguir é a tendência dos próprios meses.
+
+**Execução × faturamento** (WIP, método custo-a-custo) mede o avanço pelo custo
+incorrido sobre o estimado e compara com o quanto já foi cobrado.
+
+⚠️ **A primeira versão do WIP mentia e foi jogada fora.** Ela devolvia
+*1847% executado* para a Zuleica (4618): R$ 661,83 de custo estimado na ficha
+contra R$ 12.229,80 de gasto real. Não é obra 18 vezes pronta — é a estimativa
+que não existe. Hoje o WIP exige os **dois** lados confiáveis: estimativa de
+pelo menos **30% do preço** e obra fechada **dentro da janela do extrato**.
+Sobram **3 de 52**, e a função devolve `o_que_falta` justamente para a tela
+poder dizer isso em vez de fingir retrato da carteira.
+
+**DSO não existe de propósito.** Só 16 obras têm parcelas e o extrato cobre 5
+semanas — o número sairia com cara de autoridade e sem lastro. Nasce sozinho
+quando o extrato anterior a agosto entrar.
+
 ⚠️ **A ficha não repete o extrato: ela lê.** Até 15/09 a Ana classificava o
 movimento no extrato (o que **já vincula a obra** — 55 dos 60 custos estão
 ligados) e depois digitava o mesmo valor na ficha, porque nada trazia o número
@@ -317,6 +339,7 @@ nenhuma delas. Ver pendência no §10.
 | `autoleitura_fila()` | quem avisar hoje, com o texto pronto |
 | `get_responsavel_posvenda()` | quem é o `resp_posvenda` e o `resp_alertas` hoje |
 | `definir_responsavel(equipe, funcao)` | troca a pessoa de um dos dois papéis; só admin |
+| `get_kpis_financeiro(ini, fim)` | R$/Wp e execução × faturamento, **com a cobertura junto** — quantas obras sustentam cada número e o que falta para as outras |
 | `obra_custos_realizados(obra)` | o realizado da obra vindo do extrato, campo a campo; diz também se o extrato cobre o período da obra |
 | `dia_util_ate(data)` | o último dia útil em `data` ou antes — é o que antecipa o aviso de fim de semana para a sexta |
 | `usina_adicionar(json, simular)` | acrescenta uma usina a um cliente que já existe. **Só soma no total da obra se ela for cliente de plano** — em obra de venda a potência é o projeto vendido, e mexer ali muda o tamanho de uma venda que já aconteceu |
@@ -365,7 +388,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `economia_por_kwh` | **0,7968** | única fonte de economia. ⚠️ **PROVISÓRIO** — derivado de 0,73 × 1,0915 (reajuste CPFL de 22/04/2026), não de conta de luz. `tarifa_status()` devolve `provisorio: true`. Trocar assim que houver uma conta pós-abril: `select calibrar_tarifa(<valor>, '<de quem>')` |
 | `conciliacao_automatica` | 1 | liga o casamento extrato ↔ parcela |
 | `conciliacao_tolerancia` | 1,00 | diferença aceita em reais |
-| `conciliacao_dias_max` | 90 | distância entre vencimento e data do banco |
+| `conciliacao_dias_max` | **30** | distância entre vencimento e data do banco. Era 90 até 16/09 — e os 18 casamentos feitos nunca usaram um dia sequer de folga, então 90 só permitia um pagamento de setembro alcançar a parcela de dezembro |
 | `conciliacao_conta_receita` | 01.1.06 | conta usada no DRE |
 | `usina_carencia_dias` | 15 | usina recém-ligada não vira problema |
 | `vizinhanca_min_usinas` | 5 | cidade com esse tanto ganha grupo próprio |
@@ -548,6 +571,8 @@ significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
       **Também é isto que trava a ficha de ler o extrato sozinha:** 14 das 27
       obras com custo lançado fecharam antes de 03/08, então o realizado delas
       é parcial e a digitação manual ainda precisa existir.
+      **E é o que trava os indicadores:** 34 das 52 obras fecharam antes de
+      03/08, e por isso a execução × faturamento só vale para 3 delas.
 - [ ] **Calibrar `economia_por_kwh` com uma conta de luz de verdade.** Está em
       0,7968 desde 12/09, mas é **provisório**: saiu de 0,73 × 1,0915, e não de
       uma conta. Basta uma conta pós-abril de qualquer cliente — total em R$

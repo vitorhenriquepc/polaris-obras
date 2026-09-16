@@ -425,7 +425,7 @@ const LOGO_D='https://obras.polarisenergiasolar.com/logo.png';
 const LOGO_L='https://obras.polarisenergiasolar.com/logo-claro.png';
 
 let ABA='dre', INI=null, FIM=null, RATEIO='obra';
-let DRE=null, OBRAS=null, FLUXO=null, DESEMP=null, CONTAS=[], PARAMS=[], ORIGENS=[];
+let DRE=null, OBRAS=null, FLUXO=null, DESEMP=null, KPI=null, CONTAS=[], PARAMS=[], ORIGENS=[];
 let FILA=null, EDIT=null, FILA_TODAS=false, RESUMO=null, ABRIR=null, ATALHO=null, VERCONTAS=false;
 let FILA_F='todas', FILA_Q='';
 // redesenha só a fila, para o campo de busca não perder o foco a cada tecla
@@ -524,7 +524,8 @@ async function carregar(){
     sb.rpc('get_financeiro_desempenho',{p_ini:INI,p_fim:FIM}),
     sb.rpc('get_fila_financeiro'),
     sb.rpc('get_resumo_financeiro',{p_ini:INI,p_fim:FIM}),
-    sb.rpc('get_desvios',{p_ini:INI,p_fim:FIM})
+    sb.rpc('get_desvios',{p_ini:INI,p_fim:FIM}),
+    sb.rpc('get_kpis_financeiro',{p_ini:INI,p_fim:FIM})
   ]);
   if(r[0].error||!r[0].data){
     document.getElementById('app').innerHTML='<div class="center"><span style="font-size:32px">🔒</span>'+
@@ -532,6 +533,7 @@ async function carregar(){
     return;
   }
   DRE=r[0].data; OBRAS=r[1].data; FLUXO=r[2].data; DESEMP=r[3].data; FILA=r[4].data; RESUMO=r[5].data; DESV=r[6].data;
+  KPI=r[7]&&r[7].data?r[7].data:null;
   render();
 }
 
@@ -1415,13 +1417,97 @@ function viewFluxo(){
 }
 
 /* ---------- DESEMPENHO ---------- */
+/* ---------- R$/Wp E WIP ----------
+   R$ por Watt-pico e a metrica que compara com o mercado: margem em reais nao
+   compara com ninguem. O Brasil residencial esta em R$ 3,50 a 5,50 por Wp
+   segundo levantamentos de 2026 -- por isso a faixa de referencia abaixo.
+
+   O WIP (percentual de conclusao) mede o avanco pelo custo incorrido sobre o
+   custo estimado, que e o padrao de obra, e compara com o quanto ja foi
+   cobrado. Desvio positivo = cobrou mais do que executou. */
+function blocoKpis(){
+  if(!KPI) return '';
+  const W=KPI.rs_wp||{}, P=KPI.wip||{};
+  let h='';
+
+  if(n(W.obras)>0){
+    const med=n(W.mediana);
+    h+='<div class="reg"><h3>⚡ R$ por Watt-pico</h3>'+
+      '<div class="cards">'+
+      kc('Mediana','R$ '+med.toFixed(2).replace('.',','),
+         'por Wp vendido · '+n(W.obras)+' de '+n(W.de_quantas)+' obras','gold')+
+      kc('Por kWp', moeda(med*1000),'é o mesmo número, na unidade do mercado','')+
+      kc('Mais barata','R$ '+n(W.minimo).toFixed(2).replace('.',','),'','')+
+      kc('Mais cara','R$ '+n(W.maximo).toFixed(2).replace('.',','),'','')+
+      '</div>';
+    const M=W.por_mes||[];
+    if(M.length>1){
+      h+='<table class="gtab"><thead><tr><th>Mês</th><th class="num">Obras</th>'+
+         '<th class="num">Mediana R$/Wp</th></tr></thead><tbody>';
+      M.forEach(function(m){
+        h+='<tr><td>'+esc(m.mes)+'</td><td class="num">'+n(m.obras)+'</td>'+
+           '<td class="num"><b>R$ '+n(m.mediana).toFixed(2).replace('.',',')+'</b></td></tr>';
+      });
+      h+='</tbody></table>';
+    }
+    const VV=W.por_vendedor||[];
+    if(VV.length>1){
+      h+='<div class="subt">Por vendedor</div><table class="gtab"><thead><tr><th>Vendedor</th>'+
+         '<th class="num">Obras</th><th class="num">Mediana R$/Wp</th></tr></thead><tbody>';
+      VV.forEach(function(v){
+        h+='<tr><td>'+esc(v.vendedor)+'</td><td class="num">'+n(v.obras)+'</td>'+
+           '<td class="num">R$ '+n(v.mediana).toFixed(2).replace('.',',')+'</td></tr>';
+      });
+      h+='</tbody></table>';
+    }
+    h+='<div class="dica">Levantamentos de 2026 põem o residencial brasileiro entre '+
+       '<b>R$ 3,50 e R$ 5,50 por Wp</b> (R$ 3.500 a 5.500 por kWp) instalado. '+
+       'É referência de mercado, não meta — escopo e região mudam o número. '+
+       'O que vale acompanhar aqui é a <b>tendência dos seus próprios meses</b>.</div>';
+    h+='</div>';
+  }
+
+  const F=(P.o_que_falta)||{};
+  h+='<div class="reg"><h3>🏗️ Execução x faturamento</h3>';
+  if(n(P.obras)>0){
+    h+='<div class="dica">Quanto da obra já foi <b>gasto</b> contra quanto já foi '+
+       '<b>cobrado</b>. Positivo = cobrou adiantado; negativo = executou e ainda não cobrou.</div>'+
+       '<table class="gtab"><thead><tr><th>Obra</th><th class="num">Executado</th>'+
+       '<th class="num">Faturado</th><th class="num">Desvio</th></tr></thead><tbody>';
+    (P.lista||[]).forEach(function(o){
+      const d=n(o.desvio);
+      const cor = Math.abs(d)<15 ? 'var(--muted)' : (d>0?'var(--green-l)':'#e07070');
+      h+='<tr><td>'+esc(o.cliente)+(o.contrato?' <span class="mut">#'+esc(o.contrato)+'</span>':'')+'</td>'+
+         '<td class="num">'+n(o.pct_executado).toFixed(0)+'%</td>'+
+         '<td class="num">'+n(o.pct_faturado).toFixed(0)+'%</td>'+
+         '<td class="num" style="color:'+cor+'"><b>'+(d>0?'+':'')+d.toFixed(0)+' p.p.</b></td></tr>';
+    });
+    h+='</tbody></table>';
+  }
+  // A parte honesta: dizer para quantas obras isto vale, e o que falta para
+  // valer para as outras. Sem isso, 3 obras pareceriam a carteira inteira.
+  h+='<div class="aviso">⚠️ Isto vale para <b>'+n(P.obras)+' de '+n(P.de_quantas)+
+     ' obras</b> do período. Só entra obra em que os <b>dois</b> lados da conta são '+
+     'confiáveis: estimativa de custo de verdade na ficha, e a obra fechada dentro da '+
+     'janela do extrato.<br><br><b>O que falta para valer para as outras:</b><ul>'+
+     (n(F.fechadas_antes_do_extrato)>0?'<li><b>'+n(F.fechadas_antes_do_extrato)+'</b> fecharam antes de 03/08 — '+
+        'é o extrato antigo que falta importar</li>':'')+
+     (n(F.sem_gasto_classificado)>0?'<li><b>'+n(F.sem_gasto_classificado)+'</b> sem nenhum gasto classificado no extrato</li>':'')+
+     (n(F.sem_estimativa)>0?'<li><b>'+n(F.sem_estimativa)+'</b> sem estimativa de custo na ficha</li>':'')+
+     (n(F.estimativa_furada)>0?'<li><b>'+n(F.estimativa_furada)+'</b> com estimativa menor que 30% do preço — '+
+        'não é estimativa, é campo pela metade</li>':'')+
+     '</ul></div></div>';
+  return h;
+}
+
 function viewDesemp(){
   const V=(DESEMP&&DESEMP.por_vendedor)||[], O=(DESEMP&&DESEMP.por_origem)||[], C=(DESEMP&&DESEMP.cac)||{};
+  const kpis=blocoKpis();
   if(!V.length&&!O.length){
-    return '<div class="vazio"><span class="i">📈</span><b>Sem dados de desempenho em '+esc(mesLabel())+'.</b><br>'+
+    return kpis || '<div class="vazio"><span class="i">📈</span><b>Sem dados de desempenho em '+esc(mesLabel())+'.</b><br>'+
       'Depende de obras com financeiro lançado no período.</div>';
   }
-  let h='';
+  let h=kpis;
   h+='<div class="cards">'+
     kc('Gasto em marketing',moeda(C.gasto_marketing),'no período','')+
     kc('Obras de tráfego',n(C.obras_trafego),'','')+
