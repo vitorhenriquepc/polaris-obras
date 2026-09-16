@@ -247,8 +247,18 @@ cliente — o Gilberto tem **4 usinas e 1 endereço** e não paga extra. Quando
 
 ### Visitas do plano
 `plano_visita` (contrato → endereço → prevista/realizada, com laudo). Nascem
-quando `plano_registrar_pagamento()` ativa o contrato, **uma por endereço** e
-no meio do período. A tela conta separadamente as **realizadas sem laudo**:
+**uma por endereço**, no meio do período, por dois caminhos: quando
+`plano_registrar_pagamento()` dá baixa no contrato que esperava pagamento, e
+quando `plano_contrato_criar()` fecha um contrato que já nasce **ativo**
+(cortesia, ou pago com data de início informada).
+
+⚠️ **O segundo caminho não existia até 16/09.** `plano_visitas_gerar()` só era
+chamada pelo registro de pagamento, então contrato nascido ativo prometia visita
+e não marcava nenhuma. Não aparecia porque as 54 cortesias antigas são todas
+`essencial`, que tem `inclui_visita = false` — o buraco só podia surgir no dia
+em que existisse um **Completo ativo**, e foi o UNI AUTO POSTO. `plano_visitas_gerar`
+é idempotente e checa `inclui_visita` e `inicio` sozinha, então chamar nos dois
+lugares é seguro. A tela conta separadamente as **realizadas sem laudo**:
 laudo com foto é o que o fabricante pede no acionamento de garantia.
 
 ### Fim da cortesia
@@ -669,14 +679,17 @@ significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
       tarifa) foram criadas em setembro **depois** da data delas, então a
       primeira chance real é em outubro. Não estão quebradas — estão por
       provar. Vale rodar cada uma em modo simular antes de outubro.
-- [ ] **Fechar o contrato do UNI AUTO POSTO DE ARACATUBA LTDA.** Cadastrado em
-      16/09 como cliente de plano — cliente, obra, 2 usinas (235 kWp, 420
-      módulos, Solarbens, herdadas) e ficha, **sem contrato**, porque o plano
-      ficou em branco. É um **teste de 6 meses**, e com 420 módulos ele cai na
-      `completo_especial`, que não tem preço de tabela: o valor é decisão do
-      Vitor. O botão está em Planos → Acompanhamento → "Cliente de plano sem
-      contrato" → **fechar contrato**. Enquanto não fechar, ele não entra em
-      receita, potencial nem aviso de vencimento.
+- [ ] **UNI AUTO POSTO: as duas usinas são um endereço ou dois?** O contrato foi
+      fechado em 16/09 (`completo_especial`, cortesia, 6 meses, 16/09/2026 a
+      16/03/2027) e o plano **inclui visita técnica**. Gerar as visitas hoje
+      criaria **duas**, as duas para 16/12/2026, porque o endereço das usinas
+      está escrito diferente: `AREA RURAL CLEMENTINA` (105,40 kWp, instalada em
+      2022) e `CLEMENTINA` (129,60 kWp, 2024). Os dois textos são vagos e podem
+      ser o mesmo lugar — se forem, é **uma** visita, e duas mandariam a equipe a
+      Clementina duas vezes. Padronizar o `endereco` das duas usinas resolve, e
+      aí `plano_visitas_gerar('9bc97b8b-d740-4918-9899-d831b2c68a63')` cria o
+      número certo. Enquanto isso o contrato está ativo **sem nenhuma visita
+      marcada**.
 - [ ] **Registrar o 1º pagamento da TAYS VALESE DIAS DO PRADO.** Primeiro
       contrato pago do sistema: Completo anual, R$ 2.990,00, duas usinas
       instaladas pela **Eco Solar** (açougue em Araçatuba 29,25 kWp, rancho em
