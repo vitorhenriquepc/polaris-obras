@@ -246,6 +246,18 @@ cliente — o Gilberto tem **4 usinas e 1 endereço** e não paga extra. Quando
 é o lado seguro: nunca cobra a mais, e se corrige quando alguém preencher.
 
 ### Visitas do plano
+**A primeira visita do sistema nasceu em 16/09**: UNI AUTO POSTO, prevista para
+**16/12/2026**, no meio da cortesia de 6 meses. Ela ficou **uma só** porque as
+duas usinas dele estão no mesmo lugar — o `endereco` estava escrito de dois
+jeitos (`AREA RURAL CLEMENTINA` e `CLEMENTINA`) e foi padronizado, decisão do
+Vitor. A visita ancora na usina de **maior potência** do endereço (129,60 kWp),
+que é o critério da própria `plano_visitas_gerar`.
+
+⚠️ **Endereço escrito de dois jeitos vira endereço a mais.** A conta de visitas
+e a de `plano_endereco_adicional` são as duas `count(distinct endereco)`: texto
+divergente cobra R$ 200/ano a mais e manda a equipe à mesma cidade duas vezes.
+Antes de gerar visita para cliente com várias usinas, **olhe os endereços**.
+
 `plano_visita` (contrato → endereço → prevista/realizada, com laudo). Nascem
 **uma por endereço**, no meio do período, por dois caminhos: quando
 `plano_registrar_pagamento()` dá baixa no contrato que esperava pagamento, e
@@ -605,7 +617,7 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     Antes de deixar um campo opcional, pergunte: sem ele, esse registro ainda é
     visível em alguma tela?
 
-14. **Select fechado esconde a opção que a pessoa está procurando.** O
+13. **Select fechado esconde a opção que a pessoa está procurando.** O
     formulário de contrato tinha "Cobrança" e "Duração" como `select`, abrindo
     em *Anual* e *12 meses*. O Vitor foi fechar uma cortesia de 6 meses, olhou a
     tela e disse que faltavam as duas coisas — elas estavam lá, dentro dos
@@ -615,7 +627,7 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     fica num `input hidden` para o resto do código não mudar. **Select só quando
     a lista é longa** — os 11 planos continuam em select, e está certo.
 
-13. **Botão que só existe numa tela não existe para quem trabalha na outra.** O
+14. **Botão que só existe numa tela não existe para quem trabalha na outra.** O
     "Registrar 1º pagamento" morava só no card da obra, no `painel.html`. Quem
     cuida do pós-venda vivia no `posvenda.html`, via "aguardando o 1º pagamento"
     e não tinha o que fazer com a informação. Corrigido em 16/09. Quando uma tela
@@ -679,17 +691,6 @@ significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
       tarifa) foram criadas em setembro **depois** da data delas, então a
       primeira chance real é em outubro. Não estão quebradas — estão por
       provar. Vale rodar cada uma em modo simular antes de outubro.
-- [ ] **UNI AUTO POSTO: as duas usinas são um endereço ou dois?** O contrato foi
-      fechado em 16/09 (`completo_especial`, cortesia, 6 meses, 16/09/2026 a
-      16/03/2027) e o plano **inclui visita técnica**. Gerar as visitas hoje
-      criaria **duas**, as duas para 16/12/2026, porque o endereço das usinas
-      está escrito diferente: `AREA RURAL CLEMENTINA` (105,40 kWp, instalada em
-      2022) e `CLEMENTINA` (129,60 kWp, 2024). Os dois textos são vagos e podem
-      ser o mesmo lugar — se forem, é **uma** visita, e duas mandariam a equipe a
-      Clementina duas vezes. Padronizar o `endereco` das duas usinas resolve, e
-      aí `plano_visitas_gerar('9bc97b8b-d740-4918-9899-d831b2c68a63')` cria o
-      número certo. Enquanto isso o contrato está ativo **sem nenhuma visita
-      marcada**.
 - [ ] **Registrar o 1º pagamento da TAYS VALESE DIAS DO PRADO.** Primeiro
       contrato pago do sistema: Completo anual, R$ 2.990,00, duas usinas
       instaladas pela **Eco Solar** (açougue em Araçatuba 29,25 kWp, rancho em
