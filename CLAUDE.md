@@ -196,6 +196,24 @@ Para quem a nota é emitida vive no **contrato**, não em `clientes`:
 `nota_documento` aceita CPF (11 dígitos) ou CNPJ (14) e o tipo se deduz do
 tamanho — não existe campo separado, para não divergir do número.
 
+⚠️ **Cliente de plano sem contrato some do painel.** `plano_cadastrar_cliente`
+só cria o contrato quando o plano foi escolhido — deixar em branco é legítimo, e
+`get_painel_planos` lê `from plano_contratos`, então o cliente ficava invisível.
+Aconteceu em 16/09 com o **UNI AUTO POSTO DE ARACATUBA LTDA**: gravou cliente,
+obra, **duas usinas** (235 kWp, 420 módulos), os dois vínculos em `obra_usina` e a
+ficha — e **zero contrato** —, devolveu `ok: true` e não apareceu no
+Acompanhamento. Desde então o painel devolve `sem_contrato`, a tela mostra a
+seção **"Cliente de plano sem contrato"** com o botão de fechar, e
+`plano_contrato_criar()` fecha o contrato numa obra que já existe (um contrato
+aberto por vez — clicar duas vezes contaria receita em dobro).
+
+⚠️ **Cortesia não tem pagamento para aguardar.** Cortesia com "começa no 1º
+pagamento" ficaria em `aguardando_pagamento` para sempre: sem início, sem fim,
+fora de todo número e sem ninguém para dar baixa. As **duas** funções recusam
+(`plano_contrato_criar` e `plano_cadastrar_cliente`), e a tela já desmarca a
+opção quando a cobrança vira cortesia. Conferido: a recusa vale mesmo quando a
+trava da tela é contornada na mão.
+
 ⚠️ **A ficha financeira de cliente de plano nasce `dispensado = true`.**
 `abre_financeiro_obra()` cria ficha para toda obra com etapa >= 1, e
 `trava_campos_financeiro()` exige `preco_negociado` e `distancia_km`. Um
@@ -355,6 +373,7 @@ nenhuma delas. Ver pendência no §10.
 | `obra_geracao_total(obra)` | **quanto a obra já gerou**: kWh, economia, desempenho e meses — a fonte única |
 | `plano_registrar_pagamento(contrato, data)` | liga o contrato no dia em que o primeiro pagamento entrou; é ela que calcula `inicio` e `fim` |
 | `plano_cadastrar_cliente(json, simular)` | **cadastra cliente de plano inteiro**: cliente + obra + usinas + contrato numa transação. Com `simular = true` (o padrão) não grava nada e devolve a prévia ou a lista de erros |
+| `plano_contrato_criar(json, simular)` | fecha o contrato numa obra que **já existe** — o caminho de volta para o cliente de plano que ficou sem. Um contrato aberto por vez |
 | `plano_visitas_gerar(contrato)` | cria as visitas previstas, uma por endereço, no meio do contrato |
 | `plano_visita_registrar(visita, data, equipe, laudo, obs)` | dá baixa numa visita |
 | `plano_desfecho(contrato, desfecho, motivo, plano, valor, forma, meses, aguardando)` | fecha o contrato como `renovou`/`nao_renovou` e, se renovou, já abre o novo na mesma chamada |
@@ -565,6 +584,23 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     Corrigido em 15/09. Antes de acrescentar efeito colateral a uma mudança de
     campo, **procure se o campo não é gravado por mais de um caminho**.
 
+12. **Cadastro parcial que devolve `ok: true` é pior que erro.** O cadastro de
+    cliente de plano grava cliente, obra, usinas, vínculos e ficha, e só cria o
+    contrato `if v_plano_cod is not null`. Sem plano escolhido, gravava tudo,
+    dizia "Cadastrado ✓" e o cliente **não aparecia em lugar nenhum** — porque o
+    painel de planos lê `from plano_contratos`. A pessoa vai embora achando que
+    gravou. Duas lições: quando uma parte do cadastro é opcional, **a tela tem de
+    dizer a consequência de pular** (o aviso cinza de "sem contrato por enquanto"
+    não era lido), e **quem some de um painel precisa de um lugar onde aparece**.
+    Antes de deixar um campo opcional, pergunte: sem ele, esse registro ainda é
+    visível em alguma tela?
+
+13. **Botão que só existe numa tela não existe para quem trabalha na outra.** O
+    "Registrar 1º pagamento" morava só no card da obra, no `painel.html`. Quem
+    cuida do pós-venda vivia no `posvenda.html`, via "aguardando o 1º pagamento"
+    e não tinha o que fazer com a informação. Corrigido em 16/09. Quando uma tela
+    **mostra** um estado que pede ação, ela precisa oferecer a ação.
+
 ---
 
 ## 10. Estado e pendências
@@ -623,6 +659,14 @@ significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
       tarifa) foram criadas em setembro **depois** da data delas, então a
       primeira chance real é em outubro. Não estão quebradas — estão por
       provar. Vale rodar cada uma em modo simular antes de outubro.
+- [ ] **Fechar o contrato do UNI AUTO POSTO DE ARACATUBA LTDA.** Cadastrado em
+      16/09 como cliente de plano — cliente, obra, 2 usinas (235 kWp, 420
+      módulos, Solarbens, herdadas) e ficha, **sem contrato**, porque o plano
+      ficou em branco. É um **teste de 6 meses**, e com 420 módulos ele cai na
+      `completo_especial`, que não tem preço de tabela: o valor é decisão do
+      Vitor. O botão está em Planos → Acompanhamento → "Cliente de plano sem
+      contrato" → **fechar contrato**. Enquanto não fechar, ele não entra em
+      receita, potencial nem aviso de vencimento.
 - [ ] **Registrar o 1º pagamento da TAYS VALESE DIAS DO PRADO.** Primeiro
       contrato pago do sistema: Completo anual, R$ 2.990,00, duas usinas
       instaladas pela **Eco Solar** (açougue em Araçatuba 29,25 kWp, rancho em

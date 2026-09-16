@@ -1093,6 +1093,36 @@ function renderPainelPlanos(){
      +'</div>';
   }
 
+  /* Cliente de plano existe POR CAUSA do plano. Sem contrato ele nao entra em
+     nenhum numero deste painel e some da tela -- foi o que aconteceu com o UNI
+     AUTO POSTO em 16/09: cliente, obra, duas usinas e ficha gravados, contrato
+     zero, invisivel. Aqui ele aparece com o botao que falta. */
+  const SC = PAI.sem_contrato||[];
+  if(SC.length){
+    h+='<div class="sec"><h3>⚠️ Cliente de plano sem contrato'
+      +' <span class="tag">'+SC.length+'</span></h3>'
+      +'<div class="dica">Cadastrado como cliente de plano, mas sem contrato aberto — '
+      +'então não entra em receita, potencial nem aviso de vencimento. Feche o contrato '
+      +'para ele começar a contar.</div>';
+    SC.forEach(function(c){
+      // completo_anual nulo e a faixa "sob consulta": moedaBR(null) imprimiria
+      // R$ 0,00, que e numero inventado
+      const ref = c.completo_anual!=null
+        ? 'tabela: '+moedaBR(c.completo_anual)+'/ano'
+        : 'valor sob consulta';
+      h+='<div class="chkline" style="cursor:default">'
+        +'<div class="cn"><b>'+esc(c.cliente)+'</b>'
+        +'<span>'+(c.modulos||'?')+' módulos · '+n(c.usinas)
+        +(n(c.usinas)===1?' usina':' usinas')
+        +' · '+esc(c.completo_nome||'porte indefinido')+' · '+ref+'</span></div>'
+        +'<button class="stb" onclick="abrirFicha(\''+c.obra_id+'\')">ficha</button>'
+        +'<button class="stb prim" style="margin-left:6px" '
+        +'onclick="formContrato(\''+c.obra_id+'\')">fechar contrato</button>'
+        +'</div><div id="ct'+c.obra_id+'"></div>';
+    });
+    h+='</div>';
+  }
+
   // o potencial, que é o número que interessa
   h+='<div class="plpot">'
    +'<div class="lb">Potencial da carteira</div>'
@@ -1155,6 +1185,13 @@ function renderPainelPlanos(){
       +'<span style="font-size:12px;font-weight:800;color:var(--green-l)">'+valor+'</span>'
       +'<button class="stb" style="margin-left:9px" '
       +'onclick="event.stopPropagation();irEnviar(\''+c.obra_id+'\')">proposta</button>'
+      // contrato fechado e ainda nao pago: a unica acao que ele pede e a baixa
+      // do 1o pagamento, e ate 16/09 esse botao so existia no painel de obras
+      +((esperando && c.contrato_id)
+         ? '<button class="stb prim" style="margin-left:6px" '
+           +'onclick="event.stopPropagation();registrarPagamento(\''+c.contrato_id+'\')">'
+           +'💰 1º pagamento</button>'
+         : '')
       // A janela de decisao. `dias` so existe depois que o contrato comecou --
       // n(null) devolve 0, entao testar o `d` ja convertido punha o botao em
       // quem ainda espera o 1o pagamento, que nao tem desfecho nenhum.
@@ -1167,6 +1204,146 @@ function renderPainelPlanos(){
   });
   h+='</div>';
   return h;
+}
+
+/* ---------- DAR BAIXA NO 1o PAGAMENTO ----------
+   O contrato fica em `aguardando_pagamento` ate o dinheiro entrar, e e a data
+   do pagamento que define inicio e fim. Quem calcula e plano_registrar_pagamento
+   no banco, para a conta dos meses nao existir em dois lugares.
+
+   Ate 16/09 este botao so existia no card da obra, no painel. Quem trabalha o
+   pos-venda nesta tela via "aguardando o 1o pagamento" e nao tinha o que fazer
+   com a informacao. Reaproveita a caixa do desfecho: os dois botoes nunca
+   aparecem juntos -- um exige `esperando`, o outro exige `!esperando`. */
+function registrarPagamento(contratoId){
+  const box=document.getElementById('fd'+contratoId); if(!box) return;
+  if(box.innerHTML){ box.innerHTML=''; return; }
+  const hoje=new Date().toISOString().slice(0,10);
+  box.innerHTML='<div class="ncsec">'
+   +'<div class="nctit">Quando o 1º pagamento entrou?</div>'
+   +'<div class="ncdica">É esta data que define o início e o fim do contrato. '
+   +'Se entrou semana passada, use a data de lá — não a de hoje.</div>'
+   +'<div class="ncg2">'
+   +'<label>Data do pagamento<input id="pg_data'+contratoId+'" type="date" value="'+hoje+'"></label>'
+   +'<label>&nbsp;<button class="stb prim" style="width:100%" '
+     +'onclick="pgConfirmar(\''+contratoId+'\')">✓ Registrar</button></label>'
+   +'</div></div>';
+}
+
+async function pgConfirmar(contratoId){
+  const d=(((document.getElementById('pg_data'+contratoId)||{}).value)||'').trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ toast('Informe a data do pagamento'); return; }
+  const r=await sb.rpc('plano_registrar_pagamento',{p_contrato:contratoId, p_data:d});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast('Contrato ativo até '+dataBR((r.data||{}).fim)+' ✓');
+  carregarPlanos();
+}
+
+/* ---------- FECHAR O CONTRATO DE QUEM FICOU SEM ----------
+   plano_cadastrar_cliente so cria o contrato quando o plano foi escolhido --
+   deixar em branco e legitimo (o UNI AUTO tem 420 modulos e cai na
+   completo_especial, sem preco de tabela), mas ate 16/09 o cliente sumia do
+   painel depois disso, porque get_painel_planos le `from plano_contratos`.
+   Aqui ele reaparece e ganha o contrato sem precisar cadastrar de novo. */
+function formContrato(obraId){
+  const box=document.getElementById('ct'+obraId); if(!box) return;
+  if(box.innerHTML){ box.innerHTML=''; return; }
+  const SC=((PAI&&PAI.sem_contrato)||[]).find(function(x){ return x.obra_id===obraId; });
+  const P=(PLN&&PLN.planos)||[];
+  let ops='<option value="">— escolha o plano —</option>';
+  P.forEach(function(p){
+    const sel=(SC && SC.completo_cod===p.codigo)?' selected':'';
+    ops+='<option value="'+esc(p.codigo)+'" data-anual="'+(p.anual!=null?p.anual:'')+'"'+sel+'>'
+      +esc(p.nome)+(p.anual!=null?' · '+moedaBR(p.anual)+'/ano':' · sob consulta')+'</option>';
+  });
+  box.innerHTML='<div class="ncsec">'
+   +'<div class="nctit">Contrato de '+esc((SC&&SC.cliente)||'')+'</div>'
+   +'<div class="ncg2">'
+   +'<label>Plano<select id="ct_plano'+obraId+'" onchange="ctPreco(\''+obraId+'\')">'+ops+'</select></label>'
+   +'<label>Valor (R$)<input id="ct_valor'+obraId+'" type="number" step="0.01" inputmode="decimal"'
+     +(SC && SC.completo_anual!=null?' value="'+SC.completo_anual+'"':'')+'></label>'
+   +'</div>'
+   +'<div class="ncg3">'
+   +'<label>Cobrança<select id="ct_forma'+obraId+'" onchange="ctForma(\''+obraId+'\')">'
+     +'<option value="anual">Anual</option><option value="mensal">Mensal</option>'
+     +'<option value="cortesia">Cortesia</option></select></label>'
+   +'<label>Duração<select id="ct_meses'+obraId+'">'
+     +'<option value="12">12 meses</option><option value="6">6 meses</option>'
+     +'<option value="24">24 meses</option><option value="36">36 meses</option></select></label>'
+   +'<label>Início<input id="ct_inicio'+obraId+'" type="date" disabled></label>'
+   +'</div>'
+   +'<label class="ncck"><input type="checkbox" id="ct_aguard'+obraId+'" checked '
+     +'onchange="document.getElementById(\'ct_inicio'+obraId+'\').disabled=this.checked"> '
+     +'Começa no 1º pagamento</label>'
+   +'<label style="display:block;margin-top:9px">O que foi combinado'
+     +'<input id="ct_obs'+obraId+'" placeholder="teste de 6 meses, visita anual, laudo..."></label>'
+   +'<div class="plbtns" style="margin-top:9px">'
+   +'<button class="stb" onclick="ctSalvar(\''+obraId+'\',true)">🔍 Conferir</button>'
+   +'<button class="stb prim" onclick="ctSalvar(\''+obraId+'\',false)">💾 Fechar contrato</button>'
+   +'</div><div id="ctprev'+obraId+'"></div></div>';
+  ctPreco(obraId);
+}
+
+/* Cortesia nao tem pagamento para aguardar. Deixar "comeca no 1o pagamento"
+   marcado punha o contrato em aguardando_pagamento para sempre: sem inicio,
+   sem fim, sem contar em lugar nenhum e sem ninguem para dar baixa. O banco
+   recusa; aqui a tela ja resolve em vez de deixar errar. */
+function ctForma(obraId){
+  const f=(document.getElementById('ct_forma'+obraId)||{}).value;
+  const ck=document.getElementById('ct_aguard'+obraId);
+  const dt=document.getElementById('ct_inicio'+obraId);
+  const vl=document.getElementById('ct_valor'+obraId);
+  if(!ck||!dt) return;
+  if(f==='cortesia'){
+    ck.checked=false; ck.disabled=true;
+    dt.disabled=false;
+    if(!dt.value) dt.value=new Date().toISOString().slice(0,10);
+    if(vl){ vl.value=''; vl.disabled=true; }
+  } else {
+    ck.disabled=false;
+    dt.disabled=ck.checked;
+    if(vl) vl.disabled=false;
+  }
+}
+
+function ctPreco(obraId){
+  const sel=document.getElementById('ct_plano'+obraId), inp=document.getElementById('ct_valor'+obraId);
+  if(!sel||!inp) return;
+  const op=sel.options[sel.selectedIndex];
+  const a=op?op.getAttribute('data-anual'):'';
+  // faixa sob consulta nao tem preco de tabela: deixar em branco para ser
+  // digitado, em vez de sugerir zero
+  inp.value = a || '';
+}
+
+async function ctSalvar(obraId, simular){
+  const v=function(x){ return (((document.getElementById(x+obraId)||{}).value)||'').trim(); };
+  const esperando=!!(document.getElementById('ct_aguard'+obraId)||{}).checked;
+  const p={ obra_id:obraId, plano_codigo:v('ct_plano'), valor:v('ct_valor'),
+            forma:v('ct_forma'), meses:v('ct_meses'),
+            aguardando:esperando, inicio:v('ct_inicio'),
+            observacao:v('ct_obs') };
+  const r=await sb.rpc('plano_contrato_criar',{ p:p, p_simular:!!simular });
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  const d=r.data||{};
+  const prev=document.getElementById('ctprev'+obraId);
+  if(!d.ok){
+    if(prev) prev.innerHTML='<div class="ncerro"><b>Falta corrigir:</b><ul>'
+      +(d.erros||[]).map(function(e){ return '<li>'+esc(e)+'</li>'; }).join('')+'</ul></div>';
+    return;
+  }
+  if(simular){
+    if(prev) prev.innerHTML='<div class="ncok"><b>Confira antes de gravar</b><br>'
+      +esc(d.cliente)+' · <b>'+esc(d.plano)+'</b> · '
+      +(d.forma==='cortesia'?'cortesia':moedaBR(d.valor))+' · '+n(d.meses)+' meses<br>'
+      +(d.status==='aguardando_pagamento'
+         ? '<span style="color:var(--gold)">só começa no 1º pagamento</span>'
+         : 'ativo até '+dataBR(d.fim))+'</div>';
+    return;
+  }
+  toast('Contrato fechado ✓');
+  carregarPlanos();
 }
 
 /* ---------- FIDELIZOU OU NAO ----------
@@ -1723,7 +1900,8 @@ function renderNovoCliente(){
    +'<label>Valor combinado (R$)<input id="nc_valor" type="number" step="0.01" inputmode="decimal"></label>'
    +'</div>'
    +'<div class="ncg3">'
-   +'<label>Cobrança<select id="nc_forma"><option value="anual">Anual</option>'
+   +'<label>Cobrança<select id="nc_forma" onchange="ncForma()">'
+     +'<option value="anual">Anual</option>'
      +'<option value="mensal">Mensal</option><option value="cortesia">Cortesia</option></select></label>'
    +'<label>Duração<select id="nc_meses"><option value="12">12 meses</option>'
      +'<option value="6">6 meses</option><option value="24">24 meses</option>'
@@ -1747,6 +1925,25 @@ function renderNovoCliente(){
    +'<button class="stb prim" id="ncBtnGrava" onclick="ncGravar()" disabled>💾 Gravar cadastro</button>'
    +'</div><div id="ncPrev"></div></div>';
   return h;
+}
+
+/* mesma trava do ctForma, no cadastro de cliente novo */
+function ncForma(){
+  const f=((document.getElementById('nc_forma')||{}).value)||'';
+  const ck=document.getElementById('nc_aguard');
+  const dt=document.getElementById('nc_inicio');
+  const vl=document.getElementById('nc_valor');
+  if(!ck||!dt) return;
+  if(f==='cortesia'){
+    ck.checked=false; ck.disabled=true;
+    dt.disabled=false;
+    if(!dt.value) dt.value=new Date().toISOString().slice(0,10);
+    if(vl){ vl.value=''; vl.disabled=true; }
+  } else {
+    ck.disabled=false;
+    dt.disabled=ck.checked;
+    if(vl) vl.disabled=false;
+  }
 }
 
 function ncColeta(){
@@ -1803,7 +2000,13 @@ async function ncSimular(){
         +'/ano pelo endereço extra — confira se o valor combinado já inclui.</span><br>';
     }
   } else {
-    h+='<span style="color:var(--muted)">Sem contrato de plano por enquanto.</span><br>';
+    // cinza discreto era facil demais de nao ler: o cadastro grava, devolve
+    // sucesso, e o cliente nao aparece em lugar nenhum do Acompanhamento.
+    // Aconteceu com o UNI AUTO POSTO em 16/09.
+    h+='<span style="color:var(--gold)">⚠️ <b>Sem plano escolhido.</b> O cadastro grava '
+     +'o cliente, as usinas e a ficha, mas <b>sem contrato</b> — e sem contrato ele não '
+     +'entra em receita, potencial nem aviso de vencimento. Vai aparecer em '
+     +'<b>"Cliente de plano sem contrato"</b>, no Acompanhamento, para fechar depois.</span><br>';
   }
   h+='<span style="color:var(--muted)">Link público: '+esc(d.slug)+'</span>';
   (d.avisos||[]).forEach(function(a){
