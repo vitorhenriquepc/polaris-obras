@@ -729,7 +729,7 @@ const SB_KEY='sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const LOGO_D='https://obras.polarisenergiasolar.com/logo.png', LOGO_L='https://obras.polarisenergiasolar.com/logo-claro.png';
 let DADOS=null, FILTRO='', BUSCA='';
-let VISAO='jornada', KB=null, BRINDES=[];
+let VISAO='jornada', KB=null;
 try{VISAO=localStorage.getItem('polaris-pv-visao')||'jornada'}catch(e){}
 
 function tema(t){document.documentElement.setAttribute('data-theme',t);
@@ -783,8 +783,16 @@ async function boot(){
   render();
 }
 
+// Promotor (nota 9-10) que ainda nao confirmou a avaliacao no Google.
+// get_posvenda_lista ja devolve 'avaliou_google' por cliente desde sempre --
+// a tela so nunca tinha lido. A contagem sai da propria lista, nao de estimativa.
+function ehGooglePendente(c){
+  return !!c.ativo && c.nps!=null && c.nps>=9 && !c.avaliou_google;
+}
 function render(){
   const R=DADOS.resumo||{}, cl=DADOS.clientes||[];
+  const googPend=cl.filter(ehGooglePendente).length;
+  const brEntregue=cl.filter(c=>c.brinde && c.brinde_retirado).length;
   const hora=new Date().getHours();
   const saud=hora<12?'Bom dia':(hora<18?'Boa tarde':'Boa noite');
   const pend=(R.respostas_pendentes||0);
@@ -817,14 +825,16 @@ function render(){
       <button class="vtab ${VISAO==='usinas'?'on':''}" onclick="setVisao('usinas')">Usinas</button>
       <button class="vtab ${VISAO==='auto'?'on':''}" onclick="setVisao('auto')">Automações</button>
     </div>
-    <div class="search">🔍<input id="q" placeholder="Buscar cliente ou contrato..." value="${esc(BUSCA)}" oninput="setBusca(this.value)"></div>
+    <div class="search">🔍<input id="q" placeholder="Buscar cliente, contrato ou código do brinde..." value="${esc(BUSCA)}" oninput="setBusca(this.value)"></div>
     ${VISAO==='lista'?`
     <button class="chip ${FILTRO===''?'on':''}" onclick="setFiltro('')">Todos</button>
     <button class="chip ${FILTRO==='pendentes'?'on':''}" onclick="setFiltro('pendentes')">Com pendência</button>
     <button class="chip ${FILTRO==='sem_nps'?'on':''}" onclick="setFiltro('sem_nps')">Sem NPS</button>
     <button class="chip ${FILTRO==='sem_aniv'?'on':''}" onclick="setFiltro('sem_aniv')">🎂 Sem aniversário</button>
     <button class="chip ${FILTRO==='brinde'?'on':''}" onclick="setFiltro('brinde')">🎁 Brinde a retirar${R.brinde_a_retirar?' <b>'+R.brinde_a_retirar+'</b>':''}</button>
-    <button class="chip ${FILTRO==='usina'?'on':''}" onclick="setFiltro('usina')">⚡ Usina com problema${R.usinas_com_problema?' <b>'+R.usinas_com_problema+'</b>':''}</button>`:''}
+    <button class="chip ${FILTRO==='usina'?'on':''}" onclick="setFiltro('usina')">⚡ Usina com problema${R.usinas_com_problema?' <b>'+R.usinas_com_problema+'</b>':''}</button>
+    <button class="chip ${FILTRO==='google'?'on':''}" onclick="setFiltro('google')">⭐ Google pendente${googPend?' <b>'+googPend+'</b>':''}</button>
+    <button class="chip ${FILTRO==='entregue'?'on':''}" onclick="setFiltro('entregue')">✓ Brinde entregue${brEntregue?' <b>'+brEntregue+'</b>':''}</button>`:''}
   </div>`;
 
   if(VISAO==='indic'){
@@ -840,11 +850,6 @@ function render(){
   if(VISAO==='planos'){
     document.getElementById('app').innerHTML=h+'<div id="plbox"><div class="center"><div class="spin"></div>Carregando planos...</div></div>';
     carregarPlanos();
-    return;
-  }
-  if(VISAO==='brindes'){
-    document.getElementById('app').innerHTML=h+'<div id="brbox"><div class="center"><div class="spin"></div>Carregando brindes...</div></div>';
-    carregarBrindes();
     return;
   }
   if(VISAO==='usinas'){
@@ -871,8 +876,12 @@ function render(){
   if(FILTRO==='indicacao') arr=arr.filter(c=>c.pendentes>0);
   if(FILTRO==='brinde') arr=arr.filter(c=>c.brinde && !c.brinde_retirado);
   if(FILTRO==='usina') arr=arr.filter(c=>c.usina_estado && c.usina_estado!=='normal');
+  if(FILTRO==='google') arr=arr.filter(ehGooglePendente);
+  if(FILTRO==='entregue') arr=arr.filter(c=>c.brinde && c.brinde_retirado);
   if(BUSCA){const b=BUSCA.toLowerCase();
-    arr=arr.filter(c=>(c.cliente||'').toLowerCase().includes(b)||(c.contrato||'').includes(b));}
+    arr=arr.filter(c=>(c.cliente||'').toLowerCase().includes(b)
+      ||(c.contrato||'').includes(b)
+      ||(c.voucher||'').toLowerCase().includes(b));}
 
   h+=faixaFiltro(arr.length);
 
@@ -897,7 +906,10 @@ function render(){
         <div class="meta">${bits.join('<span style="opacity:.4">·</span>')}</div>
         <div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">
         ${c.pendentes?`<span class="tag gold">💬 ${c.pendentes} para tratar</span>`:''}
-        ${(c.brinde && !c.brinde_retirado)?`<span class="tag gold">🎁 ${c.brinde==='fone'?'fone':'copo'} a retirar</span>`:''}
+        ${(c.brinde && !c.brinde_retirado)?`<span class="tag gold">🎁 ${c.brinde==='fone'?'fone':'copo'} a retirar${c.voucher?` · <b style="font-family:monospace;letter-spacing:1px">${esc(c.voucher)}</b>`:''}</span>`:''}
+        ${(c.brinde && c.brinde_retirado)?`<span class="tag green">✓ ${c.brinde==='fone'?'fone':'copo'} entregue</span>`:''}
+        ${ehGooglePendente(c)?`<span class="tag gold">⭐ Google pendente</span>`:''}
+        ${(c.nps!=null && c.nps>=9 && c.avaliou_google)?`<span class="tag green">✓ avaliou no Google</span>`:''}
         ${(c.usina_estado && c.usina_estado!=='normal')?`<span class="tag" style="border-color:rgba(224,163,62,.5);color:#e0a33e">⚡ ${esc(c.usina_rotulo||c.usina_estado)}${c.cliente_avisado?' · avisado':''}</span>`:''}
         ${(c.usina_pct!=null && c.usina_pct<85)?`<span class="tag" style="border-color:rgba(229,115,115,.5);color:#e57373">${c.usina_pct}% do previsto</span>`:''}
         ${(c.ativo && !c.nascimento_dia)?`<span class="tag">🎂 sem aniversário</span>`:''}
@@ -2744,85 +2756,6 @@ function renderMensagens(){
   return h+out;
 }
 
-async function carregarBrindes(){
-  var box=document.getElementById('brbox'); if(!box) return;
-  var r=await sb.rpc('get_brindes');
-  if(r.error){box.innerHTML='<div class="vazio">Não foi possível carregar os brindes.</div>';return;}
-  BRINDES=r.data||[];
-  box.innerHTML=renderBrindes();
-}
-function renderBrindes(){
-  var arr=BRINDES;
-  var b=(BUSCA||'').toLowerCase();
-  if(b) arr=arr.filter(function(x){
-    return (x.cliente||'').toLowerCase().indexOf(b)>=0 || (x.voucher||'').toLowerCase().indexOf(b)>=0;});
-  var pend=arr.filter(function(x){return !x.entregue_em;});
-  var ent=arr.filter(function(x){return !!x.entregue_em;});
-  var semG=arr.filter(function(x){return !x.avaliou_google_em;});
-
-  var h='<div class="rgstat">'+
-    bcard('',arr.length,'Brindes solicitados','')+
-    bcard('pend',pend.length,'A entregar','var(--gold)')+
-    bcard('ent',ent.length,'Entregues','var(--green-l)')+
-    bcard('semg',semG.length,'Sem avaliação no Google','#e07070')+
-  '</div>';
-  if(BRF==='pend') arr=pend;
-  else if(BRF==='ent') arr=ent;
-  else if(BRF==='semg') arr=semG;
-  if(!arr.length) return h+'<div class="vazio"><span class="i">🥤</span>Nenhum brinde solicitado ainda.<br>'+
-    'O cliente escolhe o brinde ao responder a pesquisa com nota 9 ou 10.</div>';
-  h+='<div class="trjres"><div class="dica" style="margin:0 0 8px">Confira a avaliação no Google antes de entregar. Toque no código para copiar.</div>';
-  for(var i=0;i<arr.length;i++) h+=linhaBrinde(arr[i]);
-  return h+'</div>';
-}
-let BRF='';
-function bcard(k,v,l,cor){
-  return '<button class="rgs b'+(BRF===k&&k?' sel':'')+'" onclick="setBrf(\''+k+'\')">'+
-    '<div class="n"'+(cor?' style="color:'+cor+'"':'')+'>'+v+'</div>'+
-    '<div class="l">'+esc(l)+'</div></button>';
-}
-function setBrf(k){ BRF=(BRF===k?'':k); document.getElementById('brbox').innerHTML=renderBrindes(); }
-function linhaBrinde(b){
-  var nome=b.brinde==='copo'?'Copo térmico':'Fone Bluetooth';
-  var emoji=b.brinde==='copo'?'🥤':'🎧';
-  var d=b.brinde_em?dataBR(b.brinde_em):'—';
-  var g=b.avaliou_google_em
-    ? '<span class="tag green">avaliou no Google</span>'
-    : '<span class="tag gold">avaliação pendente</span>';
-  var h='<div class="chkline" style="cursor:default">'+
-    '<span style="font-size:22px;flex-shrink:0">'+emoji+'</span>'+
-    '<div class="cn"><b>'+esc(b.cliente)+'</b>'+
-    '<span>'+esc(nome)+(b.contrato?' · #'+esc(b.contrato):'')+' · ⭐ '+n(b.nota)+'/10 · '+d+'</span>'+
-    '<div class="trjflags" style="margin-top:6px">'+g+
-    (b.entregue_em?'<span class="tag green">entregue</span>':'')+'</div></div>'+
-    '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0">'+
-    '<button class="stb" style="font-family:monospace;letter-spacing:1.5px;color:var(--gold)" '+
-      'onclick="copiarCod(\''+b.voucher+'\')">'+esc(b.voucher)+'</button>';
-  if(!b.avaliou_google_em)
-    h+='<button class="stb" onclick="confirmarGoogle(\''+b.voucher+'\')">Confirmar Google</button>';
-  if(!b.entregue_em)
-    h+='<button class="stb" style="border-color:var(--green-l);color:var(--green-l)" '+
-       'onclick="entregarBrinde(\''+b.voucher+'\')">Entregar</button>';
-  return h+'</div></div>';
-}
-function copiarCod(v){
-  navigator.clipboard.writeText(v).then(function(){toast('Código copiado');})
-    .catch(function(){prompt('Código:',v);});
-}
-async function confirmarGoogle(v){
-  if(!confirm('Confirmar que este cliente avaliou a Polaris no Google?\n\nVerifique antes no Google Meu Negócio.'))return;
-  var r=await sb.rpc('marcar_avaliou_google',{p_voucher:v});
-  if(r.error||(r.data&&r.data.erro)){toast('Erro: '+((r.data&&r.data.erro)||r.error.message));return;}
-  toast('Avaliação confirmada');
-  await recarregarTudo();
-}
-async function entregarBrinde(v){
-  if(!confirm('Confirmar a entrega do brinde '+v+'?'))return;
-  var r=await sb.rpc('marcar_brinde_entregue',{p_voucher:v});
-  if(r.error||(r.data&&r.data.erro)){toast('Erro: '+((r.data&&r.data.erro)||r.error.message));return;}
-  toast('Brinde entregue');
-  await recarregarTudo();
-}
 // Recarrega tudo e redesenha a visão aberta.
 // Antes, cada ação atualizava só um cache e o resto ficava velho.
 async function recarregarTudo(){
@@ -2834,7 +2767,7 @@ async function recarregarTudo(){
     if(a && a.data) DADOS=a.data;
     if(b && b.data) KB=b.data;
   }catch(e){}
-  BRINDES=[]; RG=null;   // força releitura das outras abas
+  RG=null;   // força releitura das outras abas
   render();
 }
 function setVisao(v){VISAO=v;try{localStorage.setItem('polaris-pv-visao',v)}catch(e){}render();}
@@ -2877,7 +2810,11 @@ const FILTRO_ROT={
   pendentes:'Com resposta para tratar',
   sem_nps:'Sem pesquisa respondida',
   sem_aniv:'Sem data de aniversário',
-  indicacao:'Indicações aguardando'
+  indicacao:'Indicações aguardando',
+  brinde:'Brinde a retirar',
+  usina:'Usina com problema',
+  google:'Promotor sem avaliação no Google',
+  entregue:'Brinde já entregue'
 };
 function faixaFiltro(qtd){
   if(!FILTRO) return '';
@@ -3311,7 +3248,13 @@ function renderFicha(D){
         ${n.brinde?`<span class="tag">${n.brinde==='copo'?'🥤 Copo térmico':'🎧 Fone'} · ${esc(n.voucher||'')}</span>`:''}
         ${n.entregue_em?'<span class="tag green">✓ brinde entregue</span>':(n.brinde?'<span class="tag gold">brinde pendente</span>':'')}
         ${n.avaliou_google_em?'<span class="tag green">✓ avaliou no Google</span>':(n.nota>=9?'<span class="tag gold">Google pendente</span>':'')}
-      </div></div>`;
+      </div>
+      ${(D.pode_agir && (!n.avaliou_google_em || (n.brinde && !n.entregue_em)))?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+        ${!n.avaliou_google_em?`<button class="mini" onclick="confirmarGoogleObra('${o.id}',${n.nota})">✓ Confirmar avaliação no Google</button>`:''}
+        ${(!n.avaliou_google_em && n.nota>=9)?`<button class="mini" onclick="cobrarGoogle('${o.id}')">⭐ Cobrar no grupo</button>`:''}
+        ${(n.brinde && !n.entregue_em)?`<button class="mini" onclick="entregarBrindeObra('${o.id}',${n.nota})">🎁 Marcar brinde entregue</button>`:''}
+      </div>`:''}
+      </div>`;
   } else {
     h+=`<div class="vazio">Ainda não respondeu a pesquisa.</div>`;
   }
@@ -3608,31 +3551,84 @@ async function limparAniversario(id){
   await recarregarTudo();
   await abrirFicha(id);
 }
+// O convite do Google sai UMA vez, minutos depois da resposta, e acabou --
+// nps-resposta agenda, nps-google-fila manda e apaga o agendamento. Nao havia
+// segunda cobranca em lugar nenhum. Esta aqui e na mao, e o clique e a
+// aprovacao humana da regra 3.5: a pessoa le o texto inteiro antes de mandar.
+// O texto vem do banco (nps_cobranca_google), com o link do Google saindo da
+// config -- nada de endereco chumbado na tela.
+async function cobrarGoogle(id){
+  const r=await sb.rpc('nps_cobranca_google',{p_obra:id});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  const d=r.data||{};
+  if(d.erro){ toast(d.erro); return; }
+  const antes = d.cobrancas>0
+    ? '\n\n⚠️ Este cliente já foi cobrado '+d.cobrancas+' vez'+(d.cobrancas>1?'es':'')+'.'
+    : '';
+  if(!confirm('Enviar esta mensagem no grupo de '+d.cliente+'?'+antes+'\n\n— — —\n'+d.texto)) return;
+  toast('Enviando no grupo... ⭐');
+  const e=await sb.functions.invoke('notificar-grupo',{body:{grupo_id:d.grupo_id, message:d.texto}});
+  if(e.error||(e.data&&e.data.error)){ toast('Erro ao enviar: '+((e.data&&e.data.error)||e.error.message)); return; }
+  const m=await sb.rpc('registrar_lembrete_google',{p_obra:id});
+  if(m.error||(m.data&&m.data.erro)) toast('⚠️ Enviado, mas não consegui registrar a cobrança');
+  else toast('Cobrança enviada ✓');
+  await recarregarTudo();
+  await abrirFicha(id);
+}
+
+// Confirmar a avaliacao no Google e dar baixa no brinde so existiam na aba
+// "Brindes", removida em 10/09 -- e desde entao nao havia caminho nenhum na tela.
+// Vai pela OBRA, nao pelo voucher: marcar_avaliou_google() e
+// marcar_brinde_entregue() pedem voucher, e promotor que nao escolheu brinde
+// nao tem voucher nenhum -- eram exatamente os dois casos pendentes hoje.
+// registrar_nps_manual e coalesce-safe: so preenche o que esta nulo, nunca
+// desmarca o que ja foi marcado (regra 3.6).
+async function confirmarGoogleObra(id, nota){
+  if(!confirm('Confirmar que este cliente avaliou a Polaris no Google?\n\nVerifique antes no Google Meu Negócio.')) return;
+  const r=await sb.rpc('registrar_nps_manual',{p_obra:id,p_nota:nota,p_avaliou_google:true});
+  if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
+  toast('Avaliação confirmada ✓');
+  await recarregarTudo();
+  await abrirFicha(id);
+}
+async function entregarBrindeObra(id, nota){
+  if(!confirm('Confirmar a entrega do brinde para este cliente?')) return;
+  const r=await sb.rpc('registrar_nps_manual',{p_obra:id,p_nota:nota,p_brinde_entregue:true});
+  if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
+  toast('Brinde entregue ✓');
+  await recarregarTudo();
+  await abrirFicha(id);
+}
 function formNPS(id, notaAtual){
   OBRA_ABERTA=id;
   const el=document.getElementById('fnps');
   if(el.innerHTML){ el.innerHTML=''; return; }
   let notas='';
   for(let i=0;i<=10;i++) notas+=`<option value="${i}" ${i===notaAtual?'selected':''}>${i}</option>`;
+  // "Corrigir registro" abria em branco e parecia que nada tinha sido gravado.
+  // O que ja existe vem da ficha aberta; o que ja foi marcado abre marcado e
+  // travado, porque registrar_nps_manual nao desmarca (regra 3.6).
+  const cur=(FICHA&&FICHA.nps)||{};
   el.innerHTML=`<div class="reg">
     <div class="lin">
       <div class="cp" style="max-width:110px"><label>Nota (0-10)</label>
         <select id="n_nota">${notaAtual==null?'<option value="">—</option>':''}${notas}</select></div>
       <div class="cp"><label>Quando respondeu</label>
-        <input type="date" id="n_data" value="${new Date().toISOString().slice(0,10)}"></div>
+        <input type="date" id="n_data" value="${(cur.criado_em||new Date().toISOString()).slice(0,10)}"></div>
     </div>
     <div class="cp" style="margin-bottom:9px"><label>Comentário (opcional)</label>
-      <textarea id="n_com" rows="2" placeholder="O que o cliente falou..."></textarea></div>
-    <label class="chk"><input type="checkbox" id="n_google"> Já avaliou no Google</label>
+      <textarea id="n_com" rows="2" placeholder="O que o cliente falou...">${esc(cur.comentario||'')}</textarea></div>
+    <label class="chk"><input type="checkbox" id="n_google" ${cur.avaliou_google_em?'checked disabled':''}> Já avaliou no Google${cur.avaliou_google_em?` <span style="color:var(--muted);font-weight:600">· confirmado ${quando(cur.avaliou_google_em)}</span>`:''}</label>
     <div class="lin">
       <div class="cp"><label>Brinde escolhido</label>
         <select id="n_brinde">
           <option value="">— nenhum —</option>
-          <option value="copo">🥤 Copo térmico</option>
-          <option value="fone">🎧 Fone Bluetooth</option>
+          <option value="copo" ${cur.brinde==='copo'?'selected':''}>🥤 Copo térmico</option>
+          <option value="fone" ${cur.brinde==='fone'?'selected':''}>🎧 Fone Bluetooth</option>
         </select></div>
     </div>
-    <label class="chk"><input type="checkbox" id="n_entregue"> Brinde já entregue</label>
+    <label class="chk"><input type="checkbox" id="n_entregue" ${cur.entregue_em?'checked disabled':''}> Brinde já entregue${cur.entregue_em?` <span style="color:var(--muted);font-weight:600">· ${quando(cur.entregue_em)}</span>`:''}</label>
+    ${cur.voucher?`<div class="dica" style="margin-top:2px">Voucher <b style="font-family:monospace;letter-spacing:1.5px;color:var(--gold)">${esc(cur.voucher)}</b></div>`:''}
     <button class="salvar" onclick="salvarNPS('${id}')">Salvar registro</button>
     <div class="dica">Use quando o cliente respondeu por WhatsApp, ligação ou pessoalmente — e não pelo link da pesquisa.</div>
   </div>`;

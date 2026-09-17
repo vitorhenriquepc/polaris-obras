@@ -190,6 +190,67 @@ pega isso.
 | `principal` | uma só por obra, garantido por índice único parcial |
 | `entrou_em` / `saiu_em` | vigência |
 
+### NPS e avaliação no Google
+⚠️ **O convite AUTOMÁTICO do Google sai UMA vez e nunca mais.** Quem agenda é o
+`nps-resposta`, no instante em que a nota entra (`nps.google_agendado_para`); a
+`nps-google-fila` manda uns minutos depois e apaga o agendamento. Não existe
+segunda cobrança automática, e não vai existir: a segunda é **na mão**, pelo
+botão *"⭐ Cobrar no grupo"* da ficha, onde o clique da pessoa é a aprovação da
+regra 3.5 — ela lê o texto inteiro antes de mandar. O texto vem de
+`nps_cobranca_google(obra)`, com o link saindo da `config.google_review_url` e
+o da pesquisa da `relatorio_base_url`; nada chumbado na tela. Ela recusa nota
+abaixo de 9, quem já avaliou e obra sem grupo.
+
+⚠️ **`nps_para_lembrete_google()` foi APAGADA em 17/09**, junto com a chave
+`lembrete_google_max`. Não tinha chamador nenhum desde que a fila virou
+`google_agendado_para` — ficava na documentação parecendo viva. A
+`lembrete_google_dias` (3) **ficou**: é o corte de dias do aviso das 8h.
+`registrar_lembrete_google()` também era morta e voltou, agora chamada pela
+tela (com trava de `is_autorizado()`), para carimbar cada cobrança manual.
+
+⚠️ **`nps.lembretes_google` conta mal até 17/09.** O `registrar_nps_manual`
+grava `1` já no insert, e 44 dos 51 são o backfill que a equipe digitou entre
+08/08 e 02/09 — não era lembrete nenhum. O KPI *"Lembretes enviados"* do
+`metricas.html` lia esse campo e **foi removido** (§3.1). No lugar entrou a
+divisão que importa: `automaticos` × `manuais` em `get_horarios_resposta`,
+ou seja quanto veio da esteira e quanto veio da mão da equipe. Daqui em diante
+o campo só cresce por cobrança de verdade.
+
+⚠️ **Ser promotor já libera o convite — a ressalva não cala mais.** Decisão do
+Vitor em 17/09. Até então o `nps-resposta` exigia `nota >= 9` **e** `tipo =
+elogio` puro, e nota 10 com qualquer ressalva junto ficava sem convite **para
+sempre**, porque o automático sai uma vez só. Hoje `pedeGoogle` é só
+`nota >= 9`, e `avisaEquipe` virou condição **independente** (`ressalva ou nota
+< 9`) — quem apontou algo continua acionando a equipe e agora também recebe o
+convite. O **agradecimento** segue a ressalva, não o convite: quem reclamou
+recebe *"obrigado pela sinceridade"*, nunca a comemoração.
+
+Conferido em modo simular, sem gravar nem enviar: nota 10 com ressalva devolve
+`pede_google: true, avisa_equipe: true`; nota 6 devolve `false/true`; elogio
+limpo devolve `true/false`.
+
+⚠️ **O convite e o aviso de ressalva saem quase juntos.** O agradecimento sai
+na hora e o convite ~3 minutos depois, enquanto o aviso à equipe também acabou
+de sair — ou seja, o cliente é convidado a avaliar publicamente **antes** de
+alguém ter resolvido o que ele apontou. Foi decidido assim; se um dia
+incomodar, o lugar de segurar é o `google_agendado_para` do `nps-resposta`.
+
+⚠️ **O NPS é por CLIENTE desde 17/09** (decisão do Vitor). A tabela `nps`
+continua **única por `obra_id`** — o que mudou é quem é *perguntado*:
+`obras_para_nps()` exclui obra cujo `cliente_id` já respondeu em outra. A trava
+**só vale quando `cliente_id` existe** (4 das 75 obras não têm, porque a tela
+grava `cliente` texto e o id vem depois); sem ele cai no comportamento antigo,
+por obra — o lado seguro, que nunca cala um NPS legítimo. Medido: **1 obra**
+muda de comportamento, o eletroposto do Bassetto (4674, etapa 1), cujo cliente
+já deu 10 na manutenção. Consequência a saber: quem comprar um **segundo
+sistema** daqui a dois anos também não será perguntado.
+
+**Medido em 17/09:** 55 obras ativas, 55 pediram a nota, **54 responderam
+(98%)**, 54 promotores (nota ≥ 9 em todas), **52 avaliaram no Google**, 51
+escolheram brinde, 50 entregues. 44 das 54 respostas são backfill manual — o
+caminho automático tem 10 registros e é de setembro. O resultado é ótimo, mas
+quem o fez foi a equipe; a esteira ainda está provando.
+
 `usinas`, `usina_dia`, `usina_geracao` · `clima_dia` · `v_indice_dia` ·
 `v_indice_regiao` (cidade com 5+ usinas ganha grupo próprio) ·
 `regua_contatos` + `regua_modelos` · `usina_marco` · `nps`
@@ -448,10 +509,11 @@ nenhuma delas. Ver pendência no §10.
 | `conferir_saude()` | conferência geral das 7h30 |
 | `casar_recebimentos(simular)` | casa entrada do banco com parcela |
 | `indicacoes_resumo(obra)` | funil; só conta o que fechou |
+| `pendencias_posvenda()` | o que a Lívia recebe às 8h — mensagem sem resposta, promotor sem avaliação no Google, brinde a entregar, sem NPS, sem aniversário; **com nome, não só número** |
 | `regua_fila(limite)` | o que sai hoje às 17h |
 | `regua_resumo_dia()` | o que a Lívia recebe às 11h |
-| `obras_para_nps()` | quem recebe o NPS: **só depois da última etapa da trilha** |
-| `nps_para_lembrete_google()` | quem recebe o convite do Google — mesma trava |
+| `obras_para_nps()` | quem recebe o NPS: **só depois da última etapa da trilha**, e **um por cliente** — quem já respondeu numa obra não é perguntado de novo |
+| `nps_cobranca_google(obra)` | o texto da **segunda cobrança** da avaliação, para a pessoa ler e mandar no grupo; recusa nota < 9, quem já avaliou e obra sem grupo |
 | `obra_ativa(obra)` | **a definição única de "está ativa"**: chegou na última etapa da própria trilha |
 | `obra_ativa_em(obra)` | desde quando está ativa (cai no `etapas_historico` se `data_conclusao` for nula) |
 | `obra_geracao_total(obra)` | **quanto a obra já gerou**: kWh, economia, desempenho e meses — a fonte única |
@@ -481,7 +543,8 @@ nenhuma delas. Ver pendência no §10.
 
 ## 6. Automações (horário de Brasília)
 
-07h30 conferência · 08h45 clima · 09h geração e manutenção ·
+**08h aviso de pendências do pós-venda** (seg–sex, `alerta-pendencias` →
+`resp_posvenda`) · 07h30 conferência · 08h45 clima · 09h geração e manutenção ·
 09h15/13h15/16h15 status das usinas · 10h20 gera mensagens (seg–sex) ·
 10h40 vincula usina nova · 11h resumo da régua (seg–sex) ·
 14h30 geração parcial (seg/qua/sex) · 17h dispara a régua (seg–sex) ·
@@ -507,8 +570,9 @@ conferidas uma a uma e nenhuma dispara cedo.
 trilha `manutencao` na etapa 4 é a última da própria trilha, então
 `obra_ativa()` devolve **true** — e sem trava a Tays receberia uma pesquisa
 perguntando como foi a instalação que a **Eco Solar** fez. Desde 15/09
-`obras_para_nps()` e `nps_para_lembrete_google()` cortam por
-`not coalesce(cliente_externo, false)`.
+`obras_para_nps()` corta por `not coalesce(cliente_externo, false)` — e a
+`nps_cobranca_google()`, a `pendencias_posvenda()` e a fila do `nps-resposta`
+seguem o mesmo critério.
 
 ---
 
@@ -715,6 +779,36 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     cuida do pós-venda vivia no `posvenda.html`, via "aguardando o 1º pagamento"
     e não tinha o que fazer com a informação. Corrigido em 16/09. Quando uma tela
     **mostra** um estado que pede ação, ela precisa oferecer a ação.
+
+17. **Tirar a aba não tira o código: deixa o botão órfão.** Em 10/09 a aba
+    "Brindes" do `posvenda.html` saiu e a Lista absorveu só o **brinde a
+    retirar**. O resto continuou no arquivo — `carregarBrindes`, `get_brindes`,
+    o cartão "Sem avaliação no Google" e o `confirmarGoogle()` — atrás de um
+    `if(VISAO==='brindes')` que **nenhum botão mais alcançava**. Sete dias sem
+    nenhum caminho na tela para confirmar avaliação no Google ou dar baixa em
+    brinde, e sem erro nenhum: o código parecia vivo. O `get_posvenda_lista` já
+    devolvia `avaliou_google` por cliente esse tempo todo, e a tela nunca leu.
+    Pior: `marcar_avaliou_google()` e `marcar_brinde_entregue()` pedem
+    **voucher**, e promotor que não escolheu brinde não tem voucher — eram
+    exatamente os **dois** casos pendentes em 17/09 (VALDETE, 4791, nota 10 pelo
+    WhatsApp). Ou seja: mesmo que a aba voltasse, aqueles dois não dariam para
+    confirmar. Corrigido em 17/09 pela **obra**, com `registrar_nps_manual`, que
+    é coalesce-safe (só preenche o que está nulo, nunca desmarca — regra 3.6).
+    Ao remover uma aba, **procure o `if(VISAO===...)` e o que só ele chamava**,
+    e pergunte que ação some junto.
+
+18. **Publicar edge function pelo MCP liga o `verify_jwt` de volta.** O
+    parâmetro tem default `true`, e omitir não é "manter como estava" — é
+    ligar. Em 17/09 eu republiquei a `alerta-pendencias` (que era `false`) sem
+    passar o campo e ela voltou `true`. O cron chama sem header `Authorization`
+    — só com o `cron_token` no corpo —, então o aviso das 8h da Lívia **passou
+    a devolver 401** e ia sumir sem ninguém notar: cron job "succeeded", porque
+    o `net.http_post` entrega e não olha a resposta. Peguei porque conferi na
+    hora: `curl` sem auth devolvia **401**; com `verify_jwt` correto devolve
+    **403 "Não autorizado."**, que é a trava da própria função respondendo.
+    Toda função chamada por cron aqui é `verify_jwt: false` + `cron_token`.
+    **Depois de publicar, confira o `verify_jwt` no retorno e bata um curl com
+    token errado — tem de ser 403, nunca 401.**
 
 ---
 
