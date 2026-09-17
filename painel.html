@@ -1257,8 +1257,9 @@ function prazoHtml(o){
   return '<span>⚡ '+txt+'</span>';
 }
 async function previaCpfl(){
-  const v=document.getElementById('f_cpfl').value;
-  const box=document.getElementById('cpflPrazo');
+  const campo=document.getElementById('f_cpfl'); if(!campo) return;
+  const v=campo.value;
+  const box=document.getElementById('cpflPrazo'); if(!box) return;
   const acao=document.getElementById('cpflAcao');
   if(!v){ box.innerHTML='<span class="mut">Preencha a data e o prazo é calculado em 5 dias úteis.</span>';
           if(acao) acao.innerHTML=''; return; }
@@ -1775,6 +1776,11 @@ async function avisarInstalador(o, antes, depois){
 async function avisarAgendamento(o, antes, depois){
 const primeiro=(o.cliente||'').split(' ')[0];
 const reag = !!antes;
+// manutencao nao e instalacao: quem recebe uma visita tecnica nao entende
+// "sua instalacao esta agendada" -- ja tem o sistema ha anos
+const ehMan = (o.trilha==='manutencao');
+const OQ  = ehMan ? 'atendimento' : 'instalação';
+const OQs = ehMan ? 'seu atendimento' : 'sua instalação';
 let msg;
 if(reag){
 const motivo = prompt(
@@ -1782,14 +1788,14 @@ const motivo = prompt(
 +'Escreva o motivo que será enviado ao cliente (opcional).\nDeixe vazio para uma mensagem padrão, ou cancele para não avisar agora.',
 '');
 if(motivo===null) return;
-msg='📅 *'+primeiro+', precisamos remanejar a data da sua instalação*\n\n'
+msg='📅 *'+primeiro+', precisamos remanejar a data d'+(ehMan?'o seu atendimento':'a sua instalação')+'*\n\n'
 +'A nova data ficou para *'+dataBRs(depois)+'*.\n'
 +(motivo.trim()?'\nMotivo: '+motivo.trim()+'\n':'')
 +'\nPedimos desculpas pelo transtorno e agradecemos a compreensão. Nossa equipe já está organizada para essa nova data. 🙏\n\n'
 +'Qualquer coisa, é só falar por aqui.\n\n*Equipe Polaris Energia Solar* ☀️';
 } else {
-if(!confirm('Avisar o cliente no grupo que a instalação foi agendada para '+dataBRs(depois)+'?')) return;
-msg='📅 *'+primeiro+', sua instalação está agendada!*\n\n'
+if(!confirm('Avisar o cliente no grupo que '+(ehMan?'o atendimento':'a instalação')+' foi agendad'+(ehMan?'o':'a')+' para '+dataBRs(depois)+'?')) return;
+msg='📅 *'+primeiro+', '+OQs+' está agendad'+(ehMan?'o':'a')+'!*\n\n'
 +'Data: *'+dataBRs(depois)+'*\n'
 +(o.endereco?'📍 Local: '+o.endereco+'\n':'')
 +'\nUm dia antes enviamos um lembrete com tudo que precisa ficar liberado no local. 😉\n\n'
@@ -2027,7 +2033,7 @@ function buscarCadastrado(){
   set('f_conc',c.concessionaria);
   set('f_mdm',c.modelo_modulo); set('f_inv',c.inversor_descricao);
   const sel=(id,v)=>{const e=document.getElementById(id); if(e&&v) e.value=v;};
-  sel('f_org',c.origem_lead); sel('f_est',c.tipo_telhado);
+  sel('f_org',c.origem_lead); sel('f_tel2',c.tipo_telhado);
   sel('f_vend',c.vendedor_id); sel('f_cat',c.categoria); sel('f_inst',c.instalador_id);
   toast('Dados de '+c.cliente+' copiados ✓');
 }
@@ -2041,6 +2047,11 @@ const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovForm';
 ov.addEventListener('click', function(ev){ if(ev.target===ov) fecharForm(); });
 document.addEventListener('keydown', escFecha);
 const _tr=o.trilha||'padrao'; const _etf=etapasDe(_tr);
+/* Manutencao nao e venda nem instalacao: nao tem trava de obra, nao pede
+   vistoria da concessionaria, nao fecha nem conclui contrato, e nao se
+   pergunta se inclui estrutura e cabo. Decisao do Vitor em 17/09, com a
+   primeira obra de manutencao real na mao. Dados tecnicos fica. */
+const ehMan = (_tr==='manutencao');
 const _nums=Object.keys(_etf).map(Number).filter(x=>!isNaN(x)).sort((a,b)=>a-b);
 const etOpts=(_nums.length?_nums:[0,1,2,3,4,5,6,7,8]).map(n=>`<option value="${n}" ${n===(o.etapa_numero??1)?'selected':''}>${n} - ${(_etf[n]?.nome||'').replace('!','')}</option>`).join('');
 const trOpts=TRILHAS.map(t=>`<option value="${t.codigo}" ${t.codigo===_tr?'selected':''}>${t.icone||''} ${esc(t.nome)}</option>`).join('');
@@ -2088,20 +2099,22 @@ ${o.trilha==='manutencao'?`
 <div class="fld"><label>Quem instalou o sistema (se foi outra empresa)</label>
 <input id="f_sisorig" value="${esc(o.sistema_origem||'')}" placeholder="Nome da empresa, ou 'não sabe'"></div>
 `:''}
+${ehMan?'':`
 <div class="fld"><label>O que está travando esta obra?</label>
 <div class="travasel" id="travaSel">${travaBotoes(o)}</div>
 <input id="f_travaobs" value="${esc(o.trava_obs||'')}" placeholder="Observação (opcional): protocolo, nome do contato..." style="margin-top:7px">
-</div>
+</div>`}
+${ehMan?'':`
 <div class="fld" ${o.etapa_numero>=8?'style="opacity:.55"':''}><label>Vistoria da concessionária solicitada em ${o.etapa_numero>=8?'<span style="color:#58b868;font-weight:700">· sistema já ativo</span>':''}</label>
 <div class="grid2" style="gap:8px">
 <input id="f_cpfl" type="date" value="${o.cpfl_solicitado_em||''}" onchange="previaCpfl()" ${o.etapa_numero>=8?'disabled':''}>
 <div id="cpflPrazo" class="cpflbox">${o.cpfl_prazo_em?prazoHtml(o):'<span class="mut">Preencha a data e o prazo é calculado em 5 dias úteis.</span>'}</div>
 </div>
 <div id="cpflAcao">${o.cpfl_avisado_em?'<div class="okAviso">✅ Cliente avisado no grupo em '+fmtD(o.cpfl_avisado_em)+'</div>':(o.cpfl_solicitado_em?'<div class="okAviso" style="color:#8fa6b8">Salve para avisar o cliente no grupo.</div>':'')}</div>
-</div>
+</div>`}
 <div class="fld"><label>Observações</label><input id="f_obs" value="${esc(o.observacoes||'')}" placeholder="opcional"></div>
 <details class="bloco" ${o.data_instalacao?'open':''}>
-<summary>📅 Agenda e equipe ${o.data_instalacao||o.instalador_id?'<span class="pt"></span>':''}<span class="qt">6 campos</span><span class="seta">▶</span></summary>
+<summary>📅 Agenda e equipe ${o.data_instalacao||o.instalador_id?'<span class="pt"></span>':''}<span class="qt">${ehMan?4:6} campos</span><span class="seta">▶</span></summary>
 <div class="blocoIn">
 <div class="grid2">
 <div class="fld"><label>${o.trilha==='manutencao'?'Início do atendimento 📣':'Data instalação (agenda)'}</label><input id="f_dti" type="date" value="${o.data_instalacao||''}" onchange="calcDias()"></div>
@@ -2110,14 +2123,15 @@ ${o.trilha==='manutencao'?`
 <div style="font-size:10.5px;color:#8fa6b8;margin-top:4px">Deixe vazio se for de um dia só.</div></div>
 </div>
 <div class="fld"><label>Instalador</label><select id="f_inst">${instOpts}</select></div>
+${ehMan?'':`
 <div class="grid2">
 <div class="fld"><label>Data fechamento</label><input id="f_dtf" type="date" value="${o.data_fechamento||''}"></div>
 <div class="fld"><label>Data conclusão</label><input id="f_dtc" type="date" value="${o.data_conclusao||''}"></div>
-</div>
+</div>`}
 <div class="fld"><label>ID do grupo WhatsApp</label><input id="f_grp" value="${esc(o.whatsapp_grupo_id||'')}" placeholder="cole se o grupo já existe"></div>
 </div></details>
 <details class="bloco">
-<summary>📍 Local e projeto ${o.cidade||o.endereco||o.tipo_telhado?'<span class="pt"></span>':''}<span class="qt">8 campos</span><span class="seta">▶</span></summary>
+<summary>📍 Local e projeto ${o.cidade||o.endereco||o.tipo_telhado?'<span class="pt"></span>':''}<span class="qt">${ehMan?7:8} campos</span><span class="seta">▶</span></summary>
 <div class="blocoIn">
 <div class="fld"><label>Tipo de projeto</label><select id="f_trilha" onchange="trocarTrilha(this.value)">${trOpts}</select></div>
 <div class="grid2">
@@ -2138,10 +2152,11 @@ ${o.trilha==='manutencao'?`
 <option value="Neoenergia"><option value="Equatorial"><option value="Light"><option value="Celesc">
 </datalist></div>
 <div class="fld"><label>Endereço da obra</label><input id="f_end" value="${esc(o.endereco||'')}" placeholder="Rua, número, bairro, cidade - SP"></div>
+${ehMan?'':`
 <div class="fld"><label>Incluso no serviço</label><div style="display:flex;gap:14px;padding:11px 2px">
 <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--txt);cursor:pointer"><input type="checkbox" id="f_est" ${o.tem_estrutura?'checked':''} style="width:16px;height:16px"> Estrutura</label>
 <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--txt);cursor:pointer"><input type="checkbox" id="f_cab" ${o.tem_cabo?'checked':''} style="width:16px;height:16px"> Cabo</label>
-</div></div>
+</div></div>`}
 </div></details>
 <details class="bloco">
 <summary>⚙️ Dados técnicos ${o.qtd_modulos||o.modelo_modulo||o.inversor_descricao?'<span class="pt"></span>':''}<span class="qt">3 campos</span><span class="seta">▶</span></summary>
@@ -2152,7 +2167,7 @@ ${o.trilha==='manutencao'?`
 </div>
 <div class="fld"><label>Inversor(es)</label><input id="f_inv" value="${esc(o.inversor_descricao||'')}" placeholder="2x Huawei 6kW"></div>
 </div></details>
-${novo?'':`
+${(novo||ehMan)?'':`
 <div class="fld"><label>Plano de manutenção e acompanhamento</label>
 <div id="planoBox"><span class="mut">Carregando o plano...</span></div></div>
 `}
@@ -2198,14 +2213,25 @@ async function salvarForm(id){
   }
   if(!cli){ toast('Informe o nome do cliente'); return; }
 const potRaw=document.getElementById('f_pot').value.trim().replace(',','.');
+const _oA = id ? getObra(id) : null;
+const vOuMantem = function(elId, campo){
+  const e=document.getElementById(elId);
+  if(e) return e.value||null;
+  return _oA ? (_oA[campo]!==undefined?_oA[campo]:null) : null;
+};
+const ckOuMantem = function(elId, campo){
+  const e=document.getElementById(elId);
+  if(e) return e.checked;
+  return _oA ? !!_oA[campo] : false;
+};
 const rec={
 cliente:cli,
 telefone:document.getElementById('f_tel').value.replace(/\D/g,'')||null,
 contrato:document.getElementById('f_con').value.replace(/\D/g,'')||null,
 potencia_kwp: potRaw?parseFloat(potRaw):null,
 etapa_numero:parseInt(document.getElementById('f_et').value,10),
-data_fechamento:document.getElementById('f_dtf').value||null,
-data_conclusao:document.getElementById('f_dtc').value||null,
+data_fechamento:vOuMantem('f_dtf','data_fechamento'),
+data_conclusao:vOuMantem('f_dtc','data_conclusao'),
 observacoes:document.getElementById('f_obs').value.trim()||null,
 vendedor_id:document.getElementById('f_vend').value||null,
 origem_lead:document.getElementById('f_org').value||null,
@@ -2214,9 +2240,12 @@ valor_projeto:parseFloat((document.getElementById('f_valor')||{}).value)||null,
 tipo_manutencao:(document.getElementById('f_tipoman')||{}).value||null,
 cliente_externo:((document.getElementById('f_ext')||{}).value==='1'),
 sistema_origem:(document.getElementById('f_sisorig')||{}).value||null,
-trava:travaEdit||null,
-cpfl_solicitado_em:document.getElementById('f_cpfl').value||null,
-trava_obs:travaEdit?(document.getElementById('f_travaobs').value||null):null,
+trava: document.getElementById('travaSel') ? (travaEdit||null)
+                                          : (_oA?(_oA.trava||null):null),
+cpfl_solicitado_em:vOuMantem('f_cpfl','cpfl_solicitado_em'),
+trava_obs: document.getElementById('travaSel')
+             ? (travaEdit?((document.getElementById('f_travaobs')||{}).value||null):null)
+             : (_oA?(_oA.trava_obs||null):null),
 distancia_km:parseFloat(document.getElementById('f_km').value)||null,
 data_instalacao:document.getElementById('f_dti').value||null,
 data_fim:(document.getElementById('f_dfim')||{}).value||null,
@@ -2230,8 +2259,8 @@ ramo:(document.getElementById('f_cat')?.value==='comercial')?(document.getElemen
 cidade:document.getElementById('f_cidade')?.value.trim()||null,
 tipo_telhado:document.getElementById('f_tel2').value||null,
 endereco:document.getElementById('f_end').value.trim()||null,
-tem_estrutura:document.getElementById('f_est').checked,
-tem_cabo:document.getElementById('f_cab').checked,
+tem_estrutura:ckOuMantem('f_est','tem_estrutura'),
+tem_cabo:ckOuMantem('f_cab','tem_cabo'),
 whatsapp_grupo_id:document.getElementById('f_grp').value.trim()||null
 };
 document.getElementById('f_save').textContent='Salvando...';
@@ -2243,14 +2272,6 @@ rec.slug = await slugUnico(slugify(cli));
 }
 if(error){ toast('Erro: '+error.message); document.getElementById('f_save').textContent='Salvar'; return; }
 
-// Manutenção: agendou ou remarcou -> confirma com o cliente
-if(id && rec.trilha==='manutencao'){
-  const dNovo = document.getElementById('f_dti').value||null;
-  if(dNovo && dNovo !== DTI_ANTES){
-    document.getElementById('f_save').textContent='Avisando o cliente...';
-    await avisarAgendamentoManutencao(id);
-  }
-}
 // CPFL: se a data foi preenchida ou mudou nesta gravação, avisa o cliente sozinho
 let avisouCpfl = false;
 if(id){
