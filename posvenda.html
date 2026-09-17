@@ -792,6 +792,7 @@ function ehGooglePendente(c){
 function render(){
   const R=DADOS.resumo||{}, cl=DADOS.clientes||[];
   const googPend=cl.filter(ehGooglePendente).length;
+  const brEntregue=cl.filter(c=>c.brinde && c.brinde_retirado).length;
   const hora=new Date().getHours();
   const saud=hora<12?'Bom dia':(hora<18?'Boa tarde':'Boa noite');
   const pend=(R.respostas_pendentes||0);
@@ -832,7 +833,8 @@ function render(){
     <button class="chip ${FILTRO==='sem_aniv'?'on':''}" onclick="setFiltro('sem_aniv')">🎂 Sem aniversário</button>
     <button class="chip ${FILTRO==='brinde'?'on':''}" onclick="setFiltro('brinde')">🎁 Brinde a retirar${R.brinde_a_retirar?' <b>'+R.brinde_a_retirar+'</b>':''}</button>
     <button class="chip ${FILTRO==='usina'?'on':''}" onclick="setFiltro('usina')">⚡ Usina com problema${R.usinas_com_problema?' <b>'+R.usinas_com_problema+'</b>':''}</button>
-    <button class="chip ${FILTRO==='google'?'on':''}" onclick="setFiltro('google')">⭐ Google pendente${googPend?' <b>'+googPend+'</b>':''}</button>`:''}
+    <button class="chip ${FILTRO==='google'?'on':''}" onclick="setFiltro('google')">⭐ Google pendente${googPend?' <b>'+googPend+'</b>':''}</button>
+    <button class="chip ${FILTRO==='entregue'?'on':''}" onclick="setFiltro('entregue')">✓ Brinde entregue${brEntregue?' <b>'+brEntregue+'</b>':''}</button>`:''}
   </div>`;
 
   if(VISAO==='indic'){
@@ -875,6 +877,7 @@ function render(){
   if(FILTRO==='brinde') arr=arr.filter(c=>c.brinde && !c.brinde_retirado);
   if(FILTRO==='usina') arr=arr.filter(c=>c.usina_estado && c.usina_estado!=='normal');
   if(FILTRO==='google') arr=arr.filter(ehGooglePendente);
+  if(FILTRO==='entregue') arr=arr.filter(c=>c.brinde && c.brinde_retirado);
   if(BUSCA){const b=BUSCA.toLowerCase();
     arr=arr.filter(c=>(c.cliente||'').toLowerCase().includes(b)
       ||(c.contrato||'').includes(b)
@@ -904,6 +907,7 @@ function render(){
         <div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">
         ${c.pendentes?`<span class="tag gold">💬 ${c.pendentes} para tratar</span>`:''}
         ${(c.brinde && !c.brinde_retirado)?`<span class="tag gold">🎁 ${c.brinde==='fone'?'fone':'copo'} a retirar${c.voucher?` · <b style="font-family:monospace;letter-spacing:1px">${esc(c.voucher)}</b>`:''}</span>`:''}
+        ${(c.brinde && c.brinde_retirado)?`<span class="tag green">✓ ${c.brinde==='fone'?'fone':'copo'} entregue</span>`:''}
         ${ehGooglePendente(c)?`<span class="tag gold">⭐ Google pendente</span>`:''}
         ${(c.nps!=null && c.nps>=9 && c.avaliou_google)?`<span class="tag green">✓ avaliou no Google</span>`:''}
         ${(c.usina_estado && c.usina_estado!=='normal')?`<span class="tag" style="border-color:rgba(224,163,62,.5);color:#e0a33e">⚡ ${esc(c.usina_rotulo||c.usina_estado)}${c.cliente_avisado?' · avisado':''}</span>`:''}
@@ -2809,7 +2813,8 @@ const FILTRO_ROT={
   indicacao:'Indicações aguardando',
   brinde:'Brinde a retirar',
   usina:'Usina com problema',
-  google:'Promotor sem avaliação no Google'
+  google:'Promotor sem avaliação no Google',
+  entregue:'Brinde já entregue'
 };
 function faixaFiltro(qtd){
   if(!FILTRO) return '';
@@ -3246,6 +3251,7 @@ function renderFicha(D){
       </div>
       ${(D.pode_agir && (!n.avaliou_google_em || (n.brinde && !n.entregue_em)))?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
         ${!n.avaliou_google_em?`<button class="mini" onclick="confirmarGoogleObra('${o.id}',${n.nota})">✓ Confirmar avaliação no Google</button>`:''}
+        ${(!n.avaliou_google_em && n.nota>=9)?`<button class="mini" onclick="cobrarGoogle('${o.id}')">⭐ Cobrar no grupo</button>`:''}
         ${(n.brinde && !n.entregue_em)?`<button class="mini" onclick="entregarBrindeObra('${o.id}',${n.nota})">🎁 Marcar brinde entregue</button>`:''}
       </div>`:''}
       </div>`;
@@ -3545,6 +3551,31 @@ async function limparAniversario(id){
   await recarregarTudo();
   await abrirFicha(id);
 }
+// O convite do Google sai UMA vez, minutos depois da resposta, e acabou --
+// nps-resposta agenda, nps-google-fila manda e apaga o agendamento. Nao havia
+// segunda cobranca em lugar nenhum. Esta aqui e na mao, e o clique e a
+// aprovacao humana da regra 3.5: a pessoa le o texto inteiro antes de mandar.
+// O texto vem do banco (nps_cobranca_google), com o link do Google saindo da
+// config -- nada de endereco chumbado na tela.
+async function cobrarGoogle(id){
+  const r=await sb.rpc('nps_cobranca_google',{p_obra:id});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  const d=r.data||{};
+  if(d.erro){ toast(d.erro); return; }
+  const antes = d.cobrancas>0
+    ? '\n\n⚠️ Este cliente já foi cobrado '+d.cobrancas+' vez'+(d.cobrancas>1?'es':'')+'.'
+    : '';
+  if(!confirm('Enviar esta mensagem no grupo de '+d.cliente+'?'+antes+'\n\n— — —\n'+d.texto)) return;
+  toast('Enviando no grupo... ⭐');
+  const e=await sb.functions.invoke('notificar-grupo',{body:{grupo_id:d.grupo_id, message:d.texto}});
+  if(e.error||(e.data&&e.data.error)){ toast('Erro ao enviar: '+((e.data&&e.data.error)||e.error.message)); return; }
+  const m=await sb.rpc('registrar_lembrete_google',{p_obra:id});
+  if(m.error||(m.data&&m.data.erro)) toast('⚠️ Enviado, mas não consegui registrar a cobrança');
+  else toast('Cobrança enviada ✓');
+  await recarregarTudo();
+  await abrirFicha(id);
+}
+
 // Confirmar a avaliacao no Google e dar baixa no brinde so existiam na aba
 // "Brindes", removida em 10/09 -- e desde entao nao havia caminho nenhum na tela.
 // Vai pela OBRA, nao pelo voucher: marcar_avaliou_google() e

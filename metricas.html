@@ -309,9 +309,29 @@ function render(M){
       +'<div class="kpi ok"><div class="v">'+n(g.avaliaram)+'</div><div class="l">Confirmaram avaliação</div></div>'
       +'<div class="kpi ruim"><div class="v">'+n(g.pendentes)+'</div><div class="l">Pendentes</div></div>'
       +'<div class="kpi"><div class="v">'+(g.promotores?Math.round(100*(g.avaliaram||0)/g.promotores):0)+'<small>%</small></div><div class="l">Taxa de conversão</div></div>'
-      +'<div class="kpi"><div class="v">'+n(g.lembretes_enviados)+'</div><div class="l">Lembretes enviados</div></div>'
       +'<div class="kpi"><div class="v">'+n(HR.tempo_resposta_horas)+' <small>h</small></div><div class="l">Tempo médio p/ responder</div></div>'
       +'</div>';
+    // Aqui morava "Lembretes enviados", que lia nps.lembretes_google -- campo
+    // que so o registrar_nps_manual grava, com 1 ja no insert. 44 dos 51 eram o
+    // backfill que a equipe digitou; nao era lembrete nenhum (regra 3.1).
+    // No lugar, a divisao que de fato importa: quanto veio da esteira e quanto
+    // veio da mao da equipe.
+    var tot=(g.automaticos||0)+(g.manuais||0);
+    if(tot){
+      h+='<div class="card" style="margin-top:12px">'
+        +'<div style="display:flex;height:14px;border-radius:8px;overflow:hidden;margin-bottom:12px">'
+        +'<div style="width:'+Math.round(100*(g.automaticos||0)/tot)+'%;background:#58b868"></div>'
+        +'<div style="flex:1;background:#8fa6b8"></div></div>'
+        +'<table><tr><th>De onde veio a resposta</th><th class="num">Qtd</th><th class="num">%</th></tr>'
+        +'<tr><td>Pela esteira <small>(link da pesquisa ou WhatsApp)</small></td>'
+        +'<td class="num"><b style="color:#58b868">'+n(g.automaticos)+'</b></td>'
+        +'<td class="num">'+Math.round(100*(g.automaticos||0)/tot)+'%</td></tr>'
+        +'<tr><td>Digitada pela equipe</td><td class="num"><b>'+n(g.manuais)+'</b></td>'
+        +'<td class="num">'+Math.round(100*(g.manuais||0)/tot)+'%</td></tr></table>'
+        +'<div style="font-size:11.5px;color:var(--muted);margin-top:8px">'
+        +'A taxa de conversão acima mistura as duas. Quanto mais a barra verde cresce, '
+        +'mais o resultado é do sistema e menos da memória de quem opera.</div></div>';
+    }
 
     var ph=(HR.por_hora||[]).filter(function(x){return x.respostas>0});
     if(ph.length){

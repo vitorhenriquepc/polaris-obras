@@ -191,23 +191,30 @@ pega isso.
 | `entrou_em` / `saiu_em` | vigência |
 
 ### NPS e avaliação no Google
-⚠️ **O convite do Google sai UMA vez e nunca mais.** Quem agenda é o
+⚠️ **O convite AUTOMÁTICO do Google sai UMA vez e nunca mais.** Quem agenda é o
 `nps-resposta`, no instante em que a nota entra (`nps.google_agendado_para`); a
 `nps-google-fila` manda uns minutos depois e apaga o agendamento. Não existe
-segunda cobrança automática — a partir daí é a equipe, no grupo, na mão.
+segunda cobrança automática, e não vai existir: a segunda é **na mão**, pelo
+botão *"⭐ Cobrar no grupo"* da ficha, onde o clique da pessoa é a aprovação da
+regra 3.5 — ela lê o texto inteiro antes de mandar. O texto vem de
+`nps_cobranca_google(obra)`, com o link saindo da `config.google_review_url` e
+o da pesquisa da `relatorio_base_url`; nada chumbado na tela. Ela recusa nota
+abaixo de 9, quem já avaliou e obra sem grupo.
 
-⚠️ **`nps_para_lembrete_google()` e `registrar_lembrete_google()` não têm
-chamador nenhum.** São código morto desde que a fila virou
-`google_agendado_para`. Por tabela: `lembrete_google_max` (1) e
-`lembrete_google_dias` (3) na `config` **não limitam nada** — só a função morta
-as lia. A `lembrete_google_dias` voltou a ter leitor vivo em 17/09: é o corte de
-dias do aviso das 8h.
+⚠️ **`nps_para_lembrete_google()` foi APAGADA em 17/09**, junto com a chave
+`lembrete_google_max`. Não tinha chamador nenhum desde que a fila virou
+`google_agendado_para` — ficava na documentação parecendo viva. A
+`lembrete_google_dias` (3) **ficou**: é o corte de dias do aviso das 8h.
+`registrar_lembrete_google()` também era morta e voltou, agora chamada pela
+tela (com trava de `is_autorizado()`), para carimbar cada cobrança manual.
 
-⚠️ **`nps.lembretes_google` não conta lembrete.** Quem incrementa é só o
-`registrar_nps_manual`, que grava `1` já no insert — e 44 dos 51 são o backfill
-que a equipe digitou entre 08/08 e 02/09. O KPI *"Lembretes enviados"* do
-`metricas.html` lê esse campo, então é **número falso** (§3.1). O caminho real
-(`nps-google-fila`) só grava a data, nunca o contador.
+⚠️ **`nps.lembretes_google` conta mal até 17/09.** O `registrar_nps_manual`
+grava `1` já no insert, e 44 dos 51 são o backfill que a equipe digitou entre
+08/08 e 02/09 — não era lembrete nenhum. O KPI *"Lembretes enviados"* do
+`metricas.html` lia esse campo e **foi removido** (§3.1). No lugar entrou a
+divisão que importa: `automaticos` × `manuais` em `get_horarios_resposta`,
+ou seja quanto veio da esteira e quanto veio da mão da equipe. Daqui em diante
+o campo só cresce por cobrança de verdade.
 
 ⚠️ **Promotor com ressalva não recebe convite.** `nps-resposta` exige
 `nota >= 9` **e** `tipo = elogio` puro. Nota 10 com qualquer ressalva junto
@@ -486,7 +493,7 @@ nenhuma delas. Ver pendência no §10.
 | `regua_fila(limite)` | o que sai hoje às 17h |
 | `regua_resumo_dia()` | o que a Lívia recebe às 11h |
 | `obras_para_nps()` | quem recebe o NPS: **só depois da última etapa da trilha** |
-| `nps_para_lembrete_google()` | quem recebe o convite do Google — mesma trava |
+| `nps_cobranca_google(obra)` | o texto da **segunda cobrança** da avaliação, para a pessoa ler e mandar no grupo; recusa nota < 9, quem já avaliou e obra sem grupo |
 | `obra_ativa(obra)` | **a definição única de "está ativa"**: chegou na última etapa da própria trilha |
 | `obra_ativa_em(obra)` | desde quando está ativa (cai no `etapas_historico` se `data_conclusao` for nula) |
 | `obra_geracao_total(obra)` | **quanto a obra já gerou**: kWh, economia, desempenho e meses — a fonte única |
@@ -543,8 +550,9 @@ conferidas uma a uma e nenhuma dispara cedo.
 trilha `manutencao` na etapa 4 é a última da própria trilha, então
 `obra_ativa()` devolve **true** — e sem trava a Tays receberia uma pesquisa
 perguntando como foi a instalação que a **Eco Solar** fez. Desde 15/09
-`obras_para_nps()` e `nps_para_lembrete_google()` cortam por
-`not coalesce(cliente_externo, false)`.
+`obras_para_nps()` corta por `not coalesce(cliente_externo, false)` — e a
+`nps_cobranca_google()`, a `pendencias_posvenda()` e a fila do `nps-resposta`
+seguem o mesmo critério.
 
 ---
 
