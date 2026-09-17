@@ -1025,7 +1025,7 @@ function linhaCusto(it){
   const ficha=Number(String(val).replace(',','.'));
   const temFicha=isFinite(ficha)&&ficha>0;
 
-  let h='<div class="ci'+((prev==null&&banco==null)?' so-ficha':'')+'">'+
+  let h='<div class="ci'+((prev==null&&banco==null)?' so-ficha':'')+'" id="ci_'+it.campo+'">'+
     '<div class="ci-n">'+esc(it.rotulo)+(it.dica?'<small>'+esc(it.dica)+'</small>':'')+'</div>'+
     '<div class="ci-v prev'+(prev==null?' sem':'')+'"><span class="ci-lb">previsto</span>'+
       '<span>'+(prev==null?'—':moeda2(prev))+'</span></div>'+
@@ -1038,16 +1038,19 @@ function linhaCusto(it){
   // uma acao por linha, e so quando ha o que fazer
   if(banco!=null && temFicha && Math.abs(ficha-banco)<0.02){
     h+='<div class="ciac ok">✓ confere com o que o banco pagou</div>';
+  } else if(banco==null && temFicha && prev!=null && Math.abs(ficha-prev)<0.02){
+    h+='<div class="ciac dif"><span>⚠ este valor é o <b>orçamento</b>, não um pagamento — '+
+       'o banco ainda não tem nada neste item</span></div>';
   } else if(banco!=null && temFicha){
     const d=banco-ficha;
-    h+='<div class="ciac dif">⚠ o banco pagou '+moeda2(banco)+' — '+
-       (d>0?moeda2(d)+' a mais':moeda2(-d)+' a menos')+' que a ficha'+
+    h+='<div class="ciac dif"><span>⚠ o banco pagou <b>'+moeda2(banco)+'</b> — '+
+       (d>0?moeda2(d)+' a mais':moeda2(-d)+' a menos')+' que a ficha</span>'+
        '<button type="button" class="cib" onclick="puxaCampo(\''+it.campo+'\')">trocar pelo banco</button></div>';
   } else if(banco!=null){
-    h+='<div class="ciac ok">✓ contando os '+moeda2(banco)+' que o banco pagou'+
+    h+='<div class="ciac ok"><span>✓ contando os <b>'+moeda2(banco)+'</b> que o banco pagou</span>'+
        '<button type="button" class="cib" onclick="puxaCampo(\''+it.campo+'\')">trazer para a ficha</button></div>';
   } else if(prev!=null && !temFicha){
-    h+='<div class="ciac">sem lançamento no banco — entra na margem como <b>estimativa</b>'+
+    h+='<div class="ciac"><span>sem lançamento no banco — entra na margem como <b>estimativa</b></span>'+
        '<button type="button" class="cib prev" onclick="puxaPrevisto(\''+it.campo+'\')">usar o previsto</button></div>';
   }
   return h+'</div>';
@@ -1095,7 +1098,17 @@ function poeNoCampo(campo, v){
   const el=document.getElementById('e_'+campo); if(!el) return false;
   el.value=v.toFixed(2);
   if(EDIT&&EDIT.fin) EDIT.fin[campo]=v;
+  redesenhaLinha(campo);
   return true;
+}
+// so a linha mexida, para nao perder o foco de quem esta digitando em outra
+function redesenhaLinha(campo){
+  const velha=document.getElementById('ci_'+campo); if(!velha) return;
+  const it=itensDeCusto().filter(function(x){ return x.campo===campo; })[0];
+  if(!it) return;
+  const tmp=document.createElement('div');
+  tmp.innerHTML=linhaCusto(it);
+  if(tmp.firstChild) velha.replaceWith(tmp.firstChild);
 }
 function puxaCampo(campo){
   const v=realDoCampo(campo); if(v==null) return;
@@ -1409,6 +1422,10 @@ function somaCustos(){
     if(v>0){
       ficha+=v; usado+=v;
       if(banco!=null && Math.abs(v-banco)<0.02) confirmado+=v;
+      else if(banco==null && prev!=null && Math.abs(v-prev)<0.02){
+        // igual ao previsto e sem lastro no banco: continua sendo orcamento
+        estimado+=v; itensEstimados++;
+      }
     } else if(banco!=null){
       usado+=banco; confirmado+=banco;
     } else if(prev!=null){
@@ -1458,9 +1475,10 @@ function recalcFin(){
     // a parte que o numero acima nao conta sozinho
     if(C.estimado>0){
       h+='<div class="vde">⚠️ <span><b>'+moeda2(C.estimado)+'</b> desse custo ('+
-         pct(C.estimado/C.usado)+') ainda é <b>orçamento</b>, não gasto real — '+
-         C.itensEstimados+(C.itensEstimados===1?' item sem valor':' itens sem valor')+
-         ' na ficha e sem lançamento no banco.</span></div>';
+         pct(C.estimado/C.usado)+') ainda é <b>orçamento</b>, não gasto real'+
+         (C.confirmado>0?' — só '+pct(C.confirmado/C.usado)+' confere com o banco':'')+
+         '. São '+C.itensEstimados+(C.itensEstimados===1?' item':' itens')+
+         ' sem lançamento no extrato.</span></div>';
     } else if(C.usado>0 && C.confirmado>0){
       h+='<div class="vde" style="color:var(--green-l)">✓ <span><b>'+
          pct(C.confirmado/C.usado)+'</b> do custo confere com o que o banco pagou.</span></div>';
