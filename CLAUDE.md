@@ -190,6 +190,40 @@ pega isso.
 | `principal` | uma só por obra, garantido por índice único parcial |
 | `entrou_em` / `saiu_em` | vigência |
 
+### NPS e avaliação no Google
+⚠️ **O convite do Google sai UMA vez e nunca mais.** Quem agenda é o
+`nps-resposta`, no instante em que a nota entra (`nps.google_agendado_para`); a
+`nps-google-fila` manda uns minutos depois e apaga o agendamento. Não existe
+segunda cobrança automática — a partir daí é a equipe, no grupo, na mão.
+
+⚠️ **`nps_para_lembrete_google()` e `registrar_lembrete_google()` não têm
+chamador nenhum.** São código morto desde que a fila virou
+`google_agendado_para`. Por tabela: `lembrete_google_max` (1) e
+`lembrete_google_dias` (3) na `config` **não limitam nada** — só a função morta
+as lia. A `lembrete_google_dias` voltou a ter leitor vivo em 17/09: é o corte de
+dias do aviso das 8h.
+
+⚠️ **`nps.lembretes_google` não conta lembrete.** Quem incrementa é só o
+`registrar_nps_manual`, que grava `1` já no insert — e 44 dos 51 são o backfill
+que a equipe digitou entre 08/08 e 02/09. O KPI *"Lembretes enviados"* do
+`metricas.html` lê esse campo, então é **número falso** (§3.1). O caminho real
+(`nps-google-fila`) só grava a data, nunca o contador.
+
+⚠️ **Promotor com ressalva não recebe convite.** `nps-resposta` exige
+`nota >= 9` **e** `tipo = elogio` puro. Nota 10 com qualquer ressalva junto
+não é convidada — nunca. Decisão do Vitor se muda.
+
+⚠️ **O NPS é por OBRA, não por cliente.** `nps` é único por `obra_id`. Cliente
+com duas obras recebe duas pesquisas e dois convites. Hoje é 1 caso (Jose
+Antonio Bassetto: manutenção já respondida, eletroposto 4674 na etapa 1) e
+nenhum recebeu duas vezes ainda.
+
+**Medido em 17/09:** 55 obras ativas, 55 pediram a nota, **54 responderam
+(98%)**, 54 promotores (nota ≥ 9 em todas), **52 avaliaram no Google**, 51
+escolheram brinde, 50 entregues. 44 das 54 respostas são backfill manual — o
+caminho automático tem 10 registros e é de setembro. O resultado é ótimo, mas
+quem o fez foi a equipe; a esteira ainda está provando.
+
 `usinas`, `usina_dia`, `usina_geracao` · `clima_dia` · `v_indice_dia` ·
 `v_indice_regiao` (cidade com 5+ usinas ganha grupo próprio) ·
 `regua_contatos` + `regua_modelos` · `usina_marco` · `nps`
@@ -448,6 +482,7 @@ nenhuma delas. Ver pendência no §10.
 | `conferir_saude()` | conferência geral das 7h30 |
 | `casar_recebimentos(simular)` | casa entrada do banco com parcela |
 | `indicacoes_resumo(obra)` | funil; só conta o que fechou |
+| `pendencias_posvenda()` | o que a Lívia recebe às 8h — mensagem sem resposta, promotor sem avaliação no Google, brinde a entregar, sem NPS, sem aniversário; **com nome, não só número** |
 | `regua_fila(limite)` | o que sai hoje às 17h |
 | `regua_resumo_dia()` | o que a Lívia recebe às 11h |
 | `obras_para_nps()` | quem recebe o NPS: **só depois da última etapa da trilha** |
@@ -481,7 +516,8 @@ nenhuma delas. Ver pendência no §10.
 
 ## 6. Automações (horário de Brasília)
 
-07h30 conferência · 08h45 clima · 09h geração e manutenção ·
+**08h aviso de pendências do pós-venda** (seg–sex, `alerta-pendencias` →
+`resp_posvenda`) · 07h30 conferência · 08h45 clima · 09h geração e manutenção ·
 09h15/13h15/16h15 status das usinas · 10h20 gera mensagens (seg–sex) ·
 10h40 vincula usina nova · 11h resumo da régua (seg–sex) ·
 14h30 geração parcial (seg/qua/sex) · 17h dispara a régua (seg–sex) ·
@@ -732,6 +768,19 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     é coalesce-safe (só preenche o que está nulo, nunca desmarca — regra 3.6).
     Ao remover uma aba, **procure o `if(VISAO===...)` e o que só ele chamava**,
     e pergunte que ação some junto.
+
+18. **Publicar edge function pelo MCP liga o `verify_jwt` de volta.** O
+    parâmetro tem default `true`, e omitir não é "manter como estava" — é
+    ligar. Em 17/09 eu republiquei a `alerta-pendencias` (que era `false`) sem
+    passar o campo e ela voltou `true`. O cron chama sem header `Authorization`
+    — só com o `cron_token` no corpo —, então o aviso das 8h da Lívia **passou
+    a devolver 401** e ia sumir sem ninguém notar: cron job "succeeded", porque
+    o `net.http_post` entrega e não olha a resposta. Peguei porque conferi na
+    hora: `curl` sem auth devolvia **401**; com `verify_jwt` correto devolve
+    **403 "Não autorizado."**, que é a trava da própria função respondendo.
+    Toda função chamada por cron aqui é `verify_jwt: false` + `cron_token`.
+    **Depois de publicar, confira o `verify_jwt` no retorno e bata um curl com
+    token errado — tem de ser 403, nunca 401.**
 
 ---
 
