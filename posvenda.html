@@ -1764,6 +1764,8 @@ function renderVisitas(){
    +'<div class="rgs"><div class="n" style="color:var(--green-l)">'+n(R.realizadas)+'</div><div class="l">Realizadas</div></div>'
    +'<div class="rgs"><div class="n" style="color:'+(n(R.sem_laudo)>0?'var(--gold)':'var(--muted)')+'">'
      +n(R.sem_laudo)+'</div><div class="l">Sem laudo</div></div>'
+   +'<div class="rgs"><div class="n" style="color:'+(n(R.sem_obra)>0?'var(--gold)':'var(--muted)')+'">'
+     +n(R.sem_obra)+'</div><div class="l">Sem obra aberta</div></div>'
    +'</div>';
 
   if(n(R.sem_laudo)>0){
@@ -1813,8 +1815,17 @@ function renderVisitas(){
       +(feita && !v.laudo_url?' · <span style="color:var(--gold)">sem laudo</span>':'')
       +(v.laudo_url?' · <a href="'+esc(v.laudo_url)+'" target="_blank" rel="noopener" '
         +'style="color:var(--gold)">laudo</a>':'')
+      // o laudo sai da obra DESTA visita: enquanto ela nao existe, nao ha
+      // onde o instalador subir foto, e sem foto nao ha laudo
+      +(v.obra_visita
+         ? '<br><span style="color:var(--muted)">📷 '+n(v.feitos_visita)+' de '
+           +n(v.obrig_visita)+' itens obrigatórios com foto</span>'
+         : '<br><span style="color:var(--muted)">sem obra aberta — o laudo sai da obra da visita</span>')
       +'</span></div>'
-      +(feita?'':'<button class="stb" onclick="formVisita(\''+v.id+'\')">Dar baixa</button>')
+      +(v.obra_visita
+         ? '<button class="stb" onclick="abrirFicha(\''+v.obra_visita+'\')">ficha</button>'
+         : '<button class="stb prim" onclick="visitaAbrirObra(\''+v.id+'\')">abrir a obra</button>')
+      +(feita?'':'<button class="stb" style="margin-left:6px" onclick="formVisita(\''+v.id+'\')">Dar baixa</button>')
       +'</div><div id="fv'+v.id+'"></div>';
   });
   h+='</div>';
@@ -1874,6 +1885,28 @@ function formVisita(id){
    +'<button class="stb prim" onclick="visitaGravar(\''+id+'\')">💾 Registrar</button>'
    +'<button class="stb" onclick="formVisita(\''+id+'\')">Cancelar</button>'
    +'</div></div>';
+}
+
+/* ---------- CADA VISITA COM A SUA OBRA ----------
+   O laudo sai da obra DA VISITA, nao da obra do contrato. Sem isso, visitas de
+   anos diferentes apontariam todas para o mesmo relatorio -- o acumulado do
+   cliente. A obra de manutencao ja traz de graca o link do instalador, a
+   checklist de 11 itens, as fotos e o relatorio publico. */
+async function visitaAbrirObra(id){
+  const p=await sb.rpc('plano_visita_abrir_obra',{p_visita:id, p_simular:true});
+  if(p.error){ toast('Erro: '+p.error.message); return; }
+  const d=p.data||{};
+  if(d.erro){ toast(d.erro); return; }
+  if(!confirm('Abrir a obra desta visita?\n\n'+d.cliente+'\n'
+    +'Prevista para '+dataBR(d.prevista_para)+'\n'
+    +(d.endereco?d.endereco+'\n':'')
+    +(d.herda_grupo?'\nEla entra no kanban de Manutenção e já usa o grupo do cliente.'
+                   :'\nEla entra no kanban de Manutenção. Atenção: este cliente não tem grupo.'))) return;
+  const r=await sb.rpc('plano_visita_abrir_obra',{p_visita:id, p_simular:false});
+  if(r.error){ toast('Erro: '+r.error.message); return; }
+  if(r.data && r.data.erro){ toast(r.data.erro); return; }
+  toast('Obra aberta ✓ — o instalador já pode subir as fotos');
+  carregarPlanos();
 }
 
 async function visitaGravar(id){

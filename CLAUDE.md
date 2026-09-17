@@ -285,17 +285,23 @@ funções usam a regra: `get_status_relatorio`, `obras_cobranca_fotos` e
 `get_obra_instalador` — essa última para a estrela que o instalador vê no
 celular seguir o mesmo critério.
 
-⚠️ **A visita do plano não tem laudo próprio: ela aponta para o da obra.**
-`plano_contratos.obra_id` **é** a obra de manutenção do cliente de plano, então
-`plano_visita_registrar` cai em `plano_visita_laudo_da_obra()` quando ninguém
-colou link, e devolve `laudo_automatico`. **Relatório sem foto não vira laudo**,
-de propósito — o cliente abriria uma página vazia. A URL sai de
-`config.relatorio_base_url`.
+⚠️ **Cada visita tem a SUA obra de manutenção, e é dela que sai o laudo.**
+`plano_visita.obra_id` aponta para uma obra criada por `plano_visita_abrir_obra()`
+— trilha `manutencao`, etapa 1, herdando cliente, grupo, endereço e a data
+prevista. Não foi preciso inventar relatório de visita: obra de manutenção já
+traz link do instalador, checklist de 11 itens, fotos, apontamentos e relatório
+público. **Uma obra por visita** é o que impede visitas de anos diferentes de
+apontarem todas para o mesmo link.
 
-**Limite conhecido:** uma obra tem **um** relatório. Visitas de anos diferentes
-no mesmo contrato apontam para o mesmo link, que é o acumulado da obra. Com 1
-visita prevista no sistema inteiro isso não aperta; quando apertar, a visita
-precisa de relatório próprio.
+É seguro do lado financeiro porque `abre_financeiro_obra()` nasce com
+`dispensado = true` para **qualquer** obra de trilha `manutencao` — o mesmo
+motivo pelo qual o cliente de plano consegue ser cadastrado.
+
+`plano_visita_registrar` cai em `plano_visita_laudo_da_obra()` quando ninguém
+colou link, e devolve `laudo_automatico`. Ela usa a obra da visita e, **se a
+visita ainda não tiver obra**, cai na obra do contrato — as visitas antigas não
+ficam sem nada. **Relatório sem foto não vira laudo**, de propósito: o cliente
+abriria uma página vazia. A URL sai de `config.relatorio_base_url`.
 
 ⚠️ `obra_relatorios` guarda **PDF anexado à mão** (`origem = 'arquivo'`, 37
 registros). O laudo que o sistema gera **não** é arquivado ali — ele vive como
@@ -453,7 +459,8 @@ nenhuma delas. Ver pendência no §10.
 | `plano_cadastrar_cliente(json, simular)` | **cadastra cliente de plano inteiro**: cliente + obra + usinas + contrato numa transação. Com `simular = true` (o padrão) não grava nada e devolve a prévia ou a lista de erros |
 | `plano_contrato_criar(json, simular)` | fecha o contrato numa obra que **já existe** — o caminho de volta para o cliente de plano que ficou sem. Um contrato aberto por vez |
 | `plano_visitas_gerar(contrato)` | cria as visitas previstas, uma por endereço, no meio do contrato |
-| `plano_visita_laudo_da_obra(visita)` | a URL do relatório da obra do contrato — **nula se a obra não tem foto** |
+| `plano_visita_abrir_obra(visita, simular)` | cria a obra de manutenção **daquela visita**; é dela que sai o laudo |
+| `plano_visita_laudo_da_obra(visita)` | a URL do relatório da obra da visita (cai na do contrato se não houver) — **nula se não tem foto** |
 | `checklist_exige(obrigatorio, obrig_tipos, tipo_manutencao)` | **a regra única** de item obrigatório; três funções a usam |
 | `get_relatorio_publico(slug)` | o laudo/relatório público, já filtrado pela trilha da obra |
 | `plano_visita_registrar(visita, data, equipe, laudo, obs)` | dá baixa numa visita |
