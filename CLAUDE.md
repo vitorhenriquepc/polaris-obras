@@ -216,14 +216,34 @@ divisão que importa: `automaticos` × `manuais` em `get_horarios_resposta`,
 ou seja quanto veio da esteira e quanto veio da mão da equipe. Daqui em diante
 o campo só cresce por cobrança de verdade.
 
-⚠️ **Promotor com ressalva não recebe convite.** `nps-resposta` exige
-`nota >= 9` **e** `tipo = elogio` puro. Nota 10 com qualquer ressalva junto
-não é convidada — nunca. Decisão do Vitor se muda.
+⚠️ **Ser promotor já libera o convite — a ressalva não cala mais.** Decisão do
+Vitor em 17/09. Até então o `nps-resposta` exigia `nota >= 9` **e** `tipo =
+elogio` puro, e nota 10 com qualquer ressalva junto ficava sem convite **para
+sempre**, porque o automático sai uma vez só. Hoje `pedeGoogle` é só
+`nota >= 9`, e `avisaEquipe` virou condição **independente** (`ressalva ou nota
+< 9`) — quem apontou algo continua acionando a equipe e agora também recebe o
+convite. O **agradecimento** segue a ressalva, não o convite: quem reclamou
+recebe *"obrigado pela sinceridade"*, nunca a comemoração.
 
-⚠️ **O NPS é por OBRA, não por cliente.** `nps` é único por `obra_id`. Cliente
-com duas obras recebe duas pesquisas e dois convites. Hoje é 1 caso (Jose
-Antonio Bassetto: manutenção já respondida, eletroposto 4674 na etapa 1) e
-nenhum recebeu duas vezes ainda.
+Conferido em modo simular, sem gravar nem enviar: nota 10 com ressalva devolve
+`pede_google: true, avisa_equipe: true`; nota 6 devolve `false/true`; elogio
+limpo devolve `true/false`.
+
+⚠️ **O convite e o aviso de ressalva saem quase juntos.** O agradecimento sai
+na hora e o convite ~3 minutos depois, enquanto o aviso à equipe também acabou
+de sair — ou seja, o cliente é convidado a avaliar publicamente **antes** de
+alguém ter resolvido o que ele apontou. Foi decidido assim; se um dia
+incomodar, o lugar de segurar é o `google_agendado_para` do `nps-resposta`.
+
+⚠️ **O NPS é por CLIENTE desde 17/09** (decisão do Vitor). A tabela `nps`
+continua **única por `obra_id`** — o que mudou é quem é *perguntado*:
+`obras_para_nps()` exclui obra cujo `cliente_id` já respondeu em outra. A trava
+**só vale quando `cliente_id` existe** (4 das 75 obras não têm, porque a tela
+grava `cliente` texto e o id vem depois); sem ele cai no comportamento antigo,
+por obra — o lado seguro, que nunca cala um NPS legítimo. Medido: **1 obra**
+muda de comportamento, o eletroposto do Bassetto (4674, etapa 1), cujo cliente
+já deu 10 na manutenção. Consequência a saber: quem comprar um **segundo
+sistema** daqui a dois anos também não será perguntado.
 
 **Medido em 17/09:** 55 obras ativas, 55 pediram a nota, **54 responderam
 (98%)**, 54 promotores (nota ≥ 9 em todas), **52 avaliaram no Google**, 51
@@ -492,7 +512,7 @@ nenhuma delas. Ver pendência no §10.
 | `pendencias_posvenda()` | o que a Lívia recebe às 8h — mensagem sem resposta, promotor sem avaliação no Google, brinde a entregar, sem NPS, sem aniversário; **com nome, não só número** |
 | `regua_fila(limite)` | o que sai hoje às 17h |
 | `regua_resumo_dia()` | o que a Lívia recebe às 11h |
-| `obras_para_nps()` | quem recebe o NPS: **só depois da última etapa da trilha** |
+| `obras_para_nps()` | quem recebe o NPS: **só depois da última etapa da trilha**, e **um por cliente** — quem já respondeu numa obra não é perguntado de novo |
 | `nps_cobranca_google(obra)` | o texto da **segunda cobrança** da avaliação, para a pessoa ler e mandar no grupo; recusa nota < 9, quem já avaliou e obra sem grupo |
 | `obra_ativa(obra)` | **a definição única de "está ativa"**: chegou na última etapa da própria trilha |
 | `obra_ativa_em(obra)` | desde quando está ativa (cai no `etapas_historico` se `data_conclusao` for nula) |
