@@ -824,7 +824,7 @@ function render(){
       <button class="vtab ${VISAO==='usinas'?'on':''}" onclick="setVisao('usinas')">Usinas</button>
       <button class="vtab ${VISAO==='auto'?'on':''}" onclick="setVisao('auto')">Automações</button>
     </div>
-    <div class="search">🔍<input id="q" placeholder="Buscar cliente ou contrato..." value="${esc(BUSCA)}" oninput="setBusca(this.value)"></div>
+    <div class="search">🔍<input id="q" placeholder="Buscar cliente, contrato ou código do brinde..." value="${esc(BUSCA)}" oninput="setBusca(this.value)"></div>
     ${VISAO==='lista'?`
     <button class="chip ${FILTRO===''?'on':''}" onclick="setFiltro('')">Todos</button>
     <button class="chip ${FILTRO==='pendentes'?'on':''}" onclick="setFiltro('pendentes')">Com pendência</button>
@@ -876,7 +876,9 @@ function render(){
   if(FILTRO==='usina') arr=arr.filter(c=>c.usina_estado && c.usina_estado!=='normal');
   if(FILTRO==='google') arr=arr.filter(ehGooglePendente);
   if(BUSCA){const b=BUSCA.toLowerCase();
-    arr=arr.filter(c=>(c.cliente||'').toLowerCase().includes(b)||(c.contrato||'').includes(b));}
+    arr=arr.filter(c=>(c.cliente||'').toLowerCase().includes(b)
+      ||(c.contrato||'').includes(b)
+      ||(c.voucher||'').toLowerCase().includes(b));}
 
   h+=faixaFiltro(arr.length);
 
@@ -901,7 +903,7 @@ function render(){
         <div class="meta">${bits.join('<span style="opacity:.4">·</span>')}</div>
         <div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">
         ${c.pendentes?`<span class="tag gold">💬 ${c.pendentes} para tratar</span>`:''}
-        ${(c.brinde && !c.brinde_retirado)?`<span class="tag gold">🎁 ${c.brinde==='fone'?'fone':'copo'} a retirar</span>`:''}
+        ${(c.brinde && !c.brinde_retirado)?`<span class="tag gold">🎁 ${c.brinde==='fone'?'fone':'copo'} a retirar${c.voucher?` · <b style="font-family:monospace;letter-spacing:1px">${esc(c.voucher)}</b>`:''}</span>`:''}
         ${ehGooglePendente(c)?`<span class="tag gold">⭐ Google pendente</span>`:''}
         ${(c.nps!=null && c.nps>=9 && c.avaliou_google)?`<span class="tag green">✓ avaliou no Google</span>`:''}
         ${(c.usina_estado && c.usina_estado!=='normal')?`<span class="tag" style="border-color:rgba(224,163,62,.5);color:#e0a33e">⚡ ${esc(c.usina_rotulo||c.usina_estado)}${c.cliente_avisado?' · avisado':''}</span>`:''}
