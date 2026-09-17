@@ -260,6 +260,47 @@ cliente — o Gilberto tem **4 usinas e 1 endereço** e não paga extra. Quando
 `endereco` está vazio a conta cai para a cidade, então ela **subestima**, que
 é o lado seguro: nunca cobra a mais, e se corrige quando alguém preencher.
 
+### Laudo de manutenção
+⚠️ **Já existe, e já rodou ponta a ponta.** Não crie relatório de manutenção do
+zero. O caminho inteiro está de pé: `checklist_itens` tem **11 itens próprios da
+trilha `manutencao`** (9 obrigatórios, incluindo *"Apontamentos e laudo"*), o
+instalador alimenta pelo `instalador.html` com o `instalador_token`,
+`get_relatorio_publico` **filtra a checklist pela trilha** e devolve
+`apontamentos`, e o `relatorio.html` muda sozinho o título para *Relatório de
+Manutenção Preventiva/Corretiva* ou *Laudo de Avaliação Técnica*.
+
+A prova: **Jose Antonio Bassetto** (corretiva, `manutencao-bassetto-2026-08`) —
+35 fotos e vídeos em 19/08, 1 apontamento, termo assinado em **07/09**.
+
+`obra_itens_relatorio` (via `salvar_secoes_relatorio`) **renomeia e oculta item
+por obra** — foi assim que aquele laudo virou "Estrutura: folgas corrigidas e
+reforço galvanizado" em vez do título genérico.
+
+⚠️ **Obrigatoriedade é por tipo de manutenção.** `checklist_itens.obrig_tipos`
+(`text[]`, nulo = todos os tipos) e a regra única `checklist_exige(obrigatorio,
+obrig_tipos, tipo_manutencao)`. Hoje só *"Limpeza executada"* está marcada, com
+`{preventiva}` — antes ela era cobrada numa **corretiva** em que a limpeza não
+tinha sido aprovada, e virava cobrança falsa no grupo do instalador. **Três**
+funções usam a regra: `get_status_relatorio`, `obras_cobranca_fotos` e
+`get_obra_instalador` — essa última para a estrela que o instalador vê no
+celular seguir o mesmo critério.
+
+⚠️ **A visita do plano não tem laudo próprio: ela aponta para o da obra.**
+`plano_contratos.obra_id` **é** a obra de manutenção do cliente de plano, então
+`plano_visita_registrar` cai em `plano_visita_laudo_da_obra()` quando ninguém
+colou link, e devolve `laudo_automatico`. **Relatório sem foto não vira laudo**,
+de propósito — o cliente abriria uma página vazia. A URL sai de
+`config.relatorio_base_url`.
+
+**Limite conhecido:** uma obra tem **um** relatório. Visitas de anos diferentes
+no mesmo contrato apontam para o mesmo link, que é o acumulado da obra. Com 1
+visita prevista no sistema inteiro isso não aperta; quando apertar, a visita
+precisa de relatório próprio.
+
+⚠️ `obra_relatorios` guarda **PDF anexado à mão** (`origem = 'arquivo'`, 37
+registros). O laudo que o sistema gera **não** é arquivado ali — ele vive como
+link para o `relatorio.html`.
+
 ### Visitas do plano
 **A primeira visita do sistema nasceu em 16/09**: UNI AUTO POSTO, prevista para
 **16/12/2026**, no meio da cortesia de 6 meses. Ela ficou **uma só** porque as
@@ -412,6 +453,9 @@ nenhuma delas. Ver pendência no §10.
 | `plano_cadastrar_cliente(json, simular)` | **cadastra cliente de plano inteiro**: cliente + obra + usinas + contrato numa transação. Com `simular = true` (o padrão) não grava nada e devolve a prévia ou a lista de erros |
 | `plano_contrato_criar(json, simular)` | fecha o contrato numa obra que **já existe** — o caminho de volta para o cliente de plano que ficou sem. Um contrato aberto por vez |
 | `plano_visitas_gerar(contrato)` | cria as visitas previstas, uma por endereço, no meio do contrato |
+| `plano_visita_laudo_da_obra(visita)` | a URL do relatório da obra do contrato — **nula se a obra não tem foto** |
+| `checklist_exige(obrigatorio, obrig_tipos, tipo_manutencao)` | **a regra única** de item obrigatório; três funções a usam |
+| `get_relatorio_publico(slug)` | o laudo/relatório público, já filtrado pela trilha da obra |
 | `plano_visita_registrar(visita, data, equipe, laudo, obs)` | dá baixa numa visita |
 | `plano_desfecho(contrato, desfecho, motivo, plano, valor, forma, meses, aguardando)` | fecha o contrato como `renovou`/`nao_renovou` e, se renovou, já abre o novo na mesma chamada |
 | `contratos_para_avisar()` | quem está a 30 ou 7 dias do fim, com módulos, faixa do Completo e quantos endereços |
