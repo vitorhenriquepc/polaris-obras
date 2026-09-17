@@ -725,7 +725,7 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     `{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}`
     — sem anon nenhum.
 
-11. **Existem DOIS caminhos para mudar a etapa, e só um avisava o cliente.**
+11. **Existem TRÊS caminhos para mudar a etapa, não dois.**
     Arrastar o card no kanban passa por `mudarEtapa()`, que chama o
     `notificar-grupo`. Trocar a etapa **dentro do card** e salvar passa por
     `salvarForm()`, que gravava `etapa_numero` junto com o resto do `rec` e
@@ -735,6 +735,37 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     provou: zero chamadas ao `notificar-grupo` nos horários das mudanças.
     Corrigido em 15/09. Antes de acrescentar efeito colateral a uma mudança de
     campo, **procure se o campo não é gravado por mais de um caminho**.
+
+    ⚠️ **O terceiro caminho só apareceu em 17/09, e não é a tela: é o
+    instalador.** A ação `enviar` do `foto-obra` (o instalador manda o
+    relatório pelo `instalador_token`, sem login) faz
+    `update obras set etapa_numero = ETAPA_POS_INSTALACAO` — **7, chumbado no
+    código** — e avisa o cliente **ela mesma**, direto na Z-API, sem passar
+    pelo `notificar-grupo`. Por isso um log com **zero chamadas ao
+    `notificar-grupo`** não prova que ninguém foi avisado. Como não há JWT de
+    usuário, a `fn_log_etapa` grava `por_usuario = 'sistema'` — é essa a
+    assinatura desse caminho no `etapas_historico`.
+
+    ⚠️ **E em obra de manutenção ele erra.** A trilha `manutencao` vai só até
+    a etapa 4, então o `trg_valida_etapa` **clampa o 7 para 4** em silêncio
+    (ele ajusta para a etapa válida mais próxima em vez de recusar). Mas a
+    mensagem já foi montada buscando `etapas` com `numero = 7` **na trilha da
+    obra** — que não existe —, então `proxNome` sai **string vazia** e o
+    cliente lê *"Sua obra avançou para a etapa **."*. Pior: todo o texto é de
+    instalação (*"Instalação concluída"*, *"finalizou a instalação do seu
+    sistema"*, *"Relatório oficial da instalação"*) numa manutenção
+    preventiva. Aconteceu de verdade em **17/09 13:01 BRT** com a **Fatima
+    Rino e Antonio Monteiro (3067)**: `relatorio_enviado_em` 13:01:20, etapa
+    2 → 4 às 13:01:28, oito segundos depois.
+
+    O `relatorio.html` já é sensível à trilha desde 17/09; o `foto-obra`
+    **não é**. Quem for consertar: a etapa de destino tem de ser a última da
+    trilha da obra (o mesmo raciocínio do `obra_ativa()`), e o texto tem de
+    seguir a trilha, como o `relatorio.html` faz.
+
+    ⚠️ **O `foto-obra` não registra o que envia.** Não existe tabela de
+    mensagens enviadas — só `mensagens_recebidas`. O que ele mandou só dá para
+    ler no grupo do cliente ou deduzir do código.
 
 12. **Cadastro parcial que devolve `ok: true` é pior que erro.** O cadastro de
     cliente de plano grava cliente, obra, usinas, vínculos e ficha, e só cria o
