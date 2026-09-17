@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <meta name="theme-color" content="#04141F">
-<title>Relatório de Instalação — Polaris Energia Solar</title>
+<title>Relatório — Polaris Energia Solar</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -349,7 +349,7 @@ function render(){
     +'<div class="meta">'
     +'<div class="m"><div class="k">Potência</div><div class="v gold">'+(o.potencia_kwp?String(o.potencia_kwp).replace('.',',')+' kWp':'—')+'</div></div>'
     +'<div class="m"><div class="k">Contrato</div><div class="v">'+(o.contrato?'Nº '+esc(o.contrato):'—')+'</div></div>'
-    +'<div class="m"><div class="k">Instalação</div><div class="v">'+(dataBR(o.data_instalacao)||dataBR(o.data_conclusao)||'—')+'</div></div>'
+    +'<div class="m"><div class="k">'+(o.trilha==='manutencao'?'Atendimento':'Instalação')+'</div><div class="v">'+(dataBR(o.data_instalacao)||dataBR(o.data_conclusao)||'—')+'</div></div>'
     +'<div class="m"><div class="k">Consultor</div><div class="v">'+esc(o.vendedor||'Polaris')+'</div></div>'
     +'</div>'
     +'</div><div class="scroll">▾</div></div>';
@@ -387,7 +387,7 @@ function render(){
     });
     h+='</div>'+blocoAvalia(it)+'</div>';
   });
-  if(!teve) h+='<div class="pend">📷 As fotos da instalação serão anexadas pela nossa equipe de campo.</div>';
+  if(!teve) h+='<div class="pend">📷 As fotos d'+(_man?'o atendimento':'a instalação')+' serão anexadas pela nossa equipe de campo.</div>';
   h+='</section>';
 
   /* APONTAMENTOS */
@@ -395,7 +395,7 @@ function render(){
   if(AP.length){
     h+='<section class="rv"><div class="shead"><div class="n">03 — Observações técnicas</div><h2>Condições identificadas no local</h2><div class="hl"></div></div>'
       +'<div class="apSec"><div class="ah"><div class="ic">⚠️</div><h3>Apontamentos da equipe técnica</h3></div>'
-      +'<div class="nota">Durante a execução, nossa equipe identificou e registrou as condições abaixo, <b>já existentes no local</b> antes ou durante a instalação. Este registro é feito para transparência e para que você possa avaliar eventuais manutenções no imóvel.</div>';
+      +'<div class="nota">Durante '+(_man?'o atendimento':'a execução')+', nossa equipe identificou e registrou as condições abaixo, <b>já existentes no local</b>'+(_man?'':' antes ou durante a instalação')+'. Este registro é feito para transparência e para que você possa avaliar eventuais manutenções no imóvel.</div>';
     AP.forEach(function(a){
       var mids=(a.id==null)?[]:fotos.filter(function(f){return f.apontamento_id && f.apontamento_id===a.id});
       h+='<div class="apCard"><div class="tx">'+esc(a.descricao)+'</div>'
@@ -429,7 +429,7 @@ function render(){
       +'</div>';
   }else{
     h+='<div class="selo" style="background:#8b8f93"><span class="dot" style="color:#fff">●</span> Aguardando assinatura</div>'
-      +'<div class="certPend">O termo de conclusão será assinado pelo cliente ao final da instalação e passará a constar neste relatório.</div>';
+      +'<div class="certPend">O termo de conclusão será assinado pelo cliente ao final d'+(_man?'o atendimento':'a instalação')+' e passará a constar neste relatório.</div>';
   }
   h+='</div></section></div>';
 
@@ -641,7 +641,10 @@ async function enviarNoGrupo(){
   var q=await sb.from('obras').select('whatsapp_grupo_id').eq('slug',SLUG).single();
   if(q.error||!q.data||!q.data.whatsapp_grupo_id){alert('Esta obra não tem grupo de WhatsApp.');return;}
   var link=location.origin+'/relatorio.html?id='+encodeURIComponent(SLUG);
-  var msg='📄 *Relatório oficial da instalação — Polaris Energia Solar*\n\nSeu relatório completo está disponível, com todas as fotos em alta qualidade, os dados técnicos da usina e o termo de conclusão:\n\n🔗 '+link+'\n\nToque nas fotos para vê-las em tela cheia. 📱\n\n*Equipe Polaris Energia Solar* ☀️';
+  var _m = D && D.obra && D.obra.trilha==='manutencao';
+  var msg = _m
+    ? '📄 *'+tituloRel(D.obra)+' — Polaris Energia Solar*\n\nO laudo do atendimento está disponível, com todas as fotos em alta qualidade, o que foi verificado item a item e os apontamentos da nossa equipe técnica:\n\n🔗 '+link+'\n\nToque nas fotos para vê-las em tela cheia. 📱\n\n*Equipe Polaris Energia Solar* ☀️'
+    : '📄 *Relatório oficial da instalação — Polaris Energia Solar*\n\nSeu relatório completo está disponível, com todas as fotos em alta qualidade, os dados técnicos da usina e o termo de conclusão:\n\n🔗 '+link+'\n\nToque nas fotos para vê-las em tela cheia. 📱\n\n*Equipe Polaris Energia Solar* ☀️';
   var r=await sb.functions.invoke('notificar-grupo',{body:{grupo_id:q.data.whatsapp_grupo_id,message:msg}});
   if(r.error||(r.data&&r.data.error)){alert('Erro: '+((r.data&&r.data.error)||r.error.message));return;}
   alert('✅ Relatório enviado no grupo!');
