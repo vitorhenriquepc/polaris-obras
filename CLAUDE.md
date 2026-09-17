@@ -716,6 +716,23 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     e não tinha o que fazer com a informação. Corrigido em 16/09. Quando uma tela
     **mostra** um estado que pede ação, ela precisa oferecer a ação.
 
+17. **Tirar a aba não tira o código: deixa o botão órfão.** Em 10/09 a aba
+    "Brindes" do `posvenda.html` saiu e a Lista absorveu só o **brinde a
+    retirar**. O resto continuou no arquivo — `carregarBrindes`, `get_brindes`,
+    o cartão "Sem avaliação no Google" e o `confirmarGoogle()` — atrás de um
+    `if(VISAO==='brindes')` que **nenhum botão mais alcançava**. Sete dias sem
+    nenhum caminho na tela para confirmar avaliação no Google ou dar baixa em
+    brinde, e sem erro nenhum: o código parecia vivo. O `get_posvenda_lista` já
+    devolvia `avaliou_google` por cliente esse tempo todo, e a tela nunca leu.
+    Pior: `marcar_avaliou_google()` e `marcar_brinde_entregue()` pedem
+    **voucher**, e promotor que não escolheu brinde não tem voucher — eram
+    exatamente os **dois** casos pendentes em 17/09 (VALDETE, 4791, nota 10 pelo
+    WhatsApp). Ou seja: mesmo que a aba voltasse, aqueles dois não dariam para
+    confirmar. Corrigido em 17/09 pela **obra**, com `registrar_nps_manual`, que
+    é coalesce-safe (só preenche o que está nulo, nunca desmarca — regra 3.6).
+    Ao remover uma aba, **procure o `if(VISAO===...)` e o que só ele chamava**,
+    e pergunte que ação some junto.
+
 ---
 
 ## 10. Estado e pendências
