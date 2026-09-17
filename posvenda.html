@@ -1865,7 +1865,10 @@ function formVisita(id){
    +'<label>Feita em<input id="v_data'+id+'" type="date" value="'+new Date().toISOString().slice(0,10)+'"></label>'
    +'<label>Técnico<select id="v_eq'+id+'">'+ops+'</select></label>'
    +'</div>'
-   +'<label>Link do laudo com fotos<input id="v_laudo'+id+'" placeholder="cole o link do relatório"></label>'
+   +'<label>Link do laudo com fotos<input id="v_laudo'+id+'" '
+     +'placeholder="deixe vazio — o relatório da obra entra sozinho"></label>'
+   +'<div class="ncdica" style="margin-top:-4px">Se o instalador já subiu as fotos, o laudo é o '
+     +'próprio relatório da obra e entra automaticamente. Só cole um link aqui se o laudo for outro.</div>'
    +'<label>Observação<input id="v_obs'+id+'" placeholder="o que foi encontrado"></label>'
    +'<div class="plbtns" style="margin-top:11px">'
    +'<button class="stb prim" onclick="visitaGravar(\''+id+'\')">💾 Registrar</button>'
@@ -1881,8 +1884,10 @@ async function visitaGravar(id){
     p_equipe:v('v_eq')||null, p_laudo:v('v_laudo')||null, p_obs:v('v_obs')||null });
   if(r.error){ toast('Erro: '+r.error.message); return; }
   if(r.data && r.data.erro){ toast(r.data.erro); return; }
-  if(!v('v_laudo')) toast('Registrada ✓ — mas ficou sem laudo');
-  else toast('Visita registrada ✓');
+  const d=r.data||{};
+  if(d.laudo_automatico) toast('Visita registrada ✓ — laudo puxado do relatório da obra');
+  else if(d.laudo) toast('Visita registrada ✓');
+  else toast('Registrada ✓ — mas ficou SEM laudo: o relatório da obra ainda não tem foto');
   carregarPlanos();
 }
 
