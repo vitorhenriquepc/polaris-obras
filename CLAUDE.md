@@ -758,10 +758,15 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     Rino e Antonio Monteiro (3067)**: `relatorio_enviado_em` 13:01:20, etapa
     2 → 4 às 13:01:28, oito segundos depois.
 
-    O `relatorio.html` já é sensível à trilha desde 17/09; o `foto-obra`
-    **não é**. Quem for consertar: a etapa de destino tem de ser a última da
-    trilha da obra (o mesmo raciocínio do `obra_ativa()`), e o texto tem de
-    seguir a trilha, como o `relatorio.html` faz.
+    **Corrigido em 18/09.** A etapa de destino agora sai da trilha:
+    `min(7, maior etapa da trilha)` — **7** na padrão ("Vistoria e Conexão") e
+    no eletroposto ("Comissionamento"), **4** na manutenção ("Concluída").
+    Não é "a última da trilha": na padrão a última é a 8 ("Sistema Ativo!"),
+    e mandar a obra para lá no fim da instalação dispararia NPS e convite do
+    Google antes da vistoria — exatamente o que o §6 proíbe. Os textos
+    passaram a seguir a trilha, e a frase da etapa **só sai se a etapa tiver
+    nome**. Conferido fora do ar, trilha por trilha: padrão e eletroposto
+    ficam idênticos ao que já faziam; só a manutenção muda.
 
     ⚠️ **O `foto-obra` não registra o que envia.** Não existe tabela de
     mensagens enviadas — só `mensagens_recebidas`. O que ele mandou só dá para
