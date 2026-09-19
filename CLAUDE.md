@@ -850,24 +850,39 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
 
 ## 10. Estado e pendências
 
-56 usinas · **50 normais, 6 sem comunicação** · 31 cron jobs, **todos
-ativos** · 21 chaves de automação em `config`, 20 ligadas — a única
-desligada é `iptu_envio_ativo`, de propósito (ver pendência abaixo). A
-`solarview_ativo` foi **removida** em 12/09: estava em 0, ninguém lia, e fazia
-parecer que o monitoramento estava desligado enquanto ele entregava dado todo
-dia.
+**63 usinas ativas** · **55 normais, 4 sem comunicação, 4 sem dado** ·
+**75 obras, 58 ativas** · 31 cron jobs, **todos ativos** · 22 chaves de
+automação em `config`, 21 ligadas — a única desligada é `iptu_envio_ativo`,
+de propósito (ver pendência abaixo). A `solarview_ativo` foi **removida** em
+12/09: estava em 0, ninguém lia, e fazia parecer que o monitoramento estava
+desligado enquanto ele entregava dado todo dia.
 
-As 6 sem comunicação não são iguais, e tratar como um número só esconde o
-que importa:
+⚠️ **"Sem dado" não é o mesmo que "sem comunicação".** São as **4** usinas
+com **zero registro** em `usina_dia` — elas existem aqui e **não existem no
+SolarView**. São as duas do UNI AUTO POSTO (Clementina, 105,40 e 129,60 kWp,
+cadastradas em 16/09) e as duas da Tays (açougue 29,25 e rancho 40,95), que a
+pendência abaixo já cobre. Não é defeito: é cadastro que falta do outro lado.
 
-| Quantas | Situação | Vale agir? |
+As 4 sem comunicação não são iguais, e tratar como um número só esconde o que
+importa:
+
+| Usina | Situação | Vale agir? |
 |---|---|---|
-| 3 | sem medição há 1 dia (última 11/09) | não — é o normal do datalogger |
-| 1 | **sem medição há 21 dias** (última 22/08) | **sim, é a única urgente** |
-| 2 | nunca comunicaram desde a instalação | sim — nasceram mudas |
+| Buritama 4,96 kWp | gerou ontem (17/09), medindo | não — é o normal do datalogger |
+| **Araçatuba 6,20 kWp** (inst. 18/05) | **mede todo dia e não gera desde 22/08 — 27 dias** | **sim, é a mais urgente** |
+| **Votuporanga 6,25 kWp** (inst. 24/04) | **55 dias de medição e NUNCA gerou nada** | **sim — nasceu muda há ~5 meses** |
+| Araçatuba 8,68 kWp (inst. 27/07) | zero registro desde a instalação | sim — nunca comunicou |
 
-Lembre da armadilha 5: datalogger offline reporta zero, e zero aqui
-significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
+⚠️ **As duas urgentes estão MEDINDO.** O doc dizia "sem medição há 21 dias"
+para a Araçatuba de 6,20 — está errado, e a diferença importa: o datalogger
+dela responde todo dia (última medição 17/09), o que ela não faz é **gerar**.
+Não é a armadilha 5 (datalogger offline reportando zero); é usina parada de
+verdade. O mesmo vale para a Votuporanga, que mede há 55 dias e nunca entregou
+um kWh. Antes de classificar como "sem comunicação", **separe `ultima_medicao`
+de `ultima_geracao`** — as duas saem de `usina_dia`, e confundir uma com a
+outra transforma uma usina parada em "problema de sinal".
+
+Conferido no banco em **18/09/2026**.
 
 - [ ] **Importar o extrato anterior a agosto/2026.** O extrato começa em
       03/08. Maio, junho e julho têm zero lançamento vindo do banco — o que
