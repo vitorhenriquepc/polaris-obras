@@ -593,6 +593,11 @@ white-space:normal;padding:0 2px}
 .apvtxt{width:100%;min-height:86px;background:var(--card2);border:1px solid var(--border);color:var(--txt);border-radius:8px;padding:10px 12px;font-family:inherit;font-size:13.5px;line-height:1.5;resize:vertical}
 .apvfixo{background:var(--card2);border-radius:8px;padding:10px 12px;font-size:13.5px;line-height:1.5;white-space:pre-wrap}
 .apvacts{display:flex;gap:8px;margin-top:10px}
+.apvctx{background:var(--card2);border-radius:8px;padding:9px 12px;margin-bottom:8px;font-size:11.5px;line-height:1.55;color:var(--mut)}
+.apvctx b{color:var(--txt)}
+.apvctx .lin{display:block}
+.apvctx .warn{display:block;margin-top:5px;color:#e0a33e;font-weight:700}
+.apvctx .para{display:block;margin-top:5px;color:#c0392b;font-weight:800}
 .sug{background:var(--card2);border-left:3px solid var(--gold);border-radius:8px;padding:10px 13px;margin-bottom:10px;font-size:12.5px}
 .sugt{font-size:12px;color:var(--mut);margin-top:5px;font-style:italic}
 .cxrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
@@ -3728,6 +3733,44 @@ async function decidirRegua(id, acao){
   carregarRegua();
 }
 
+/* Número com vírgula, e nada quando o banco não tem o dado —
+   zero de chuva é medição, null é "não medi" (armadilha 5). */
+function ctxNum(v, casas){
+  if(v===null||v===undefined||v==='') return null;
+  var n=Number(v); if(isNaN(n)) return null;
+  return n.toFixed(casas===undefined?1:casas).replace('.',',');
+}
+/* O que sustenta o aviso de geração baixa, para quem aprova não decidir
+   às cegas. Tudo aqui é RECALCULADO agora, não é o que a IA viu quando
+   escreveu — por isso o rótulo diz "como está agora". */
+function ctxAprovacao(c){
+  if(!c) return '';
+  var h='<div class="apvctx">'
+    +'<span class="lin">🔎 <b>Como está agora</b> — conferido ao abrir esta tela, não é o que a IA viu quando escreveu.</span>';
+  if(c.motivo) h+='<span class="lin">Geração: '+esc(c.motivo)+'</span>';
+  var dias='<b>'+(c.dias_usados||0)+'</b> dia'+((c.dias_usados===1)?'':'s')+' de sol usados na comparação';
+  if(c.dias_descartados) dias+=' · <b>'+c.dias_descartados+'</b> descartado'+((c.dias_descartados===1)?'':'s')
+    +' porque a vizinhança também gerou pouco (dia fechado)';
+  if(c.sem_medicao) dias+=' · <b>'+c.sem_medicao+'</b> sem medição';
+  h+='<span class="lin">'+dias+'</span>';
+  if(!c.dias_usados)
+    h+='<span class="warn">⚠️ Nenhum dia de sol sobrou na janela de 21 dias — '
+      +'não há base para afirmar que a geração está baixa.</span>';
+  var chuva=ctxNum(c.chuva_mm), sol=ctxNum(c.sol_horas_media);
+  if(chuva!==null||sol!==null){
+    var cl=[];
+    if(chuva!==null) cl.push(chuva+' mm de chuva em 21 dias'+(c.dias_com_chuva?' ('+c.dias_com_chuva+' dia'+(c.dias_com_chuva===1?'':'s')+' com chuva)':''));
+    if(sol!==null) cl.push(sol+' h de sol por dia');
+    h+='<span class="lin">🌦️ '+esc(cl.join(' · '))
+      +(c.clima_medido_em?' — medido em '+esc(c.clima_medido_em):'')+'</span>';
+  }
+  if(c.aviso) h+='<span class="warn">⚠️ '+esc(c.aviso)+'</span>';
+  if(c.ainda_caida===false)
+    h+='<span class="para">🛑 A usina já voltou ao normal desde que esta mensagem foi escrita. '
+      +'Aprovar agora manda aviso de geração baixa para quem não tem mais o problema.</span>';
+  return h+'</div>';
+}
+
 function blocoAprovacao(){
   if(!APROV.length) return '';
   var h='<div class="sec" style="border-color:var(--gold)">'
@@ -3740,6 +3783,7 @@ function blocoAprovacao(){
       +(a.contrato?'<span class="uctag">'+esc(a.contrato)+'</span>':'')
       +'<span class="apvsit">'+esc(a.nome_modelo||a.modelo)+'</span></div>'
       +(a.motivo?'<div class="apvmot'+(alerta?' erro':'')+'">'+esc(a.motivo)+'</div>':'')
+      +ctxAprovacao(a.contexto)
       +'<textarea class="apvtxt" id="rg-'+a.id+'">'+esc(a.texto)+'</textarea>'
       +(a.bloqueio?'<div class="apvmot erro">'+esc(a.bloqueio)+'</div>':'')
       +'<div class="apvacts">'

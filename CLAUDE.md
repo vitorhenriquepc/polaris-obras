@@ -190,6 +190,37 @@ pega isso.
 | `principal` | uma só por obra, garantido por índice único parcial |
 | `entrou_em` / `saiu_em` | vigência |
 
+### Chuva, geração baixa e o card de aprovação
+⚠️ **A chuva já entra na conta — o que faltava era mostrar.** `queda_geracao`
+lê `usina_dias(usina, 21)`, que cruza `clima_dia` e o índice da vizinhança, e
+**descarta o dia inteiro quando o índice fica ≤ 1,5** — dia em que os vizinhos
+também geraram mal não conta. Depois compara pela `razao`, que já é a usina
+**contra os vizinhos daquele dia**. Por isso "gerando 72% do padrão dela em 10
+dias de sol" **não é chuva**: os dias de chuva já saíram. O card "Escritas pela
+IA — esperando você" não dizia nada disso, e quem aprovava confiava às cegas.
+Desde 21/09 ele mostra `geracao_contexto(usina)`.
+
+⚠️ **O clima vem de UM ponto só, e a vizinhança de quase todo mundo é um balde
+único.** `clima_lat`/`clima_lon` têm default **-21,2089 / -50,4328 = Araçatuba**
+— `clima_dia` não tem coluna de cidade. E `v_indice_regiao` só separa cidade com
+**5+ usinas no dia**: hoje **só Araçatuba**; as outras 18 cidades caem juntas num
+balde chamado `regiao`. Para uma usina de Guarulhos ou Araçariguama isso
+significa que o clima é de ~500 km de distância **e** que o descarte de dia
+fechado é decidido pelo interior — chove lá, faz sol aqui, o dia não é
+descartado e a razão dela cai sem culpa. `geracao_contexto` **expõe** isso em
+vez de esconder: `clima_vale`, `usina_cidade`, `clima_medido_em` e um `aviso`
+em português. A lista de cidades cobertas é `config.clima_cidades` (default
+`clima_cidade_base`), para o dia em que houver mais de um ponto.
+
+⚠️ **Mensagem parada na fila envelhece.** As duas de `geracao_baixa` escritas
+em 18/09 estavam **falsas** em 21/09: Jaqueline 73% → **78%** e Marcia 72% →
+**75%**, `queda_geracao.caiu = false` nas duas. Aprovar mandaria alerta de
+geração baixa para cliente cujo problema acabou. Por isso o contexto traz
+`ainda_caida` — o `caiu` **de agora**, recalculado ao abrir a tela, não o de
+quando a IA escreveu — e o card pinta em vermelho quando é `false`. Não
+bloqueia o envio (regra 3.5, quem decide é a pessoa); garante que ela decida
+vendo.
+
 ### NPS e avaliação no Google
 ⚠️ **O convite AUTOMÁTICO do Google sai UMA vez e nunca mais.** Quem agenda é o
 `nps-resposta`, no instante em que a nota entra (`nps.google_agendado_para`); a
@@ -517,6 +548,7 @@ nenhuma delas. Ver pendência no §10.
 | `obra_ativa(obra)` | **a definição única de "está ativa"**: chegou na última etapa da própria trilha |
 | `obra_ativa_em(obra)` | desde quando está ativa (cai no `etapas_historico` se `data_conclusao` for nula) |
 | `obra_geracao_total(obra)` | **quanto a obra já gerou**: kWh, economia, desempenho e meses — a fonte única |
+| `geracao_contexto(usina)` | o que sustenta um aviso de geração baixa: dias usados × descartados por dia fechado, chuva e sol do período, a base da comparação, e **`ainda_caida`** — se a queda ainda existe **agora** |
 | `plano_registrar_pagamento(contrato, data)` | liga o contrato no dia em que o primeiro pagamento entrou; é ela que calcula `inicio` e `fim` |
 | `plano_cadastrar_cliente(json, simular)` | **cadastra cliente de plano inteiro**: cliente + obra + usinas + contrato numa transação. Com `simular = true` (o padrão) não grava nada e devolve a prévia ou a lista de erros |
 | `plano_contrato_criar(json, simular)` | fecha o contrato numa obra que **já existe** — o caminho de volta para o cliente de plano que ficou sem. Um contrato aberto por vez |
@@ -598,6 +630,8 @@ Prefira criar parâmetro a chumbar número no código.
 | `recorde_intervalo_meses` | 6 | descanso entre avisos de recorde |
 | `plano_endereco_adicional` | 200 | R$/ano por endereço além do primeiro no Completo — a visita técnica é em cada um |
 | `autoleitura_ativo` | 1 | envio automático do lembrete de autoleitura (9h no dia, 18h na véspera) |
+| `clima_cidade_base` | Araçatuba | onde o `clima_dia` é medido de verdade — é só **um** ponto |
+| `clima_cidades` | Araçatuba | para quais cidades o clima vale. Usina fora da lista ganha aviso no card de aprovação em vez de um número que não é dela |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -725,7 +759,7 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     `{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}`
     — sem anon nenhum.
 
-11. **Existem DOIS caminhos para mudar a etapa, e só um avisava o cliente.**
+11. **Existem TRÊS caminhos para mudar a etapa, não dois.**
     Arrastar o card no kanban passa por `mudarEtapa()`, que chama o
     `notificar-grupo`. Trocar a etapa **dentro do card** e salvar passa por
     `salvarForm()`, que gravava `etapa_numero` junto com o resto do `rec` e
@@ -735,6 +769,42 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     provou: zero chamadas ao `notificar-grupo` nos horários das mudanças.
     Corrigido em 15/09. Antes de acrescentar efeito colateral a uma mudança de
     campo, **procure se o campo não é gravado por mais de um caminho**.
+
+    ⚠️ **O terceiro caminho só apareceu em 17/09, e não é a tela: é o
+    instalador.** A ação `enviar` do `foto-obra` (o instalador manda o
+    relatório pelo `instalador_token`, sem login) faz
+    `update obras set etapa_numero = ETAPA_POS_INSTALACAO` — **7, chumbado no
+    código** — e avisa o cliente **ela mesma**, direto na Z-API, sem passar
+    pelo `notificar-grupo`. Por isso um log com **zero chamadas ao
+    `notificar-grupo`** não prova que ninguém foi avisado. Como não há JWT de
+    usuário, a `fn_log_etapa` grava `por_usuario = 'sistema'` — é essa a
+    assinatura desse caminho no `etapas_historico`.
+
+    ⚠️ **E em obra de manutenção ele erra.** A trilha `manutencao` vai só até
+    a etapa 4, então o `trg_valida_etapa` **clampa o 7 para 4** em silêncio
+    (ele ajusta para a etapa válida mais próxima em vez de recusar). Mas a
+    mensagem já foi montada buscando `etapas` com `numero = 7` **na trilha da
+    obra** — que não existe —, então `proxNome` sai **string vazia** e o
+    cliente lê *"Sua obra avançou para a etapa **."*. Pior: todo o texto é de
+    instalação (*"Instalação concluída"*, *"finalizou a instalação do seu
+    sistema"*, *"Relatório oficial da instalação"*) numa manutenção
+    preventiva. Aconteceu de verdade em **17/09 13:01 BRT** com a **Fatima
+    Rino e Antonio Monteiro (3067)**: `relatorio_enviado_em` 13:01:20, etapa
+    2 → 4 às 13:01:28, oito segundos depois.
+
+    **Corrigido em 18/09.** A etapa de destino agora sai da trilha:
+    `min(7, maior etapa da trilha)` — **7** na padrão ("Vistoria e Conexão") e
+    no eletroposto ("Comissionamento"), **4** na manutenção ("Concluída").
+    Não é "a última da trilha": na padrão a última é a 8 ("Sistema Ativo!"),
+    e mandar a obra para lá no fim da instalação dispararia NPS e convite do
+    Google antes da vistoria — exatamente o que o §6 proíbe. Os textos
+    passaram a seguir a trilha, e a frase da etapa **só sai se a etapa tiver
+    nome**. Conferido fora do ar, trilha por trilha: padrão e eletroposto
+    ficam idênticos ao que já faziam; só a manutenção muda.
+
+    ⚠️ **O `foto-obra` não registra o que envia.** Não existe tabela de
+    mensagens enviadas — só `mensagens_recebidas`. O que ele mandou só dá para
+    ler no grupo do cliente ou deduzir do código.
 
 12. **Cadastro parcial que devolve `ok: true` é pior que erro.** O cadastro de
     cliente de plano grava cliente, obra, usinas, vínculos e ficha, e só cria o
@@ -814,24 +884,39 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
 
 ## 10. Estado e pendências
 
-56 usinas · **50 normais, 6 sem comunicação** · 31 cron jobs, **todos
-ativos** · 21 chaves de automação em `config`, 20 ligadas — a única
-desligada é `iptu_envio_ativo`, de propósito (ver pendência abaixo). A
-`solarview_ativo` foi **removida** em 12/09: estava em 0, ninguém lia, e fazia
-parecer que o monitoramento estava desligado enquanto ele entregava dado todo
-dia.
+**63 usinas ativas** · **55 normais, 4 sem comunicação, 4 sem dado** ·
+**75 obras, 58 ativas** · 31 cron jobs, **todos ativos** · 22 chaves de
+automação em `config`, 21 ligadas — a única desligada é `iptu_envio_ativo`,
+de propósito (ver pendência abaixo). A `solarview_ativo` foi **removida** em
+12/09: estava em 0, ninguém lia, e fazia parecer que o monitoramento estava
+desligado enquanto ele entregava dado todo dia.
 
-As 6 sem comunicação não são iguais, e tratar como um número só esconde o
-que importa:
+⚠️ **"Sem dado" não é o mesmo que "sem comunicação".** São as **4** usinas
+com **zero registro** em `usina_dia` — elas existem aqui e **não existem no
+SolarView**. São as duas do UNI AUTO POSTO (Clementina, 105,40 e 129,60 kWp,
+cadastradas em 16/09) e as duas da Tays (açougue 29,25 e rancho 40,95), que a
+pendência abaixo já cobre. Não é defeito: é cadastro que falta do outro lado.
 
-| Quantas | Situação | Vale agir? |
+As 4 sem comunicação não são iguais, e tratar como um número só esconde o que
+importa:
+
+| Usina | Situação | Vale agir? |
 |---|---|---|
-| 3 | sem medição há 1 dia (última 11/09) | não — é o normal do datalogger |
-| 1 | **sem medição há 21 dias** (última 22/08) | **sim, é a única urgente** |
-| 2 | nunca comunicaram desde a instalação | sim — nasceram mudas |
+| Buritama 4,96 kWp | gerou ontem (17/09), medindo | não — é o normal do datalogger |
+| **Araçatuba 6,20 kWp** (inst. 18/05) | **mede todo dia e não gera desde 22/08 — 27 dias** | **sim, é a mais urgente** |
+| **Votuporanga 6,25 kWp** (inst. 24/04) | **55 dias de medição e NUNCA gerou nada** | **sim — nasceu muda há ~5 meses** |
+| Araçatuba 8,68 kWp (inst. 27/07) | zero registro desde a instalação | sim — nunca comunicou |
 
-Lembre da armadilha 5: datalogger offline reporta zero, e zero aqui
-significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
+⚠️ **As duas urgentes estão MEDINDO.** O doc dizia "sem medição há 21 dias"
+para a Araçatuba de 6,20 — está errado, e a diferença importa: o datalogger
+dela responde todo dia (última medição 17/09), o que ela não faz é **gerar**.
+Não é a armadilha 5 (datalogger offline reportando zero); é usina parada de
+verdade. O mesmo vale para a Votuporanga, que mede há 55 dias e nunca entregou
+um kWh. Antes de classificar como "sem comunicação", **separe `ultima_medicao`
+de `ultima_geracao`** — as duas saem de `usina_dia`, e confundir uma com a
+outra transforma uma usina parada em "problema de sinal".
+
+Conferido no banco em **18/09/2026**.
 
 - [ ] **Importar o extrato anterior a agosto/2026.** O extrato começa em
       03/08. Maio, junho e julho têm zero lançamento vindo do banco — o que
@@ -897,6 +982,15 @@ significa "não medi", não "não gerou". Conferido no banco em 12/09/2026.
 - [ ] **Não existe tela para trocar o responsável.** `definir_responsavel(equipe,
       funcao)` existe, é `is_admin()` e funciona — mas nenhuma tela chama.
       Hoje a troca só acontece pelo banco, na mão.
+- [ ] **Duas mensagens de `geracao_baixa` paradas desde 18/09 e já vencidas.**
+      Jaqueline (Guarulhos) e Marcia (Araçariguama): as duas usinas voltaram ao
+      padrão sozinhas (78% e 75%, `caiu = false` em 21/09). O card agora avisa
+      em vermelho; **recusar** é o desfecho certo, mas é clique da Lívia.
+- [ ] **Um ponto de clima só, e vizinhança num balde único.** Enquanto
+      `clima_dia` tiver apenas Araçatuba e `v_indice_regiao` juntar 18 cidades
+      em `regiao`, todo aviso de geração baixa fora do interior nasce com
+      ressalva. O caminho é uma coluna de cidade em `clima_dia` + uma chamada
+      de Open-Meteo por cidade com usina — não é urgente enquanto forem 2 casos.
 - [ ] Ligar proteção de senha vazada no Supabase
 - [ ] **Prospecção de sistema órfão, se virar rotina.** A aba "Cliente de fora"
       foi removida em 15/09: ela gerava um texto de abordagem e **não gravava
