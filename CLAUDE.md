@@ -190,6 +190,37 @@ pega isso.
 | `principal` | uma só por obra, garantido por índice único parcial |
 | `entrou_em` / `saiu_em` | vigência |
 
+### Chuva, geração baixa e o card de aprovação
+⚠️ **A chuva já entra na conta — o que faltava era mostrar.** `queda_geracao`
+lê `usina_dias(usina, 21)`, que cruza `clima_dia` e o índice da vizinhança, e
+**descarta o dia inteiro quando o índice fica ≤ 1,5** — dia em que os vizinhos
+também geraram mal não conta. Depois compara pela `razao`, que já é a usina
+**contra os vizinhos daquele dia**. Por isso "gerando 72% do padrão dela em 10
+dias de sol" **não é chuva**: os dias de chuva já saíram. O card "Escritas pela
+IA — esperando você" não dizia nada disso, e quem aprovava confiava às cegas.
+Desde 21/09 ele mostra `geracao_contexto(usina)`.
+
+⚠️ **O clima vem de UM ponto só, e a vizinhança de quase todo mundo é um balde
+único.** `clima_lat`/`clima_lon` têm default **-21,2089 / -50,4328 = Araçatuba**
+— `clima_dia` não tem coluna de cidade. E `v_indice_regiao` só separa cidade com
+**5+ usinas no dia**: hoje **só Araçatuba**; as outras 18 cidades caem juntas num
+balde chamado `regiao`. Para uma usina de Guarulhos ou Araçariguama isso
+significa que o clima é de ~500 km de distância **e** que o descarte de dia
+fechado é decidido pelo interior — chove lá, faz sol aqui, o dia não é
+descartado e a razão dela cai sem culpa. `geracao_contexto` **expõe** isso em
+vez de esconder: `clima_vale`, `usina_cidade`, `clima_medido_em` e um `aviso`
+em português. A lista de cidades cobertas é `config.clima_cidades` (default
+`clima_cidade_base`), para o dia em que houver mais de um ponto.
+
+⚠️ **Mensagem parada na fila envelhece.** As duas de `geracao_baixa` escritas
+em 18/09 estavam **falsas** em 21/09: Jaqueline 73% → **78%** e Marcia 72% →
+**75%**, `queda_geracao.caiu = false` nas duas. Aprovar mandaria alerta de
+geração baixa para cliente cujo problema acabou. Por isso o contexto traz
+`ainda_caida` — o `caiu` **de agora**, recalculado ao abrir a tela, não o de
+quando a IA escreveu — e o card pinta em vermelho quando é `false`. Não
+bloqueia o envio (regra 3.5, quem decide é a pessoa); garante que ela decida
+vendo.
+
 ### NPS e avaliação no Google
 ⚠️ **O convite AUTOMÁTICO do Google sai UMA vez e nunca mais.** Quem agenda é o
 `nps-resposta`, no instante em que a nota entra (`nps.google_agendado_para`); a
@@ -517,6 +548,7 @@ nenhuma delas. Ver pendência no §10.
 | `obra_ativa(obra)` | **a definição única de "está ativa"**: chegou na última etapa da própria trilha |
 | `obra_ativa_em(obra)` | desde quando está ativa (cai no `etapas_historico` se `data_conclusao` for nula) |
 | `obra_geracao_total(obra)` | **quanto a obra já gerou**: kWh, economia, desempenho e meses — a fonte única |
+| `geracao_contexto(usina)` | o que sustenta um aviso de geração baixa: dias usados × descartados por dia fechado, chuva e sol do período, a base da comparação, e **`ainda_caida`** — se a queda ainda existe **agora** |
 | `plano_registrar_pagamento(contrato, data)` | liga o contrato no dia em que o primeiro pagamento entrou; é ela que calcula `inicio` e `fim` |
 | `plano_cadastrar_cliente(json, simular)` | **cadastra cliente de plano inteiro**: cliente + obra + usinas + contrato numa transação. Com `simular = true` (o padrão) não grava nada e devolve a prévia ou a lista de erros |
 | `plano_contrato_criar(json, simular)` | fecha o contrato numa obra que **já existe** — o caminho de volta para o cliente de plano que ficou sem. Um contrato aberto por vez |
@@ -598,6 +630,8 @@ Prefira criar parâmetro a chumbar número no código.
 | `recorde_intervalo_meses` | 6 | descanso entre avisos de recorde |
 | `plano_endereco_adicional` | 200 | R$/ano por endereço além do primeiro no Completo — a visita técnica é em cada um |
 | `autoleitura_ativo` | 1 | envio automático do lembrete de autoleitura (9h no dia, 18h na véspera) |
+| `clima_cidade_base` | Araçatuba | onde o `clima_dia` é medido de verdade — é só **um** ponto |
+| `clima_cidades` | Araçatuba | para quais cidades o clima vale. Usina fora da lista ganha aviso no card de aprovação em vez de um número que não é dela |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -948,6 +982,15 @@ Conferido no banco em **18/09/2026**.
 - [ ] **Não existe tela para trocar o responsável.** `definir_responsavel(equipe,
       funcao)` existe, é `is_admin()` e funciona — mas nenhuma tela chama.
       Hoje a troca só acontece pelo banco, na mão.
+- [ ] **Duas mensagens de `geracao_baixa` paradas desde 18/09 e já vencidas.**
+      Jaqueline (Guarulhos) e Marcia (Araçariguama): as duas usinas voltaram ao
+      padrão sozinhas (78% e 75%, `caiu = false` em 21/09). O card agora avisa
+      em vermelho; **recusar** é o desfecho certo, mas é clique da Lívia.
+- [ ] **Um ponto de clima só, e vizinhança num balde único.** Enquanto
+      `clima_dia` tiver apenas Araçatuba e `v_indice_regiao` juntar 18 cidades
+      em `regiao`, todo aviso de geração baixa fora do interior nasce com
+      ressalva. O caminho é uma coluna de cidade em `clima_dia` + uma chamada
+      de Open-Meteo por cidade com usina — não é urgente enquanto forem 2 casos.
 - [ ] Ligar proteção de senha vazada no Supabase
 - [ ] **Prospecção de sistema órfão, se virar rotina.** A aba "Cliente de fora"
       foi removida em 15/09: ela gerava um texto de abordagem e **não gravava
