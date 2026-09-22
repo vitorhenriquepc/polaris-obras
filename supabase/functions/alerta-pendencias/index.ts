@@ -48,15 +48,34 @@ Deno.serve(async (req: Request) => {
     const semNps = p.sem_nps_lista || [];
     const brindes = p.brindes_lista || [];
     const google = p.google_lista || [];
+    const paradas = p.usinas_paradas || [];
 
     const total = resp.length + ger.length + (p.sem_nps || 0)
-      + (p.brindes_pendentes || 0) + (p.google_pendente || 0);
+      + (p.brindes_pendentes || 0) + (p.google_pendente || 0) + paradas.length;
 
     if (total === 0 && (p.sem_aniversario || 0) === 0) {
       return json({ ok: true, enviado: false, motivo: 'nada pendente' });
     }
 
     let msg = `☀️ *Bom dia! Pendências do pós-venda*\n`;
+
+    if (paradas.length) {
+      msg += `\n🛑 *${paradas.length} usina${paradas.length > 1 ? 's' : ''} sem gerar*\n`;
+      for (const u of paradas.slice(0, 6)) {
+        // `dias` nulo = nunca foi medida. Nao inventar "parada ha N dias" com a
+        // data de instalacao: essas usinas nao pararam, nunca existiram no
+        // SolarView (armadilha 5).
+        const quanto = u.nunca_gerou
+          ? (u.estado === 'sem dado' ? 'não existe no SolarView' : 'nunca gerou')
+          : `parada há ${u.dias} dia${u.dias === 1 ? '' : 's'}`;
+        msg += `• ${u.cliente}${tag(u.contrato)} — ${u.usina} ${String(u.kwp).replace('.', ',')} kWp · ${quanto}`;
+        msg += u.avisado_ha == null
+          ? ` · _cliente ainda não avisado_\n`
+          : ` · avisado há ${u.avisado_ha} dia${u.avisado_ha === 1 ? '' : 's'}\n`;
+      }
+      if (paradas.length > 6) msg += `• ...e mais ${paradas.length - 6}\n`;
+      msg += `_Avisado e sem desfecho há dias é o que mais custa caro._\n`;
+    }
 
     if (ind.length) {
       msg += `\n🎁 *${ind.length} ${ind.length > 1 ? 'indicações' : 'indicação'} aguardando retorno*\n`;

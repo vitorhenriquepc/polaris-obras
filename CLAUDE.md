@@ -574,7 +574,7 @@ nenhuma delas. Ver pendência no §10.
 | `conferir_saude()` | conferência geral das 7h30 |
 | `casar_recebimentos(simular)` | casa entrada do banco com parcela |
 | `indicacoes_resumo(obra)` | funil; só conta o que fechou |
-| `pendencias_posvenda()` | o que a Lívia recebe às 8h — mensagem sem resposta, promotor sem avaliação no Google, brinde a entregar, sem NPS, sem aniversário; **com nome, não só número** |
+| `pendencias_posvenda()` | o que a Lívia recebe às 8h — **usina sem gerar** (com há quantos dias o cliente foi avisado), mensagem sem resposta, promotor sem avaliação no Google, brinde a entregar, sem NPS, sem aniversário; **com nome, não só número** |
 | `regua_fila(limite)` | o que sai hoje às 17h |
 | `regua_resumo_dia()` | o que a Lívia recebe às 11h |
 | `obras_para_nps()` | quem recebe o NPS: **só depois da última etapa da trilha**, e **um por cliente** — quem já respondeu numa obra não é perguntado de novo |
@@ -667,6 +667,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `clima_cidade_base` | Araçatuba | onde o `clima_dia` é medido de verdade — é só **um** ponto |
 | `clima_cidades` | Araçatuba | para quais cidades o clima vale. Usina fora da lista ganha aviso no card de aprovação em vez de um número que não é dela |
 | `causa_caduca_dias` | 2 | quantos dias a anotação `usinas.causa = 'wifi'` continua valendo depois que a usina volta a gerar. Gerou dentro da janela, a medição manda e o palpite é ignorado |
+| `parada_avisa_dias` | 7 | dias sem gerar para a usina entrar no aviso das 8h. Existe para o ruído de datalogger do dia não entrar — em 22/09 havia cinco usinas em "sem comunicação" que tinham gerado ontem |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -1108,16 +1109,25 @@ Conferido no banco em **22/09/2026**.
       24/04; **JOAO JOSE DE SOUZA** (Araçatuba 6,20) parou em 22/08 e o
       datalogger caiu em 06/09; **João Vitor Pozzeti** (Araçatuba 8,68) nunca
       comunicou desde 27/07. Nenhuma é problema de wi-fi, apesar da anotação.
+
+      ⚠️ **Elas não apareciam no aviso das 8h — o aviso não tinha seção de
+      usina parada.** Só o João Vitor entrava, e por outra porta
+      (`geracao_faltando`, que tem teto de 60 dias e ia calá-lo no dia 61).
+      Corrigido em 22/09: `usinas_paradas` entra no topo do aviso, com
+      `avisado_ha` junto. O conserto é do sistema; **ir na casa do cliente
+      continua sendo trabalho de campo.**
 - [ ] **A corretiva não tem onde dizer o motivo da visita.** A `enviar-os`
       agora manda ficha própria de manutenção, mas o instalador vai à
       corretiva sem saber o que foi relatado. `obras.observacoes` **não serve**
       — é campo livre e hoje carrega nota comercial (a obra 4599 tem
       "Proposta: R$ 15.600,00"), então mandar para o grupo do instalador
       vazaria preço. Precisa de campo próprio.
-- [ ] **Decidir se o Bruno (3655) recebe a mensagem corrigida.** O grupo do
-      instalador e o cliente já receberam a versão errada em 22/09, com texto
-      de instalação. A `enviar-os` está corrigida e reenviar é um clique, mas
-      é uma segunda mensagem no mesmo grupo — decisão do Vitor.
+- [x] ~~Decidir se o Bruno (3655) recebe a mensagem corrigida.~~
+      **Reenviada em 22/09** para a **CJP Solar**, já como "Manutenção
+      preventiva agendada para vocês!". Correção de um erro meu ao relatar:
+      a obra **não tem grupo de WhatsApp do cliente**, então o cliente nunca
+      recebeu nada — a versão errada foi só para o grupo do instalador.
+      Foi também o primeiro envio real da `enviar-os` nova pela Z-API.
 - [ ] **Um ponto de clima só, e vizinhança num balde único.** Enquanto
       `clima_dia` tiver apenas Araçatuba e `v_indice_regiao` juntar 18 cidades
       em `regiao`, todo aviso de geração baixa fora do interior nasce com
