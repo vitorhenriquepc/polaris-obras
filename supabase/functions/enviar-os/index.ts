@@ -19,6 +19,9 @@ function servicoDe(trilha: string, tipoManutencao: string | null) {
     const t = String(tipoManutencao || '').trim().toLowerCase();
     if (t === 'preventiva') return { cliente: 'manutenção preventiva', equipe: 'Manutenção preventiva' };
     if (t === 'corretiva') return { cliente: 'manutenção corretiva', equipe: 'Manutenção corretiva' };
+    // 'diagnostico' é o terceiro valor que a tela grava, e o relatorio.html já
+    // titula esse laudo de "Avaliação Técnica" — seguir o mesmo nome.
+    if (t === 'diagnostico') return { cliente: 'avaliação técnica', equipe: 'Avaliação técnica' };
     return { cliente: 'visita técnica', equipe: 'Visita técnica' };
   }
   if (trilha === 'eletroposto') return { cliente: 'instalação do eletroposto', equipe: 'Obra' };
@@ -100,10 +103,11 @@ Deno.serve(async (req: Request) => {
               : (o.qtd_modulos ? `🔋 ${o.qtd_modulos} módulos` : null),
             o.inversor_descricao ? `🔌 ${o.inversor_descricao}` : null,
             o.tipo_telhado ? `🏠 Telhado: ${o.tipo_telhado}` : null,
-            // `observacoes` NAO entra aqui: e campo livre e hoje carrega nota
-            // comercial ("Proposta: R$ 15.600,00" na obra 4599). Mandar para o
-            // grupo do instalador vazaria preco. O motivo da corretiva merece
-            // campo proprio antes de virar mensagem.
+            // `motivo_manutencao` tem destino declarado: nasceu para ir daqui
+            // ao grupo do instalador. `observacoes` NUNCA entra — e campo
+            // livre e carrega nota comercial ("Proposta: R$ 15.600,00" na
+            // obra 4599); mandar de la vazaria preco.
+            o.motivo_manutencao ? `📝 Relato: ${o.motivo_manutencao}` : null,
           ]
         : [
             o.potencia_kwp ? `⚡ ${String(o.potencia_kwp).replace('.', ',')} kWp` : null,
