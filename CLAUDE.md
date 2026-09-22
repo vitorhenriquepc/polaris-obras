@@ -337,6 +337,20 @@ Para quem a nota é emitida vive no **contrato**, não em `clientes`:
 `nota_documento` aceita CPF (11 dígitos) ou CNPJ (14) e o tipo se deduz do
 tamanho — não existe campo separado, para não divergir do número.
 
+⚠️ **O plano mora no `posvenda.html`, não no card da obra.** Até 22/09 o
+bloco "Plano de manutenção e acompanhamento" — seletor de plano, campos de
+nota fiscal, "começa no 1º pagamento", "Registrar 1º pagamento" e "Encerrar
+plano" — vivia no card do `painel.html`, e o Vitor pediu para tirar: o card
+estava com informação demais, e plano é assunto de pós-venda. Não foi apagado,
+mudou de casa — a ficha do cliente já **mostrava** o plano e não oferecia
+nenhuma ação sobre ele (armadilha 14), e agora mostra e age.
+
+Quem grava é **`plano_contrato_criar`**, e não mais o `insert` direto que a tela
+antiga fazia: ela recusa um segundo contrato aberto, recusa cortesia esperando
+pagamento e tem modo simular. O formulário da aba Planos e o da ficha são o
+**mesmo** `formContrato()` — o que vinha de `sem_contrato` sempre foi só
+preenchimento prévio.
+
 ⚠️ **Cliente de plano sem contrato some do painel.** `plano_cadastrar_cliente`
 só cria o contrato quando o plano foi escolhido — deixar em branco é legítimo, e
 `get_painel_planos` lê `from plano_contratos`, então o cliente ficava invisível.
@@ -1007,6 +1021,47 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     (`--mut:var(--muted)`), que se resolve no uso e por isso segue o tema claro
     também. Irmã da 15 e da 17: o defeito que não grita é o que fica anos.
 
+23. **Arrastar não rola o quadro: a coluna de destino tem de já estar na tela.**
+    O kanban tem **nove colunas** de 196px — cerca de 1850px — e rola na
+    horizontal. O drag-and-drop do HTML5 **não rola container sozinho**, e o
+    `scroll-snap-type: x proximity` do `.kb` ainda puxava de volta. Resultado:
+    arrastar da etapa 7 para a 8 não tinha para onde ir, porque a última coluna
+    quase nunca está visível.
+
+    **CELIA REGINA (4133), 22/09:** o Vitor tentou mover de "Vistoria e Conexão"
+    para "Sistema Ativo!" com o mouse, não funcionou, e trocou a etapa na mão.
+
+    ⚠️ **E o diagnóstico dele foi razoável, mas errado:** ele concluiu que a
+    mensagem automática tinha quebrado. Não tinha. O log das edge functions
+    mostra `notificar-grupo` respondendo **200 às 16:40:42**, um segundo depois
+    da etapa gravada às 16:40:41. O caminho do aviso estava intacto — o que
+    falhou foi só o gesto. **Quando um recurso "não funciona", separe o que a
+    pessoa tentou fazer do que o sistema fez**: aqui eram duas coisas, e só uma
+    estava quebrada.
+
+    Corrigido em 22/09 com auto-scroll: faixa de 90px em cada borda rola
+    enquanto o cartão está no ar, e o snap é desligado durante o arrasto.
+
+24. **Zero digitado virava ausência — a armadilha 16 ao contrário.** A trava do
+    financeiro testava `coalesce(v_km,0) <= 0` para a distância em km. Obra em
+    **Araçatuba tem distância zero**: é na própria cidade. O zero era lido como
+    "ninguém preencheu", e a saída da equipe virou deixar o campo em branco.
+
+    **Medido em 22/09:** **zero** obras com `distancia_km = 0` no banco — a
+    trava nunca deixou gravar uma — e **57 com km nulo, 30 delas de Araçatuba**.
+    A trava que existia para cobrar preenchimento produziu o buraco que queria
+    evitar.
+
+    ⚠️ **O mesmo erro estava em TRÊS camadas**, e nenhuma dava erro:
+    o trigger no banco; a lista de obrigatórios do `salvarForm()`
+    (`parseFloat(v) > 0`, que pintava o campo de vermelho); e a gravação
+    (`parseFloat(...) || null` — **`0 || null` é `null`**). Consertar só uma
+    daria impressão de resolvido: a tela seguiria recusando, ou gravando nulo
+    calada.
+
+    Antes de exibir um zero, pergunte se ele é medição ou ausência (armadilha
+    16). Antes de **recusar** um zero, pergunte a mesma coisa.
+
 ---
 
 ## 10. Estado e pendências
@@ -1100,6 +1155,12 @@ Conferido no banco em **22/09/2026**.
       Toda obra tem ficha financeira criada; o que falta é preencher.
       Somam-se a isso **13 obras** cujas parcelas não fecham com o preço
       (diferença acima de R$ 1,00).
+
+      ⚠️ **Metade do buraco do km não era desleixo: era a trava** (armadilha
+      24). Obra de Araçatuba tem distância zero, e o zero era recusado como se
+      fosse campo vazio — **30 das 57 obras sem km são de Araçatuba**, e havia
+      **zero** obras gravadas com km = 0. Corrigido em 22/09 nas três camadas.
+      Agora dá para fechar essas 30 escrevendo `0`, o que é a resposta certa.
 - [ ] 5 cards incompletos: 4349, 4420, 4483, 4563, 4808
 - [ ] Confirmar se as parcelas de ~30% são entrada de financiamento
 - [ ] **EDVALDO MARCIO GONCALVES (4657): a 3ª e a 4ª parcela vencem no mesmo

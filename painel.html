@@ -207,6 +207,8 @@ font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
 font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
 .viewtabs button.on{background:var(--card2);color:var(--gold)}
 .kb{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 20px;scroll-snap-type:x proximity;align-items:flex-start}
+/* durante o arrasto o snap puxa a coluna de volta e briga com o auto-scroll */
+.kb.arrastando{scroll-snap-type:none;scroll-behavior:auto}
 .kb::-webkit-scrollbar{height:8px}
 .kb::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px}
 .kcol{flex:1 1 196px;min-width:196px;scroll-snap-align:start;background:var(--card2);border:1px solid var(--border);
@@ -580,7 +582,7 @@ document.getElementById('bAgenda').onclick = ()=> abrirAgendas();
 document.getElementById('busca').addEventListener('input', e=>{ busca=e.target.value.toLowerCase(); renderList(); });
 
 setView(VIEW);
-await loadEtapas(); await loadTravas(); await loadOrigens(); await loadRel(); await loadPlanos();
+await loadEtapas(); await loadTravas(); await loadOrigens(); await loadRel();
 await loadEquipe();
 await loadObras();
 subscribeRealtime();
@@ -624,151 +626,32 @@ function relStatus(o){
   return { obrig:x.obrig, feitos:x.feitos, assinado:x.assinado, completo:completo, ok:ok };
 }
 const TIPO_MAN={preventiva:['🛡️','Preventiva'],corretiva:['🔧','Corretiva'],diagnostico:['🔎','Diagnóstico']};
-let PLANOS=[];
-async function loadPlanos(){
-  const r=await sb.from('planos').select('codigo,nome,preco_anual,preco_mensal,nivel').eq('ativo',true).order('ordem');
-  PLANOS=r.data||[];
-}
-// CPF com 11 digitos, CNPJ com 14. O tipo se deduz do numero, nunca se guarda
-// ao lado dele -- foi assim que a coluna nasceu no banco.
-function docFmt(d){
-  const s=String(d||'').replace(/\D/g,'');
-  if(s.length===11) return s.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4');
-  if(s.length===14) return s.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5');
-  return s;
-}
-function docTipo(d){
-  const s=String(d||'').replace(/\D/g,'');
-  return s.length===11?'CPF':(s.length===14?'CNPJ':'');
-}
-function planoMoeda(v){
-  return Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-}
-function camposNota(){
-  return '<div style="margin-top:9px;font-size:11.5px;color:#8fa6b8;font-weight:700">Nota fiscal</div>'+
-    '<div class="grid2" style="gap:8px;margin-top:5px">'+
-    '<select id="p_nota_tipo" onchange="trocaNotaTipo()">'+
-      '<option value="cpf">No CPF</option><option value="cnpj">No CNPJ</option></select>'+
-    '<input id="p_nota_doc" inputmode="numeric" placeholder="000.000.000-00"></div>'+
-    '<input id="p_nota_nome" style="margin-top:7px;width:100%" placeholder="Nome ou razão social na nota (se diferente)">';
-}
-function trocaNotaTipo(){
-  const t=(document.getElementById('p_nota_tipo')||{}).value;
-  const i=document.getElementById('p_nota_doc'); if(!i) return;
-  i.placeholder = t==='cnpj' ? '00.000.000/0000-00' : '000.000.000-00';
-}
+/* O plano de manutencao SAIU daqui em 22/09, a pedido do Vitor: o card da obra
+   estava com informacao demais, e plano e assunto de pos-venda, nao de obra.
+   Foram embora com ele o seletor de plano, os campos de NOTA FISCAL, o
+   "comeca no 1o pagamento", o "Registrar 1o pagamento" e o "Encerrar plano".
 
-async function carregarPlano(obraId){
-  const box=document.getElementById('planoBox'); if(!box||!obraId) return;
-  const r=await sb.from('plano_contratos').select('*').eq('obra_id',obraId)
-    .in('status',['ativo','aguardando_pagamento'])
-    .order('criado_em',{ascending:false}).limit(1).maybeSingle();
-  const c=r.data;
-
-  // contrato fechado e ainda nao pago: nao tem inicio nem fim, entao mostrar
-  // "venceu ha X dias" seria mentira. O que ele precisa e do botao de baixa.
-  if(c && c.status==='aguardando_pagamento'){
-    const p=PLANOS.find(x=>x.codigo===c.plano_codigo);
-    box.innerHTML='<div style="border:1px solid #F5A623;border-radius:9px;padding:10px 12px;font-size:12.5px">'+
-      '<b style="color:#F5A623">'+esc(p?p.nome:c.plano_codigo)+'</b><br>'+
-      '<span style="color:#8fa6b8;font-weight:600">Aguardando o 1º pagamento'+
-      (c.valor?' · '+planoMoeda(c.valor):'')+' · '+(c.meses||12)+' meses<br>'+
-      'Os meses só começam a contar quando o pagamento entrar.'+
-      (c.nota_documento?'<br>Nota no '+docTipo(c.nota_documento)+' '+esc(docFmt(c.nota_documento))+
-        (c.nota_nome?' · '+esc(c.nota_nome):''):'')+
-      '</span>'+
-      '<button type="button" class="tbtn" style="margin-top:8px;width:100%" onclick="registrarPagamento(\''+c.id+'\')">Registrar 1º pagamento</button>'+
-      '<button type="button" class="tbtn" style="margin-top:6px" onclick="encerrarPlano(\''+c.id+'\',\'cancelado\')">Cancelar contrato</button></div>';
-    return;
-  }
-
-  if(c){
-    const dias=Math.round((new Date(c.fim)-new Date())/864e5);
-    const p=PLANOS.find(x=>x.codigo===c.plano_codigo);
-    const cor = dias<0?'#e07070':(dias<=30?'#F5A623':'#58b868');
-    box.innerHTML='<div style="border:1px solid '+cor+';border-radius:9px;padding:10px 12px;font-size:12.5px">'+
-      '<b style="color:'+cor+'">'+esc(p?p.nome:c.plano_codigo)+'</b><br>'+
-      '<span style="color:#8fa6b8;font-weight:600">'+fmtD(c.inicio)+' a '+fmtD(c.fim)+' · '+
-      (dias<0?('venceu há '+Math.abs(dias)+' dias'):(dias+' dias restantes'))+
-      (c.valor?' · '+planoMoeda(c.valor):'')+
-      (c.nota_documento?'<br>Nota no '+docTipo(c.nota_documento)+' '+esc(docFmt(c.nota_documento)):'')+
-      '</span>'+
-      '<button type="button" class="tbtn" style="margin-top:8px" onclick="encerrarPlano(\''+c.id+'\')">Encerrar plano</button></div>';
-  } else {
-    let ops='<option value="">— Sem plano —</option>';
-    PLANOS.forEach(p=>{ ops+='<option value="'+esc(p.codigo)+'">'+esc(p.nome)+'</option>'; });
-    box.innerHTML='<div class="grid2" style="gap:8px">'+
-      '<select id="p_cod">'+ops+'</select>'+
-      '<select id="p_meses"><option value="12">12 meses</option><option value="6">6 meses</option>'+
-      '<option value="24">24 meses</option><option value="36">36 meses</option></select></div>'+
-      '<div class="grid2" style="gap:8px;margin-top:7px">'+
-      '<input id="p_inicio" type="date" value="'+new Date().toISOString().slice(0,10)+'">'+
-      '<input id="p_valor" type="number" step="0.01" inputmode="decimal" placeholder="Valor (R$)"></div>'+
-      '<label style="display:flex;align-items:center;gap:7px;margin-top:8px;font-size:12px;color:#8fa6b8;font-weight:600">'+
-      '<input type="checkbox" id="p_aguardando" onchange="document.getElementById(\'p_inicio\').disabled=this.checked">'+
-      'Começa no 1º pagamento</label>'+
-      camposNota()+
-      '<button type="button" class="tbtn" style="margin-top:8px;width:100%" onclick="salvarPlano(\''+obraId+'\')">Vincular plano</button>';
-  }
-}
-async function salvarPlano(obraId){
-  const cod=document.getElementById('p_cod').value;
-  if(!cod){ toast('Escolha o plano'); return; }
-
-  const esperando=!!(document.getElementById('p_aguardando')||{}).checked;
-  const tipo=((document.getElementById('p_nota_tipo')||{}).value)||'cpf';
-  const doc=(((document.getElementById('p_nota_doc')||{}).value)||'').replace(/\D/g,'');
-  // o banco recusa documento com tamanho errado; avisar aqui evita o erro cru
-  if(doc && doc.length !== (tipo==='cnpj'?14:11)){
-    toast(tipo==='cnpj'?'CNPJ tem 14 dígitos':'CPF tem 11 dígitos'); return;
-  }
-  const inicio=(document.getElementById('p_inicio')||{}).value;
-  if(!esperando && !inicio){ toast('Informe o início, ou marque "começa no 1º pagamento"'); return; }
-
-  const r=await sb.from('plano_contratos').insert({
-    obra_id:obraId, plano_codigo:cod,
-    inicio: esperando ? null : inicio,
-    status: esperando ? 'aguardando_pagamento' : 'ativo',
-    meses:parseInt(document.getElementById('p_meses').value,10),
-    valor:parseFloat(document.getElementById('p_valor').value)||null,
-    nota_documento: doc||null,
-    nota_nome: (((document.getElementById('p_nota_nome')||{}).value)||'').trim()||null,
-    forma:'anual'
-  });
-  if(r.error){ toast('Erro: '+r.error.message); return; }
-  toast(esperando?'Contrato registrado — aguardando o 1º pagamento ✓':'Plano vinculado ✓');
-  carregarPlano(obraId);
-}
-
-// A data do pagamento e que define inicio e fim. Quem calcula e a funcao no
-// banco, para a conta dos meses nao existir em dois lugares.
-async function registrarPagamento(id){
-  const hoje=new Date().toISOString().slice(0,10);
-  const d=prompt('Data do 1º pagamento (AAAA-MM-DD):', hoje);
-  if(!d) return;
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ toast('Data inválida'); return; }
-  const r=await sb.rpc('plano_registrar_pagamento',{p_contrato:id, p_data:d});
-  if(r.error){ toast('Erro: '+r.error.message); return; }
-  if(r.data && r.data.erro){ toast(r.data.erro); return; }
-  toast('Contrato ativo até '+fmtD(r.data.fim)+' ✓');
-  if(FORM_ID) carregarPlano(FORM_ID);
-}
-async function encerrarPlano(id, novoStatus){
-  const st=novoStatus||'encerrado';
-  if(!confirm(st==='cancelado'
-      ? 'Cancelar este contrato? Ele nunca chegou a ser pago.'
-      : 'Encerrar este plano? Ele para de gerar avisos de vencimento.')) return;
-  const r=await sb.from('plano_contratos').update({status:st}).eq('id',id);
-  if(r.error){ toast('Erro'); return; }
-  toast('Plano encerrado');
-  if(FORM_ID) carregarPlano(FORM_ID);
-}
+   Nao foram apagados -- mudaram de casa. Vivem agora na ficha do cliente do
+   `posvenda.html`, que ja mostrava o plano e nao oferecia nenhuma acao sobre
+   ele (armadilha 14). Quem grava la e `plano_contrato_criar`, a funcao do
+   banco, em vez do insert direto que existia aqui: ela recusa um segundo
+   contrato aberto, recusa cortesia esperando pagamento e simula antes.
+   Ao tirar um bloco de uma tela, procure onde a acao reaparece -- armadilha 17. */
 function tarjaMan(o){
   const t=TIPO_MAN[o.tipo_manutencao];
   let h='';
   if(t) h+='<div class="kman">'+t[0]+' '+t[1]+'</div>';
   if(o.cliente_externo) h+='<div class="kman ext">Cliente de outra empresa</div>';
   return h;
+}
+// `parseFloat(v)||null` transforma 0 em null: era o terceiro lugar onde o km
+// zerado sumia. Vazio continua null (pendencia); 0 grava 0 (medicao).
+function kmDoCampo(){
+  var el=document.getElementById('f_km'); if(!el) return null;
+  var v=String(el.value||'').trim().replace(',','.');
+  if(!v) return null;
+  var n=parseFloat(v);
+  return (isNaN(n) || n<0) ? null : n;
 }
 function relPendente(o){ const r=relStatus(o); return !!(r && !r.ok); }
 function tarjaRel(o){
@@ -1197,6 +1080,8 @@ if(filtroOrigem) arr=arr.filter(o=> filtroOrigem==='__sem' ? !o.origem_lead : o.
 if(filtroRel) arr=arr.filter(relPendente);
 const el=document.getElementById('list');
 el.className='kb'; el.style.display='flex';
+el.ondragover=function(ev){ ev.preventDefault(); kAutoScroll(ev); };
+el.ondrop=kParaScroll;
 let h='';
 const etp=etapasDe(KTR)||{};
 const nums=Object.keys(etp).map(Number).filter(x=>!isNaN(x));
@@ -1232,12 +1117,37 @@ h+='</div>';
 el.innerHTML=h;
 }
 let kDragId=null;
-function kStart(ev,el){window.__arr=true;kDragId=el.dataset.id;el.classList.add('drag');ev.dataTransfer.effectAllowed='move';try{ev.dataTransfer.setData('text/plain',kDragId)}catch(_){}}
-function kEnd(el){setTimeout(function(){window.__arr=false;},150);el.classList.remove('drag');document.querySelectorAll('.kcol.over').forEach(c=>c.classList.remove('over'));}
-function kOver(ev,col){ev.preventDefault();col.classList.add('over');}
+
+/* O kanban tem NOVE colunas de 196px — ~1850px — e rola na horizontal. O
+   drag-and-drop do HTML5 NAO rola container sozinho: a coluna de destino tem
+   de ja estar na tela, e a ultima ("Sistema Ativo!") quase nunca esta. Foi o
+   que travou o card da CELIA REGINA em 22/09: arrastar da etapa 7 para a 8
+   nao tinha para onde ir, e o Vitor teve de trocar a etapa na mao.
+   Nao era o aviso ao cliente que estava quebrado — o `notificar-grupo` saiu
+   normalmente quando a etapa mudou pelo outro caminho.
+   Aqui a faixa de 90px em cada borda rola enquanto o cartao esta no ar. */
+var kPasso=0, kTimer=null;
+function kAutoScroll(ev){
+  var kb=document.getElementById('list');
+  if(!kb || !kb.classList.contains('kb')) return;
+  var r=kb.getBoundingClientRect(), faixa=90;
+  kPasso = ev.clientX < r.left+faixa ? -20 : (ev.clientX > r.right-faixa ? 20 : 0);
+  if(kPasso && !kTimer) kTimer=setInterval(function(){ kb.scrollLeft += kPasso; }, 16);
+  else if(!kPasso) kParaScroll();
+}
+function kParaScroll(){ if(kTimer){ clearInterval(kTimer); kTimer=null; } kPasso=0; }
+
+function kStart(ev,el){window.__arr=true;kDragId=el.dataset.id;el.classList.add('drag');
+var kb=document.getElementById('list'); if(kb) kb.classList.add('arrastando');
+ev.dataTransfer.effectAllowed='move';try{ev.dataTransfer.setData('text/plain',kDragId)}catch(_){}}
+function kEnd(el){setTimeout(function(){window.__arr=false;},150);el.classList.remove('drag');
+kParaScroll();
+var kb=document.getElementById('list'); if(kb) kb.classList.remove('arrastando');
+document.querySelectorAll('.kcol.over').forEach(c=>c.classList.remove('over'));}
+function kOver(ev,col){ev.preventDefault();col.classList.add('over');kAutoScroll(ev);}
 function kLeave(col){col.classList.remove('over');}
 async function kDrop(ev,col){
-ev.preventDefault(); col.classList.remove('over');
+ev.preventDefault(); col.classList.remove('over'); kParaScroll();
 const id=kDragId||ev.dataTransfer.getData('text/plain'); kDragId=null;
 if(!id) return;
 const n=parseInt(col.dataset.etapa,10);
@@ -1491,6 +1401,17 @@ function toggleAcoes(ev,id){
 }
 function getObra(id){ return OBRAS.find(o=>o.id===id); }
 
+/* A vistoria na concessionaria e um evento do fim da obra. O numero da etapa
+   estava chumbado em DOIS lugares aqui embaixo; agora e uma constante so.
+   Na trilha padrao a 7 e "Vistoria e Conexao", no eletroposto e
+   "Comissionamento"; na manutencao nao existe, e por isso todo uso e guardado
+   por `trilha !== 'manutencao'`.
+   O campo no card aparece uma etapa ANTES: a solicitacao costuma sair durante a
+   execucao, e sem lugar para registrar ela se perde. Antes disso o campo so
+   enchia o card -- foi o que o Vitor apontou em 22/09. */
+const ETAPA_VISTORIA = 7;
+const ETAPA_MOSTRA_VISTORIA = ETAPA_VISTORIA - 1;
+
 async function mudarEtapa(id,n){
 n=parseInt(n,10);
 const o=getObra(id);
@@ -1498,14 +1419,14 @@ const mudou = n!==o.etapa_numero;
 const patch={etapa_numero:n};
 if(n===8){ if(!o.data_conclusao) patch.data_conclusao=new Date().toISOString().slice(0,10); }
 // Avisa quando o cliente ainda não confirmou o relatório
-if(mudou && n===7 && (o.trilha||'padrao')!=='manutencao' && !o.aceite_em){
+if(mudou && n===ETAPA_VISTORIA && (o.trilha||'padrao')!=='manutencao' && !o.aceite_em){
   if(!confirm('⚠️ '+o.cliente+' ainda não confirmou o relatório da instalação.\n\n'
     +'O aceite é o que mostra que o cliente conferiu as fotos antes da vistoria.\n\n'
     +'Avançar mesmo assim?')) return;
 }
 // Vistoria e Conexão: registra a solicitação e calcula o prazo real da CPFL
 let prazoCpfl=null;
-if(mudou && n===7 && (o.trilha||'padrao')!=='manutencao'){
+if(mudou && n===ETAPA_VISTORIA && (o.trilha||'padrao')!=='manutencao'){
   const hoje=new Date().toISOString().slice(0,10);
   if(!o.cpfl_solicitado_em) patch.cpfl_solicitado_em=hoje;
   try{
@@ -2122,7 +2043,7 @@ ${ehMan?'':`
 <div class="travasel" id="travaSel">${travaBotoes(o)}</div>
 <input id="f_travaobs" value="${esc(o.trava_obs||'')}" placeholder="Observação (opcional): protocolo, nome do contato..." style="margin-top:7px">
 </div>`}
-${ehMan?'':`
+${(ehMan || (o.etapa_numero||0) < ETAPA_MOSTRA_VISTORIA)?'':`
 <div class="fld" ${o.etapa_numero>=8?'style="opacity:.55"':''}><label>Vistoria da concessionária solicitada em ${o.etapa_numero>=8?'<span style="color:#58b868;font-weight:700">· sistema já ativo</span>':''}</label>
 <div class="grid2" style="gap:8px">
 <input id="f_cpfl" type="date" value="${o.cpfl_solicitado_em||''}" onchange="previaCpfl()" ${o.etapa_numero>=8?'disabled':''}>
@@ -2160,7 +2081,8 @@ ${ehMan?'':`
 <datalist id="lstCidades">${Object.keys(CIDIPTU).map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div>
 <div class="grid2">
 <div class="fld"><label>Tipo de telhado</label><select id="f_tel2">${['','Cerâmico','Metálico','Fibrocimento','Laje','Solo','Outro'].map(t=>`<option value="${t}" ${t===(o.tipo_telhado||'')?'selected':''}>${t||'— Telhado —'}</option>`).join('')}</select></div>
-<div class="fld"><label>Distância até a obra (km)</label><input id="f_km" type="number" inputmode="decimal" step="0.1" value="${o.distancia_km!=null?o.distancia_km:''}" placeholder="35"></div>
+<div class="fld"><label>Distância até a obra (km)</label><input id="f_km" type="number" inputmode="decimal" step="0.1" min="0" value="${o.distancia_km!=null?o.distancia_km:''}" placeholder="35">
+<div class="flddica">Obra na própria cidade: escreva <b>0</b>. Zero é resposta; em branco é pendência.</div></div>
 </div>
 <div class="fld"><label>Concessionária de energia</label>
 <input id="f_conc" list="listaConc" value="${esc(o.concessionaria||'')}" placeholder="CPFL">
@@ -2185,10 +2107,6 @@ ${ehMan?'':`
 </div>
 <div class="fld"><label>Inversor(es)</label><input id="f_inv" value="${esc(o.inversor_descricao||'')}" placeholder="2x Huawei 6kW"></div>
 </div></details>
-${(novo||ehMan)?'':`
-<div class="fld"><label>Plano de manutenção e acompanhamento</label>
-<div id="planoBox"><span class="mut">Carregando o plano...</span></div></div>
-`}
 <div class="row">
 <button class="cancel" onclick="fecharForm()">Cancelar</button>
 <button class="save" id="f_save">${novo?'Criar obra':'Salvar'}</button>
@@ -2200,7 +2118,7 @@ ${(novo||ehMan)?'':`
 document.body.appendChild(ov);
 ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
 if(focoFone) setTimeout(()=>document.getElementById('f_tel').focus(),50);
-if(id) setTimeout(()=>carregarPlano(id),60);
+
 window._dtiAntes = o.data_instalacao || null;
 window._instAntes = o.instalador_id || null;
 window._etapaAntes = id ? o.etapa_numero : null;   // obra nova nao tem etapa de antes
@@ -2211,16 +2129,25 @@ async function salvarForm(id){
   const cli=document.getElementById('f_cli').value.trim();
   // campos que nao deixam salvar; o que faltar fica vermelho
   document.querySelectorAll('.faltando').forEach(function(el){el.classList.remove('faltando');});
+  // O terceiro item diz se ZERO vale como resposta. Cliente de Araçatuba tem
+  // distância zero: a obra é na cidade. Exigir "> 0" obrigava a equipe a deixar
+  // o campo em branco, e por isso 30 das 57 obras sem km são daqui (medido em
+  // 22/09, com ZERO obras gravadas com km = 0 — a trava nunca deixou).
+  // Mesma família da armadilha 16, na direção oposta: lá o zero exibido virava
+  // afirmação; aqui o zero digitado virava ausência.
   var OBRIG=[['f_cli','cliente'],['f_con','número do contrato'],['f_pot','potência'],
              ['f_vend','vendedor'],['f_org','origem do lead'],['f_tel2','tipo de telhado'],
-             ['f_end','endereço'],['f_valor','valor do projeto'],['f_km','distância (km)']];
+             ['f_end','endereço'],['f_valor','valor do projeto'],
+             ['f_km','distância (km)',true]];
   var trilhaAtual=(document.getElementById('f_trilha')&&document.getElementById('f_trilha').value)||'padrao';
   if(trilhaAtual==='padrao'){
     var faltou=[];
     OBRIG.forEach(function(f){
       var el=document.getElementById(f[0]); if(!el) return;
       var v=(el.value||'').trim();
-      var vazio = !v || (el.type==='number' && !(parseFloat(v.replace(',','.'))>0));
+      var zeroVale=f[2]===true;
+      var num=parseFloat(v.replace(',','.'));
+      var vazio = !v || (el.type==='number' && (zeroVale ? !(num>=0) : !(num>0)));
       if(vazio){ el.classList.add('faltando'); faltou.push(f[1]); }
     });
     if(faltou.length){
@@ -2265,7 +2192,7 @@ cpfl_solicitado_em:vOuMantem('f_cpfl','cpfl_solicitado_em'),
 trava_obs: document.getElementById('travaSel')
              ? (travaEdit?((document.getElementById('f_travaobs')||{}).value||null):null)
              : (_oA?(_oA.trava_obs||null):null),
-distancia_km:parseFloat(document.getElementById('f_km').value)||null,
+distancia_km:kmDoCampo(),
 data_instalacao:document.getElementById('f_dti').value||null,
 data_fim:(document.getElementById('f_dfim')||{}).value||null,
 instalador_id:document.getElementById('f_inst').value||null,
