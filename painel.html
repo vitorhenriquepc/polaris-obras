@@ -1412,12 +1412,31 @@ function getObra(id){ return OBRAS.find(o=>o.id===id); }
 const ETAPA_VISTORIA = 7;
 const ETAPA_MOSTRA_VISTORIA = ETAPA_VISTORIA - 1;
 
+/* ⚠️ A etapa 8 tem efeito colateral de DADO, nao so de aviso.
+   `trg_gerar_regua` so dispara com `etapa_numero >= 8` E `data_conclusao not
+   null`. Sem a data a obra fica SEM REGUA NENHUMA -- nunca recebe boas-vindas,
+   aniversario, nada -- e falha calada, porque o trigger simplesmente nao roda.
+
+   `mudarEtapa()` preenchia a data; o `salvarForm()` nao. O conserto de 15/09
+   (armadilha 11) levou o AVISO para o segundo caminho e deixou o dado para
+   tras. Foi assim que a CELIA REGINA (4133) chegou na etapa 8 em 22/09 com
+   zero mensagens programadas.
+
+   Agora os dois caminhos usam esta funcao. Se aparecer um terceiro, use ela
+   tambem -- e nao repita o numero. */
+const ETAPA_CONCLUSAO = 8;
+function dataDeConclusao(etapaNova, oAntes){
+  if(parseInt(etapaNova,10) !== ETAPA_CONCLUSAO) return null;
+  if(oAntes && oAntes.data_conclusao) return null;
+  return new Date().toISOString().slice(0,10);
+}
+
 async function mudarEtapa(id,n){
 n=parseInt(n,10);
 const o=getObra(id);
 const mudou = n!==o.etapa_numero;
 const patch={etapa_numero:n};
-if(n===8){ if(!o.data_conclusao) patch.data_conclusao=new Date().toISOString().slice(0,10); }
+const dConc=dataDeConclusao(n,o); if(dConc) patch.data_conclusao=dConc;
 // Avisa quando o cliente ainda não confirmou o relatório
 if(mudou && n===ETAPA_VISTORIA && (o.trilha||'padrao')!=='manutencao' && !o.aceite_em){
   if(!confirm('⚠️ '+o.cliente+' ainda não confirmou o relatório da instalação.\n\n'
@@ -2176,7 +2195,8 @@ contrato:document.getElementById('f_con').value.replace(/\D/g,'')||null,
 potencia_kwp: potRaw?parseFloat(potRaw):null,
 etapa_numero:parseInt(document.getElementById('f_et').value,10),
 data_fechamento:vOuMantem('f_dtf','data_fechamento'),
-data_conclusao:vOuMantem('f_dtc','data_conclusao'),
+data_conclusao: vOuMantem('f_dtc','data_conclusao')
+  || dataDeConclusao((document.getElementById('f_et')||{}).value, _oA),
 observacoes:document.getElementById('f_obs').value.trim()||null,
 vendedor_id:document.getElementById('f_vend').value||null,
 origem_lead:document.getElementById('f_org').value||null,

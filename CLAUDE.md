@@ -1062,6 +1062,49 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     Antes de exibir um zero, pergunte se ele é medição ou ausência (armadilha
     16). Antes de **recusar** um zero, pergunte a mesma coisa.
 
+25. **Trocar um índice único por um PARCIAL quebra todo `ON CONFLICT` que o
+    inferia** — e eu fiz isso comigo mesmo no mesmo dia. A migração da régua de
+    evento (22/09) trocou `UNIQUE (obra_id, modelo)` por
+    `... (obra_id, modelo) WHERE (NOT repetivel)`. A `gerar_regua` ficou com
+    `on conflict (obra_id, modelo)`, e o Postgres **não casa** isso com índice
+    parcial:
+
+    ```
+    ERROR: there is no unique or exclusion constraint matching
+           the ON CONFLICT specification
+    ```
+
+    Levantado de dentro do `trg_gerar_regua`, o erro **aborta o UPDATE da obra
+    inteiro**. A próxima obra a chegar na etapa 8 daria erro e não salvaria a
+    etapa. O conserto é repetir o predicado:
+    `on conflict (obra_id, modelo) where not repetivel do nothing`.
+
+    **Ao mexer num índice único, procure todo `ON CONFLICT` que o nomeia.**
+
+    ⚠️ **E havia uma segunda falha escondendo esta.** `trg_gerar_regua` exige
+    `etapa_numero >= 8` **E** `data_conclusao is not null`. O `mudarEtapa()`
+    preenchia a data; o `salvarForm()` não — ele grava `data_conclusao` do
+    campo do formulário, que está vazio. Sem a data o trigger não roda, e a
+    obra fica **sem régua nenhuma, para sempre, sem erro**.
+
+    É a armadilha 11 pelo conserto dela: em 15/09 levei o **aviso ao cliente**
+    para o `salvarForm()` e deixei o **efeito de dado** para trás. O comentário
+    que escrevi lá dizia *"avisa o cliente igual a arrastar no kanban"* — igual
+    só no aviso.
+
+    **CELIA REGINA (4133), 22/09:** etapa 8, ativa, e zero mensagens
+    programadas. Ela só passou porque a falha da data impediu de chegar na
+    falha do índice. **As duas se mascaravam** — corrigir só a tela teria
+    trocado uma falha silenciosa por um erro duro em toda ativação. Quem pegou
+    foi a simulação: o `begin/rollback` explodiu antes de qualquer tela ver.
+
+    Hoje os dois caminhos passam por `dataDeConclusao()` e o número virou
+    `ETAPA_CONCLUSAO`. A régua da CELIA foi gerada, com a data vinda do
+    `etapas_historico` via `obra_ativa_em()` — não inventada.
+
+    **Antes de mexer num gatilho, pergunte quais campos ele exige e se TODOS os
+    caminhos que chegam ali preenchem os dois.**
+
 ---
 
 ## 10. Estado e pendências
