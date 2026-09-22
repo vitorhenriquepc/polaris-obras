@@ -604,6 +604,7 @@ nenhuma delas. Ver pendência no §10.
 | `obra_custos_realizados(obra)` | o realizado da obra vindo do extrato, campo a campo; diz também se o extrato cobre o período da obra |
 | `dia_util_ate(data)` | o último dia útil em `data` ou antes — é o que antecipa o aviso de fim de semana para a sexta |
 | `usina_adicionar(json, simular)` | acrescenta uma usina a um cliente que já existe. **Só soma no total da obra se ela for cliente de plano** — em obra de venda a potência é o projeto vendido, e mexer ali muda o tamanho de uma venda que já aconteceu |
+| `usina_editar(json, simular)` | **corrige** uma usina que já existe — nome, potência, cidade, endereço, data de instalação e o vínculo com o SolarView, num caminho só. Chave ausente no json não sobrescreve nada. Devolve `mudancas` e `avisos` em português (potência mexe no kWh/kWp que o cliente lê; endereço mexe em visita e cobrança do Completo), e recusa roubar o id do SolarView de outra usina |
 
 ---
 
@@ -996,11 +997,21 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     A regra: **quando a tela escreve texto sobre uma etapa, o significado tem
     de sair da tabela `etapas`, não de um número chumbado no `if`.**
 
+22. **Variável de CSS com nome errado não dá erro: dá a cor errada.** O modal
+    da usina no `posvenda.html` escrevia `var(--mut)` em **32 regras** — e
+    `--mut` nunca existiu; o `:root` define `--muted`. CSS não avisa: a
+    propriedade cai para o valor herdado, então tudo que devia sair apagado
+    (o ✕ de fechar, os títulos de seção, o rodapé, o motivo do estado) saía na
+    cor do texto normal. Ninguém percebeu porque a tela **funcionava**, só não
+    tinha hierarquia. Corrigido em 22/09 com um alias no `:root`
+    (`--mut:var(--muted)`), que se resolve no uso e por isso segue o tema claro
+    também. Irmã da 15 e da 17: o defeito que não grita é o que fica anos.
+
 ---
 
 ## 10. Estado e pendências
 
-**63 usinas ativas** · **50 normais, 9 sem comunicação, 4 sem dado** ·
+**63 usinas ativas** · **54 normais, 5 sem comunicação, 4 sem dado** ·
 **75 obras, 58 ativas** · 31 cron jobs, **todos ativos** · 23 chaves de
 automação em `config`, 22 ligadas — a única desligada é `iptu_envio_ativo`,
 de propósito (ver pendência abaixo). A `solarview_ativo` foi **removida** em
@@ -1024,11 +1035,18 @@ quantos dias não gera**, não o estado do rótulo.
 | Araçatuba 8,54 kWp | Marcio da Silva Pereira | 1 dia | ruído de hoje |
 | Araçatuba 4,96 kWp | Thalles Vinicius | 1 dia | ruído de hoje |
 
-⚠️ **"Sem dado" não é o mesmo que "sem comunicação".** São as **4** usinas
-com **zero registro** em `usina_dia` — elas existem aqui e **não existem no
-SolarView**. São as duas do UNI AUTO POSTO (Clementina, 105,40 e 129,60 kWp,
-cadastradas em 16/09) e as duas da Tays (açougue 29,25 e rancho 40,95), que a
-pendência abaixo já cobre. Não é defeito: é cadastro que falta do outro lado.
+⚠️ **"Sem dado" não é o mesmo que "sem comunicação" — e nem as 4 são o mesmo
+caso.** São quatro usinas, por dois motivos diferentes, e `usina_estado`
+devolve o mesmo rótulo para os dois:
+
+| Usina | Por quê | O que falta |
+|---|---|---|
+| **USINA 1 · USINA 2** (UNI AUTO POSTO, Clementina, 105,40 e 129,60 kWp) | **zero registro** em `usina_dia`: existem aqui e **não existem no SolarView** | cadastro do outro lado |
+| **TAYS AÇOUGUE · TAYS RANCHO** | têm **401 dias** cada em `usina_dia` (23.190 e 48.221 kWh), mas `usinas.status_atual` ainda é **nulo** | a rodada do `usina-status` (09h15/13h15/16h15), que é quem carimba o status |
+
+A segunda linha é o ramo `when u.status_atual is null then 'sem dado'`, o
+último da cascata — **medição não salva do rótulo se o status não chegou**.
+Nenhum dos dois é defeito.
 
 ⚠️ **Errei duas vezes na mesma linha, em direções opostas.** Até 18/09 o doc
 dizia que a Araçatuba de 6,20 estava *"sem medição há 21 dias"*. Em 18/09 eu
@@ -1109,15 +1127,33 @@ Conferido no banco em **22/09/2026**.
       15 depois, só o `lido_em` mudou.
 - [ ] **Registrar o 1º pagamento da TAYS VALESE DIAS DO PRADO.** Primeiro
       contrato pago do sistema: Completo anual, R$ 2.990,00, duas usinas
-      instaladas pela **Eco Solar** (açougue em Araçatuba 29,25 kWp, rancho em
-      Birigui 40,95 kWp — o rancho manda os créditos para o açougue). Está em
+      instaladas pela **Eco Solar** (açougue em Araçatuba, rancho em Birigui —
+      o rancho manda os créditos para o açougue). Está em
       `aguardando_pagamento`, sem início nem fim. Quando o dinheiro entrar,
       botão "Registrar 1º pagamento" no card da obra. Aí vira **R$ 249,17 de
       receita mensal**, o primeiro número diferente de zero desse painel.
-      As duas usinas ainda **não estão no SolarView** — o Vitor vai cadastrar,
-      e o vínculo é manual porque ela não tem número de contrato no nome.
       O aniversário (31/10) ficou só em `clientes`, fora de `obras`, para a
       automação de aniversário não mandar texto de cliente de instalação.
+
+      ✅ **As usinas foram para o SolarView e o vínculo está feito** (22/09).
+      O Vitor cadastrou, e aqui os três dados estavam errados nas duas —
+      medido contra o portfólio, não estimado:
+
+      | | estava | é |
+      |---|---|---|
+      | Açougue (id 971574) | "…AÇOUGUE" · 29,25 kWp · 15/03/2025 | **20,00 kWp · 10/12/2025** |
+      | Rancho (id 971575) | "…RANCHO" · 40,95 kWp · 15/03/2025 | **38,50 kWp · 11/09/2025** |
+
+      ⚠️ **E o que faltava mais não era o nome: era a linha em
+      `usina_monitoramento`.** Nenhuma das duas tinha, e o `solarview-vincular`
+      nunca as alcançaria — ele só olha obra **sem nenhuma** usina em
+      `obra_usina`, e ela já tinha as duas ligadas. Sem essa linha a usina
+      existe, aparece na tela e **nunca recebe geração**.
+
+      Corrigido e puxada a geração: 13 meses e **401 dias** em cada uma.
+      A obra saiu de "sem dado" para **62.657 kWh · R$ 49.925 · 82% de
+      desempenho · 11 meses**. O rótulo `usina_estado` ainda diz "sem dado"
+      até o `usina-status` carimbar o `status_atual` (ver o quadro do §10).
 - [ ] **Decidir se o aviso de fim de cortesia passa por aprovação humana.**
       A `plano-vencimento` envia direto ao cliente às 9h, e agora com preço e
       oferta dentro. Tem folga para decidir: o primeiro vencimento é
