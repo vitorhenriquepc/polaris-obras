@@ -1040,11 +1040,34 @@ Conferido no banco em **22/09/2026**.
       não for corrigido, o pagamento dele cai na fila manual. A 5ª parcela
       (R$ 6.000, venc 01/09) também está marcada como recebida sem nenhum
       movimento no extrato; a obra fechou em 27/07, antes do extrato começar.
-- [ ] **Quatro automações mensais nunca rodaram uma única vez.** Dia 2
-      (fechamento), dia 5 (resumo mensal), dia 6 (marcos) e dia 10 (lembrete de
-      tarifa) foram criadas em setembro **depois** da data delas, então a
-      primeira chance real é em outubro. Não estão quebradas — estão por
-      provar. Vale rodar cada uma em modo simular antes de outubro.
+- [x] ~~Quatro automações mensais nunca rodaram uma única vez.~~
+      **Provadas em 22/09**, todas com resposta 200 e as quatro chaves de
+      `config` ligadas (`pilula_mensal_ativa`, `marco_ativo`,
+      `tarifa_lembrete_ativo`, `msg_ia_avisa`). Nenhuma estava quebrada:
+
+      | Cron | O que devolveu |
+      |---|---|
+      | dia 5 · `mensagens-usina-auto` | **geraria 25 resumos mensais**, nada gravado |
+      | dia 6 · `marcos-retorno` | 3 marcos detectados, **2 gerariam** (JOSE ANTONIO PONCIANO e ROSANGELA MIRANDA, 10% cada), 1 pulado (Thalles — já teve `usina_wifi` em 20 dias) |
+      | dia 10 · `tarifa-lembrete` | `motivo: null` — **silenciosa de propósito** |
+      | dia 2 · `solarview-geracao` | 13 meses lidos do SolarView, 0 falhas, idempotente |
+
+      ⚠️ **A `marcos-retorno` não tinha modo simular** e ia direto gravar
+      `usina_marco.avisado_em`, gerar mensagem e avisar a Lívia — contra a
+      regra 3.2, e era o que tornava esta própria pendência impossível de
+      cumprir. Ganhou `simular` em 22/09.
+
+      ⚠️ **A `tarifa-lembrete` só fala em três situações:** mês 5 (a conta com
+      a tarifa nova de abril), mês 2 (degrau do Fio B) ou 12+ meses sem
+      calibrar. Hoje são **8 meses**, e estamos em setembro — então o cron do
+      dia 10 roda e **não diz nada até janeiro/2027**, quando bate os 12. Não
+      está quebrada; é silêncio por desenho. Quem cobra a calibração enquanto
+      isso é este doc.
+
+      A `solarview-geracao` segue **sem `simular`** de propósito: escrever é a
+      função dela, o upsert vem da fonte da verdade e é idempotente. Foi
+      provada rodando para **uma usina só** (Buritama): 15 meses antes,
+      15 depois, só o `lido_em` mudou.
 - [ ] **Registrar o 1º pagamento da TAYS VALESE DIAS DO PRADO.** Primeiro
       contrato pago do sistema: Completo anual, R$ 2.990,00, duas usinas
       instaladas pela **Eco Solar** (açougue em Araçatuba 29,25 kWp, rancho em
