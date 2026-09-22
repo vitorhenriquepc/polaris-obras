@@ -693,6 +693,8 @@ white-space:normal;padding:0 2px}
 .ncsec{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:13px;margin-top:11px}
 .nctit{font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--gold);margin-bottom:9px}
 .ncdica{font-size:11.5px;color:var(--muted);font-weight:600;line-height:1.5;margin-bottom:9px}
+.ncsub{font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;
+  color:var(--muted);margin:13px 0 5px;padding-top:11px;border-top:1px solid var(--border)}
 .ncsec label{display:block;font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:8px}
 .ncsec input,.ncsec select{width:100%;margin-top:3px;background:var(--card2);border:1px solid var(--border);
   color:var(--txt);border-radius:8px;padding:8px 9px;font-family:inherit;font-size:13px;font-weight:600}
@@ -1306,7 +1308,7 @@ async function pgConfirmar(contratoId){
   if(r.error){ toast('Erro: '+r.error.message); return; }
   if(r.data && r.data.erro){ toast(r.data.erro); return; }
   toast('Contrato ativo até '+dataBR((r.data||{}).fim)+' ✓');
-  carregarPlanos();
+  recarregaPlano();
 }
 
 /* ---------- FECHAR O CONTRATO DE QUEM FICOU SEM ----------
@@ -1315,9 +1317,12 @@ async function pgConfirmar(contratoId){
    completo_especial, sem preco de tabela), mas ate 16/09 o cliente sumia do
    painel depois disso, porque get_painel_planos le `from plano_contratos`.
    Aqui ele reaparece e ganha o contrato sem precisar cadastrar de novo. */
-function formContrato(obraId){
+function formContrato(obraId, nomeFallback){
   const box=document.getElementById('ct'+obraId); if(!box) return;
   if(box.innerHTML){ box.innerHTML=''; return; }
+  // `sem_contrato` so lista cliente de plano sem contrato. Desde 22/09 este
+  // mesmo formulario e chamado da ficha do cliente, onde NAO ha SC: tudo que
+  // vem dele e prefill, e todo uso ja e guardado por `SC &&`.
   const SC=((PAI&&PAI.sem_contrato)||[]).find(function(x){ return x.obra_id===obraId; });
   const P=(PLN&&PLN.planos)||[];
   let ops='<option value="">— escolha o plano —</option>';
@@ -1327,7 +1332,9 @@ function formContrato(obraId){
       +esc(p.nome)+(p.anual!=null?' · '+moedaBR(p.anual)+'/ano':' · sob consulta')+'</option>';
   });
   box.innerHTML='<div class="ncsec">'
-   +'<div class="nctit">Contrato de '+esc((SC&&SC.cliente)||'')+'</div>'
+   +'<div class="nctit">Contrato de '
+     +esc((SC&&SC.cliente) || nomeFallback
+          || (FICHA && FICHA.obra && FICHA.obra.cliente) || '')+'</div>'
    +'<div class="ncg2">'
    +'<label>Plano<select id="ct_plano'+obraId+'" onchange="ctPreco(\''+obraId+'\')">'+ops+'</select></label>'
    +'<label>Valor (R$)<input id="ct_valor'+obraId+'" type="number" step="0.01" inputmode="decimal"'
@@ -1345,6 +1352,15 @@ function formContrato(obraId){
      +'<input type="checkbox" id="ct_aguard'+obraId+'" checked '
      +'onchange="document.getElementById(\'ct_inicio'+obraId+'\').disabled=this.checked"> '
      +'Começa no 1º pagamento</label>'
+   +'</div>'
+   +'<div class="ncsub">Nota fiscal</div>'
+   +'<div class="ncdica">Para quem a nota e emitida vive no CONTRATO, nao no cadastro '
+     +'do cliente. O tipo se deduz do numero: 11 digitos e CPF, 14 e CNPJ.</div>'
+   +'<div class="ncg2">'
+   +'<label>CPF ou CNPJ<input id="ct_notadoc'+obraId+'" inputmode="numeric" '
+     +'placeholder="so os numeros"></label>'
+   +'<label>Nome na nota (se diferente)<input id="ct_notanome'+obraId+'" '
+     +'placeholder="razao social"></label>'
    +'</div>'
    +'<label style="display:block;margin-top:9px">O que foi combinado'
      +'<input id="ct_obs'+obraId+'" placeholder="teste de 6 meses, visita anual, laudo..."></label>'
@@ -1400,6 +1416,7 @@ async function ctSalvar(obraId, simular){
   const p={ obra_id:obraId, plano_codigo:v('ct_plano'), valor:v('ct_valor'),
             forma:v('ct_forma'), meses:v('ct_meses'),
             aguardando:esperando, inicio:v('ct_inicio'),
+            nota_documento:v('ct_notadoc'), nota_nome:v('ct_notanome'),
             observacao:v('ct_obs') };
   const r=await sb.rpc('plano_contrato_criar',{ p:p, p_simular:!!simular });
   if(r.error){ toast('Erro: '+r.error.message); return; }
@@ -1420,7 +1437,31 @@ async function ctSalvar(obraId, simular){
     return;
   }
   toast('Contrato fechado ✓');
-  carregarPlanos();
+  recarregaPlano();
+}
+
+/* O formulario de contrato e o de pagamento agora sao chamados de DOIS lugares:
+   a aba Planos e a ficha do cliente. Recarregar sempre a aba deixaria a ficha
+   aberta mostrando o estado velho -- o mesmo tipo de silencio da armadilha 15,
+   onde o botao rodava e a tela nao mudava. */
+function recarregaPlano(){
+  const ov=document.getElementById('ov');
+  if(ov && ov.classList.contains('on') && FICHA && FICHA.obra) abrirFicha(FICHA.obra.id);
+  else carregarPlanos();
+}
+
+/* Encerrar veio junto com o resto do bloco que saiu do card da obra. Nao apaga
+   contrato (regra 3.6 e armadilha 8: apagar plano_contratos e is_admin): muda
+   o status, que e o que a Livia precisa e o que para os avisos de vencimento. */
+async function encerrarPlanoFicha(contratoId, novoStatus){
+  const st=novoStatus||'encerrado';
+  if(!confirm(st==='cancelado'
+      ? 'Cancelar este contrato? Ele nunca chegou a ser pago.'
+      : 'Encerrar este plano? Ele para de gerar aviso de vencimento e de contar na receita.')) return;
+  const r=await sb.from('plano_contratos').update({status:st}).eq('id',contratoId);
+  if(r.error){ toast('Não consegui encerrar: '+r.error.message); return; }
+  toast(st==='cancelado'?'Contrato cancelado':'Plano encerrado');
+  recarregaPlano();
 }
 
 /* ---------- FIDELIZOU OU NAO ----------
@@ -3485,6 +3526,20 @@ function renderFicha(D){
       h+=`<div class="umeta" style="margin-top:6px;line-height:1.6">${esc(PL.observacao)}</div>`;
     }
 
+    /* As acoes do plano moraram no card da obra do painel ate 22/09, e esta
+       tela mostrava o estado sem oferecer o que fazer com ele — exatamente a
+       armadilha 14. Agora a ficha que mostra tambem age. */
+    if(D.pode_agir && PL.contrato_id){
+      h+=`<div class="plbtns" style="margin-top:11px">`;
+      if(esperando){
+        h+=`<button class="stb prim" onclick="registrarPagamento('${PL.contrato_id}')">💰 Registrar 1º pagamento</button>
+            <button class="stb" onclick="encerrarPlanoFicha('${PL.contrato_id}','cancelado')">Cancelar contrato</button>`;
+      } else {
+        h+=`<button class="stb" onclick="encerrarPlanoFicha('${PL.contrato_id}')">Encerrar plano</button>`;
+      }
+      h+=`</div><div id="fd${PL.contrato_id}"></div>`;
+    }
+
     const VV = PL.visitas||[];
     if(VV.length){
       h+=`<div class="umeta" style="margin-top:11px;font-weight:800;color:var(--txt)">Visitas</div><div class="ulist">`;
@@ -3508,6 +3563,18 @@ function renderFicha(D){
           primeiro pagamento entrar — uma para cada endereço.</div>`;
     }
     h+=`</div>`;
+  } else if(D.pode_agir){
+    /* Sem plano. O bloco "Plano de manutenção e acompanhamento" do card da obra
+       era o unico lugar de onde dava para vender um plano a um cliente de
+       instalacao — o formulario da aba Planos so alcanca cliente de plano que
+       ficou sem contrato. Tirar o bloco de la sem por aqui teria apagado a
+       venda do plano da carteira inteira (armadilha 17). */
+    h+=`<div class="sec"><h3>Plano de manutenção</h3>
+      <div class="vazio">Este cliente ainda não tem plano. O contrato é o que liga
+        monitoramento, aviso de parada, relatório e — no Completo — a visita anual
+        em cada endereço.</div>
+      <button class="mini" style="margin-top:9px" onclick="formContrato('${o.id}')">➕ Vincular plano</button>
+      <div id="ct${o.id}"></div></div>`;
   }
 
   /* Autoleitura — o relógio do cliente, aqui dentro em vez de numa aba só dele */
