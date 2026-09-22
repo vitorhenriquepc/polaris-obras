@@ -15,7 +15,11 @@ body{overflow-x:hidden;width:100%;max-width:100vw;position:relative}
 img,video,table{max-width:100%}
 .wrap,.toolbar,.stats,.dchips,.cchips,.tools{max-width:100%}
 :root{--navy:#011D2E;--green:#3B8B3B;--green-l:#58B868;--gold:#F5A623;
---bg:#0a1622;--card:#0f2233;--card2:#13293c;--border:#1d3850;--txt:#eaf2f8;--muted:#8fa6b8}
+--bg:#0a1622;--card:#0f2233;--card2:#13293c;--border:#1d3850;--txt:#eaf2f8;--muted:#8fa6b8;
+/* 32 regras do modal da usina escrevem var(--mut), que nunca existiu: o texto
+   saia na cor herdada em vez de apagado. Alias resolvido no uso, entao segue o
+   --muted do tema claro tambem. */
+--mut:var(--muted)}
 html[data-theme="light"]{--gold:#B8790A;--green-l:#3B8B3B;--bg:#F0F2ED;--card:#FFF;--card2:#F4F6F3;
 --border:#DCE4EA;--txt:#022C44;--muted:#5F7787}
 body{font-family:'Manrope',system-ui,sans-serif;background:
@@ -566,6 +570,23 @@ white-space:normal;padding:0 2px}
 .ubox{background:var(--card);border:1px solid var(--border);border-radius:14px;width:96vw;max-width:1080px;padding:22px;height:92vh;overflow:auto;box-shadow:0 18px 50px rgba(0,0,0,.35)}
 .utopo{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:12px}
 .ufecha{background:none;border:none;color:var(--mut);font-size:18px;cursor:pointer;padding:0 4px}
+.ulapis{background:none;border:none;color:var(--mut);font-size:14px;cursor:pointer;
+  padding:0 4px;opacity:.4;line-height:1;transition:opacity .15s,color .15s}
+.ulapis:hover,.ulapis.on{opacity:1;color:var(--gold)}
+.ued{background:var(--card2);border:1px solid var(--border);border-radius:10px;
+  padding:14px 16px;margin-bottom:14px}
+.uedg{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.ued label{display:block;font-size:11px;font-weight:800;letter-spacing:.3px;
+  text-transform:uppercase;color:var(--mut);margin-bottom:4px}
+.ued input,.ued select{width:100%;background:var(--card);border:1px solid var(--border);
+  color:var(--txt);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13.5px}
+.uedacts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.uedprev{margin-top:12px;padding-top:11px;border-top:1px solid var(--border);
+  font-size:12.5px;line-height:1.55}
+.uedprev .mud{display:block;color:var(--txt)}
+.uedprev .avi{display:block;margin-top:6px;color:var(--gold)}
+.uedprev .err{display:block;color:#c0392b;font-weight:800}
+.uednota{font-size:11.5px;color:var(--mut);line-height:1.5;margin-top:9px}
 .autol{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)}
 .autol:last-child{border-bottom:none}
 .autotxt{flex:1}
@@ -2282,13 +2303,134 @@ async function abrirUsina(id){
   var w=document.getElementById('usinaModal');
   if(!w){ w=document.createElement('div'); w.id='usinaModal'; document.body.appendChild(w); }
   w.className='uwrap';
+  // abrir OUTRA usina fecha o lapis; reabrir a mesma (trocar a janela de dias,
+  // gravar) mantem o estado em que a pessoa estava.
+  if(!DET || DET.usina.id!==id) UEDIT=false;
   w.innerHTML='<div class="ubox"><div class="center"><div class="spin"></div>Carregando...</div></div>';
   w.onclick=function(ev){ if(ev.target===w) fecharUsina(); };
   var r=await sb.rpc('get_usina_detalhe',{p_usina:id, p_dias:UDIAS});
   if(r.error||!r.data){ w.innerHTML='<div class="ubox">Não consegui carregar.</div>'; return; }
   DET=r.data; desenhaUsina();
 }
-function fecharUsina(){ var w=document.getElementById('usinaModal'); if(w) w.className='uwrap off'; }
+function fecharUsina(){ UEDIT=false; var w=document.getElementById('usinaModal'); if(w) w.className='uwrap off'; }
+
+/* ===== EDICAO DA USINA (o lapis do cabecalho) =====
+   Um so caminho para corrigir nome, potencia, endereco, data e o vinculo com o
+   SolarView. Ate 22/09 nao havia nenhum: a usina da TAYS entrou com o nome e a
+   potencia errados (38,5 e 20 kWp trocados por 40,95 e 29,25) e SEM linha em
+   `usina_monitoramento`, e o vinculador automatico nunca a alcancaria — ele so
+   olha obra que ainda nao tem NENHUMA usina.
+
+   Quem grava e `usina_editar(json, simular)`. A tela sempre simula primeiro
+   (regra 3.2): mostra o que muda e os avisos, e so entao libera o Gravar. */
+var UEDIT=false, UEDSV=null, UEDCARREGANDO=false;
+
+function toggleEdicaoUsina(){
+  UEDIT=!UEDIT;
+  desenhaUsina();
+  if(UEDIT && UEDSV===null && !UEDCARREGANDO) carregaSolarview();
+}
+
+function painelEdicaoUsina(u){
+  var h='<div class="ued"><div class="uedg">';
+  h+='<div><label>Nome da usina</label><input id="ued_apelido" maxlength="120" value="'+esc(u.apelido||'')+'"></div>';
+  h+='<div><label>Potência (kWp)</label><input id="ued_kwp" inputmode="decimal" value="'+esc(u.kwp==null?'':String(u.kwp))+'"></div>';
+  h+='<div><label>Instalada em</label><input id="ued_inst" type="date" value="'+esc(u.instalada||'')+'"></div>';
+  h+='<div><label>Cidade</label><input id="ued_cidade" maxlength="80" value="'+esc(u.cidade||'')+'"></div>';
+  h+='<div style="grid-column:1/-1"><label>Endereço</label><input id="ued_end" maxlength="200" value="'+esc(u.endereco||'')+'" placeholder="Rua, número, bairro"></div>';
+  h+='<div style="grid-column:1/-1"><label>Usina no SolarView</label>'+selectSolarview(u.solarview_id)+'</div>';
+  h+='</div>';
+  h+='<div class="uednota">O endereço conta visita e cobrança do plano Completo: escrever a mesma casa de dois jeitos vira endereço a mais. '
+   +'A potência entra no kWh/kWp que o cliente lê.</div>';
+  h+='<div class="uedacts">'
+   +'<button class="ubtn" onclick="uedSimular()">Ver o que muda</button>'
+   +'<button class="ubtn" onclick="toggleEdicaoUsina()">Cancelar</button></div>';
+  h+='<div class="uedprev" id="ued_prev" style="display:none"></div>';
+  return h+'</div>';
+}
+
+function selectSolarview(atual){
+  var h='<select id="ued_sv"><option value="">— sem vínculo —</option>';
+  if(UEDSV===null){
+    // a lista ainda nao chegou; nao dava para deixar so "sem vinculo" selecionado,
+    // senao abrir o lapis e gravar tiraria o vinculo que ja existe.
+    if(atual) h+='<option value="'+esc(atual)+'" selected>'+esc(atual)+' (carregando os nomes…)</option>';
+    h+='</select>';
+    return h;
+  }
+  var achou=false;
+  for(var i=0;i<UEDSV.length;i++){
+    var x=UEDSV[i], sel=(String(x.id)===String(atual||''));
+    if(sel) achou=true;
+    var rot=x.nome+' · '+(Number(x.kwp)||0).toFixed(2).replace('.',',')+' kWp';
+    if(x.cidade) rot+=' · '+x.cidade;
+    if(x.vinculada_a && !sel) rot+=' — já em: '+x.vinculada_a;
+    h+='<option value="'+esc(x.id)+'"'+(sel?' selected':'')+'>'+esc(rot)+'</option>';
+  }
+  if(atual && !achou) h+='<option value="'+esc(atual)+'" selected>'+esc(atual)+' (não está mais no portfólio)</option>';
+  return h+'</select>';
+}
+
+async function carregaSolarview(){
+  UEDCARREGANDO=true;
+  var r=await sb.functions.invoke('solarview-vincular',{body:{listar:true}});
+  UEDCARREGANDO=false;
+  if(r.error || !r.data || !r.data.ok){
+    UEDSV=[];
+    toast('Não consegui ler o portfólio do SolarView. Dá para editar o resto.');
+  } else {
+    UEDSV=r.data.lista||[];
+  }
+  // troca so o select, para nao apagar o que a pessoa ja digitou nos outros campos
+  var el=document.getElementById('ued_sv');
+  if(el && UEDIT){
+    var d=document.createElement('div');
+    d.innerHTML=selectSolarview(el.value||null);
+    el.parentNode.replaceChild(d.firstChild, el);
+  }
+}
+
+function uedJson(){
+  function v(id){ var e=document.getElementById(id); return e? e.value.trim() : ''; }
+  return {
+    usina: DET.usina.id,
+    apelido: v('ued_apelido'),
+    potencia_kwp: v('ued_kwp').replace(',','.'),
+    data_instalacao: v('ued_inst'),
+    cidade: v('ued_cidade'),
+    endereco: v('ued_end'),
+    solarview_id: v('ued_sv')
+  };
+}
+
+function uedPreview(d, gravou){
+  var box=document.getElementById('ued_prev');
+  if(!box) return;
+  box.style.display='';
+  if(!d || d.erro){ box.innerHTML='<span class="err">'+esc((d&&d.erro)||'Não consegui falar com o banco.')+'</span>'; return; }
+  if(d.sem_mudanca){ box.innerHTML='<span class="mud">Nada mudou — os campos estão iguais ao que já está gravado.</span>'; return; }
+  var h='';
+  (d.mudancas||[]).forEach(function(m){ h+='<span class="mud">'+(gravou?'✓ ':'• ')+esc(m)+'</span>'; });
+  (d.avisos||[]).forEach(function(a){ h+='<span class="avi">⚠️ '+esc(a)+'</span>'; });
+  if(!gravou) h+='<div class="uedacts"><button class="ubtn" onclick="uedGravar()">Gravar</button></div>';
+  box.innerHTML=h;
+}
+
+async function uedSimular(){
+  var r=await sb.rpc('usina_editar',{p_json:uedJson(), p_simular:true});
+  if(r.error){ uedPreview({erro:r.error.message}); return; }
+  uedPreview(r.data, false);
+}
+
+async function uedGravar(){
+  var r=await sb.rpc('usina_editar',{p_json:uedJson(), p_simular:false});
+  if(r.error){ uedPreview({erro:r.error.message}); return; }
+  if(r.data && r.data.erro){ uedPreview(r.data); return; }
+  uedPreview(r.data, true);
+  toast('Usina atualizada ✓');
+  UEDIT=false;
+  await abrirUsina(DET.usina.id);
+}
 
 function desenhaUsina(){
   var u=DET.usina, c=DET.cliente, o=DET.obra||{}, meses=DET.meses||[], hist=DET.historico||[], msgs=DET.mensagens||[];
@@ -2299,7 +2441,12 @@ function desenhaUsina(){
     +' · '+(Number(u.kwp)||0).toFixed(2).replace('.',',')+' kWp'
     +(o.contrato?' · contrato '+esc(o.contrato):'')
     +(o.papel && o.papel!=='propria'?' · '+esc(o.papel):'')+'</div></div>'
-    +'<button class="ufecha" onclick="fecharUsina()" aria-label="Fechar">✕</button></div>';
+    +'<div style="display:flex;align-items:center;gap:2px">'
+    +'<button class="ulapis'+(UEDIT?' on':'')+'" onclick="toggleEdicaoUsina()" '
+    +'title="Editar nome, potência, endereço e vínculo" aria-label="Editar">✎</button>'
+    +'<button class="ufecha" onclick="fecharUsina()" aria-label="Fechar">✕</button>'
+    +'</div></div>';
+  if(UEDIT) h+=painelEdicaoUsina(u);
   var E=DET.estado||{};
   var ce = E.estado==='normal'?'#5aa469':(E.estado==='alerta'?'#e0a33e':
            (E.estado==='sem leitura'?'#7b8a99':'#c0392b'));
