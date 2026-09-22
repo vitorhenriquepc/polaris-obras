@@ -1011,42 +1011,53 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
 
 ## 10. Estado e pendências
 
-**63 usinas ativas** · **54 normais, 5 sem comunicação, 4 sem dado** ·
+**63 usinas ativas** · **56 normais, 4 sem comunicação, 2 sem dado, 1 silenciosa** ·
 **75 obras, 58 ativas** · 31 cron jobs, **todos ativos** · 23 chaves de
 automação em `config`, 22 ligadas — a única desligada é `iptu_envio_ativo`,
 de propósito (ver pendência abaixo). A `solarview_ativo` foi **removida** em
 12/09: estava em 0, ninguém lia, e fazia parecer que o monitoramento estava
 desligado enquanto ele entregava dado todo dia.
 
-⚠️ **O doc dizia "55 normais, 4 sem comunicação" e estava errado — são 9.**
-Corrigido em 22/09 contando no banco. E o número **oscila de um dia para o
-outro de propósito**: cinco das nove entraram em `datalogger offline`
-**hoje mesmo** e geraram ontem. Contar "sem comunicação" como se fosse uma
-fila de problemas infla o retrato. O que separa ruído de problema é **há
-quantos dias não gera**, não o estado do rótulo.
+⚠️ **Contar o rótulo "sem comunicação" como fila de problemas infla o
+retrato.** De manhã em 22/09 eram **9**; à tarde, **4**. Cinco delas tinham
+entrado em `datalogger offline` no próprio dia e geraram ontem — voltaram
+sozinhas. O que separa ruído de problema é **há quantos dias não gera**, não o
+estado do rótulo. (O doc chegou a dizer "55 normais, 4 sem comunicação", que
+também estava errado; hoje o número vem de contar no banco, não de memória.)
+
+Medido à tarde de 22/09, e **os três problemas de verdade são os mesmos de
+manhã** — o ruído é que sumiu:
 
 | Usina | Cliente | Sem gerar há | O que é |
 |---|---|---|---|
 | **Votuporanga 6,25 kWp** (inst. 24/04) | LUCINEI BOMFIM | **nunca gerou — ~5 meses** | **problema de verdade** |
-| **Araçatuba 6,20 kWp** (inst. 18/05) | JOAO JOSE DE SOUZA | **31 dias** (última 22/08) | **problema de verdade** |
 | **Araçatuba 8,68 kWp** (inst. 27/07) | João Vitor Pozzeti | **nunca comunicou** | **problema de verdade** |
-| Guaiçara 4,34 kWp | Maria Aparecida H. Gomes | 4 dias | vigiar |
-| Rua São Bernardo 16,47 · Rua Luiz P. Barreto 9,15 · Rua Brasil 4,27 | GILBERTO (3 usinas) | 1 dia | ruído de hoje |
-| Araçatuba 8,54 kWp | Marcio da Silva Pereira | 1 dia | ruído de hoje |
-| Araçatuba 4,96 kWp | Thalles Vinicius | 1 dia | ruído de hoje |
+| **Araçatuba 6,20 kWp** (inst. 18/05) | JOAO JOSE DE SOUZA | **31 dias** (última 22/08) | **problema de verdade** |
+| Guarulhos 6,20 kWp | Jaqueline | gerou **ontem** | ruído de hoje |
+| Guaiçara 4,34 kWp (`silencioso`) | Maria Aparecida H. Gomes | 4 dias (última 18/09) | vigiar |
 
-⚠️ **"Sem dado" não é o mesmo que "sem comunicação" — e nem as 4 são o mesmo
-caso.** São quatro usinas, por dois motivos diferentes, e `usina_estado`
-devolve o mesmo rótulo para os dois:
+As três do GILBERTO, a do Marcio e a do Thalles estavam nesta lista de manhã e
+**voltaram ao normal sozinhas** no mesmo dia. É exatamente a oscilação acima.
 
-| Usina | Por quê | O que falta |
-|---|---|---|
-| **USINA 1 · USINA 2** (UNI AUTO POSTO, Clementina, 105,40 e 129,60 kWp) | **zero registro** em `usina_dia`: existem aqui e **não existem no SolarView** | cadastro do outro lado |
-| **TAYS AÇOUGUE · TAYS RANCHO** | têm **401 dias** cada em `usina_dia` (23.190 e 48.221 kWh), mas `usinas.status_atual` ainda é **nulo** | a rodada do `usina-status` (09h15/13h15/16h15), que é quem carimba o status |
+⚠️ **"Sem dado" sobrou com 2, e são as do UNI AUTO POSTO** — `USINA 1` e
+`USINA 2` (Clementina, 105,40 e 129,60 kWp), com **zero registro** em
+`usina_dia`: existem aqui e **não existem no SolarView**. Não é defeito, é
+cadastro que falta do outro lado.
 
-A segunda linha é o ramo `when u.status_atual is null then 'sem dado'`, o
-último da cascata — **medição não salva do rótulo se o status não chegou**.
-Nenhum dos dois é defeito.
+⚠️ **E o rótulo tem DOIS caminhos para "sem dado", que não querem dizer a
+mesma coisa.** O primeiro é `hh.lidos = 0` — não há medição nenhuma, que é o
+caso do UNI AUTO POSTO. O segundo é o último ramo da cascata,
+`when u.status_atual is null`, e as duas da Tays caíram nele em 22/09: tinham
+**401 dias** de medição cada (23.190 e 48.221 kWh) e mesmo assim liam "sem
+dado", porque o vínculo nasceu **16:26 UTC** e a rodada do `usina-status`
+tinha sido **16:15** — onze minutos antes. Uma rodada depois viraram
+**normal · gerando normalmente**.
+
+**Medição não salva do rótulo se o status não chegou.** Usina vinculada fora
+do horário do `usina-status` (09h15/13h15/16h15) fica com cara de problema até
+a próxima rodada. Vale forçar a rodada com `{"forcar":true,"simular":true}` —
+a leitura e o carimbo do `status_atual` acontecem sempre; o `simular` só corta
+o WhatsApp para a Lívia no fim.
 
 ⚠️ **Errei duas vezes na mesma linha, em direções opostas.** Até 18/09 o doc
 dizia que a Araçatuba de 6,20 estava *"sem medição há 21 dias"*. Em 18/09 eu
@@ -1152,8 +1163,8 @@ Conferido no banco em **22/09/2026**.
 
       Corrigido e puxada a geração: 13 meses e **401 dias** em cada uma.
       A obra saiu de "sem dado" para **62.657 kWh · R$ 49.925 · 82% de
-      desempenho · 11 meses**. O rótulo `usina_estado` ainda diz "sem dado"
-      até o `usina-status` carimbar o `status_atual` (ver o quadro do §10).
+      desempenho · 11 meses**, e as duas usinas estão em **normal · gerando
+      normalmente** desde a rodada do `usina-status` de 22/09.
 - [ ] **Decidir se o aviso de fim de cortesia passa por aprovação humana.**
       A `plano-vencimento` envia direto ao cliente às 9h, e agora com preço e
       oferta dentro. Tem folga para decidir: o primeiro vencimento é
