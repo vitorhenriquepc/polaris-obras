@@ -1919,6 +1919,10 @@ function nomeConc(o){
 }
 // Trecho do relatório com pedido de confirmação — o aceite passa a ser o "OK" no grupo
 function blocoRelatorio(o){
+  // So anuncia relatorio que EXISTE. `relatorio_enviado_em` e carimbado pelo
+  // foto-obra quando o instalador entrega as fotos; sem ele o link abre uma
+  // pagina vazia e o pedido de "responda OK" fica sem objeto.
+  if(!o.relatorio_enviado_em) return '';
   return `\n\n📄 *Seu relatório de instalação está pronto*\n`
     + `${location.origin}/relatorio.html?id=${o.slug}\n\n`
     + `Dá uma olhada com calma nas fotos e nos dados do seu sistema. `
@@ -1943,14 +1947,23 @@ if(dias!==null && antes===0)
 return `☀️ *${o.cliente}*, seu sistema foi *ativado* no prazo! ✅\n\nEntregamos em exatamente *${dias} dias*, dentro do prazo contratual.\n\nSeu sistema já está gerando energia limpa. 🌱\n\n*Equipe Polaris Energia Solar* ☀️` + blocoRelatorio(o) + ``;
 return `☀️ *${o.cliente}*, seu sistema solar foi *ativado*! Parabéns! 🚀\n\nSeu sistema já está gerando energia limpa e reduzindo sua conta. 🌱\n\n*Equipe Polaris Energia Solar* ☀️` + blocoRelatorio(o) + ``;
 }
-// Execução concluída: relatório pronto e pedido de confirmação antes da vistoria
-if(o.etapa_numero===6 && !_elet && (o.trilha||'padrao')!=='manutencao'){
-  return `🔧 *${o.cliente}*, sua instalação foi concluída!\n\n`
-    + `Os painéis e o inversor já estão montados e testados. 🙌`
-    + blocoRelatorio(o)
-    + `\n\n*Assim que você confirmar, solicitamos a vistoria da ${nomeConc(o)}* — que é o último passo `
-    + `antes do seu sistema começar a gerar. ⚡\n\n*Equipe Polaris Energia Solar* ☀️`;
-}
+// A etapa 6 NAO tem mensagem propria — cai no texto generico da trilha.
+//
+// Ate 22/09 havia aqui um bloco que dizia "sua instalacao foi concluida!" com
+// o link do relatorio. Estava na etapa errada: a etapa 6 da trilha padrao e
+// "Execucao da Obra", e a propria tabela `etapas` a descreve como
+// "A instalacao dos paineis e inversor esta EM ANDAMENTO no seu imovel".
+// Quem marca o fim da execucao e a 7 ("Vistoria e Conexao") — e e para la que
+// o foto-obra manda a obra quando o instalador entrega as fotos.
+//
+// O JACIR ZATT (4143) mostrou o estrago em 22/09: a Livia moveu para a etapa 6
+// ao agendar, e o cliente recebeu "instalacao concluida" + link de relatorio
+// com ZERO fotos, dois dias ANTES da instalacao (marcada para 24/09).
+// Nao foi caso isolado: das 24 obras que passaram pela etapa 6, cinco
+// receberam link de relatorio que nunca existiu.
+//
+// O anuncio do relatorio ja e feito pelo foto-obra, com a contagem real de
+// fotos, no momento em que o relatorio passa a existir. Aqui era duplicata.
 // Vistoria e Conexão: mensagem única, com a data calculada e o que o cliente precisa fazer
 if(o.etapa_numero===7 && !_elet && (o.trilha||'padrao')!=='manutencao'){
   const pz=o._prazoCpfl||o.cpfl_prazo_em;

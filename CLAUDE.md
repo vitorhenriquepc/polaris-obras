@@ -958,6 +958,44 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     dentro. Mandar para o grupo do instalador vazaria preço. O motivo da
     corretiva merece campo próprio antes de virar mensagem.
 
+21. **A tela e a tabela `etapas` discordavam sobre o que é a etapa 6.**
+    Terceira da família (ver 11 e 20), e a mais cara: esta falava com o
+    **cliente**.
+
+    O `buildWA()` do `painel.html` tinha um caso especial para
+    `etapa_numero === 6` que mandava *"sua instalação foi concluída! Os
+    painéis e o inversor já estão montados e testados"* mais o link do
+    relatório. Mas a etapa 6 da trilha padrão é **"Execução da Obra"**, e a
+    própria tabela `etapas` a descreve como *"A instalação dos painéis e
+    inversor está **em andamento** no seu imóvel"*. Quem marca o fim da
+    execução é a **7** ("Vistoria e Conexão") — e é para lá que o `foto-obra`
+    manda a obra quando o instalador entrega as fotos.
+
+    **JACIR ZATT (4143), 22/09:** a Lívia moveu para a etapa 6 ao agendar, e o
+    cliente recebeu "instalação concluída" com link de relatório de **zero
+    fotos, zero itens de checklist, zero apontamentos** — dois dias **antes**
+    da instalação, marcada para 24/09. E ainda pedindo *"responda OK aqui no
+    grupo"* para aprovar um relatório que não existe.
+
+    Não foi caso isolado. Das **24 obras** que passaram pela etapa 6, **cinco**
+    receberam link de relatório que nunca existiu (JACIR, LUCIANA CORDEIRO,
+    BARBARA EDEN BINE, JULIO CESAR, CLAUDIA PATRICIA). Nas outras 19 o
+    relatório chegou depois, e o texto só pareceu certo por coincidência de
+    data — a CELIA (4133) entrou na etapa 6 em 11/09 com instalação em 16/09.
+
+    **Corrigido em 22/09 apagando o caso especial**, não movendo ele de etapa:
+    o anúncio do relatório **já é feito pelo `foto-obra`**, com a contagem real
+    de fotos, no instante em que o relatório passa a existir. O bloco da tela
+    era duplicata disparada cedo. A etapa 6 caiu no texto genérico da trilha,
+    que já estava certo.
+
+    E o `blocoRelatorio()` ganhou trava: **sem `relatorio_enviado_em`, devolve
+    string vazia**. Anunciar relatório que não existe não é erro de uma etapa
+    só — é erro de qualquer etapa.
+
+    A regra: **quando a tela escreve texto sobre uma etapa, o significado tem
+    de sair da tabela `etapas`, não de um número chumbado no `if`.**
+
 ---
 
 ## 10. Estado e pendências
@@ -1142,6 +1180,17 @@ Conferido no banco em **22/09/2026**.
       versão certa guarda o prospect — nome, porte, quando foi abordado, o que
       respondeu — e desemboca no cadastro de cliente de plano. O texto antigo
       está no git.
+- [ ] **Quatro clientes antigos receberam link de relatório vazio
+      (armadilha 21).** LUCIANA CORDEIRO (4750), BARBARA EDEN BINE (4756),
+      JULIO CESAR (4459) e CLAUDIA PATRICIA (4253) — a mais antiga é de
+      **abril**. O defeito está corrigido, mas as
+      mensagens antigas continuam nos grupos, pedindo "responda OK" para
+      aprovar um relatório que não existe. Provavelmente não vale mexer;
+      fica registrado porque alguém pode responder OK um dia.
+
+      O **JACIR ZATT (4143)** era o urgente — instalação em 24/09 e o cliente
+      informado de que já tinha acabado. **O Vitor apagou a mensagem do grupo
+      em 22/09**, então esse está resolvido.
 - [ ] Conferir cidades com IPTU Sustentável antes da última automação
 
 Próximos módulos: garantia e nota fiscal · tela de indicação com o funil novo ·
