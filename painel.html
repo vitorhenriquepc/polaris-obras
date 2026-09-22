@@ -356,6 +356,7 @@ width:100%;max-width:560px;max-height:90vh;overflow-y:auto;padding:22px 20px 30p
 .fld input,.fld select,.fld textarea{width:100%;background:var(--card2);border:1px solid var(--border);
 color:var(--txt);border-radius:10px;padding:11px 12px;font-family:inherit;font-size:14px;outline:none}
 .fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--gold)}
+.fld .flddica{font-size:11.5px;color:var(--mut);margin-top:5px;line-height:1.45}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .modal .row{display:flex;gap:10px;margin-top:8px}
 .modal .save{flex:1;background:linear-gradient(135deg,var(--green),#2f7030);border:none;color:#fff;
@@ -2096,6 +2097,10 @@ ${o.trilha==='manutencao'?`
 <option value="1" ${o.cliente_externo?'selected':''}>Cliente de outra empresa</option>
 </select></div>
 </div>
+<div class="fld"><label>O que o cliente relatou</label>
+<input id="f_motman" value="${esc(o.motivo_manutencao||'')}" maxlength="180"
+       placeholder="Ex.: inversor apitando desde a chuva de sábado">
+<div class="flddica">Vai na ordem de serviço, no grupo do instalador — ele chega sabendo o que procurar. Não escreva preço aqui.</div></div>
 <div class="fld"><label>Quem instalou o sistema (se foi outra empresa)</label>
 <input id="f_sisorig" value="${esc(o.sistema_origem||'')}" placeholder="Nome da empresa, ou 'não sabe'"></div>
 `:''}
@@ -2238,6 +2243,7 @@ origem_lead:document.getElementById('f_org').value||null,
 concessionaria:(document.getElementById('f_conc')||{}).value||null,
 valor_projeto:parseFloat((document.getElementById('f_valor')||{}).value)||null,
 tipo_manutencao:(document.getElementById('f_tipoman')||{}).value||null,
+motivo_manutencao:((document.getElementById('f_motman')||{}).value||'').trim()||null,
 cliente_externo:((document.getElementById('f_ext')||{}).value==='1'),
 sistema_origem:(document.getElementById('f_sisorig')||{}).value||null,
 trava: document.getElementById('travaSel') ? (travaEdit||null)

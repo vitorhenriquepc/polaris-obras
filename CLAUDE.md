@@ -221,6 +221,40 @@ quando a IA escreveu — e o card pinta em vermelho quando é `false`. Não
 bloqueia o envio (regra 3.5, quem decide é a pessoa); garante que ela decida
 vendo.
 
+### Régua: calendário × evento
+⚠️ **São duas famílias de modelo, e até 22/09 o índice único tratava as duas
+igual.** `regua_contatos` tinha `UNIQUE (obra_id, modelo)` — uma mensagem de
+cada tipo por obra, **para sempre**:
+
+| Família | Modelos | Uma por obra? |
+|---|---|---|
+| **Calendário** | `d2_boasvindas` … `d365_aniversario`, `reconexao_setembro`, `relatorio_aceite` — 10 modelos, 471 linhas | **Sim.** É o que impede a régua de repetir boas-vindas |
+| **Evento** | `usina_wifi`, `usina_parada`, `geracao_baixa`, `geracao_recorde`, `geracao_resumo`, `retorno_marco` — 6 modelos, 14 linhas | **Não.** A usina pode parar de novo no ano que vem |
+
+Medido em 22/09: **9 obras** já tinham `usina_wifi` e nunca mais poderiam
+receber outro aviso de usina sem comunicar. O GILBERTO teve uma
+`geracao_baixa` recusada em 15/09 e estava mudo desde então. Provado com um
+insert que devolveu `duplicate key value violates unique constraint`.
+
+⚠️ **E a falha era silenciosa.** O `mensagens-usina-auto` só deduplica olhando
+os **últimos 7 dias**, então depois disso ele tenta inserir, leva o
+`unique_violation`, joga em `erros[]` e devolve 200. O cron usa
+`net.http_post`, que não lê a resposta — mesma cegueira da armadilha 18.
+
+⚠️ **Havia uma mina marcada para outubro.** `geracao_resumo` (o resumo mensal,
+cron do dia 5) tem zero linha porque nunca rodou. A primeira rodada inseriria
+uma por obra e **todo mês seguinte falharia calado**: uma mensagem "mensal"
+que acontece uma vez por obra na vida.
+
+Hoje a propriedade mora em **`regua_modelos.repetivel`**, um trigger espelha
+para `regua_contatos.repetivel`, e o índice é parcial —
+`regua_contatos_uma_por_obra ... where not repetivel`. Conta nova ganha a
+marca dela sem mexer em índice. Quem segura a repetição dos eventos é a janela
+do `mensagens-usina-auto` (`msg_ia_intervalo_urgente` 7 dias,
+`msg_ia_intervalo_dias` 20) — o índice fazia esse trabalho por acidente.
+Os 6 modelos de evento são todos `precisa_aprovacao = true`, então destravar
+não põe nada na frente de cliente sem a Lívia.
+
 ### NPS e avaliação no Google
 ⚠️ **O convite AUTOMÁTICO do Google sai UMA vez e nunca mais.** Quem agenda é o
 `nps-resposta`, no instante em que a nota entra (`nps.google_agendado_para`); a
@@ -462,10 +496,10 @@ vencimento e **nunca** em contrato aguardando pagamento — ali `dias` é nulo, 
 `responsavel` = cliente ou distribuidora). Só as de responsabilidade do
 **cliente** geram aviso.
 
-⚠️ **Não entrou na régua de propósito.** `regua_contatos` tem
-`UNIQUE (obra_id, modelo)` — uma mensagem por modelo por obra, para sempre, e
-é isso que impede a régua de repetir boas-vindas. Autoleitura é mensal, então
-ou criaria um modelo por mês ou afrouxaria esse índice. Ganhou casa própria.
+⚠️ **Não entrou na régua de propósito.** O índice único da `regua_contatos`
+dá **uma mensagem por modelo por obra** nos modelos de calendário (ver
+"Régua: calendário × evento" acima). Autoleitura é mensal, então ou criaria um
+modelo por mês ou pediria a marca `repetivel`. Ganhou casa própria.
 
 **Ligada desde 15/09**, com os horários que o Vitor definiu: **9h o aviso do
 dia** (quem lê o relógio faz de manhã) e **18h a véspera** (depois da régua das
@@ -540,7 +574,7 @@ nenhuma delas. Ver pendência no §10.
 | `conferir_saude()` | conferência geral das 7h30 |
 | `casar_recebimentos(simular)` | casa entrada do banco com parcela |
 | `indicacoes_resumo(obra)` | funil; só conta o que fechou |
-| `pendencias_posvenda()` | o que a Lívia recebe às 8h — mensagem sem resposta, promotor sem avaliação no Google, brinde a entregar, sem NPS, sem aniversário; **com nome, não só número** |
+| `pendencias_posvenda()` | o que a Lívia recebe às 8h — **usina sem gerar** (com há quantos dias o cliente foi avisado), mensagem sem resposta, promotor sem avaliação no Google, brinde a entregar, sem NPS, sem aniversário; **com nome, não só número** |
 | `regua_fila(limite)` | o que sai hoje às 17h |
 | `regua_resumo_dia()` | o que a Lívia recebe às 11h |
 | `obras_para_nps()` | quem recebe o NPS: **só depois da última etapa da trilha**, e **um por cliente** — quem já respondeu numa obra não é perguntado de novo |
@@ -632,6 +666,8 @@ Prefira criar parâmetro a chumbar número no código.
 | `autoleitura_ativo` | 1 | envio automático do lembrete de autoleitura (9h no dia, 18h na véspera) |
 | `clima_cidade_base` | Araçatuba | onde o `clima_dia` é medido de verdade — é só **um** ponto |
 | `clima_cidades` | Araçatuba | para quais cidades o clima vale. Usina fora da lista ganha aviso no card de aprovação em vez de um número que não é dela |
+| `causa_caduca_dias` | 2 | quantos dias a anotação `usinas.causa = 'wifi'` continua valendo depois que a usina volta a gerar. Gerou dentro da janela, a medição manda e o palpite é ignorado |
+| `parada_avisa_dias` | 7 | dias sem gerar para a usina entrar no aviso das 8h. Existe para o ruído de datalogger do dia não entrar — em 22/09 havia cinco usinas em "sem comunicação" que tinham gerado ontem |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -880,16 +916,75 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     **Depois de publicar, confira o `verify_jwt` no retorno e bata um curl com
     token errado — tem de ser 403, nunca 401.**
 
+19. **Palpite humano gravado num campo de estado não caduca sozinho.**
+    A `usina_estado` tinha `or u.causa = 'wifi'` dentro do CTE `mudo`.
+    `usinas.causa` é o que **uma pessoa digitou** na tela ("acho que é o
+    wifi") — e a função tratava como fato: `sem_medir = true` curto-circuitava
+    a cascata inteira para `'sem comunicação'`, **antes** de chegar em
+    `'parada'`, `'nunca gerou'` ou `'normal'`.
+
+    O caso que prova, medido em 22/09 — **BURITAMA 4,96 kWp**: anotação posta
+    em 15/09, SolarView dizendo `operando`, e os últimos sete dias com
+    **15,5 · 9,54 · 23,98 · 23,78 · 22,96 · 24,82 · 14,61 kWh**. A função
+    devolvia `'sem comunicação'`, gravidade 3, com o motivo se contradizendo:
+    *"sem medição há 1 dias (última em 21/09)"* — 21/09 é ontem, com 15,5 kWh
+    no medidor. O wi-fi voltou; a anotação não.
+
+    A regra que ficou: **evidência ganha de palpite; ausência de evidência,
+    não.** A anotação só vale enquanto a usina não voltar a gerar
+    (`causa_caduca_dias`); usina sem leitura nenhuma continua obedecendo,
+    porque ali não há o que contradizer. A anotação **não** é apagada
+    (regra 3.6) — ela segue registrando o que a pessoa achou e quando.
+    Antes de deixar um campo digitado entrar num cálculo de estado, pergunte
+    **quando ele deixa de valer**.
+
+20. **O texto para o instalador também não seguia a trilha.**
+    Irmã da armadilha 11, e apareceu em 22/09 pela mão da Lívia: ela agendou
+    uma **manutenção preventiva** (Bruno Inacio de Souza, 3655) e o grupo do
+    instalador recebeu *"Nova obra agendada"* com **"❌ Sem estrutura · ❌ Sem
+    cabo"** — campos de obra nova, que saem como "Sem" porque ninguém
+    preencheu, não porque falta material. Pior: o **cliente** recebeu *"sua
+    instalação está agendada"* para uma preventiva num sistema que ele já tem.
+    A `enviar-os` nunca lia `o.trilha`.
+
+    Corrigido em 22/09: o nome do serviço sai da trilha e do
+    `tipo_manutencao`, e a manutenção ganhou ficha própria — potência, módulos,
+    inversor e telhado, sem estrutura nem cabo. Conferido trilha por trilha
+    fora do ar: **padrão fica byte a byte idêntico** (70 obras), eletroposto
+    muda só a saudação do cliente para "instalação do eletroposto".
+
+    ⚠️ **E `observacoes` ficou de fora de propósito.** É campo livre e hoje
+    carrega nota comercial — a obra 4599 tem *"Proposta: R$ 15.600,00"* lá
+    dentro. Mandar para o grupo do instalador vazaria preço. O motivo da
+    corretiva merece campo próprio antes de virar mensagem.
+
 ---
 
 ## 10. Estado e pendências
 
-**63 usinas ativas** · **55 normais, 4 sem comunicação, 4 sem dado** ·
-**75 obras, 58 ativas** · 31 cron jobs, **todos ativos** · 22 chaves de
-automação em `config`, 21 ligadas — a única desligada é `iptu_envio_ativo`,
+**63 usinas ativas** · **50 normais, 9 sem comunicação, 4 sem dado** ·
+**75 obras, 58 ativas** · 31 cron jobs, **todos ativos** · 23 chaves de
+automação em `config`, 22 ligadas — a única desligada é `iptu_envio_ativo`,
 de propósito (ver pendência abaixo). A `solarview_ativo` foi **removida** em
 12/09: estava em 0, ninguém lia, e fazia parecer que o monitoramento estava
 desligado enquanto ele entregava dado todo dia.
+
+⚠️ **O doc dizia "55 normais, 4 sem comunicação" e estava errado — são 9.**
+Corrigido em 22/09 contando no banco. E o número **oscila de um dia para o
+outro de propósito**: cinco das nove entraram em `datalogger offline`
+**hoje mesmo** e geraram ontem. Contar "sem comunicação" como se fosse uma
+fila de problemas infla o retrato. O que separa ruído de problema é **há
+quantos dias não gera**, não o estado do rótulo.
+
+| Usina | Cliente | Sem gerar há | O que é |
+|---|---|---|---|
+| **Votuporanga 6,25 kWp** (inst. 24/04) | LUCINEI BOMFIM | **nunca gerou — ~5 meses** | **problema de verdade** |
+| **Araçatuba 6,20 kWp** (inst. 18/05) | JOAO JOSE DE SOUZA | **31 dias** (última 22/08) | **problema de verdade** |
+| **Araçatuba 8,68 kWp** (inst. 27/07) | João Vitor Pozzeti | **nunca comunicou** | **problema de verdade** |
+| Guaiçara 4,34 kWp | Maria Aparecida H. Gomes | 4 dias | vigiar |
+| Rua São Bernardo 16,47 · Rua Luiz P. Barreto 9,15 · Rua Brasil 4,27 | GILBERTO (3 usinas) | 1 dia | ruído de hoje |
+| Araçatuba 8,54 kWp | Marcio da Silva Pereira | 1 dia | ruído de hoje |
+| Araçatuba 4,96 kWp | Thalles Vinicius | 1 dia | ruído de hoje |
 
 ⚠️ **"Sem dado" não é o mesmo que "sem comunicação".** São as **4** usinas
 com **zero registro** em `usina_dia` — elas existem aqui e **não existem no
@@ -897,26 +992,24 @@ SolarView**. São as duas do UNI AUTO POSTO (Clementina, 105,40 e 129,60 kWp,
 cadastradas em 16/09) e as duas da Tays (açougue 29,25 e rancho 40,95), que a
 pendência abaixo já cobre. Não é defeito: é cadastro que falta do outro lado.
 
-As 4 sem comunicação não são iguais, e tratar como um número só esconde o que
-importa:
+⚠️ **Errei duas vezes na mesma linha, em direções opostas.** Até 18/09 o doc
+dizia que a Araçatuba de 6,20 estava *"sem medição há 21 dias"*. Em 18/09 eu
+troquei para *"mede todo dia e não gera"* — e isso também está errado. O
+SolarView diz `datalogger offline` nela **desde 06/09**, e as linhas em
+`usina_dia` depois dessa data são **zeros de datalogger offline**, que pela
+armadilha 5 significam *"não medi"*, não *"não gerou"*.
 
-| Usina | Situação | Vale agir? |
-|---|---|---|
-| Buritama 4,96 kWp | gerou ontem (17/09), medindo | não — é o normal do datalogger |
-| **Araçatuba 6,20 kWp** (inst. 18/05) | **mede todo dia e não gera desde 22/08 — 27 dias** | **sim, é a mais urgente** |
-| **Votuporanga 6,25 kWp** (inst. 24/04) | **55 dias de medição e NUNCA gerou nada** | **sim — nasceu muda há ~5 meses** |
-| Araçatuba 8,68 kWp (inst. 27/07) | zero registro desde a instalação | sim — nunca comunicou |
+O que de fato aconteceu, lido dia a dia: ela **parou de gerar em 22/08** e
+seguiu reportando por duas semanas; **em 06/09 o datalogger caiu também.**
+São dois problemas em sequência, não um. A Votuporanga é o mesmo desenho, mais
+longo: reportou de 24/04 a 06/09 sem entregar **um kWh sequer**, e depois
+emudeceu.
 
-⚠️ **As duas urgentes estão MEDINDO.** O doc dizia "sem medição há 21 dias"
-para a Araçatuba de 6,20 — está errado, e a diferença importa: o datalogger
-dela responde todo dia (última medição 17/09), o que ela não faz é **gerar**.
-Não é a armadilha 5 (datalogger offline reportando zero); é usina parada de
-verdade. O mesmo vale para a Votuporanga, que mede há 55 dias e nunca entregou
-um kWh. Antes de classificar como "sem comunicação", **separe `ultima_medicao`
-de `ultima_geracao`** — as duas saem de `usina_dia`, e confundir uma com a
-outra transforma uma usina parada em "problema de sinal".
+A lição que fica de pé: **`usina_dia` sozinha não distingue "medi e deu zero"
+de "não medi"** — quem sabe isso é `usinas.status_atual`, que vem do SolarView.
+Cruze os dois antes de afirmar qualquer coisa sobre uma usina.
 
-Conferido no banco em **18/09/2026**.
+Conferido no banco em **22/09/2026**.
 
 - [ ] **Importar o extrato anterior a agosto/2026.** O extrato começa em
       03/08. Maio, junho e julho têm zero lançamento vindo do banco — o que
@@ -948,11 +1041,34 @@ Conferido no banco em **18/09/2026**.
       não for corrigido, o pagamento dele cai na fila manual. A 5ª parcela
       (R$ 6.000, venc 01/09) também está marcada como recebida sem nenhum
       movimento no extrato; a obra fechou em 27/07, antes do extrato começar.
-- [ ] **Quatro automações mensais nunca rodaram uma única vez.** Dia 2
-      (fechamento), dia 5 (resumo mensal), dia 6 (marcos) e dia 10 (lembrete de
-      tarifa) foram criadas em setembro **depois** da data delas, então a
-      primeira chance real é em outubro. Não estão quebradas — estão por
-      provar. Vale rodar cada uma em modo simular antes de outubro.
+- [x] ~~Quatro automações mensais nunca rodaram uma única vez.~~
+      **Provadas em 22/09**, todas com resposta 200 e as quatro chaves de
+      `config` ligadas (`pilula_mensal_ativa`, `marco_ativo`,
+      `tarifa_lembrete_ativo`, `msg_ia_avisa`). Nenhuma estava quebrada:
+
+      | Cron | O que devolveu |
+      |---|---|
+      | dia 5 · `mensagens-usina-auto` | **geraria 25 resumos mensais**, nada gravado |
+      | dia 6 · `marcos-retorno` | 3 marcos detectados, **2 gerariam** (JOSE ANTONIO PONCIANO e ROSANGELA MIRANDA, 10% cada), 1 pulado (Thalles — já teve `usina_wifi` em 20 dias) |
+      | dia 10 · `tarifa-lembrete` | `motivo: null` — **silenciosa de propósito** |
+      | dia 2 · `solarview-geracao` | 13 meses lidos do SolarView, 0 falhas, idempotente |
+
+      ⚠️ **A `marcos-retorno` não tinha modo simular** e ia direto gravar
+      `usina_marco.avisado_em`, gerar mensagem e avisar a Lívia — contra a
+      regra 3.2, e era o que tornava esta própria pendência impossível de
+      cumprir. Ganhou `simular` em 22/09.
+
+      ⚠️ **A `tarifa-lembrete` só fala em três situações:** mês 5 (a conta com
+      a tarifa nova de abril), mês 2 (degrau do Fio B) ou 12+ meses sem
+      calibrar. Hoje são **8 meses**, e estamos em setembro — então o cron do
+      dia 10 roda e **não diz nada até janeiro/2027**, quando bate os 12. Não
+      está quebrada; é silêncio por desenho. Quem cobra a calibração enquanto
+      isso é este doc.
+
+      A `solarview-geracao` segue **sem `simular`** de propósito: escrever é a
+      função dela, o upsert vem da fonte da verdade e é idempotente. Foi
+      provada rodando para **uma usina só** (Buritama): 15 meses antes,
+      15 depois, só o `lido_em` mudou.
 - [ ] **Registrar o 1º pagamento da TAYS VALESE DIAS DO PRADO.** Primeiro
       contrato pago do sistema: Completo anual, R$ 2.990,00, duas usinas
       instaladas pela **Eco Solar** (açougue em Araçatuba 29,25 kWp, rancho em
@@ -982,10 +1098,36 @@ Conferido no banco em **18/09/2026**.
 - [ ] **Não existe tela para trocar o responsável.** `definir_responsavel(equipe,
       funcao)` existe, é `is_admin()` e funciona — mas nenhuma tela chama.
       Hoje a troca só acontece pelo banco, na mão.
-- [ ] **Duas mensagens de `geracao_baixa` paradas desde 18/09 e já vencidas.**
-      Jaqueline (Guarulhos) e Marcia (Araçariguama): as duas usinas voltaram ao
-      padrão sozinhas (78% e 75%, `caiu = false` em 21/09). O card agora avisa
-      em vermelho; **recusar** é o desfecho certo, mas é clique da Lívia.
+- [x] ~~Duas mensagens de `geracao_baixa` paradas desde 18/09 e já vencidas.~~
+      **Recusadas em 22/09.** Jaqueline (78%) e Marcia (75%), `caiu = false`
+      nas duas quatro dias depois de escritas. Nada foi apagado: as linhas
+      ficam como `pulado` / `recusada`, com autoria e data (regra 3.6).
+- [ ] **Três usinas com problema de verdade, e ninguém voltou nelas.**
+      Medido em 22/09, e as três já foram avisadas ao cliente em **10/09** —
+      doze dias sem desfecho:
+      **LUCINEI BOMFIM** (Votuporanga 6,25 kWp) nunca gerou um kWh desde
+      24/04; **JOAO JOSE DE SOUZA** (Araçatuba 6,20) parou em 22/08 e o
+      datalogger caiu em 06/09; **João Vitor Pozzeti** (Araçatuba 8,68) nunca
+      comunicou desde 27/07. Nenhuma é problema de wi-fi, apesar da anotação.
+
+      ⚠️ **Elas não apareciam no aviso das 8h — o aviso não tinha seção de
+      usina parada.** Só o João Vitor entrava, e por outra porta
+      (`geracao_faltando`, que tem teto de 60 dias e ia calá-lo no dia 61).
+      Corrigido em 22/09: `usinas_paradas` entra no topo do aviso, com
+      `avisado_ha` junto. O conserto é do sistema; **ir na casa do cliente
+      continua sendo trabalho de campo.**
+- [ ] **A corretiva não tem onde dizer o motivo da visita.** A `enviar-os`
+      agora manda ficha própria de manutenção, mas o instalador vai à
+      corretiva sem saber o que foi relatado. `obras.observacoes` **não serve**
+      — é campo livre e hoje carrega nota comercial (a obra 4599 tem
+      "Proposta: R$ 15.600,00"), então mandar para o grupo do instalador
+      vazaria preço. Precisa de campo próprio.
+- [x] ~~Decidir se o Bruno (3655) recebe a mensagem corrigida.~~
+      **Reenviada em 22/09** para a **CJP Solar**, já como "Manutenção
+      preventiva agendada para vocês!". Correção de um erro meu ao relatar:
+      a obra **não tem grupo de WhatsApp do cliente**, então o cliente nunca
+      recebeu nada — a versão errada foi só para o grupo do instalador.
+      Foi também o primeiro envio real da `enviar-os` nova pela Z-API.
 - [ ] **Um ponto de clima só, e vizinhança num balde único.** Enquanto
       `clima_dia` tiver apenas Araçatuba e `v_indice_regiao` juntar 18 cidades
       em `regiao`, todo aviso de geração baixa fora do interior nasce com
