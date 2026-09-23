@@ -1128,6 +1128,31 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     **Antes de mexer num gatilho, pergunte quais campos ele exige e se TODOS os
     caminhos que chegam ali preenchem os dois.**
 
+26. **Página pública testada logado não é teste.** A armadilha 10 ao contrário:
+    ali o perigo era o anon **alcançar** função demais; aqui ele deixou de
+    alcançar a única que precisava. O `cliente.html` — o link "acompanhe sua
+    obra em tempo real" que vai em **toda** mensagem de etapa — só chama
+    `get_acompanhamento(slug)`, e o anon perdeu o EXECUTE nela entre **26/08 e
+    01/09**, por um revoke que não está em migração nenhuma. Todo cliente que
+    abriu o link nessas quatro semanas levou **401** e leu *"🔒 Obra não
+    encontrada"*. Achado em 23/09 porque o Vitor abriu o link da TANAKA
+    (4745) **no celular**.
+
+    Ninguém viu antes porque os logs do gateway separam o papel de quem chama:
+    os únicos **200** do período são `role = authenticated`, do computador do
+    escritório. Quem conferia o link logado via funcionando. E a varredura de
+    12/09 listava as funções que o anon **alcança** — a que ele deveria
+    alcançar e não alcançava não aparece numa lista dessas.
+
+    Hoje a `conferir_saude_base()` acusa *"pagina publica sem acesso"* se
+    qualquer função das quatro páginas sem login (`cliente`, `relatorio`,
+    `nps`, `instalador`) perder o anon, sumir ou mudar de assinatura. E a
+    página separa erro de "não achei": falha de sistema diz *"não conseguimos
+    carregar agora"*, não mais *"obra não encontrada"*.
+
+    **Antes de mexer em permissão, liste quem chama sem login. Depois, abra a
+    página pública numa aba anônima — nunca na sessão da equipe.**
+
 ---
 
 ## 10. Estado e pendências
