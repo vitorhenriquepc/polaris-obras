@@ -316,6 +316,21 @@ escolheram brinde, 50 entregues. 44 das 54 respostas são backfill manual — o
 caminho automático tem 10 registros e é de setembro. O resultado é ótimo, mas
 quem o fez foi a equipe; a esteira ainda está provando.
 
+⚠️ **Quem avaliou e quem recebeu o brinde mora na tela "🎁⭐ Brinde e Google"**
+(chip da Lista do `posvenda.html`), que lê `get_brinde_google()` direto da
+tabela `nps`. Até 23/09 eram três chips soltos na Lista, e a Lista corta em
+`etapa_numero >= 8` — obra de **manutenção** (vai só até a 4) não aparecia. O
+"Google pendente" contava **0** com **2** pendentes de verdade: Fatima Rino
+(3067) e Jose Antonio Bassetto, os dois nota 10 em manutenção.
+
+⚠️ **O banco não sabe quando 41 dos 52 brindes foram retirados.** Nesses 41,
+`entregue_em = brinde_em` **ao milissegundo**: o cadastro retroativo de 08/08,
+14/08 e 02/09 carimbou escolha, avaliação e entrega de uma vez. Isso é marcação,
+não retirada — só **11** têm data de retirada própria. O dado **não foi
+corrigido** (regra 3.6; só quem entregou sabe). A tela diz *"marcado entregue no
+cadastro de DD/MM · sem data de retirada"* em vez de afirmar o que ninguém
+registrou. Se for preciso a verdade, é conferir com quem entregou.
+
 `usinas`, `usina_dia`, `usina_geracao` · `clima_dia` · `v_indice_dia` ·
 `v_indice_regiao` (cidade com 5+ usinas ganha grupo próprio) ·
 `regua_contatos` + `regua_modelos` · `usina_marco` · `nps`
@@ -537,6 +552,13 @@ significa mexer na trava dos 17h.
 Cobertura: **72 das 73** obras ativas têm celular cadastrado, 73 têm grupo. A
 fila aceita quem tem grupo **ou** celular.
 
+⚠️ **Na ficha do cliente a seção só aparece para rural ou para quem já tem
+relógio cadastrado** (decisão do Vitor, 23/09 — antes aparecia em **toda**
+ficha, vazia, para 2 clientes que usam). A regra **não** é só
+`categoria = 'rural'`: os dois que têm relógio (Tays e UNI AUTO POSTO) estão
+como `comercial` — a obra é o açougue e o posto, o relógio é o do rancho.
+Para cadastrar o primeiro relógio de quem não é rural: aba Planos → Autoleitura.
+
 ### Lançar e corrigir as datas
 A conta de luz mostra as "Próximas Leituras" em bloco. `uc_leituras_salvar_lote`
 grava todas de uma vez; linha em branco é ignorada sem virar erro, e data
@@ -618,6 +640,7 @@ nenhuma delas. Ver pendência no §10.
 | `obra_custos_realizados(obra)` | o realizado da obra vindo do extrato, campo a campo; diz também se o extrato cobre o período da obra |
 | `dia_util_ate(data)` | o último dia útil em `data` ou antes — é o que antecipa o aviso de fim de semana para a sexta |
 | `usina_adicionar(json, simular)` | acrescenta uma usina a um cliente que já existe. **Só soma no total da obra se ela for cliente de plano** — em obra de venda a potência é o projeto vendido, e mexer ali muda o tamanho de uma venda que já aconteceu |
+| `get_brinde_google()` | **quem avaliou no Google e quem recebeu o brinde**, lido direto de `nps` — inclui obra de manutenção, que a Lista não vê. Devolve `entregue_no_cadastro` para separar retirada de verdade de marcação em lote |
 | `usina_editar(json, simular)` | **corrige** uma usina que já existe — nome, potência, cidade, endereço, data de instalação e o vínculo com o SolarView, num caminho só. Chave ausente no json não sobrescreve nada. Devolve `mudancas` e `avisos` em português (potência mexe no kWh/kWp que o cliente lê; endereço mexe em visita e cobrança do Completo), e recusa roubar o id do SolarView de outra usina |
 
 ---
@@ -1343,6 +1366,15 @@ Conferido no banco em **22/09/2026**.
       informado de que já tinha acabado. **O Vitor apagou a mensagem do grupo
       em 22/09**, então esse está resolvido.
 - [ ] Conferir cidades com IPTU Sustentável antes da última automação
+- [ ] **Conferir os 41 brindes "marcados no cadastro".** O sistema não sabe se
+      foram retirados — só que foram marcados junto com a escolha. Se importar,
+      é perguntar a quem entregou e registrar a data certa. Não é urgente: a
+      tela já não finge que sabe.
+- [ ] **A Lista do pós-venda ainda corta em `etapa_numero >= 8`.** A tela de
+      Brinde e Google já saiu dela, mas "Clientes ativos", "Sem NPS" e os
+      cartões continuam sem as obras de manutenção (Tays, UNI AUTO POSTO,
+      Bassetto, Fatima). O certo seria `obra_ativa()` (§6). Mexer muda os
+      números do topo da tela, então é decisão, não varredura.
 
 Próximos módulos: garantia e nota fiscal · tela de indicação com o funil novo ·
 comercial (só depois do financeiro confiável).

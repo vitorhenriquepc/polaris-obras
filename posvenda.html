@@ -67,6 +67,39 @@ padding:13px;cursor:pointer;transition:.18s;text-align:left;font-family:inherit;
 .pcard .l{font-size:11px;color:var(--muted);font-weight:700;margin-top:5px;line-height:1.35}
 .pcard.alerta .n{color:var(--gold)}
 .pcard.ok .n{color:var(--green-l)}
+/* Brinde e Google: uma linha por cliente, duas colunas, o pendente em cima */
+.bgres{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;margin:4px 0 16px}
+.bgbox{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.bgbox .bgn{font-size:24px;font-weight:800;line-height:1}
+.bgbox .bgn small{font-size:12px;color:var(--muted);font-weight:700}
+.bgbox .bgl{font-size:11px;color:var(--muted);font-weight:700;margin-top:5px}
+.bgbox.ok .bgn{color:var(--green-l)}
+.bgbox.alerta{border-color:var(--gold)}
+.bgbox.alerta .bgn{color:var(--gold)}
+.bgsec{font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;
+  color:var(--muted);margin:18px 0 8px}
+.bgsec.alerta{color:var(--gold)}
+.bgrow{display:grid;grid-template-columns:minmax(180px,1.3fr) 1fr 1fr;gap:8px 14px;align-items:center;
+  background:var(--card);border:1px solid var(--border);border-radius:11px;padding:10px 13px;margin-bottom:6px}
+@media (max-width:720px){.bgrow{grid-template-columns:1fr}}
+.bgcli{background:none;border:none;color:var(--txt);font-family:inherit;text-align:left;cursor:pointer;
+  display:flex;align-items:baseline;gap:7px;padding:0;min-width:0}
+.bgcli:hover .bgnm{color:var(--gold)}
+.bgnm{font-weight:800;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bgct{font-size:11.5px;color:var(--muted);font-weight:600}
+.bgnota{margin-left:auto;font-size:12px;font-weight:800;color:var(--green-l)}
+.bgcol{display:flex;align-items:center;flex-wrap:wrap;gap:5px 8px;font-size:12.5px}
+.bgk{font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);min-width:46px}
+.bgok{color:var(--green-l);font-weight:800}
+.bgpend{color:var(--gold);font-weight:800}
+.bgnada{color:var(--muted)}
+.bgdt{font-size:11.5px;color:var(--muted)}
+.bgvc{font-family:monospace;letter-spacing:1px;font-weight:800;font-size:12px}
+.bgbts{display:inline-flex;gap:5px;flex-wrap:wrap}
+.bgbts .mini{white-space:nowrap;margin:0}
+.bgaviso{background:var(--card2);border-left:3px solid var(--muted);border-radius:8px;padding:10px 13px;
+  font-size:12px;line-height:1.55;color:var(--muted);margin:-6px 0 14px}
+.bgaviso b{color:var(--txt)}
 
 /* ---- Busca e lista ---- */
 .tools{display:flex;gap:8px;margin:16px 0 12px;flex-wrap:wrap;align-items:center}
@@ -757,7 +790,7 @@ const SB_KEY='sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const LOGO_D='https://obras.polarisenergiasolar.com/logo.png', LOGO_L='https://obras.polarisenergiasolar.com/logo-claro.png';
 let DADOS=null, FILTRO='', BUSCA='';
-let VISAO='jornada', KB=null;
+let VISAO='jornada', KB=null, BG=null;
 try{VISAO=localStorage.getItem('polaris-pv-visao')||'jornada'}catch(e){}
 
 function tema(t){document.documentElement.setAttribute('data-theme',t);
@@ -806,8 +839,9 @@ async function boot(){
     return;
   }
   DADOS=r.data;
-  const k=await sb.rpc('get_kanban_posvenda');
+  const [k,bg]=await Promise.all([sb.rpc('get_kanban_posvenda'), sb.rpc('get_brinde_google')]);
   KB=k.data||null;
+  BG=bg.data||null;
   render();
 }
 
@@ -819,8 +853,9 @@ function ehGooglePendente(c){
 }
 function render(){
   const R=DADOS.resumo||{}, cl=DADOS.clientes||[];
-  const googPend=cl.filter(ehGooglePendente).length;
-  const brEntregue=cl.filter(c=>c.brinde && c.brinde_retirado).length;
+  // a contagem vem da tabela nps (get_brinde_google), nao da lista: a lista
+  // corta em etapa >= 8 e deixava de fora quem esta em obra de manutencao
+  const bgPend=(BG&&BG.resumo) ? (n(BG.resumo.google_pendente)+n(BG.resumo.a_retirar)) : 0;
   const hora=new Date().getHours();
   const saud=hora<12?'Bom dia':(hora<18?'Boa tarde':'Boa noite');
   const pend=(R.respostas_pendentes||0);
@@ -859,10 +894,8 @@ function render(){
     <button class="chip ${FILTRO==='pendentes'?'on':''}" onclick="setFiltro('pendentes')">Com pendência</button>
     <button class="chip ${FILTRO==='sem_nps'?'on':''}" onclick="setFiltro('sem_nps')">Sem NPS</button>
     <button class="chip ${FILTRO==='sem_aniv'?'on':''}" onclick="setFiltro('sem_aniv')">🎂 Sem aniversário</button>
-    <button class="chip ${FILTRO==='brinde'?'on':''}" onclick="setFiltro('brinde')">🎁 Brinde a retirar${R.brinde_a_retirar?' <b>'+R.brinde_a_retirar+'</b>':''}</button>
-    <button class="chip ${FILTRO==='usina'?'on':''}" onclick="setFiltro('usina')">⚡ Usina com problema${R.usinas_com_problema?' <b>'+R.usinas_com_problema+'</b>':''}</button>
-    <button class="chip ${FILTRO==='google'?'on':''}" onclick="setFiltro('google')">⭐ Google pendente${googPend?' <b>'+googPend+'</b>':''}</button>
-    <button class="chip ${FILTRO==='entregue'?'on':''}" onclick="setFiltro('entregue')">✓ Brinde entregue${brEntregue?' <b>'+brEntregue+'</b>':''}</button>`:''}
+    <button class="chip ${FILTRO==='bg'?'on':''}" onclick="setFiltro('bg')">🎁⭐ Brinde e Google${bgPend?' <b>'+bgPend+'</b>':''}</button>
+    <button class="chip ${FILTRO==='usina'?'on':''}" onclick="setFiltro('usina')">⚡ Usina com problema${R.usinas_com_problema?' <b>'+R.usinas_com_problema+'</b>':''}</button>`:''}
   </div>`;
 
   if(VISAO==='indic'){
@@ -896,16 +929,18 @@ function render(){
     setTimeout(ligaKb, 30);
     return;
   }
+  if(FILTRO==='bg'){
+    h+=renderBrindeGoogle();
+    document.getElementById('app').innerHTML=h;
+    return;
+  }
   let arr=cl.slice();
   if(FILTRO==='pendentes') arr=arr.filter(c=>c.pendentes>0);
   // NPS e aniversário só fazem sentido depois da ativação
   if(FILTRO==='sem_nps') arr=arr.filter(c=>c.ativo && c.nps==null);
   if(FILTRO==='sem_aniv') arr=arr.filter(c=>c.ativo && !c.nascimento_dia);
   if(FILTRO==='indicacao') arr=arr.filter(c=>c.pendentes>0);
-  if(FILTRO==='brinde') arr=arr.filter(c=>c.brinde && !c.brinde_retirado);
   if(FILTRO==='usina') arr=arr.filter(c=>c.usina_estado && c.usina_estado!=='normal');
-  if(FILTRO==='google') arr=arr.filter(ehGooglePendente);
-  if(FILTRO==='entregue') arr=arr.filter(c=>c.brinde && c.brinde_retirado);
   if(BUSCA){const b=BUSCA.toLowerCase();
     arr=arr.filter(c=>(c.cliente||'').toLowerCase().includes(b)
       ||(c.contrato||'').includes(b)
@@ -2953,12 +2988,14 @@ function renderMensagens(){
 // Antes, cada ação atualizava só um cache e o resto ficava velho.
 async function recarregarTudo(){
   try{
-    const [a,b]=await Promise.all([
+    const [a,b,c]=await Promise.all([
       sb.rpc('get_posvenda_lista'),
-      sb.rpc('get_kanban_posvenda')
+      sb.rpc('get_kanban_posvenda'),
+      sb.rpc('get_brinde_google')
     ]);
     if(a && a.data) DADOS=a.data;
     if(b && b.data) KB=b.data;
+    if(c && c.data) BG=c.data;
   }catch(e){}
   RG=null;   // força releitura das outras abas
   render();
@@ -2999,15 +3036,100 @@ function renderJornada(){
     </div>`;
   }).join('')+'</div></div>';
 }
+/* ---------- BRINDE E GOOGLE ----------
+   Uma tela so para as duas perguntas do Vitor: QUEM JA AVALIOU no Google e
+   QUEM JA RECEBEU o brinde. Ate 23/09 isso era tres filtros soltos na Lista
+   ("Brinde a retirar", "Google pendente", "Brinde entregue"), com o status
+   misturado entre oito etiquetas por cartao -- e a Lista corta em
+   etapa >= 8, entao obra de MANUTENCAO (vai so ate a 4) nao aparecia. O
+   "Google pendente" contava zero com dois pendentes de verdade: Fatima e
+   Bassetto, os dois promotores nota 10.
+
+   Aqui cada cliente e uma linha com duas colunas, Google e Brinde, e o que
+   falta resolver fica em cima. Le get_brinde_google(), que vem direto da
+   tabela nps -- quem respondeu a pesquisa aparece, qualquer que seja a etapa. */
+function renderBrindeGoogle(){
+  if(!BG) return '<div class="vazio">Não consegui carregar brinde e Google.</div>';
+  const R=BG.resumo||{}, L=BG.linhas||[], pode=!!BG.pode_agir;
+  const b=BUSCA.toLowerCase();
+  const arr=b ? L.filter(function(x){
+      return (x.cliente||'').toLowerCase().includes(b)
+          || (x.contrato||'').includes(b)
+          || (x.voucher||'').toLowerCase().includes(b); }) : L;
+  const falta=arr.filter(function(x){ return x.google_pendente || x.brinde_pendente; });
+  const certo=arr.filter(function(x){ return !(x.google_pendente || x.brinde_pendente); });
+
+  let h=faixaFiltro(arr.length);
+  h+='<div class="bgres">'
+    +'<div class="bgbox ok"><div class="bgn">'+n(R.avaliaram)+'<small> de '+n(R.promotores)+'</small></div><div class="bgl">avaliaram no Google</div></div>'
+    +'<div class="bgbox '+(n(R.google_pendente)?'alerta':'')+'"><div class="bgn">'+n(R.google_pendente)+'</div><div class="bgl">faltam avaliar</div></div>'
+    +'<div class="bgbox ok"><div class="bgn">'+n(R.entregues)+'<small> de '+n(R.escolheram)+'</small></div><div class="bgl">brindes entregues</div></div>'
+    +'<div class="bgbox '+(n(R.a_retirar)?'alerta':'')+'"><div class="bgn">'+n(R.a_retirar)+'</div><div class="bgl">brindes a retirar</div></div>'
+    +'</div>';
+  if(n(R.entregue_no_cadastro)){
+    h+='<div class="bgaviso">ℹ️ <b>'+n(R.entregue_no_cadastro)+' dos '+n(R.entregues)+' brindes entregues</b> foram marcados '
+      +'no mesmo instante em que o brinde foi escolhido — quase todos no cadastro retroativo de agosto e 02/09. '
+      +'Para esses o sistema não tem a data da retirada, só a marcação. Os '+(n(R.entregues)-n(R.entregue_no_cadastro))
+      +' restantes têm data de retirada própria.</div>';
+  }
+
+  function linha(x){
+    let g;
+    if(x.avaliou_google_em){
+      g='<span class="bgok">✓ avaliou</span><span class="bgdt">'+dataBR(x.avaliou_google_em)+'</span>';
+    } else if(x.nota>=9){
+      g='<span class="bgpend">⏳ falta avaliar</span>'
+       +(x.lembretes_google?'<span class="bgdt">cobrado '+x.lembretes_google+'×</span>':'');
+      if(pode){
+        g+='<span class="bgbts"><button class="mini" onclick="confirmarGoogleObra(\''+x.obra_id+'\','+x.nota+')">✓ já avaliou</button>'
+          +(x.tem_grupo?'<button class="mini" onclick="cobrarGoogle(\''+x.obra_id+'\')">⭐ cobrar</button>':'')
+          +'</span>';
+      }
+    } else {
+      g='<span class="bgnada">—</span>';
+    }
+    let br;
+    const nome = x.brinde==='fone' ? 'fone' : (x.brinde==='copo' ? 'copo' : 'brinde');
+    if(x.brinde && x.entregue_em && x.entregue_no_cadastro){
+      // marcado entregue no MESMO instante em que o brinde foi escolhido: e
+      // carimbo de cadastro, nao data de retirada. Nao afirma o que nao sabe.
+      br='<span class="bgok">✓ '+nome+' marcado entregue</span>'
+        +'<span class="bgdt" title="A retirada não teve data própria: foi marcada junto com a escolha do brinde.">no cadastro de '+dataBR(x.entregue_em)+' · sem data de retirada</span>';
+    } else if(x.brinde && x.entregue_em){
+      br='<span class="bgok">✓ '+nome+' retirado</span><span class="bgdt">em '+dataBR(x.entregue_em)+'</span>';
+    } else if(x.brinde){
+      br='<span class="bgpend">🎁 '+nome+' a retirar</span>'
+        +(x.voucher?'<span class="bgvc">'+esc(x.voucher)+'</span>':'');
+      if(pode) br+='<span class="bgbts"><button class="mini" onclick="entregarBrindeObra(\''+x.obra_id+'\','+x.nota+')">✓ entreguei</button></span>';
+    } else {
+      br='<span class="bgnada">não escolheu brinde</span>';
+    }
+    return '<div class="bgrow">'
+      +'<button class="bgcli" onclick="abrirFicha(\''+x.obra_id+'\')">'
+      +'<span class="bgnm">'+esc(x.cliente)+'</span>'
+      +(x.contrato?'<span class="bgct">#'+esc(x.contrato)+'</span>':'')
+      +'<span class="bgnota">'+x.nota+'</span></button>'
+      +'<div class="bgcol"><span class="bgk">Google</span>'+g+'</div>'
+      +'<div class="bgcol"><span class="bgk">Brinde</span>'+br+'</div>'
+      +'</div>';
+  }
+
+  if(falta.length){
+    h+='<div class="bgsec alerta">Falta resolver · '+falta.length+'</div>';
+    h+=falta.map(linha).join('');
+  }
+  h+='<div class="bgsec">Tudo certo · '+certo.length+'</div>';
+  h+= certo.length ? certo.map(linha).join('') : '<div class="vazio">Ninguém aqui ainda.</div>';
+  return h;
+}
+
 const FILTRO_ROT={
   pendentes:'Com resposta para tratar',
   sem_nps:'Sem pesquisa respondida',
   sem_aniv:'Sem data de aniversário',
   indicacao:'Indicações aguardando',
-  brinde:'Brinde a retirar',
   usina:'Usina com problema',
-  google:'Promotor sem avaliação no Google',
-  entregue:'Brinde já entregue'
+  bg:'Brinde e Google'
 };
 function faixaFiltro(qtd){
   if(!FILTRO) return '';
@@ -3577,9 +3699,22 @@ function renderFicha(D){
       <div id="ct${o.id}"></div></div>`;
   }
 
-  /* Autoleitura — o relógio do cliente, aqui dentro em vez de numa aba só dele */
+  /* Autoleitura — o relógio do cliente, aqui dentro em vez de numa aba só dele.
+
+     Até 23/09 a seção aparecia em TODA ficha para quem pode agir, com o texto
+     "nenhuma unidade cadastrada" — e só dois clientes usam autoleitura. O
+     Vitor pediu para deixar só para rural, para não poluir o cartão.
+
+     ⚠️ Mas a regra não pode ser só `categoria === 'rural'`: os DOIS clientes
+     que de fato têm relógio cadastrado (Tays e UNI AUTO POSTO) estão como
+     `comercial` — a obra é o açougue e o posto, o relógio é o do rancho e o
+     da área rural. Cortar por categoria sumiria justamente com eles. Então
+     aparece se já existe unidade cadastrada OU se o cliente é rural.
+     Para cadastrar o primeiro relógio de um cliente que não é rural, o
+     caminho continua na aba Planos → Autoleitura (armadilha 17). */
   const ALS = D.autoleitura||[];
-  if(ALS.length || D.pode_agir){
+  const ehRural = String(o.categoria||'').toLowerCase()==='rural';
+  if(ALS.length || (D.pode_agir && ehRural)){
     h+=`<div class="sec"><h3>Autoleitura${ALS.length>1?` <span class="tag">${ALS.length} unidades</span>`:''}</h3>`;
     if(!ALS.length){
       h+=`<div class="vazio">Nenhuma unidade consumidora cadastrada. Cadastre quando a
@@ -3791,8 +3926,7 @@ async function cobrarGoogle(id){
   const m=await sb.rpc('registrar_lembrete_google',{p_obra:id});
   if(m.error||(m.data&&m.data.erro)) toast('⚠️ Enviado, mas não consegui registrar a cobrança');
   else toast('Cobrança enviada ✓');
-  await recarregarTudo();
-  await abrirFicha(id);
+  await depoisDaAcaoNps(id);
 }
 
 // Confirmar a avaliacao no Google e dar baixa no brinde so existiam na aba
@@ -3802,21 +3936,28 @@ async function cobrarGoogle(id){
 // nao tem voucher nenhum -- eram exatamente os dois casos pendentes hoje.
 // registrar_nps_manual e coalesce-safe: so preenche o que esta nulo, nunca
 // desmarca o que ja foi marcado (regra 3.6).
+// As tres acoes (confirmar Google, cobrar, dar baixa no brinde) agora sao
+// chamadas da ficha E da tela "Brinde e Google". Reabrir a ficha sempre
+// tiraria a pessoa da lista que ela estava resolvendo de cima para baixo.
+async function depoisDaAcaoNps(id){
+  const ov=document.getElementById('ov');
+  const fichaAberta = !!(ov && ov.classList.contains('on'));
+  await recarregarTudo();
+  if(fichaAberta) await abrirFicha(id);
+}
 async function confirmarGoogleObra(id, nota){
   if(!confirm('Confirmar que este cliente avaliou a Polaris no Google?\n\nVerifique antes no Google Meu Negócio.')) return;
   const r=await sb.rpc('registrar_nps_manual',{p_obra:id,p_nota:nota,p_avaliou_google:true});
   if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
   toast('Avaliação confirmada ✓');
-  await recarregarTudo();
-  await abrirFicha(id);
+  await depoisDaAcaoNps(id);
 }
 async function entregarBrindeObra(id, nota){
   if(!confirm('Confirmar a entrega do brinde para este cliente?')) return;
   const r=await sb.rpc('registrar_nps_manual',{p_obra:id,p_nota:nota,p_brinde_entregue:true});
   if(r.error||(r.data&&r.data.erro)){ toast('Erro: '+((r.data&&r.data.erro)||r.error.message)); return; }
   toast('Brinde entregue ✓');
-  await recarregarTudo();
-  await abrirFicha(id);
+  await depoisDaAcaoNps(id);
 }
 function formNPS(id, notaAtual){
   OBRA_ABERTA=id;
