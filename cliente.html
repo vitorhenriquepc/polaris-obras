@@ -152,7 +152,10 @@ function dataBR(s){if(!s)return null;var d=new Date(String(s).length<=10?s+'T12:
 async function boot(){
   if(!SLUG){document.getElementById('root').innerHTML='<div class="center">🔗 Link incompleto. Confira o endereço recebido.</div>';return;}
   var r=await sb.rpc('get_acompanhamento',{p_slug:SLUG});
-  if(r.error||!r.data){document.getElementById('root').innerHTML='<div class="center">🔒 Obra não encontrada. Confira o link com nossa equipe.</div>';return;}
+  // erro e "não achei" são coisas diferentes: em 09/2026 a permissão caiu e a
+  // página dizia "Obra não encontrada" para todo cliente, por semanas.
+  if(r.error){console.error('get_acompanhamento',r.error);document.getElementById('root').innerHTML='<div class="center">⚠️ Não conseguimos carregar sua obra agora. Tente de novo em alguns minutos ou fale com nossa equipe.</div>';return;}
+  if(!r.data){document.getElementById('root').innerHTML='<div class="center">🔒 Obra não encontrada. Confira o link com nossa equipe.</div>';return;}
   D=r.data; render();
 }
 
