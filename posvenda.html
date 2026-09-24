@@ -3759,13 +3759,19 @@ function renderFicha(D){
   /* Geração */
   const G=D.geracao;
   h+=`<div class="sec"><h3>Geração e desempenho</h3>`;
-  if(G && (G.acumulado?.meses||0)>0){
-    const a=G.acumulado;
+  /* Abre com qualquer geracao, nao so com mes fechado. Quem instalou em 31/08
+     so fecha o primeiro mes em outubro, e ate la a ficha dizia "ainda nao ha
+     um mes fechado" com 228 kWh no banco (GILSON, 24/09). A tabela ja sabia
+     mostrar o mes em curso -- so nunca era alcancada. */
+  const temGeracao = G && (G.meses||[]).some(m=>(m.kwh||0)>0);
+  if(G && ((G.acumulado?.meses||0)>0 || temGeracao)){
+    const a=G.acumulado||{};
+    const soParcial = !(a.meses>0);
     h+=`<div class="dados">
-      <div class="dado"><div class="k">Acumulado</div><div class="v">${a.kwh||0} <small>kWh</small></div></div>
+      <div class="dado"><div class="k">${soParcial?'Até agora':'Acumulado'}</div><div class="v">${a.kwh||0} <small>kWh</small></div></div>
       <div class="dado"><div class="k">Economia</div><div class="v">R$ ${a.economia||0}</div></div>
       <div class="dado"><div class="k">Desempenho médio</div><div class="v" style="color:${a.desempenho_medio==null?'var(--muted)':((a.desempenho_medio>=90)?'var(--green-l)':((a.desempenho_medio>=75)?'var(--gold)':'#e07070'))}">${a.desempenho_medio!=null?a.desempenho_medio:'—'}${a.desempenho_medio!=null?'<small>%</small>':''}</div></div>
-      <div class="dado"><div class="k">Meses registrados</div><div class="v">${a.meses}</div></div>
+      <div class="dado"><div class="k">Meses registrados</div><div class="v">${soParcial?'<small>1º mês em curso</small>':a.meses}</div></div>
     </div>`;
     h+=`<table class="gtab"><tr><th>Mês</th><th class="num">kWh</th><th class="num">Desemp.</th><th class="num">Economia</th></tr>`;
     (G.meses||[]).slice(0,6).forEach(m=>{

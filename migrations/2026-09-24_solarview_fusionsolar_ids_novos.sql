@@ -1,0 +1,207 @@
+-- =====================================================================
+-- 2026-09-24 — A Huawei (FusionSolar) entrou no SolarView com ids novos
+--
+-- JÁ APLICADO no projeto dakubhcgohiwzyqiegqf, por comandos avulsos (não
+-- é DDL: é dado de vínculo). Este arquivo é o registro do que mudou e de
+-- como cada caso foi provado. Não rode de novo — os ids antigos já não
+-- existem em usina_monitoramento.
+-- =====================================================================
+
+-- O que aconteceu: o Vitor ligou a API do FusionSolar dentro do SolarView.
+-- As usinas Huawei foram RECRIADAS lá com ids novos (9730xx), todas com
+-- `systemSize = 0`, e os ids antigos sumiram.
+--
+--   portfólio do SolarView: 7 páginas, 618 unidades (lido inteiro — o limite
+--   de 30 páginas do `baixarPortfolio` não cortou nada)
+--   nossas usinas com id: 61 · ids que sumiram: 35 · intactas: 26
+--
+-- Prova de que o id antigo morreu, e não só saiu da lista:
+--   GET consumerUnit/959718/...  → 404 "ConsumerUnitNotFound"
+--   GET consumerUnit/973029/...  → 200, a MESMA série que já estava gravada
+--                                   (27,7 · 25,83 · 9,26 · 24,82 · 9,99 · 8,24)
+--
+-- Sem a troca, a leitura das 9h de 25/09 levaria 404 em 35 usinas e elas
+-- ficariam sem dado a partir daí.
+
+-- ---------------------------------------------------------------------
+-- Como cada uma foi casada — sem chute
+-- ---------------------------------------------------------------------
+-- 32 pela GERAÇÃO: a série diária de 10/09 a 23/09 do id novo é idêntica
+-- (diferença < 0,01 kWh) à que estava gravada, em todos os dias com
+-- geração — 14 de 14 na maioria, 12/12 no VALDECIR, 9/9 na Sandra
+-- (instalada em 15/09). Nenhum id novo serviu para duas usinas.
+--
+-- 3 por endereço/nome/data, porque não tinham série para comparar ou a
+-- série apontava para a usina errada:
+--   PONCIANO   → 973028 (ver abaixo)
+--   João Vitor → 973006 (ver abaixo)
+--   LUCINEI    → 973038 · mesma rua em Votuporanga, instalada 23/04
+--                (a obra diz 24/04). Continua sem gerar: problema real.
+--
+-- O vínculo foi TROCADO no mesmo registro (`update ... set id_externo`),
+-- e não desativado + criado de novo: nem toda leitura filtra `ativo`, e
+-- duas linhas para a mesma usina seriam risco de leitura dobrada. O
+-- rastro fica aqui:
+--
+--   antigo      novo      obra
+--   959714   → 973012    4640 Robson vilela dos reis
+--   959718   → 973029    4151 WILSON FURLAN
+--   959719   → 973026    4429 Manoel Francisco Pedroso da Costa
+--   959724   → 973042    4166 JOAO CARLOS CELONI
+--   959729   → 973031    4336 Ismael Olian
+--   959733   → 973045    4164 LUIS ROBERTO MANGILLI
+--   959739   → 973040    4197 Carlos Sidnei Toledo Junior
+--   959741   → 973030    4195 MARCIA SILVA GUIMARAES - CLAUDEVANIO
+--   959744   → 973018    4390 SOLANGE APARECIDA OLIVEIRA DOS SANTOS
+--   959746   → 973024    4452 VALDECIR RICOBONI  («Atual Noivas» no SolarView)
+--   959747   → 973041    4220 JOAO RILLO
+--   959750   → 973016    4324 José Aparecido Teixeira
+--   959753   → 973017    4571 RICARDO HIDALGO SANTIM
+--   959758   → 973055    4459 JULIO CESAR LOPES DOS SANTOS  → DESLIGADO (abaixo)
+--   959759   → 973033    4205 GRAZIELE JACOB GOMES
+--   959764   → 973034    4253 CLAUDIA PATRICIA GOMES DE CARVALHO CORREA
+--   959766   → 973044    4147 ELOANA CRISTINA FERRO
+--   959771   → 973023    4483 Joao Paulo Floriano Nunes da Silva
+--   959772   → 973038    4201 LUCINEI BOMFIM DOS SANTOS
+--   959777   → 973037    3840 CARLOS RICARDO JACON
+--   959779   → 973025    4418 LUZIA FLAUZINO COLANGELE
+--   959781   → 973006    4425 João Vitor Torres Pozzeti
+--   959783   → 973014    4620 Mario Souza
+--   959786   → 973036    4140 UILTON MARQUES
+--   959787   → 973027    4373 ROSILEI VICENTE BATISTA
+--   959789   → 973032    4436 GILBERTO JOSE SIQUEROLI  («Gilberto loja 1»)
+--   959791   → 973015    4659 ENI BARALDE
+--   959792   → 973039    4077 Vitor Gianelli Catabriga
+--   959793   → 973028    4008 JOSE ANTONIO PONCIANO
+--   959800   → 973035    4223 BARUC DISTRIBUIDORA DE PECAS - JAQUES DOUGLAS
+--   967581   → 973011    4657 EDVALDO MARCIO GONCALVES
+--   967582   → 973009    4678 GILSON LIMA GONÇALVES
+--   967583   → 973010    4618 Zuleica Terumi
+--   967584   → 973008    4641 ANTONIO CARLOS GARCIA MARASCA E OUTRO
+--   970233   → 973007    4739 SANDRA MARIA FERREIRA BARCDUCCI DA SILVA
+
+-- ---------------------------------------------------------------------
+-- ⚠️ Dois clientes liam a usina de OUTRA PESSOA desde 06/09
+-- ---------------------------------------------------------------------
+-- Os dois vínculos nasceram no mesmo lote do `solarview-vincular`
+-- (06/09 23:19), casados por nome parecido. A troca de id revelou porque
+-- o SolarView novo traz endereço e data de instalação de cada unidade.
+--
+-- JOSE ANTONIO PONCIANO (4008) — Rua Artur Boneti, 768, Sabino, inst. 28/05/2026
+--   a série gravada batia com 973101 «José Antônio», Rua Carnot, 671,
+--   Canindé, SÃO PAULO, instalada em 25/08/2025 — gerando desde 08/2025.
+--   A dele é 973028 «Jose Antônio», Rua Artur Boneti, Sabino, 28/05/2026:
+--   geração 05/26:1 · 06:500 · 07:658 · 08:706 · 09:420.
+--   Os 639 kWh de março/2026 que estavam gravados eram de São Paulo.
+--   Corrigido: id → 973028 e regravado pelo `solarview-diario` (70 dias) e
+--   `solarview-geracao` (15 meses). Retorno 10,1% → 14,6%.
+--   O `usina_marco` de 10% (não avisado) FICOU: com o número certo ele
+--   continua verdadeiro — foi atingido antes, não depois.
+--
+-- JULIO CESAR LOPES DOS SANTOS (4459) — Rua Prof. Newton Brasil de Lima, 222,
+--   Araçatuba, contrato fechado em 02/06/2026, instalada em 13/07
+--   o id novo 973055 «Julio Cesar.» é Rua São Paulo, 453, BILAC, instalada
+--   em 09/03/2026 — gerando 432 kWh em março, antes de o contrato existir.
+--   A usina dele NÃO está no SolarView (nem por endereço, nem por nome).
+--   Feito: vínculo DESLIGADO (`ativo = false`) e removidos 61 dias e 15
+--   meses de medição que eram de Bilac. Não se perde nada: a série está
+--   no SolarView pelo 973055 e pode ser relida a qualquer momento.
+--   Nenhuma mensagem de geração nem marco tinha saído para ele.
+--   Candidata a conferir (NÃO ligada): 973022 «Camila Aparecida», Rua
+--   Osvaldo Garilli, 402, mesmo conjunto (Claudionor Cinti), inst. 14/07.
+
+-- ---------------------------------------------------------------------
+-- João Vitor (4425): a usina que "nunca comunicou" está gerando
+-- ---------------------------------------------------------------------
+-- Dois candidatos: 973021 «Joao Vitor», Rua Pirajá, 467, inst. 14/07, sem
+-- dado nenhum; e 973006 «João Vitor Torres», Rua Chiquita Fernandes, a
+-- ~240 m, nascida em 21/09 e gerando desde 21/09.
+-- O grupo do cliente conta a história: 16/09 "amanhã o pessoal vai
+-- instalar a internet"; 18/09 a Lívia explica que "a Huawei é assim, você
+-- tem que conectar no Wi-Fi… e aí depois eu consigo linkar com o
+-- aplicativo", e o Vitor vai até lá. A 973006 é a usina ligada de novo;
+-- a 973021 é o cadastro antigo, vazio — duplicata a apagar no SolarView.
+
+-- ---------------------------------------------------------------------
+-- Carlos Sidnei Toledo Junior (4197): a data de instalação estava errada
+-- ---------------------------------------------------------------------
+-- A usina gerava desde abril e a nossa data dizia 20/07. A obra tem
+-- `data_conclusao = 28/04` — concluída antes de "instalada". O SolarView
+-- diz 20/04/2026. Julho no lugar de abril.
+-- Corrigido `usinas.data_instalacao` → 2026-04-20 (e `data_estimada = false`,
+-- como a `usina_editar` faz; ela mesma recusa sem usuário logado).
+-- `obras.data_instalacao` continua 20/07 — é campo da equipe, fica para
+-- corrigir pela tela.
+
+-- ---------------------------------------------------------------------
+-- O histórico que faltava
+-- ---------------------------------------------------------------------
+-- O id antigo só tinha dado a partir de ~agosto para várias Huawei: o
+-- WILSON FURLAN, instalado em 22/05, tinha junho e julho = 0, e por isso
+-- `obra_geracao_total` devolvia 43% de desempenho. Simulado ANTES de
+-- gravar, comparando mês a mês os ids novos com `usina_geracao`:
+--
+--   67 meses que eram 0 ganham geração · 41.225 kWh
+--    0 meses perdem dado
+--   34 meses iguais
+--   31 meses diferentes — todos 09/2026, mês corrente (o id novo já
+--      inclui 24/09); mês corrente não entra em comparação
+--    7 meses "antes da instalação" — eram os casos do Julio Cesar (outra
+--      usina) e do Carlos Toledo (data errada), tratados acima
+--
+-- Gravado pelas próprias edge functions das automações:
+--   `solarview-geracao` {meses: 15, limite: 80} e `solarview-diario` {limite: 80}
+
+-- ---------------------------------------------------------------------
+-- O histórico DIÁRIO também, e a régua da vizinhança que ele sustenta
+-- ---------------------------------------------------------------------
+-- `v_indice_dia` (a mediana kWh/kWp do dia, que é a base do desempenho)
+-- tinha, de set/2025 a jun/2026, **2 usinas por dia** (as da Tays); julho
+-- 15, com vários zeros. Todo desempenho daqueles meses era comparado
+-- contra régua sem lastro: o WILSON dava 43% com jun/jul = 0 e 299% depois
+-- de o histórico mensal entrar.
+--
+-- `solarview-diario` {dias: 450, limite: 80} → 60 usinas, 27.060 dias, 0 falhas.
+--
+-- ⚠️ Isso gravou também os ZEROS que o SolarView devolve para os dias em que
+-- a usina ainda não existia — e a mediana de maio para trás virou 0. Pela
+-- armadilha 5 é "não medi". Removidos só os zeros ANTES do primeiro dia com
+-- geração de cada usina (zero no meio da operação fica):
+--
+--   delete from usina_dia d using (select usina_id, min(dia) d1 from usina_dia
+--     where kwh > 0 group by 1) p
+--   where d.usina_id = p.usina_id and d.dia < p.d1 and coalesce(d.kwh,0) = 0;
+--   → 20.147 linhas, 58 usinas; simulado antes: nenhuma com kwh <> 0,
+--     nenhuma usina ficou sem linha.
+--
+-- Vizinhança depois (kWh/kWp/dia · usinas por dia):
+--   jun/26 2,75 · 35   jul/26 3,42 · 42   ago/26 3,84 · 50   set/26 3,07 · 58
+
+-- ---------------------------------------------------------------------
+-- Mês sem medição não é mês de geração ruim
+-- ---------------------------------------------------------------------
+-- Aplicado como 'desempenho_so_conta_depois_da_primeira_medicao'
+-- (obra_geracao_total) e 'get_geracao_mes_sem_medicao_nao_e_desempenho_zero'
+-- (get_geracao). O desempenho só conta a partir do 1º dia com geração
+-- medida — até o dia 3 o mês conta, depois ele é parcial e começa no
+-- seguinte. kWh, economia e meses NÃO mudam.
+--
+--   ARNALDO   29% → 88%   (mai–jul = 0: o monitoramento entrou em agosto)
+--   SOLANGE   51% → 111%  (dados a partir de 20/07)
+--   Carlos Ricardo 82 → 99 · Márcia 67 → 81 · Uilton 76 → 84 · Gilberto 66 → 75
+--   5 obras ficam SEM número (Jaqueline, João Vitor, José Aparecido, Vitor
+--   Catabriga, …) até terem um mês completo medido — é o honesto.
+--   Carteira: mediana 101%, de 40% (LUCINEI, parada desde 12/06) a 132%.
+--   ACL das duas conferida: sem anon.
+
+-- ---------------------------------------------------------------------
+-- solarview-vincular v7
+-- ---------------------------------------------------------------------
+-- · não procura usina para obra de trilha `eletroposto` (o 4674 seria ligado
+--   à usina SOLAR do Bassetto, na Rua dos Fundadores, que é outra obra)
+-- · nome parecido em OUTRA cidade não casa (contrato no nome segue resolvendo)
+-- Publicada com verify_jwt = false; token errado → 403. Simulação depois:
+--   CELIA 4133 e JACIR 4143 ligariam (contrato no nome), o eletroposto não
+--   aparece mais, JOSE OLIONI cai em "nome parecido, mas em Araçatuba".
+-- NÃO rodado de verdade à noite (mandaria o aviso de "obra sem usina" à
+-- Lívia às 20h): a rodada das 10h40 de 25/09 liga CELIA e JACIR.

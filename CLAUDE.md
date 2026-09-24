@@ -617,7 +617,7 @@ nenhuma delas. Ver pendência no §10.
 | `nps_cobranca_google(obra)` | o texto da **segunda cobrança** da avaliação, para a pessoa ler e mandar no grupo; recusa nota < 9, quem já avaliou e obra sem grupo |
 | `obra_ativa(obra)` | **a definição única de "está ativa"**: chegou na última etapa da própria trilha |
 | `obra_ativa_em(obra)` | desde quando está ativa (cai no `etapas_historico` se `data_conclusao` for nula) |
-| `obra_geracao_total(obra)` | **quanto a obra já gerou**: kWh, economia, desempenho e meses — a fonte única |
+| `obra_geracao_total(obra)` | **quanto a obra já gerou**: kWh, economia, desempenho e meses — a fonte única. Desde 24/09 o **desempenho** só conta a partir do 1º dia com geração medida (mês sem medição é "não medi", não 0%); `get_geracao` segue a mesma regra |
 | `geracao_contexto(usina)` | o que sustenta um aviso de geração baixa: dias usados × descartados por dia fechado, chuva e sol do período, a base da comparação, e **`ainda_caida`** — se a queda ainda existe **agora** |
 | `plano_registrar_pagamento(contrato, data)` | liga o contrato no dia em que o primeiro pagamento entrou; é ela que calcula `inicio` e `fim` |
 | `plano_cadastrar_cliente(json, simular)` | **cadastra cliente de plano inteiro**: cliente + obra + usinas + contrato numa transação. Com `simular = true` (o padrão) não grava nada e devolve a prévia ou a lista de erros |
@@ -1153,6 +1153,60 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     **Antes de mexer em permissão, liste quem chama sem login. Depois, abra a
     página pública numa aba anônima — nunca na sessão da equipe.**
 
+27. **Vínculo por nome casa com a pessoa errada — e o id do SolarView pode
+    mudar debaixo de você.** Em 24/09 o Vitor ligou a API do **FusionSolar
+    (Huawei)** dentro do SolarView, e as usinas Huawei foram **recriadas com
+    ids novos** (9730xx, todas com `systemSize = 0`). **35 das 61** usinas
+    ligadas ficaram apontando para id morto — `404 ConsumerUnitNotFound` —, e
+    a leitura das 9h do dia seguinte levaria 404 nas 35.
+
+    ⚠️ **O casamento não foi por nome: foi pela geração.** A série diária do
+    id novo é **idêntica** (diferença < 0,01 kWh, 14 de 14 dias) à que já
+    estava gravada — 32 das 35 casaram assim, sem ambiguidade. Nome engana;
+    a curva de geração de uma usina é a impressão digital dela.
+
+    ⚠️ **E a troca revelou dois vínculos errados desde 06/09**, feitos pelo
+    `solarview-vincular` por nome parecido: o **PONCIANO (Sabino)** lia a
+    usina de um "José Antônio" do **Canindé, em São Paulo**, e o **JULIO
+    CESAR (Araçatuba)** a de um "Julio Cesar" de **Bilac** — as duas gerando
+    **antes** do contrato existir. O SolarView novo traz endereço e data de
+    instalação de cada unidade, e foi isso que denunciou. Hoje o vinculador
+    **recusa nome parecido em outra cidade** (o contrato no nome continua
+    resolvendo sozinho) e **não procura usina para eletroposto** — o 4674
+    seria ligado à usina solar do Bassetto, que é outra obra.
+
+    ⚠️ **O id antigo não tinha histórico para as Huawei.** O WILSON FURLAN,
+    instalado em 22/05, tinha **junho e julho = 0**; a LUCINEI, "que nunca
+    gerou", **gerou 186 · 660 · 269 kWh de abril a junho** e parou depois.
+    Pior: a mediana da vizinhança (`v_indice_dia`) de todo mês **anterior a
+    agosto era de 2 usinas** (as da Tays), e julho de 15 com vários zeros —
+    todo desempenho daqueles meses era comparado contra régua sem lastro
+    (Wilson 43% num dia, 299% no outro). O conserto foi reler o histórico
+    inteiro pelas próprias edge functions, não mexer na fórmula.
+
+    **Antes de confiar num vínculo, confira endereço e data de instalação dos
+    dois lados. E quando uma plataforma de monitoramento mudar, compare a
+    série — nunca o nome.**
+
+28. **Cliente novo gerando e a ficha dizendo que não há geração.** O Vitor
+    viu no inversor do **GILSON (4678)** que a usina gerava, e a ficha do
+    pós-venda dizia *"Ainda não há um mês fechado de geração"*. O banco tinha
+    **228 kWh** em setembro e o SolarView dizia `operando`. A `get_geracao`
+    devolvia o mês, marcado `parcial` — a tela é que só abria o bloco com
+    `acumulado.meses > 0`, e o mês da instalação e o mês corrente não contam
+    como fechados. Quem instalou em 31/08 só veria alguma coisa em
+    **outubro**. Em 24/09 eram **11 clientes** assim, todos os instalados desde
+    agosto (Mario Souza, Renato Watanabe, ENI, Robson, Zuleica, EDVALDO,
+    MARASCA, GILSON, Maria Aparecida, VALDETE, Sandra).
+
+    A tabela embaixo **já sabia** mostrar mês parcial ("mês em curso") — só
+    nunca era alcançada. Irmã das armadilhas 15 e 17: o código certo existia
+    atrás de uma condição que ninguém satisfazia. Corrigido: o bloco abre com
+    qualquer geração, e os rótulos viram "Até agora" e "1º mês em curso".
+
+    **Regra de comparação (armadilha 6) não é regra de exibição.** O mês
+    corrente fica fora do desempenho; não precisa ficar fora da tela.
+
 ---
 
 ## 10. Estado e pendências
@@ -1176,8 +1230,8 @@ manhã** — o ruído é que sumiu:
 
 | Usina | Cliente | Sem gerar há | O que é |
 |---|---|---|---|
-| **Votuporanga 6,25 kWp** (inst. 24/04) | LUCINEI BOMFIM | **nunca gerou — ~5 meses** | **problema de verdade** |
-| **Araçatuba 8,68 kWp** (inst. 27/07) | João Vitor Pozzeti | **nunca comunicou** | **problema de verdade** |
+| **Votuporanga 6,25 kWp** (inst. 24/04) | LUCINEI BOMFIM | **desde 12/06** — gerou 186 · 660 · 269 kWh de abr a jun (visto em 24/09, com o histórico do FusionSolar) | **problema de verdade** |
+| ~~Araçatuba 8,68 kWp~~ (inst. 27/07) | João Vitor Pozzeti | **gerando desde 21/09** — a internet foi ligada em 18/09 (armadilha 27) | resolvido |
 | **Araçatuba 6,20 kWp** (inst. 18/05) | JOAO JOSE DE SOUZA | **31 dias** (última 22/08) | **problema de verdade** |
 | Guarulhos 6,20 kWp | Jaqueline | gerou **ontem** | ruído de hoje |
 | Guaiçara 4,34 kWp (`silencioso`) | Maria Aparecida H. Gomes | 4 dias (última 18/09) | vigiar |
@@ -1214,9 +1268,11 @@ armadilha 5 significam *"não medi"*, não *"não gerou"*.
 
 O que de fato aconteceu, lido dia a dia: ela **parou de gerar em 22/08** e
 seguiu reportando por duas semanas; **em 06/09 o datalogger caiu também.**
-São dois problemas em sequência, não um. A Votuporanga é o mesmo desenho, mais
-longo: reportou de 24/04 a 06/09 sem entregar **um kWh sequer**, e depois
-emudeceu.
+São dois problemas em sequência, não um. A Votuporanga **não** é o mesmo
+desenho, e eu afirmei que era: o id antigo só tinha dado de agosto em diante,
+e ali só havia zeros. Com o histórico do FusionSolar (24/09) ela **gerou de
+23/04 a 12/06** — 186, 660 e 269 kWh — e parou. O problema dela tem três
+meses, não cinco, e começou depois da instalação.
 
 A lição que fica de pé: **`usina_dia` sozinha não distingue "medi e deu zero"
 de "não medi"** — quem sabe isso é `usinas.status_atual`, que vem do SolarView.
@@ -1339,13 +1395,15 @@ Conferido no banco em **22/09/2026**.
       **Recusadas em 22/09.** Jaqueline (78%) e Marcia (75%), `caiu = false`
       nas duas quatro dias depois de escritas. Nada foi apagado: as linhas
       ficam como `pulado` / `recusada`, com autoria e data (regra 3.6).
-- [ ] **Três usinas com problema de verdade, e ninguém voltou nelas.**
-      Medido em 22/09, e as três já foram avisadas ao cliente em **10/09** —
-      doze dias sem desfecho:
-      **LUCINEI BOMFIM** (Votuporanga 6,25 kWp) nunca gerou um kWh desde
-      24/04; **JOAO JOSE DE SOUZA** (Araçatuba 6,20) parou em 22/08 e o
-      datalogger caiu em 06/09; **João Vitor Pozzeti** (Araçatuba 8,68) nunca
-      comunicou desde 27/07. Nenhuma é problema de wi-fi, apesar da anotação.
+- [ ] **Usinas com problema de verdade.** Medido em 22/09 e revisto em 24/09:
+      **LUCINEI BOMFIM** (Votuporanga 6,25 kWp) **parou em 12/06** — gerou
+      de abril a junho, e o "nunca gerou" que estava aqui era falta de
+      histórico no id antigo (armadilha 27); **JOAO JOSE DE SOUZA** (Araçatuba
+      6,20) parou em 22/08 e o datalogger caiu em 06/09; **VALDECIR RICOBONI**
+      (Araçatuba 30,25 kWp) gerou 133 kWh em 21/09 e **zero em 22, 23 e 24/09**,
+      com o SolarView dizendo "operando" — só entra no aviso das 8h no 7º dia.
+      ~~**João Vitor Pozzeti**~~ **está gerando desde 21/09**: a internet
+      foi instalada e o Vitor ligou o inversor em 18/09.
 
       ⚠️ **Elas não apareciam no aviso das 8h — o aviso não tinha seção de
       usina parada.** Só o João Vitor entrava, e por outra porta
@@ -1353,6 +1411,26 @@ Conferido no banco em **22/09/2026**.
       Corrigido em 22/09: `usinas_paradas` entra no topo do aviso, com
       `avisado_ha` junto. O conserto é do sistema; **ir na casa do cliente
       continua sendo trabalho de campo.**
+- [ ] **JULIO CESAR LOPES DOS SANTOS (4459) está sem monitoramento.** Desde
+      06/09 ele lia a usina de outro Julio Cesar, em **Bilac** (armadilha 27);
+      o vínculo foi desligado em 24/09 e a medição de Bilac saiu. A usina
+      dele **não está no SolarView**. Candidata a conferir: **«Camila
+      Aparecida»** (id 973022), Rua Osvaldo Garilli, 402, no mesmo conjunto
+      Claudionor Cinti, instalada em 14/07 — um dia depois da dele. Não foi
+      ligada por palpite. A conferência das 7h30 acusa "usina sem
+      monitoramento" até resolver.
+- [ ] **CELIA (4133) e JACIR ZATT (4143) entram no monitoramento na rodada
+      das 10h40 de 25/09** (contrato no nome). A CELIA estava ativa desde
+      22/09 sem usina nenhuma. Conferir que ligaram.
+- [ ] **Decidir: monitorar Fatima Rino (3067) e o Bassetto?** Os dois são obra
+      de manutenção e têm usina no SolarView (973105 e 960239), mas nunca
+      tiveram monitoramento aqui. Ligar passa a gerar aviso de geração para
+      eles (com aprovação da Lívia).
+- [ ] **Apagar no SolarView a duplicata vazia do João Vitor** (973021, Rua
+      Pirajá, instalada 14/07, sem dado nenhum). A usina dele é a 973006.
+- [ ] **Carlos Sidnei Toledo Junior (4197): `obras.data_instalacao` diz 20/07,
+      o certo é 20/04** (conclusão em 28/04; o SolarView diz 20/04). A usina
+      já foi corrigida; a obra fica para a tela, que é de quem preenche.
 - [ ] **A corretiva não tem onde dizer o motivo da visita.** A `enviar-os`
       agora manda ficha própria de manutenção, mas o instalador vai à
       corretiva sem saber o que foi relatado. `obras.observacoes` **não serve**

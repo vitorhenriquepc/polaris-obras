@@ -69,7 +69,7 @@ async function baixarPortfolio(tk: string) {
 
 function palavras(s: string): string[] {
   return String(s || '').toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
     .filter((w) => w.length > 2 && !['dos','das','ltda','mei','epp','eireli','outro'].includes(w));
 }
@@ -128,10 +128,14 @@ Deno.serve(async (req) => {
     const limiteComum = parseInt(C.vinculo_palavra_comum || '3', 10);
     const minIguais = parseInt(C.vinculo_min_palavras_iguais || '2', 10);
 
+    // Eletroposto nao gera energia: procurar usina para ele so acha a usina
+    // SOLAR do mesmo cliente. Em 24/09 o 4674 (eletroposto do Bassetto) seria
+    // ligado a usina da Rua dos Fundadores, que e outra obra.
     const { data: obras } = await admin.from('obras')
       .select('id, cliente, contrato, potencia_kwp, cidade, cliente_id, data_conclusao, data_instalacao, etapa_numero')
       .gte('etapa_numero', etapaMin)
-      .neq('status', 'Cancelado');
+      .neq('status', 'Cancelado')
+      .or('trilha.is.null,trilha.neq.eletroposto');
     if (!obras?.length) return json({ ok: true, pendentes: 0 });
 
     const freq = new Map<string, number>();
@@ -180,11 +184,20 @@ Deno.serve(async (req) => {
         let sobrenomeIgual = false;
         for (const w of sobObra) if (sobUsina.has(w)) { sobrenomeIgual = true; break; }
         const kwpBate = u.kwp > 0 && o.potencia_kwp && Math.abs(u.kwp - parseFloat(o.potencia_kwp)) <= 0.05;
+        // Nome parecido em OUTRA cidade e outra pessoa. Foi assim que, em 06/09,
+        // o PONCIANO (Sabino) ficou com a usina de um "José Antônio" de Sao
+        // Paulo e o JULIO CESAR (Araçatuba) com a de um "Julio Cesar" de Bilac.
+        // So vale quando as duas cidades sao conhecidas; o contrato no nome
+        // continua resolvendo sozinho.
+        const cidadeObra = palavras(o.cidade || '').join(' ');
+        const cidadeUsina = palavras(u.cidade || '').join(' ');
+        const outraCidade = !!(cidadeObra && cidadeUsina && cidadeObra !== cidadeUsina);
 
         // regra: o contrato no nome resolve tudo. Sem ele, exige varias palavras
         // iguais E que pelo menos uma seja sobrenome E que pelo menos uma seja rara.
         let n = -1, why = '';
         if (temEsteContrato) { n = 4; why = 'contrato no nome'; }
+        else if (outraCidade && totalIguais >= 1) { n = 0.5; why = 'nome parecido, mas em ' + u.cidade; }
         else if (totalIguais >= 3 && raras >= 1 && sobrenomeIgual) {
           n = 3; why = totalIguais + ' palavras iguais, com sobrenome';
         } else if (totalIguais >= minIguais && raras >= 1 && sobrenomeIgual && kwpBate) {
