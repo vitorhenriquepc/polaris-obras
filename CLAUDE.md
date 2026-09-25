@@ -1400,8 +1400,9 @@ Conferido no banco em **22/09/2026**.
       de abril a junho, e o "nunca gerou" que estava aqui era falta de
       histórico no id antigo (armadilha 27); **JOAO JOSE DE SOUZA** (Araçatuba
       6,20) parou em 22/08 e o datalogger caiu em 06/09; **VALDECIR RICOBONI**
-      (Araçatuba 30,25 kWp) gerou 133 kWh em 21/09 e **zero em 22, 23 e 24/09**,
-      com o SolarView dizendo "operando" — só entra no aviso das 8h no 7º dia.
+      (Araçatuba 30,25 kWp, no SolarView como **«Atual Noivas»**) gerou 133 kWh
+      em 21/09 e **zero de 22 a 25/09**, com o SolarView dizendo "operando" —
+      só entra no aviso das 8h no 7º dia.
       ~~**João Vitor Pozzeti**~~ **está gerando desde 21/09**: a internet
       foi instalada e o Vitor ligou o inversor em 18/09.
 
@@ -1411,14 +1412,13 @@ Conferido no banco em **22/09/2026**.
       Corrigido em 22/09: `usinas_paradas` entra no topo do aviso, com
       `avisado_ha` junto. O conserto é do sistema; **ir na casa do cliente
       continua sendo trabalho de campo.**
-- [ ] **JULIO CESAR LOPES DOS SANTOS (4459) está sem monitoramento.** Desde
-      06/09 ele lia a usina de outro Julio Cesar, em **Bilac** (armadilha 27);
-      o vínculo foi desligado em 24/09 e a medição de Bilac saiu. A usina
-      dele **não está no SolarView**. Candidata a conferir: **«Camila
-      Aparecida»** (id 973022), Rua Osvaldo Garilli, 402, no mesmo conjunto
-      Claudionor Cinti, instalada em 14/07 — um dia depois da dele. Não foi
-      ligada por palpite. A conferência das 7h30 acusa "usina sem
-      monitoramento" até resolver.
+- [x] ~~**JULIO CESAR LOPES DOS SANTOS (4459) sem monitoramento.**~~ Desde
+      06/09 ele lia a usina de outro Julio Cesar, em **Bilac** (armadilha 27).
+      Em 25/09 o Vitor confirmou que **a esposa dele é a Camila**, e ele foi
+      religado à **«Camila Aparecida»** (973022): 0 até julho, 698 kWh em
+      agosto, normal. Nome de titular diferente do cliente é o caso que o
+      vinculador por nome nunca vai acertar sozinho — o VALDECIR é o mesmo caso
+      (projeto em nome de **Atual Noivas**).
 - [ ] **CELIA (4133) e JACIR ZATT (4143) entram no monitoramento na rodada
       das 10h40 de 25/09** (contrato no nome). A CELIA estava ativa desde
       22/09 sem usina nenhuma. Conferir que ligaram.

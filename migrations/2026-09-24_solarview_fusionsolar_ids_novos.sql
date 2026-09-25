@@ -205,3 +205,22 @@
 --   aparece mais, JOSE OLIONI cai em "nome parecido, mas em Araçatuba".
 -- NÃO rodado de verdade à noite (mandaria o aviso de "obra sem usina" à
 -- Lívia às 20h): a rodada das 10h40 de 25/09 liga CELIA e JACIR.
+
+-- ---------------------------------------------------------------------
+-- 25/09 — confirmações do Vitor
+-- ---------------------------------------------------------------------
+-- JULIO CESAR (4459): "a esposa dele é a Camila". Religado à 973022
+-- «Camila Aparecida» (Rua Osvaldo Garilli, 402, conj. Claudionor Cinti,
+-- instalada 14/07), no mesmo registro que estava desligado:
+--   update usina_monitoramento set id_externo='973022', ativo=true
+--   where usina_id = <usina do 4459> and id_externo='973055' and not ativo;
+-- A série é coerente com a obra: 0 até julho, 698 kWh em agosto (primeiro
+-- dia com geração 04/08), 477 kWh em setembro — nada antes do contrato.
+-- Relido pelo `solarview-diario` (120 dias) e `solarview-geracao` (15 meses);
+-- 69 zeros de antes de 04/08 removidos pela mesma regra de 24/09.
+-- Estado: normal · gerando normalmente. Desempenho "—" até outubro (agosto
+-- começou no dia 4, então é parcial).
+--
+-- VALDECIR RICOBONI (4452): "o projeto dele está em nome de Atual Noivas" —
+-- confirma o 973024. E confirma que a parada é real: 133,77 kWh em 21/09 e
+-- ZERO em 22, 23, 24 e 25/09, com o SolarView dizendo "operando".
