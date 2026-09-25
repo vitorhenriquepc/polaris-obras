@@ -1428,9 +1428,11 @@ Conferido no banco em **22/09/2026**.
       eles (com aprovação da Lívia).
 - [ ] **Apagar no SolarView a duplicata vazia do João Vitor** (973021, Rua
       Pirajá, instalada 14/07, sem dado nenhum). A usina dele é a 973006.
-- [ ] **Carlos Sidnei Toledo Junior (4197): `obras.data_instalacao` diz 20/07,
-      o certo é 20/04** (conclusão em 28/04; o SolarView diz 20/04). A usina
-      já foi corrigida; a obra fica para a tela, que é de quem preenche.
+- [x] ~~Carlos Sidnei Toledo Junior (4197): data de instalação 20/07.~~
+      **Corrigida para 20/04** em 25/09, confirmada pelo Vitor, na obra e na
+      usina. ⚠️ A data de instalação é a **competência do DRE** da obra
+      (`trg_dre_from_obra`): a receita de R$ 19.000 saiu de julho e foi para
+      abril. Corrigir data de instalação é corrigir o mês da venda.
 - [ ] **A corretiva não tem onde dizer o motivo da visita.** A `enviar-os`
       agora manda ficha própria de manutenção, mas o instalador vai à
       corretiva sem saber o que foi relatado. `obras.observacoes` **não serve**

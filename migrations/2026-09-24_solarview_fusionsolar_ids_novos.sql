@@ -224,3 +224,12 @@
 -- VALDECIR RICOBONI (4452): "o projeto dele está em nome de Atual Noivas" —
 -- confirma o 973024. E confirma que a parada é real: 133,77 kWh em 21/09 e
 -- ZERO em 22, 23, 24 e 25/09, com o SolarView dizendo "operando".
+--
+-- CARLOS SIDNEI TOLEDO JUNIOR (4197): o Vitor confirmou 20/04/2026.
+--   update obras set data_instalacao = '2026-04-20'
+--   where contrato = '4197' and data_instalacao = '2026-07-20';
+-- ⚠️ Isso MEXE NO DRE: `trg_dre_from_obra` refaz os lançamentos de origem
+-- 'obra' com competência = data_instalacao. A obra tinha um só — receita
+-- 01.1.01 de R$ 19.000,00 — e ele saiu de 20/07 para 20/04. Julho perde
+-- R$ 19.000 de receita e abril ganha, que é onde a venda foi concluída
+-- (data_conclusao 28/04). Não há tabela de fechamento mensal para desfazer.
