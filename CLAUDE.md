@@ -1474,9 +1474,15 @@ Conferido no banco em **22/09/2026**.
       A **Jaqueline (Guarulhos) saiu da lista**: com a radiação de Guarulhos
       (Open-Meteo, 3,36 kWh/m²/dia em setembro contra 4,62 em Araçatuba) ela
       rende **88–93%** do típico; os "67% das vizinhas" eram o céu de lá.
-- [ ] **Saúde da usina: falta ligar na tela.** `usinas_saude()` existe e foi
-      simulada (§5), mas o % do card **ainda é o antigo** — trocar espera o
-      Vitor aprovar. A radiação diária **já roda**: edge function
+- [ ] **Saúde da usina: ligada no card, falta publicar.** O Vitor aprovou em
+      26/09 e o card de usina do `posvenda.html` (aba Usinas) já lê
+      `usinas_saude()` no branch: % do esperado, estado, projeto e a frase.
+      Se a função falhar, o card volta ao % antigo em vez de sumir. "Sem
+      comunicação" passou a azul (`#6f9fc8`) também no selo e na barra de
+      cima, para nunca parecer "atenção". Testado no Chromium com os retornos
+      reais (Tays ×2, Luiz P. Barreto, Valdecir). **Vai ao ar quando o PR for
+      mergeado** — aí validar o arquivo publicado (regra 3.3). A ficha do
+      cliente ("Desempenho médio" por mês) **não mudou**. A radiação diária **já roda**: edge function
       `radiacao-diaria` (cron 07h10, relê os últimos 7 dias, 21 pontos de grade),
       `verify_jwt: false` + `cron_token`, 403 com token errado conferido. Em
       simulação a fonte bateu **exatamente** (diferença 0,000 kWh/m² em 210
