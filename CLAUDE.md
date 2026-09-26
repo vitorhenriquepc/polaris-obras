@@ -1435,6 +1435,7 @@ Conferido no banco em **22/09/2026**.
       O Vitor informou em 26/09 que o **Wi-Fi caiu na segunda (22/09)**:
       `usinas.causa = 'wifi'` e a mensagem **598** (`usina_wifi`) está
       aprovada por ele para **28/09, 17h** — sábado não sai mensagem.
+      Em 26/09 ele confirmou de novo e disse que **vai verificar na segunda**.
       ~~**João Vitor Pozzeti**~~ **está gerando desde 21/09**: a internet
       foi instalada e o Vitor ligou o inversor em 18/09.
 
@@ -1451,6 +1452,7 @@ Conferido no banco em **22/09/2026**.
       agosto, normal. Nome de titular diferente do cliente é o caso que o
       vinculador por nome nunca vai acertar sozinho — o VALDECIR é o mesmo caso
       (projeto em nome de **Atual Noivas**).
+      **Reconfirmado pelo Vitor em 26/09.**
 - [x] ~~CELIA (4133) e JACIR ZATT (4143) sem monitoramento.~~ **Ligadas pela
       rodada das 10h40 de 25/09** (973005 e 973004, contrato no nome); o
       eletroposto 4674 ficou de fora, como devia.
@@ -1476,10 +1478,15 @@ Conferido no banco em **22/09/2026**.
       isso, a partir de 27/09 os dias novos não têm sol e saem da conta, e a
       janela de 30 dias vai secando. Precisa entrar no `clima-diario` (ou
       função própria) **antes** de a tela depender dela.
-- [ ] **Decidir: monitorar Fatima Rino (3067) e o Bassetto?** Os dois são obra
-      de manutenção e têm usina no SolarView (973105 e 960239), mas nunca
-      tiveram monitoramento aqui. Ligar passa a gerar aviso de geração para
-      eles (com aprovação da Lívia).
+- [x] ~~Decidir: monitorar Fatima Rino (3067) e o Bassetto?~~ **Por enquanto
+      não** (decisão do Vitor, 26/09). Os dois são obra de manutenção e têm
+      usina no SolarView (973105 e 960239); ficam fora do monitoramento até
+      ele decidir o contrário.
+- [ ] **UNI AUTO POSTO aguardando a API da SolarEdge no SolarView** (Vitor,
+      26/09). As duas usinas estão com `nota_geracao = 'Aguardando a API da
+      SolarEdge no SolarView'`, e a saúde mostra isso no lugar de "confira o
+      cadastro". Quando a API entrar, vincular **comparando endereço e data de
+      instalação** (armadilha 27), não pelo nome.
 - [ ] **Apagar no SolarView a duplicata vazia do João Vitor** (973021, Rua
       Pirajá, instalada 14/07, sem dado nenhum). A usina dele é a 973006.
 - [x] ~~Carlos Sidnei Toledo Junior (4197): data de instalação 20/07.~~
@@ -1487,6 +1494,7 @@ Conferido no banco em **22/09/2026**.
       usina. ⚠️ A data de instalação é a **competência do DRE** da obra
       (`trg_dre_from_obra`): a receita de R$ 19.000 saiu de julho e foi para
       abril. Corrigir data de instalação é corrigir o mês da venda.
+      **Reconfirmado pelo Vitor em 26/09**, inclusive a mudança no DRE.
 - [ ] **A corretiva não tem onde dizer o motivo da visita.** A `enviar-os`
       agora manda ficha própria de manutenção, mas o instalador vai à
       corretiva sem saber o que foi relatado. `obras.observacoes` **não serve**

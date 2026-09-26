@@ -382,3 +382,17 @@ grant  execute on function public.usina_saude(uuid) to authenticated;
 --                     voltar ao local."
 --   feita, +50%     → ok · corrigida · "Gerou 92% ... Antes da correção: 59%.
 --                     Correção resolveu."
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 7. Decisões do Vitor no fim de 26/09
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Valdecir: Wi-Fi confirmado; ele verifica na segunda. Julio Cesar (Camila) e
+-- Carlos Toledo (20/04 + DRE em abril): reconfirmados. Fatima e Bassetto:
+-- fora do monitoramento por enquanto.
+-- UNI AUTO POSTO: aguardando a API da SolarEdge no SolarView.
+update usinas set nota_geracao = 'Aguardando a API da SolarEdge no SolarView'
+ where id in ('e9340eca-ff04-4134-9fa5-132e9346e094','91c8fb35-f53b-47f0-94e9-5328de2594c2')
+   and nota_geracao is null;
+-- e a frase de "sem dado" passa a ler a nota (migração `usina_saude_sem_dado_le_nota`):
+--   when 'sem_dado' then 'Nenhuma medição recebida ainda. '
+--        || coalesce(cl.nota_geracao || '.', 'Confira o cadastro no SolarView.')
