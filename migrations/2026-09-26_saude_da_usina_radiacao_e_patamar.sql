@@ -396,3 +396,36 @@ update usinas set nota_geracao = 'Aguardando a API da SolarEdge no SolarView'
 -- e a frase de "sem dado" passa a ler a nota (migração `usina_saude_sem_dado_le_nota`):
 --   when 'sem_dado' then 'Nenhuma medição recebida ainda. '
 --        || coalesce(cl.nota_geracao || '.', 'Confira o cadastro no SolarView.')
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 8. Tays açougue: correção feita na sexta 25/09 (Vitor, "tem tudo ok")
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Não usei plano_visita_registrar(): ela sobrescreve a `observacao` com o p_obs
+-- e apagaria o histórico da visita (regra 3.6). O update abaixo faz o mesmo que
+-- ela e ACRESCENTA à observação. Laudo: plano_visita_laudo_da_obra() devolveu
+-- nulo (a obra do contrato não tem foto da visita), então ficou sem.
+update plano_visita
+   set status = 'realizada', realizada_em = '2026-09-25',
+       observacao = observacao || E'\n26/09: REALIZADA na sexta 25/09 (informado pelo Vitor: "tem tudo ok"). A data 05/10 era provisória. Sem laudo: a obra do contrato não tem foto da visita.'
+ where id = '61642959-4518-4a62-8e7b-ed9889508439' and status = 'prevista';
+-- O trg_visita_patamar respondeu sozinho: usinas.patamar_desde = 25/09,
+-- fator solto, saúde = "em observação após a correção · 0 de 10 dias (antes: 59%)".
+--
+-- Dia a dia contra o normal de cada dia (mediana das usinas, sol do lugar):
+--   11/09 59 · 12/09 60 · 13/09 59 · 15/09 58 · 16/09 60 · 17/09 60 · 18/09 59
+--   19/09 61 · 20/09 57 · 21/09 63 · 22/09 60 · 23/09 60 · 24/09 56 · 25/09 85
+-- 25/09 é o dia da visita (parte dele ainda antes da correção).
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 9. Radiação diária: edge function radiacao-diaria + cron 07h10 BRT
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Código em supabase/functions/radiacao-diaria/index.ts. verify_jwt = false,
+-- token errado → 403 (conferido). Simulação: 21 pontos, 210 linhas, diferença
+-- 0,000 kWh/m² contra a carga inicial. Rodada real: 147 linhas regravadas.
+select cron.schedule('radiacao-diaria', '10 10 * * *', $c$
+  select net.http_post(
+    url := 'https://dakubhcgohiwzyqiegqf.supabase.co/functions/v1/radiacao-diaria',
+    headers := jsonb_build_object('Content-Type','application/json'),
+    body := jsonb_build_object('token',(select valor from config where chave='cron_token'),'dias',7),
+    timeout_milliseconds := 60000);
+$c$);

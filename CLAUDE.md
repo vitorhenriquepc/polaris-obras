@@ -653,6 +653,7 @@ nenhuma delas. Ver pendência no §10.
 09h15/13h15/16h15 status das usinas · 10h20 gera mensagens (seg–sex) ·
 10h40 vincula usina nova · 11h resumo da régua (seg–sex) ·
 14h30 geração parcial (seg/qua/sex) · 17h dispara a régua (seg–sex) ·
+**07h10 sol de cada usina** (`radiacao-diaria`, todo dia) ·
 **9h aviso de autoleitura no dia · 18h aviso da véspera** (seg–sex) ·
 9h aviso de vencimento de plano, D-30 e D-7 (seg–sex) ·
 dia 2 fechamento · dia 5 resumo mensal · dia 6 marcos · dia 10 lembrete de
@@ -1236,7 +1237,7 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
 ## 10. Estado e pendências
 
 **63 usinas ativas** · **56 normais, 4 sem comunicação, 2 sem dado, 1 silenciosa** ·
-**75 obras, 58 ativas** · 31 cron jobs, **todos ativos** · 23 chaves de
+**75 obras, 58 ativas** · 32 cron jobs, **todos ativos** (o 32º é o `radiacao-diaria`, 26/09) · 23 chaves de
 automação em `config`, 22 ligadas — a única desligada é `iptu_envio_ativo`,
 de propósito (ver pendência abaixo). A `solarview_ativo` foi **removida** em
 12/09: estava em 0, ninguém lia, e fazia parecer que o monitoramento estava
@@ -1459,9 +1460,11 @@ Conferido no banco em **22/09/2026**.
 - [ ] **Conferir cadastro das usinas baixas desde sempre** (decisão do Vitor,
       26/09). Estado em 26/09, pela `usinas_saude_calc()`:
       ~~**Fernando**~~ **resolvido** — eram 4 módulos de 620 Wp (2,48 kWp), não
-      4,44; foi de 49% cravado para **86%**. **Tays açougue** 60% → correção
-      em andamento, visita de correção **prevista 05/10 (data provisória, a
-      confirmar pelo Vitor)**. **Academia sistema antigo** → mesma nota do
+      4,44; foi de 49% cravado para **86%**. **Tays açougue** 60% → **corrigida
+      na sexta 25/09** (Vitor, 26/09). Ficou entre 56 e 63% do normal em
+      **todos** os dias de 11 a 24/09; no próprio 25/09, com a correção no meio
+      do dia, deu **85%**. A saúde fica "em observação após a correção" até
+      juntar 10 dias de sol depois de 25/09. **Academia sistema antigo** → mesma nota do
       novo ("prédio realizando sombreamento") e fator `ajustado à mão`.
       **Faltam: Luiz P. Barreto** (73%, único que a saúde marca "conferir
       cadastro") e **Gilberto Av. Brasília** (~70% nos 90 dias antes; hoje
@@ -1471,13 +1474,13 @@ Conferido no banco em **22/09/2026**.
       A **Jaqueline (Guarulhos) saiu da lista**: com a radiação de Guarulhos
       (Open-Meteo, 3,36 kWh/m²/dia em setembro contra 4,62 em Araçatuba) ela
       rende **88–93%** do típico; os "67% das vizinhas" eram o céu de lá.
-- [ ] **Saúde da usina: falta ligar na tela, e falta a radiação diária.**
-      `usinas_saude()` existe e foi simulada (§5), mas o % do card **ainda é o
-      antigo** — trocar espera o Vitor aprovar a tabela. E a `radiacao_dia`
-      foi carregada **uma vez** (01/06 a 25/09); nenhum cron a atualiza. Sem
-      isso, a partir de 27/09 os dias novos não têm sol e saem da conta, e a
-      janela de 30 dias vai secando. Precisa entrar no `clima-diario` (ou
-      função própria) **antes** de a tela depender dela.
+- [ ] **Saúde da usina: falta ligar na tela.** `usinas_saude()` existe e foi
+      simulada (§5), mas o % do card **ainda é o antigo** — trocar espera o
+      Vitor aprovar. A radiação diária **já roda**: edge function
+      `radiacao-diaria` (cron 07h10, relê os últimos 7 dias, 21 pontos de grade),
+      `verify_jwt: false` + `cron_token`, 403 com token errado conferido. Em
+      simulação a fonte bateu **exatamente** (diferença 0,000 kWh/m² em 210
+      linhas) com a carga inicial.
 - [x] ~~Decidir: monitorar Fatima Rino (3067) e o Bassetto?~~ **Por enquanto
       não** (decisão do Vitor, 26/09). Os dois são obra de manutenção e têm
       usina no SolarView (973105 e 960239); ficam fora do monitoramento até
