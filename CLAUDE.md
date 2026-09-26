@@ -642,6 +642,7 @@ nenhuma delas. Ver pendência no §10.
 | `usina_adicionar(json, simular)` | acrescenta uma usina a um cliente que já existe. **Só soma no total da obra se ela for cliente de plano** — em obra de venda a potência é o projeto vendido, e mexer ali muda o tamanho de uma venda que já aconteceu |
 | `get_brinde_google()` | **quem avaliou no Google e quem recebeu o brinde**, lido direto de `nps` — inclui obra de manutenção, que a Lista não vê. Devolve `entregue_no_cadastro` para separar retirada de verdade de marcação em lote |
 | `usina_editar(json, simular)` | **corrige** uma usina que já existe — nome, potência, cidade, endereço, data de instalação e o vínculo com o SolarView, num caminho só. Chave ausente no json não sobrescreve nada. Devolve `mudancas` e `avisos` em português (potência mexe no kWh/kWp que o cliente lê; endereço mexe em visita e cobrança do Completo), e recusa roubar o id do SolarView de outra usina |
+| `usinas_saude()` · `usina_saude(usina)` | **a saúde da usina** (só equipe). Por dia: descarta dia nublado **no lugar da usina** (`radiacao_dia`, Open-Meteo), compara com a **mediana das outras usinas naquele dia** e devolve `nivel` + `estado` + `projeto` + uma `frase` pronta. Sem comunicação é eixo próprio (`sem_sinal`), nunca "atenção"; <70% é "geração muito abaixo do esperado"; "crítico" só comunicando e sem gerar em dia de sol. **Não usa `fator_local`** de propósito. Lê `plano_visita.corrige_geracao` e `usinas.patamar_desde` para o antes × depois da correção |
 
 ---
 
@@ -706,6 +707,10 @@ Prefira criar parâmetro a chumbar número no código.
 | `clima_cidades` | Araçatuba | para quais cidades o clima vale. Usina fora da lista ganha aviso no card de aprovação em vez de um número que não é dela |
 | `causa_caduca_dias` | 2 | quantos dias a anotação `usinas.causa = 'wifi'` continua valendo depois que a usina volta a gerar. Gerou dentro da janela, a medição manda e o palpite é ignorado |
 | `parada_avisa_dias` | 7 | dias sem gerar para a usina entrar no aviso das 8h. Existe para o ruído de datalogger do dia não entrar — em 22/09 havia cinco usinas em "sem comunicação" que tinham gerado ontem |
+| `saude_janela_dias` · `saude_min_dias` | 30 · 10 | a saúde olha os últimos 30 dias e só dá veredito com 10 dias de sol |
+| `saude_rad_min` | 2,5 | kWh/m²/dia no lugar da usina; abaixo disso o dia é nublado e sai da conta |
+| `saude_atencao_pct` · `saude_muito_abaixo_pct` | 85 · 70 | "geração abaixo do esperado" · "geração muito abaixo do esperado" |
+| `saude_critico_dias` | 2 | dias de sol comunicando e sem gerar para virar crítico |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -1207,6 +1212,25 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     **Regra de comparação (armadilha 6) não é regra de exibição.** O mês
     corrente fica fora do desempenho; não precisa ficar fora da tela.
 
+29. **Visita que corrige a usina muda a régua dela — o fator tem de saber.**
+    O `fator_local` "calibrado pelo histórico" é a **mediana de todos os meses
+    desde a instalação**. Se a Tays açougue for corrigida em outubro, o fator
+    continuaria puxado pelos meses a 60% e o sistema esconderia o ganho — ou
+    pior, chamaria a usina corrigida de "acima do normal".
+
+    Desde 26/09 a visita tem a marca `plano_visita.corrige_geracao`. Quando ela
+    ganha `realizada_em`, o `trg_visita_patamar` grava `usinas.patamar_desde`,
+    solta o fator (menos o `ajustado à mão`) e a `manutencao_usinas()` /
+    `calibrar_fatores()` passam a calibrar **só com os meses depois**. A saúde
+    mede a janela só depois da correção e mostra *"antes da correção: 59%"*;
+    com menos de 10 dias de sol ela fica em **"em observação"** em vez de dar
+    veredito. Simulado nos quatro cenários (agendada, 5 dias depois, sem
+    ganho, com ganho), dentro de um `DO` que termina em `raise` — nada gravado,
+    conferido depois.
+
+    **Troca de inversor, ampliação e limpeza pesada são o mesmo caso**: se
+    mudou o que a usina consegue gerar, a data tem de virar `patamar_desde`.
+
 ---
 
 ## 10. Estado e pendências
@@ -1308,7 +1332,8 @@ Conferido no banco em **22/09/2026**.
       fosse campo vazio — **30 das 57 obras sem km são de Araçatuba**, e havia
       **zero** obras gravadas com km = 0. Corrigido em 22/09 nas três camadas.
       Agora dá para fechar essas 30 escrevendo `0`, o que é a resposta certa.
-- [ ] 5 cards incompletos: 4349, 4420, 4483, 4563, 4808
+- [ ] 4 cards incompletos: 4420, 4483, 4563, 4808 (a 4349, do Fernando, foi
+      fechada em 26/09: vendedor Vitor, network, 0 km)
 - [ ] Confirmar se as parcelas de ~30% são entrada de financiamento
 - [ ] **EDVALDO MARCIO GONCALVES (4657): a 3ª e a 4ª parcela vencem no mesmo
       dia (15/11), as duas de R$ 1.500,00.** Cheira a erro de cadastro — e é
@@ -1429,18 +1454,28 @@ Conferido no banco em **22/09/2026**.
 - [x] ~~CELIA (4133) e JACIR ZATT (4143) sem monitoramento.~~ **Ligadas pela
       rodada das 10h40 de 25/09** (973005 e 973004, contrato no nome); o
       eletroposto 4674 ficou de fora, como devia.
-- [ ] **Conferir cadastro de 5 usinas baixas desde sempre** (decisão do Vitor,
-      26/09). Contra as vizinhas, em todo mês medido: **Fernando** 49% cravado
-      (jun–set — cheira a potência cadastrada ou metade das placas fora);
-      **Tays açougue** ~60%; **Gilberto Av. Brasília** ~70% e **Luiz P.
-      Barreto** ~72%; **Academia sistema antigo** 52 → 49 → 60 → 77% (sobe com
-      a primavera = sombra de inverno; o sistema novo já tem "prédio realizando
-      sombreamento" em `nota_geracao`). A resposta vai para `nota_geracao`.
+- [ ] **Conferir cadastro das usinas baixas desde sempre** (decisão do Vitor,
+      26/09). Estado em 26/09, pela `usinas_saude_calc()`:
+      ~~**Fernando**~~ **resolvido** — eram 4 módulos de 620 Wp (2,48 kWp), não
+      4,44; foi de 49% cravado para **86%**. **Tays açougue** 60% → correção
+      em andamento, visita de correção **prevista 05/10 (data provisória, a
+      confirmar pelo Vitor)**. **Academia sistema antigo** → mesma nota do
+      novo ("prédio realizando sombreamento") e fator `ajustado à mão`.
+      **Faltam: Luiz P. Barreto** (73%, único que a saúde marca "conferir
+      cadastro") e **Gilberto Av. Brasília** (~70% nos 90 dias antes; hoje
+      está sem comunicação desde 25/09). A resposta vai para `nota_geracao`.
       ⚠️ O `fator_local` "calibrado pelo histórico" **absorve** essas diferenças
-      e esconde cadastro errado — por isso a conferência é humana.
+      e esconde cadastro errado — por isso a saúde **não usa o fator**.
       A **Jaqueline (Guarulhos) saiu da lista**: com a radiação de Guarulhos
       (Open-Meteo, 3,36 kWh/m²/dia em setembro contra 4,62 em Araçatuba) ela
-      rende **93%** do típico; os "67% das vizinhas" eram o céu de lá.
+      rende **88–93%** do típico; os "67% das vizinhas" eram o céu de lá.
+- [ ] **Saúde da usina: falta ligar na tela, e falta a radiação diária.**
+      `usinas_saude()` existe e foi simulada (§5), mas o % do card **ainda é o
+      antigo** — trocar espera o Vitor aprovar a tabela. E a `radiacao_dia`
+      foi carregada **uma vez** (01/06 a 25/09); nenhum cron a atualiza. Sem
+      isso, a partir de 27/09 os dias novos não têm sol e saem da conta, e a
+      janela de 30 dias vai secando. Precisa entrar no `clima-diario` (ou
+      função própria) **antes** de a tela depender dela.
 - [ ] **Decidir: monitorar Fatima Rino (3067) e o Bassetto?** Os dois são obra
       de manutenção e têm usina no SolarView (973105 e 960239), mas nunca
       tiveram monitoramento aqui. Ligar passa a gerar aviso de geração para
