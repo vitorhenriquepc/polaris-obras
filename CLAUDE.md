@@ -1399,10 +1399,17 @@ Conferido no banco em **22/09/2026**.
       **LUCINEI BOMFIM** (Votuporanga 6,25 kWp) **parou em 12/06** — gerou
       de abril a junho, e o "nunca gerou" que estava aqui era falta de
       histórico no id antigo (armadilha 27); **JOAO JOSE DE SOUZA** (Araçatuba
-      6,20) parou em 22/08 e o datalogger caiu em 06/09; **VALDECIR RICOBONI**
+      6,20) ~~parou em 22/08~~ **não parou: a comunicação caiu.** Avisado em
+      22/09 (mensagem 554), o datalogger voltou em 24/09 e **descarregou a
+      memória** — a leitura de 26/09 trouxe geração em todo dia de 01 a 25/09,
+      colada nas vizinhas. Só 23–31/08 ficaram em zero (o que não coube na
+      memória = "não medi"). **Zero de datalogger pode virar geração dias
+      depois**; ver armadilha 5. **VALDECIR RICOBONI**
       (Araçatuba 30,25 kWp, no SolarView como **«Atual Noivas»**) gerou 133 kWh
-      em 21/09 e **zero de 22 a 25/09**, com o SolarView dizendo "operando" —
-      só entra no aviso das 8h no 7º dia.
+      em 21/09 e **zero de 22 a 25/09**, com o SolarView dizendo "operando".
+      O Vitor informou em 26/09 que o **Wi-Fi caiu na segunda (22/09)**:
+      `usinas.causa = 'wifi'` e a mensagem **598** (`usina_wifi`) está
+      aprovada por ele para **28/09, 17h** — sábado não sai mensagem.
       ~~**João Vitor Pozzeti**~~ **está gerando desde 21/09**: a internet
       foi instalada e o Vitor ligou o inversor em 18/09.
 
@@ -1419,9 +1426,21 @@ Conferido no banco em **22/09/2026**.
       agosto, normal. Nome de titular diferente do cliente é o caso que o
       vinculador por nome nunca vai acertar sozinho — o VALDECIR é o mesmo caso
       (projeto em nome de **Atual Noivas**).
-- [ ] **CELIA (4133) e JACIR ZATT (4143) entram no monitoramento na rodada
-      das 10h40 de 25/09** (contrato no nome). A CELIA estava ativa desde
-      22/09 sem usina nenhuma. Conferir que ligaram.
+- [x] ~~CELIA (4133) e JACIR ZATT (4143) sem monitoramento.~~ **Ligadas pela
+      rodada das 10h40 de 25/09** (973005 e 973004, contrato no nome); o
+      eletroposto 4674 ficou de fora, como devia.
+- [ ] **Conferir cadastro de 5 usinas baixas desde sempre** (decisão do Vitor,
+      26/09). Contra as vizinhas, em todo mês medido: **Fernando** 49% cravado
+      (jun–set — cheira a potência cadastrada ou metade das placas fora);
+      **Tays açougue** ~60%; **Gilberto Av. Brasília** ~70% e **Luiz P.
+      Barreto** ~72%; **Academia sistema antigo** 52 → 49 → 60 → 77% (sobe com
+      a primavera = sombra de inverno; o sistema novo já tem "prédio realizando
+      sombreamento" em `nota_geracao`). A resposta vai para `nota_geracao`.
+      ⚠️ O `fator_local` "calibrado pelo histórico" **absorve** essas diferenças
+      e esconde cadastro errado — por isso a conferência é humana.
+      A **Jaqueline (Guarulhos) saiu da lista**: com a radiação de Guarulhos
+      (Open-Meteo, 3,36 kWh/m²/dia em setembro contra 4,62 em Araçatuba) ela
+      rende **93%** do típico; os "67% das vizinhas" eram o céu de lá.
 - [ ] **Decidir: monitorar Fatima Rino (3067) e o Bassetto?** Os dois são obra
       de manutenção e têm usina no SolarView (973105 e 960239), mas nunca
       tiveram monitoramento aqui. Ligar passa a gerar aviso de geração para
