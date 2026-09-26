@@ -1464,7 +1464,13 @@ Conferido no banco em **22/09/2026**.
       na sexta 25/09** (Vitor, 26/09). Ficou entre 56 e 63% do normal em
       **todos** os dias de 11 a 24/09; no próprio 25/09, com a correção no meio
       do dia, deu **85%**. A saúde fica "em observação após a correção" até
-      juntar 10 dias de sol depois de 25/09. **Academia sistema antigo** → mesma nota do
+      juntar 10 dias de sol depois de 25/09. **Causa (Vitor): erro de
+      instalação da empresa anterior** — o vídeo mostra as conexões CC entre
+      os módulos sendo refeitas. Virou o laudo da visita: obra
+      `tays-valese-dias-do-prado-visita-2026-09` (corretiva, etapa 4), vídeo
+      no item "Conectores CC e cabeamento". A causa fica só no registro
+      interno (`plano_visita.observacao`, `usinas.nota_geracao`); a página do
+      cliente diz apenas "correção das conexões CC". **Academia sistema antigo** → mesma nota do
       novo ("prédio realizando sombreamento") e fator `ajustado à mão`.
       **Faltam: Luiz P. Barreto** (73%, único que a saúde marca "conferir
       cadastro") e **Gilberto Av. Brasília** (~70% nos 90 dias antes; hoje

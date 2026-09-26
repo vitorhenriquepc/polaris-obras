@@ -429,3 +429,34 @@ select cron.schedule('radiacao-diaria', '10 10 * * *', $c$
     body := jsonb_build_object('token',(select valor from config where chave='cron_token'),'dias',7),
     timeout_milliseconds := 60000);
 $c$);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 10. Tays açougue: o vídeo da correção vira o laudo da visita
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Causa (Vitor, 26/09): erro de instalação da empresa que instalou antes
+-- (Eco Solar, pelo cadastro). O único registro é um vídeo de 67 s do técnico
+-- refazendo as conexões CC entre os módulos, com alicate amperímetro ao lado.
+--
+-- Caminho usado: o mesmo da visita do plano (§ "Cada visita tem a SUA obra").
+-- Não chamei plano_visita_abrir_obra() porque ela chumba tipo 'preventiva',
+-- etapa 1 e data = prevista (05/10); fiz o insert equivalente já com
+-- corretiva, etapa 4 (Concluída) e 25/09. Simulado antes num DO com raise:
+-- ficha financeira dispensada, 0 DRE, 0 contrato, 0 régua, fora da fila do
+-- NPS; nenhum gatilho de obras manda mensagem (o único com rede resolve link
+-- de grupo, e o grupo da Tays não é link). Sem instalador_id, fora da cobrança
+-- de fotos. Obra: tays-valese-dias-do-prado-visita-2026-09.
+--
+-- O vídeo subiu pelo próprio foto-obra (video-url → PUT → video-registrar),
+-- como o instalador faria: fotos.id 536, item 40 "Conectores CC e cabeamento".
+-- .mov remuxado para .mp4 sem reencode (+faststart). Público: 200 video/mp4.
+update fotos set legenda = 'Correção das conexões CC entre os módulos (25/09/2026)' where id = 536 and legenda is null;
+-- A causa (empresa anterior) fica em registro INTERNO, não na página do cliente:
+update plano_visita
+   set observacao = observacao || E'\n26/09: CAUSA (Vitor): erro de instalação da empresa que instalou antes (Eco Solar, pelo cadastro). Registro: vídeo da correção nas conexões CC entre os módulos, na obra da visita.',
+       laudo_url = coalesce(laudo_url, plano_visita_laudo_da_obra(id))
+ where id = '61642959-4518-4a62-8e7b-ed9889508439';
+update usinas set nota_geracao = 'Erro de instalação da empresa anterior (conexões CC), corrigido pela Polaris em 25/09/2026'
+ where id = 'dd326367-17c2-4c25-97d3-6ac47fd1da9f' and nota_geracao is null;
+-- Conferido sem login (armadilha 26): get_relatorio_publico pelo anon devolve
+-- o vídeo; relatorio.html publicado abre "Relatório de Manutenção Corretiva",
+-- 0 erro de JS. O termo aparece "aguardando assinatura".
