@@ -598,6 +598,9 @@ white-space:normal;padding:0 2px}
 .ucrod b{color:var(--txt);font-weight:800}
 .ucobs{color:var(--gold)}
 .ucnota{font-size:12px;color:var(--mut);margin-top:8px;font-style:italic}
+/* saude da usina (usinas_saude): so equipe. "sem_sinal" tem cor propria, nunca a de atencao */
+.ucsaude{font-size:12.5px;line-height:1.4;margin-top:9px;padding:8px 10px;border-radius:8px;background:var(--card2);border-left:3px solid var(--mut)}
+.ucsaude .sest{font-weight:800}
 .uwrap{position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:95;display:flex;align-items:center;justify-content:center;padding:2vh 2vw}
 .uwrap.off{display:none}
 .ubox{background:var(--card);border:1px solid var(--border);border-radius:14px;width:96vw;max-width:1080px;padding:22px;height:92vh;overflow:auto;box-shadow:0 18px 50px rgba(0,0,0,.35)}
@@ -2733,9 +2736,14 @@ var USI=null, UFILTRO='';
 function hTxt(h){ if(h==null) return ''; h=Number(h); if(h<24) return 'há '+Math.round(h)+'h'; var d=Math.floor(h/24); return 'há '+d+(d>1?' dias':' dia'); }
 function setUfiltro(f){ UFILTRO=f; document.getElementById('usbox').innerHTML=renderUsinas(); }
 
+var SAUDE={};
 async function carregarUsinas(){
-  var r=await sb.rpc('get_posvenda_usinas');
+  var rr=await Promise.all([sb.rpc('get_posvenda_usinas'), sb.rpc('usinas_saude')]);
+  var r=rr[0], rs=rr[1];
   if(r.error||!r.data){ document.getElementById('usbox').innerHTML='<div class="vazio">Não consegui ler as usinas.</div>'; return; }
+  /* a saude e um complemento: se falhar, o card cai no % antigo em vez de sumir */
+  SAUDE={};
+  if(!rs.error && rs.data) rs.data.forEach(function(x){ if(x&&x.usina_id) SAUDE[x.usina_id]=x; });
   USI=r.data; document.getElementById('usbox').innerHTML=renderUsinas();
 }
 
@@ -2786,7 +2794,7 @@ function renderUsinas(){
     ['parada','Parada','#c0392b',R.parada||0],
     ['silencioso','Sem gerar com sol','#d35400',R.silencioso||0],
     ['nunca gerou','Nunca gerou','#d35400',R.nunca_gerou||0],
-    ['sem comunicação','Sem medição','#e0a33e',R.sem_comunicacao||0],
+    ['sem comunicação','Sem medição','#6f9fc8',R.sem_comunicacao||0],
     ['sem dado','Sem dado','#7b8a99',R.sem_dado||0],
     ['alerta','Alerta','#e0a33e',R.alerta||0],
     ['normal','Gerando','#5aa469',R.normal||0]
@@ -2820,13 +2828,15 @@ function renderUsinas(){
     aguardando_concessionaria:'Aguardando concessionária',defeito_inversor:'Defeito no inversor',
     cadastro_errado:'Cadastro errado',outro:'Outro motivo'};
   var cEstado={'parada':'#c0392b','crítico':'#c0392b','silencioso':'#d35400',
-               'nunca gerou':'#d35400','sem comunicação':'#e0a33e',
+               'nunca gerou':'#d35400','sem comunicação':'#6f9fc8',
                'alerta':'#e0a33e','normal':'#5aa469','sem dado':'#7b8a99','sem leitura':'#7b8a99'};
   var cDesemp={boa:'#5aa469',atencao:'#e0a33e',baixa:'#e57373',sem_base:'#7b8a99'};
+  var cSaude={ok:'#5aa469',atencao:'#e0a33e',alerta:'#e57373',critico:'#c0392b',sem_sinal:'#6f9fc8',info:'#7b8a99'};
 
   h+='<div class="ugrade">';
   arr.forEach(function(u){
     var ce=cEstado[u.estado]||'#7b8a99', cd=cDesemp[u.desempenho]||'#7b8a99';
+    var sa=SAUDE[u.usina_id]||null, cs=sa?(cSaude[sa.nivel]||'#7b8a99'):'#7b8a99';
     var kwp=(Number(u.kwp)||0).toFixed(2).replace('.',',');
     h+='<div class="ucard" onclick="abrirUsina(\'' + u.usina_id + '\')">'
       +  '<div class="uctopo">'
@@ -2843,14 +2853,20 @@ function renderUsinas(){
       +  '</div>'
       +  '<div class="ucmotivo">'+esc(u.motivo||'')+'</div>'
       +  '<div class="ucrod">'
-      +    '<span>'+(u.pct!=null
-             ? '<b style="color:'+cd+';font-size:15px">'+u.pct+'%</b> do previsto em '+esc(u.ref_pct||'')
-             : (Number(u.kwh_14d)>0
-                ? '<b style="font-size:15px">'+Number(u.kwh_14d).toLocaleString('pt-BR')+'</b> kWh em 14 dias'
-                : 'sem geração registrada'))+'</span>'
+      +    '<span>'+(sa && sa.desempenho!=null && sa.nivel!=='sem_sinal' && sa.nivel!=='info'
+             ? '<b style="color:'+cs+';font-size:15px">'+sa.desempenho+'%</b> do esperado · últimos '+sa.dias_validos+' dias de sol'
+             : (!sa && u.pct!=null
+                ? '<b style="color:'+cd+';font-size:15px">'+u.pct+'%</b> do previsto em '+esc(u.ref_pct||'')
+                : (Number(u.kwh_14d)>0
+                   ? '<b style="font-size:15px">'+Number(u.kwh_14d).toLocaleString('pt-BR')+'</b> kWh em 14 dias'
+                   : 'sem geração registrada')))+'</span>'
       +    (u.papel!=='propria'?'<span class="ucobs">'+esc(u.papel)+'</span>':'')
       +    (u.saiu?'<span class="ucobs">saiu da lista</span>':'')
       +  '</div>'
+      +  (sa ? '<div class="ucsaude" style="border-left-color:'+cs+'">'
+             +'<span class="sest" style="color:'+cs+'">'+esc(sa.estado)+'</span>'
+             +(sa.projeto?' · <b>'+esc(sa.projeto)+'</b>':'')
+             +'<br>'+esc(sa.frase||'')+'</div>' : '')
       +  (u.nota?'<div class="ucnota">'+esc(u.nota)+'</div>':'')
       +'</div>';
   });
