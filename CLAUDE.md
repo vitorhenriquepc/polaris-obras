@@ -74,6 +74,19 @@ optout_em) · `etapas` + `etapas_historico` · `travas_historico` ·
 ⚠️ A tela grava **`cliente` (texto)**. O `cliente_id` vem depois, por outro
 processo. Nunca exija `cliente_id` numa trava.
 
+⚠️ **A etapa 8 TEM mensagem — ela não mora na tabela `etapas`.**
+`etapas.mensagem_wa` da 8 é **vazia**, e quem lê só a tabela conclui que o dia
+em que a usina liga passa em silêncio. Não passa: o `buildWA()` do
+`painel.html` tem o texto próprio da 8 (*"seu sistema solar foi ativado"*),
+com a data e o tempo de entrega — `data_fechamento` → `data_conclusao`
+contra o `PRAZO_CONTRATUAL` (60 dias, **chumbado no código**): *"entregamos
+X dias antes do prazo"*, *"no prazo"*, ou só *"ativado, parabéns"* quando
+atrasou ou falta a data de fechamento. Sai pelos **dois** caminhos da tela
+(`mudarEtapa()` e `salvarForm()`), e a CELIA (4133) provou em 22/09:
+`notificar-grupo` 200 às 16:40:42 (armadilha 23). Corrigido no doc em 28/09,
+depois que o Vitor apontou a afirmação errada. **Antes de dizer que uma etapa
+não avisa o cliente, leia o `buildWA()`, não só `etapas.mensagem_wa`.**
+
 ### Financeiro
 `obra_financeiro` (preco_negociado, custos, dispensado) · `obra_parcelas`
 (previsão de recebimento) · `extrato_movimentos` (OFX) · `extrato_rateio`
