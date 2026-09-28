@@ -74,6 +74,19 @@ optout_em) · `etapas` + `etapas_historico` · `travas_historico` ·
 ⚠️ A tela grava **`cliente` (texto)**. O `cliente_id` vem depois, por outro
 processo. Nunca exija `cliente_id` numa trava.
 
+⚠️ **A etapa 8 TEM mensagem — ela não mora na tabela `etapas`.**
+`etapas.mensagem_wa` da 8 é **vazia**, e quem lê só a tabela conclui que o dia
+em que a usina liga passa em silêncio. Não passa: o `buildWA()` do
+`painel.html` tem o texto próprio da 8 (*"seu sistema solar foi ativado"*),
+com a data e o tempo de entrega — `data_fechamento` → `data_conclusao`
+contra o `PRAZO_CONTRATUAL` (60 dias, **chumbado no código**): *"entregamos
+X dias antes do prazo"*, *"no prazo"*, ou só *"ativado, parabéns"* quando
+atrasou ou falta a data de fechamento. Sai pelos **dois** caminhos da tela
+(`mudarEtapa()` e `salvarForm()`), e a CELIA (4133) provou em 22/09:
+`notificar-grupo` 200 às 16:40:42 (armadilha 23). Corrigido no doc em 28/09,
+depois que o Vitor apontou a afirmação errada. **Antes de dizer que uma etapa
+não avisa o cliente, leia o `buildWA()`, não só `etapas.mensagem_wa`.**
+
 ### Financeiro
 `obra_financeiro` (preco_negociado, custos, dispensado) · `obra_parcelas`
 (previsão de recebimento) · `extrato_movimentos` (OFX) · `extrato_rateio`
@@ -617,7 +630,7 @@ nenhuma delas. Ver pendência no §10.
 | `nps_cobranca_google(obra)` | o texto da **segunda cobrança** da avaliação, para a pessoa ler e mandar no grupo; recusa nota < 9, quem já avaliou e obra sem grupo |
 | `obra_ativa(obra)` | **a definição única de "está ativa"**: chegou na última etapa da própria trilha |
 | `obra_ativa_em(obra)` | desde quando está ativa (cai no `etapas_historico` se `data_conclusao` for nula) |
-| `obra_geracao_total(obra)` | **quanto a obra já gerou**: kWh, economia, desempenho e meses — a fonte única |
+| `obra_geracao_total(obra)` | **quanto a obra já gerou**: kWh, economia, desempenho e meses — a fonte única. Desde 24/09 o **desempenho** só conta a partir do 1º dia com geração medida (mês sem medição é "não medi", não 0%); `get_geracao` segue a mesma regra |
 | `geracao_contexto(usina)` | o que sustenta um aviso de geração baixa: dias usados × descartados por dia fechado, chuva e sol do período, a base da comparação, e **`ainda_caida`** — se a queda ainda existe **agora** |
 | `plano_registrar_pagamento(contrato, data)` | liga o contrato no dia em que o primeiro pagamento entrou; é ela que calcula `inicio` e `fim` |
 | `plano_cadastrar_cliente(json, simular)` | **cadastra cliente de plano inteiro**: cliente + obra + usinas + contrato numa transação. Com `simular = true` (o padrão) não grava nada e devolve a prévia ou a lista de erros |
@@ -642,6 +655,7 @@ nenhuma delas. Ver pendência no §10.
 | `usina_adicionar(json, simular)` | acrescenta uma usina a um cliente que já existe. **Só soma no total da obra se ela for cliente de plano** — em obra de venda a potência é o projeto vendido, e mexer ali muda o tamanho de uma venda que já aconteceu |
 | `get_brinde_google()` | **quem avaliou no Google e quem recebeu o brinde**, lido direto de `nps` — inclui obra de manutenção, que a Lista não vê. Devolve `entregue_no_cadastro` para separar retirada de verdade de marcação em lote |
 | `usina_editar(json, simular)` | **corrige** uma usina que já existe — nome, potência, cidade, endereço, data de instalação e o vínculo com o SolarView, num caminho só. Chave ausente no json não sobrescreve nada. Devolve `mudancas` e `avisos` em português (potência mexe no kWh/kWp que o cliente lê; endereço mexe em visita e cobrança do Completo), e recusa roubar o id do SolarView de outra usina |
+| `usinas_saude()` · `usina_saude(usina)` | **a saúde da usina** (só equipe). Por dia: descarta dia nublado **no lugar da usina** (`radiacao_dia`, Open-Meteo), compara com a **mediana das outras usinas naquele dia** e devolve `nivel` + `estado` + `projeto` + uma `frase` pronta. Sem comunicação é eixo próprio (`sem_sinal`), nunca "atenção"; <70% é "geração muito abaixo do esperado"; "crítico" só comunicando e sem gerar em dia de sol. **Não usa `fator_local`** de propósito. Lê `plano_visita.corrige_geracao` e `usinas.patamar_desde` para o antes × depois da correção |
 
 ---
 
@@ -652,6 +666,7 @@ nenhuma delas. Ver pendência no §10.
 09h15/13h15/16h15 status das usinas · 10h20 gera mensagens (seg–sex) ·
 10h40 vincula usina nova · 11h resumo da régua (seg–sex) ·
 14h30 geração parcial (seg/qua/sex) · 17h dispara a régua (seg–sex) ·
+**07h10 sol de cada usina** (`radiacao-diaria`, todo dia) ·
 **9h aviso de autoleitura no dia · 18h aviso da véspera** (seg–sex) ·
 9h aviso de vencimento de plano, D-30 e D-7 (seg–sex) ·
 dia 2 fechamento · dia 5 resumo mensal · dia 6 marcos · dia 10 lembrete de
@@ -706,6 +721,10 @@ Prefira criar parâmetro a chumbar número no código.
 | `clima_cidades` | Araçatuba | para quais cidades o clima vale. Usina fora da lista ganha aviso no card de aprovação em vez de um número que não é dela |
 | `causa_caduca_dias` | 2 | quantos dias a anotação `usinas.causa = 'wifi'` continua valendo depois que a usina volta a gerar. Gerou dentro da janela, a medição manda e o palpite é ignorado |
 | `parada_avisa_dias` | 7 | dias sem gerar para a usina entrar no aviso das 8h. Existe para o ruído de datalogger do dia não entrar — em 22/09 havia cinco usinas em "sem comunicação" que tinham gerado ontem |
+| `saude_janela_dias` · `saude_min_dias` | 30 · 10 | a saúde olha os últimos 30 dias e só dá veredito com 10 dias de sol |
+| `saude_rad_min` | 2,5 | kWh/m²/dia no lugar da usina; abaixo disso o dia é nublado e sai da conta |
+| `saude_atencao_pct` · `saude_muito_abaixo_pct` | 85 · 70 | "geração abaixo do esperado" · "geração muito abaixo do esperado" |
+| `saude_critico_dias` | 2 | dias de sol comunicando e sem gerar para virar crítico |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -1153,12 +1172,85 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     **Antes de mexer em permissão, liste quem chama sem login. Depois, abra a
     página pública numa aba anônima — nunca na sessão da equipe.**
 
+27. **Vínculo por nome casa com a pessoa errada — e o id do SolarView pode
+    mudar debaixo de você.** Em 24/09 o Vitor ligou a API do **FusionSolar
+    (Huawei)** dentro do SolarView, e as usinas Huawei foram **recriadas com
+    ids novos** (9730xx, todas com `systemSize = 0`). **35 das 61** usinas
+    ligadas ficaram apontando para id morto — `404 ConsumerUnitNotFound` —, e
+    a leitura das 9h do dia seguinte levaria 404 nas 35.
+
+    ⚠️ **O casamento não foi por nome: foi pela geração.** A série diária do
+    id novo é **idêntica** (diferença < 0,01 kWh, 14 de 14 dias) à que já
+    estava gravada — 32 das 35 casaram assim, sem ambiguidade. Nome engana;
+    a curva de geração de uma usina é a impressão digital dela.
+
+    ⚠️ **E a troca revelou dois vínculos errados desde 06/09**, feitos pelo
+    `solarview-vincular` por nome parecido: o **PONCIANO (Sabino)** lia a
+    usina de um "José Antônio" do **Canindé, em São Paulo**, e o **JULIO
+    CESAR (Araçatuba)** a de um "Julio Cesar" de **Bilac** — as duas gerando
+    **antes** do contrato existir. O SolarView novo traz endereço e data de
+    instalação de cada unidade, e foi isso que denunciou. Hoje o vinculador
+    **recusa nome parecido em outra cidade** (o contrato no nome continua
+    resolvendo sozinho) e **não procura usina para eletroposto** — o 4674
+    seria ligado à usina solar do Bassetto, que é outra obra.
+
+    ⚠️ **O id antigo não tinha histórico para as Huawei.** O WILSON FURLAN,
+    instalado em 22/05, tinha **junho e julho = 0**; a LUCINEI, "que nunca
+    gerou", **gerou 186 · 660 · 269 kWh de abril a junho** e parou depois.
+    Pior: a mediana da vizinhança (`v_indice_dia`) de todo mês **anterior a
+    agosto era de 2 usinas** (as da Tays), e julho de 15 com vários zeros —
+    todo desempenho daqueles meses era comparado contra régua sem lastro
+    (Wilson 43% num dia, 299% no outro). O conserto foi reler o histórico
+    inteiro pelas próprias edge functions, não mexer na fórmula.
+
+    **Antes de confiar num vínculo, confira endereço e data de instalação dos
+    dois lados. E quando uma plataforma de monitoramento mudar, compare a
+    série — nunca o nome.**
+
+28. **Cliente novo gerando e a ficha dizendo que não há geração.** O Vitor
+    viu no inversor do **GILSON (4678)** que a usina gerava, e a ficha do
+    pós-venda dizia *"Ainda não há um mês fechado de geração"*. O banco tinha
+    **228 kWh** em setembro e o SolarView dizia `operando`. A `get_geracao`
+    devolvia o mês, marcado `parcial` — a tela é que só abria o bloco com
+    `acumulado.meses > 0`, e o mês da instalação e o mês corrente não contam
+    como fechados. Quem instalou em 31/08 só veria alguma coisa em
+    **outubro**. Em 24/09 eram **11 clientes** assim, todos os instalados desde
+    agosto (Mario Souza, Renato Watanabe, ENI, Robson, Zuleica, EDVALDO,
+    MARASCA, GILSON, Maria Aparecida, VALDETE, Sandra).
+
+    A tabela embaixo **já sabia** mostrar mês parcial ("mês em curso") — só
+    nunca era alcançada. Irmã das armadilhas 15 e 17: o código certo existia
+    atrás de uma condição que ninguém satisfazia. Corrigido: o bloco abre com
+    qualquer geração, e os rótulos viram "Até agora" e "1º mês em curso".
+
+    **Regra de comparação (armadilha 6) não é regra de exibição.** O mês
+    corrente fica fora do desempenho; não precisa ficar fora da tela.
+
+29. **Visita que corrige a usina muda a régua dela — o fator tem de saber.**
+    O `fator_local` "calibrado pelo histórico" é a **mediana de todos os meses
+    desde a instalação**. Se a Tays açougue for corrigida em outubro, o fator
+    continuaria puxado pelos meses a 60% e o sistema esconderia o ganho — ou
+    pior, chamaria a usina corrigida de "acima do normal".
+
+    Desde 26/09 a visita tem a marca `plano_visita.corrige_geracao`. Quando ela
+    ganha `realizada_em`, o `trg_visita_patamar` grava `usinas.patamar_desde`,
+    solta o fator (menos o `ajustado à mão`) e a `manutencao_usinas()` /
+    `calibrar_fatores()` passam a calibrar **só com os meses depois**. A saúde
+    mede a janela só depois da correção e mostra *"antes da correção: 59%"*;
+    com menos de 10 dias de sol ela fica em **"em observação"** em vez de dar
+    veredito. Simulado nos quatro cenários (agendada, 5 dias depois, sem
+    ganho, com ganho), dentro de um `DO` que termina em `raise` — nada gravado,
+    conferido depois.
+
+    **Troca de inversor, ampliação e limpeza pesada são o mesmo caso**: se
+    mudou o que a usina consegue gerar, a data tem de virar `patamar_desde`.
+
 ---
 
 ## 10. Estado e pendências
 
 **63 usinas ativas** · **56 normais, 4 sem comunicação, 2 sem dado, 1 silenciosa** ·
-**75 obras, 58 ativas** · 31 cron jobs, **todos ativos** · 23 chaves de
+**75 obras, 58 ativas** · 32 cron jobs, **todos ativos** (o 32º é o `radiacao-diaria`, 26/09) · 23 chaves de
 automação em `config`, 22 ligadas — a única desligada é `iptu_envio_ativo`,
 de propósito (ver pendência abaixo). A `solarview_ativo` foi **removida** em
 12/09: estava em 0, ninguém lia, e fazia parecer que o monitoramento estava
@@ -1176,8 +1268,8 @@ manhã** — o ruído é que sumiu:
 
 | Usina | Cliente | Sem gerar há | O que é |
 |---|---|---|---|
-| **Votuporanga 6,25 kWp** (inst. 24/04) | LUCINEI BOMFIM | **nunca gerou — ~5 meses** | **problema de verdade** |
-| **Araçatuba 8,68 kWp** (inst. 27/07) | João Vitor Pozzeti | **nunca comunicou** | **problema de verdade** |
+| **Votuporanga 6,25 kWp** (inst. 24/04) | LUCINEI BOMFIM | **desde 12/06** — gerou 186 · 660 · 269 kWh de abr a jun (visto em 24/09, com o histórico do FusionSolar) | **problema de verdade** |
+| ~~Araçatuba 8,68 kWp~~ (inst. 27/07) | João Vitor Pozzeti | **gerando desde 21/09** — a internet foi ligada em 18/09 (armadilha 27) | resolvido |
 | **Araçatuba 6,20 kWp** (inst. 18/05) | JOAO JOSE DE SOUZA | **31 dias** (última 22/08) | **problema de verdade** |
 | Guarulhos 6,20 kWp | Jaqueline | gerou **ontem** | ruído de hoje |
 | Guaiçara 4,34 kWp (`silencioso`) | Maria Aparecida H. Gomes | 4 dias (última 18/09) | vigiar |
@@ -1214,9 +1306,11 @@ armadilha 5 significam *"não medi"*, não *"não gerou"*.
 
 O que de fato aconteceu, lido dia a dia: ela **parou de gerar em 22/08** e
 seguiu reportando por duas semanas; **em 06/09 o datalogger caiu também.**
-São dois problemas em sequência, não um. A Votuporanga é o mesmo desenho, mais
-longo: reportou de 24/04 a 06/09 sem entregar **um kWh sequer**, e depois
-emudeceu.
+São dois problemas em sequência, não um. A Votuporanga **não** é o mesmo
+desenho, e eu afirmei que era: o id antigo só tinha dado de agosto em diante,
+e ali só havia zeros. Com o histórico do FusionSolar (24/09) ela **gerou de
+23/04 a 12/06** — 186, 660 e 269 kWh — e parou. O problema dela tem três
+meses, não cinco, e começou depois da instalação.
 
 A lição que fica de pé: **`usina_dia` sozinha não distingue "medi e deu zero"
 de "não medi"** — quem sabe isso é `usinas.status_atual`, que vem do SolarView.
@@ -1252,7 +1346,8 @@ Conferido no banco em **22/09/2026**.
       fosse campo vazio — **30 das 57 obras sem km são de Araçatuba**, e havia
       **zero** obras gravadas com km = 0. Corrigido em 22/09 nas três camadas.
       Agora dá para fechar essas 30 escrevendo `0`, o que é a resposta certa.
-- [ ] 5 cards incompletos: 4349, 4420, 4483, 4563, 4808
+- [ ] 4 cards incompletos: 4420, 4483, 4563, 4808 (a 4349, do Fernando, foi
+      fechada em 26/09: vendedor Vitor, network, 0 km)
 - [ ] Confirmar se as parcelas de ~30% são entrada de financiamento
 - [ ] **EDVALDO MARCIO GONCALVES (4657): a 3ª e a 4ª parcela vencem no mesmo
       dia (15/11), as duas de R$ 1.500,00.** Cheira a erro de cadastro — e é
@@ -1339,13 +1434,24 @@ Conferido no banco em **22/09/2026**.
       **Recusadas em 22/09.** Jaqueline (78%) e Marcia (75%), `caiu = false`
       nas duas quatro dias depois de escritas. Nada foi apagado: as linhas
       ficam como `pulado` / `recusada`, com autoria e data (regra 3.6).
-- [ ] **Três usinas com problema de verdade, e ninguém voltou nelas.**
-      Medido em 22/09, e as três já foram avisadas ao cliente em **10/09** —
-      doze dias sem desfecho:
-      **LUCINEI BOMFIM** (Votuporanga 6,25 kWp) nunca gerou um kWh desde
-      24/04; **JOAO JOSE DE SOUZA** (Araçatuba 6,20) parou em 22/08 e o
-      datalogger caiu em 06/09; **João Vitor Pozzeti** (Araçatuba 8,68) nunca
-      comunicou desde 27/07. Nenhuma é problema de wi-fi, apesar da anotação.
+- [ ] **Usinas com problema de verdade.** Medido em 22/09 e revisto em 24/09:
+      **LUCINEI BOMFIM** (Votuporanga 6,25 kWp) **parou em 12/06** — gerou
+      de abril a junho, e o "nunca gerou" que estava aqui era falta de
+      histórico no id antigo (armadilha 27); **JOAO JOSE DE SOUZA** (Araçatuba
+      6,20) ~~parou em 22/08~~ **não parou: a comunicação caiu.** Avisado em
+      22/09 (mensagem 554), o datalogger voltou em 24/09 e **descarregou a
+      memória** — a leitura de 26/09 trouxe geração em todo dia de 01 a 25/09,
+      colada nas vizinhas. Só 23–31/08 ficaram em zero (o que não coube na
+      memória = "não medi"). **Zero de datalogger pode virar geração dias
+      depois**; ver armadilha 5. **VALDECIR RICOBONI**
+      (Araçatuba 30,25 kWp, no SolarView como **«Atual Noivas»**) gerou 133 kWh
+      em 21/09 e **zero de 22 a 25/09**, com o SolarView dizendo "operando".
+      O Vitor informou em 26/09 que o **Wi-Fi caiu na segunda (22/09)**:
+      `usinas.causa = 'wifi'` e a mensagem **598** (`usina_wifi`) está
+      aprovada por ele para **28/09, 17h** — sábado não sai mensagem.
+      Em 26/09 ele confirmou de novo e disse que **vai verificar na segunda**.
+      ~~**João Vitor Pozzeti**~~ **está gerando desde 21/09**: a internet
+      foi instalada e o Vitor ligou o inversor em 18/09.
 
       ⚠️ **Elas não apareciam no aviso das 8h — o aviso não tinha seção de
       usina parada.** Só o João Vitor entrava, e por outra porta
@@ -1353,6 +1459,78 @@ Conferido no banco em **22/09/2026**.
       Corrigido em 22/09: `usinas_paradas` entra no topo do aviso, com
       `avisado_ha` junto. O conserto é do sistema; **ir na casa do cliente
       continua sendo trabalho de campo.**
+- [x] ~~**JULIO CESAR LOPES DOS SANTOS (4459) sem monitoramento.**~~ Desde
+      06/09 ele lia a usina de outro Julio Cesar, em **Bilac** (armadilha 27).
+      Em 25/09 o Vitor confirmou que **a esposa dele é a Camila**, e ele foi
+      religado à **«Camila Aparecida»** (973022): 0 até julho, 698 kWh em
+      agosto, normal. Nome de titular diferente do cliente é o caso que o
+      vinculador por nome nunca vai acertar sozinho — o VALDECIR é o mesmo caso
+      (projeto em nome de **Atual Noivas**).
+      **Reconfirmado pelo Vitor em 26/09.**
+- [x] ~~CELIA (4133) e JACIR ZATT (4143) sem monitoramento.~~ **Ligadas pela
+      rodada das 10h40 de 25/09** (973005 e 973004, contrato no nome); o
+      eletroposto 4674 ficou de fora, como devia.
+- [ ] **Conferir cadastro das usinas baixas desde sempre** (decisão do Vitor,
+      26/09). Estado em 26/09, pela `usinas_saude_calc()`:
+      ~~**Fernando**~~ **resolvido** — eram 4 módulos de 620 Wp (2,48 kWp), não
+      4,44; foi de 49% cravado para **86%**. **Tays açougue** 60% → **corrigida
+      na sexta 25/09** (Vitor, 26/09). Ficou entre 56 e 63% do normal em
+      **todos** os dias de 11 a 24/09; no próprio 25/09, com a correção no meio
+      do dia, deu **85%**. A saúde fica "em observação após a correção" até
+      juntar 10 dias de sol depois de 25/09. **Causa (Vitor): erro de
+      instalação da empresa anterior** — o vídeo mostra as conexões CC entre
+      os módulos sendo refeitas. Virou o laudo da visita: obra
+      `tays-valese-dias-do-prado-visita-2026-09` (corretiva, etapa 4), vídeo
+      no item "Conectores CC e cabeamento". A causa fica só no registro
+      interno (`plano_visita.observacao`, `usinas.nota_geracao`); a página do
+      cliente diz apenas "correção das conexões CC".
+      **Potência: fica a do SolarView** (Vitor, 28/09) — açougue 20 kWp,
+      rancho 38,5. Ela não fecha com o cadastro da obra (120 módulos,
+      70,2 kWp = 29,25 + 40,95, ou seja 50 + 70 módulos de 585 W), e em 26/09
+      o açougue deu 6,71 kWh/kWp contra 4,31 do rancho — **133% do normal**
+      com 20 kWp, 91% com 29,25. Consequência conhecida: quando sair da
+      observação, a saúde vai mostrar o açougue **acima de 100%**, e o "antes"
+      aparece como 59% (seria ~40% com 29,25). A decisão é do Vitor; o número
+      alternativo está aqui caso um dia se confirme a contagem de módulos. **Academia sistema antigo** → mesma nota do
+      novo ("prédio realizando sombreamento") e fator `ajustado à mão`.
+      **Faltam: Luiz P. Barreto** (73%, único que a saúde marca "conferir
+      cadastro") e **Gilberto Av. Brasília** (~70% nos 90 dias antes; hoje
+      está sem comunicação desde 25/09). A resposta vai para `nota_geracao`.
+      ⚠️ O `fator_local` "calibrado pelo histórico" **absorve** essas diferenças
+      e esconde cadastro errado — por isso a saúde **não usa o fator**.
+      A **Jaqueline (Guarulhos) saiu da lista**: com a radiação de Guarulhos
+      (Open-Meteo, 3,36 kWh/m²/dia em setembro contra 4,62 em Araçatuba) ela
+      rende **88–93%** do típico; os "67% das vizinhas" eram o céu de lá.
+- [ ] **Saúde da usina: ligada no card, falta publicar.** O Vitor aprovou em
+      26/09 e o card de usina do `posvenda.html` (aba Usinas) já lê
+      `usinas_saude()` no branch: % do esperado, estado, projeto e a frase.
+      Se a função falhar, o card volta ao % antigo em vez de sumir. "Sem
+      comunicação" passou a azul (`#6f9fc8`) também no selo e na barra de
+      cima, para nunca parecer "atenção". Testado no Chromium com os retornos
+      reais (Tays ×2, Luiz P. Barreto, Valdecir). **Vai ao ar quando o PR for
+      mergeado** — aí validar o arquivo publicado (regra 3.3). A ficha do
+      cliente ("Desempenho médio" por mês) **não mudou**. A radiação diária **já roda**: edge function
+      `radiacao-diaria` (cron 07h10, relê os últimos 7 dias, 21 pontos de grade),
+      `verify_jwt: false` + `cron_token`, 403 com token errado conferido. Em
+      simulação a fonte bateu **exatamente** (diferença 0,000 kWh/m² em 210
+      linhas) com a carga inicial.
+- [x] ~~Decidir: monitorar Fatima Rino (3067) e o Bassetto?~~ **Por enquanto
+      não** (decisão do Vitor, 26/09). Os dois são obra de manutenção e têm
+      usina no SolarView (973105 e 960239); ficam fora do monitoramento até
+      ele decidir o contrário.
+- [ ] **UNI AUTO POSTO aguardando a API da SolarEdge no SolarView** (Vitor,
+      26/09). As duas usinas estão com `nota_geracao = 'Aguardando a API da
+      SolarEdge no SolarView'`, e a saúde mostra isso no lugar de "confira o
+      cadastro". Quando a API entrar, vincular **comparando endereço e data de
+      instalação** (armadilha 27), não pelo nome.
+- [ ] **Apagar no SolarView a duplicata vazia do João Vitor** (973021, Rua
+      Pirajá, instalada 14/07, sem dado nenhum). A usina dele é a 973006.
+- [x] ~~Carlos Sidnei Toledo Junior (4197): data de instalação 20/07.~~
+      **Corrigida para 20/04** em 25/09, confirmada pelo Vitor, na obra e na
+      usina. ⚠️ A data de instalação é a **competência do DRE** da obra
+      (`trg_dre_from_obra`): a receita de R$ 19.000 saiu de julho e foi para
+      abril. Corrigir data de instalação é corrigir o mês da venda.
+      **Reconfirmado pelo Vitor em 26/09**, inclusive a mudança no DRE.
 - [ ] **A corretiva não tem onde dizer o motivo da visita.** A `enviar-os`
       agora manda ficha própria de manutenção, mas o instalador vai à
       corretiva sem saber o que foi relatado. `obras.observacoes` **não serve**
