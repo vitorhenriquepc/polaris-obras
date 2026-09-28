@@ -1450,6 +1450,14 @@ Conferido no banco em **22/09/2026**.
       `usinas.causa = 'wifi'` e a mensagem **598** (`usina_wifi`) está
       aprovada por ele para **28/09, 17h** — sábado não sai mensagem.
       Em 26/09 ele confirmou de novo e disse que **vai verificar na segunda**.
+      **Não era Wi-Fi: o sistema estava DESLIGADO.** O Vitor foi em 28/09,
+      religou à tarde, e o SolarView marcou 0,25 kWh no fim do dia. Os zeros de
+      22–27/09 são geração perdida, não medição perdida — nenhum dia volta. A
+      598 já tinha saído (28/09 17h) falando em Wi-Fi. `causa` virou `outro`,
+      com o palpite antigo guardado na nota. O sinal estava lá: SolarView
+      "operando" + zero em dia de sol = **desligado**, e a anotação de Wi-Fi o
+      escondia — a saúde agora só aceita Wi-Fi quando o SolarView também não
+      fala com o inversor (migração de 28/09).
       ~~**João Vitor Pozzeti**~~ **está gerando desde 21/09**: a internet
       foi instalada e o Vitor ligou o inversor em 18/09.
 
