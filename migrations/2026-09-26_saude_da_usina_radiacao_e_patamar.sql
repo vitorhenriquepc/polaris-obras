@@ -460,3 +460,11 @@ update usinas set nota_geracao = 'Erro de instalação da empresa anterior (cone
 -- Conferido sem login (armadilha 26): get_relatorio_publico pelo anon devolve
 -- o vídeo; relatorio.html publicado abre "Relatório de Manutenção Corretiva",
 -- 0 erro de JS. O termo aparece "aguardando assinatura".
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 11. 28/09 — potência da Tays: fica a do SolarView (decisão do Vitor)
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Nada gravado. Registro: 26/09 o açougue gerou 134,17 kWh (6,71 kWh/kWp em
+-- 20 kWp) contra 165,76 do rancho (4,31 kWh/kWp em 38,5). Contra a mediana do
+-- dia: 133% com 20 kWp, 91% com 29,25 kWp (50 × 585 W, cadastro da obra:
+-- 120 módulos, 70,2 kWp). O Vitor escolheu manter 20 e 38,5.

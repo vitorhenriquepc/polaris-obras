@@ -1470,7 +1470,15 @@ Conferido no banco em **22/09/2026**.
       `tays-valese-dias-do-prado-visita-2026-09` (corretiva, etapa 4), vídeo
       no item "Conectores CC e cabeamento". A causa fica só no registro
       interno (`plano_visita.observacao`, `usinas.nota_geracao`); a página do
-      cliente diz apenas "correção das conexões CC". **Academia sistema antigo** → mesma nota do
+      cliente diz apenas "correção das conexões CC".
+      **Potência: fica a do SolarView** (Vitor, 28/09) — açougue 20 kWp,
+      rancho 38,5. Ela não fecha com o cadastro da obra (120 módulos,
+      70,2 kWp = 29,25 + 40,95, ou seja 50 + 70 módulos de 585 W), e em 26/09
+      o açougue deu 6,71 kWh/kWp contra 4,31 do rancho — **133% do normal**
+      com 20 kWp, 91% com 29,25. Consequência conhecida: quando sair da
+      observação, a saúde vai mostrar o açougue **acima de 100%**, e o "antes"
+      aparece como 59% (seria ~40% com 29,25). A decisão é do Vitor; o número
+      alternativo está aqui caso um dia se confirme a contagem de módulos. **Academia sistema antigo** → mesma nota do
       novo ("prédio realizando sombreamento") e fator `ajustado à mão`.
       **Faltam: Luiz P. Barreto** (73%, único que a saúde marca "conferir
       cadastro") e **Gilberto Av. Brasília** (~70% nos 90 dias antes; hoje
