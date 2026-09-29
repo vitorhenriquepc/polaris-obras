@@ -344,11 +344,20 @@ begin
 
   if coalesce(v_cl.dias, 0) >= 25 then
     t := t || E'\n🌤️ *O tempo em ' || v_nome_mes || '*' || E'\n'
-      || v_cl.sol || ' dias de sol, ' || v_cl.parcial || ' parcialmente nublado' || case when v_cl.parcial = 1 then '' else 's' end
-      || ' e ' || v_cl.nublado || ' nublado' || case when v_cl.nublado = 1 then '' else 's' end || '. '
+      -- os três grupos somam o mês, e a chuva é "desses dias" — não um quarto grupo
+      -- (o Vitor somou 26 + 4 + 1 + 4 = 35 na primeira versão, 29/09)
+      || case when v_cl.dias = extract(day from v_fim) then 'Dos ' || v_cl.dias || ' dias de ' || v_nome_mes || ': '
+              else 'Nos ' || v_cl.dias || ' dias medidos de ' || v_nome_mes || ': ' end
+      || regexp_replace(array_to_string(array_remove(array[
+           case when v_cl.sol > 0 then v_cl.sol || ' de sol' end,
+           case when v_cl.parcial = 1 then '1 parcialmente nublado'
+                when v_cl.parcial > 1 then v_cl.parcial || ' parcialmente nublados' end,
+           case when v_cl.nublado = 1 then '1 nublado'
+                when v_cl.nublado > 1 then v_cl.nublado || ' nublados' end], null), ', '),
+           ', ([^,]*)$', ' e \1') || '. '
       || case when v_cl.dias_chuva = 0 then 'Não choveu.'
-              when v_cl.dias_chuva = 1 then 'Choveu em 1 dia (' || public._rm_num(v_cl.chuva_mm, 0) || ' mm).'
-              else 'Choveu em ' || v_cl.dias_chuva || ' dias (' || public._rm_num(v_cl.chuva_mm, 0) || ' mm no mês).' end
+              when v_cl.dias_chuva = 1 then 'Choveu em 1 desses dias (' || public._rm_num(v_cl.chuva_mm, 0) || ' mm no mês).'
+              else 'Choveu em ' || v_cl.dias_chuva || ' desses dias (' || public._rm_num(v_cl.chuva_mm, 0) || ' mm no mês).' end
       || case when v_rad_ant > 0 and abs(v_cl.rad_media / v_rad_ant - 1) >= 0.05 then
            ' Teve ' || public._rm_num(abs(round((v_cl.rad_media / v_rad_ant - 1) * 100)), 0) || '% '
            || case when v_cl.rad_media > v_rad_ant then 'mais' else 'menos' end || ' sol que ' || v_nome_ant || '.'
