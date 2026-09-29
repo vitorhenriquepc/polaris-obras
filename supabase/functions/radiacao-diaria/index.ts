@@ -1,15 +1,52 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Sol de cada lugar com usina (Open-Meteo, shortwave_radiation_sum), um ponto
-// por grade de 0,1° — usinas vizinhas dividem o ponto. É o que a
-// usinas_saude_calc() usa para tirar o dia nublado da conta: sem esta rodada
-// os dias novos ficam sem sol e a janela da saúde vai secando.
+// Sol e chuva de cada lugar com usina (Open-Meteo, shortwave_radiation_sum e
+// precipitation_sum), um ponto por grade de 0,1° — usinas vizinhas dividem o
+// ponto. É o que a usinas_saude_calc() usa para tirar o dia nublado da conta:
+// sem esta rodada os dias novos ficam sem sol e a janela da saúde vai secando.
+// A chuva é a do lugar da usina, para o resumo mensal (o clima_dia só tem
+// Araçatuba).
+//
+// Na mesma rodada, a bandeira tarifária do mês (ANEEL, dados abertos) vai para
+// bandeira_tarifaria. Falha da ANEEL não derruba o sol: vem em `bandeira.erro`.
 //
 // Chamada pelo cron com {token, dias}. {simular:true} lê a API e devolve a
 // comparação com o que já está gravado, sem gravar nada (regra 3.2).
 
 function json(b: unknown, s = 200) {
   return new Response(JSON.stringify(b), { status: s, headers: { 'Content-Type': 'application/json' } });
+}
+
+// Bandeira tarifária: os últimos 24 meses do conjunto da ANEEL. O valor vem em
+// R$/MWh com vírgula ("18,85", ",00").
+const ANEEL = 'https://dadosabertos.aneel.gov.br/api/3/action/datastore_search'
+  + '?resource_id=0591b8f6-fe54-437b-b72b-1aa2efd46e42&limit=24&sort=DatCompetencia%20desc';
+
+async function lerBandeira(admin: any, simular: boolean) {
+  try {
+    const r = await fetch(ANEEL);
+    if (!r.ok) return { erro: `ANEEL respondeu ${r.status}` };
+    const d = await r.json();
+    const recs: any[] = d?.result?.records || [];
+    const linhas = recs
+      .filter((x) => x?.DatCompetencia && x?.NomBandeiraAcionada)
+      .map((x) => ({
+        mes: String(x.DatCompetencia).slice(0, 7) + '-01',
+        bandeira: String(x.NomBandeiraAcionada).trim(),
+        adicional_r_mwh: Number(String(x.VlrAdicionalBandeira ?? '0').replace(/\./g, '').replace(',', '.')) || 0,
+        fonte: 'ANEEL dados abertos',
+        lido_em: new Date().toISOString(),
+      }));
+    if (!linhas.length) return { erro: 'ANEEL sem registros' };
+    const ultimo = linhas.reduce((m, l) => (l.mes > m.mes ? l : m));
+    if (!simular) {
+      const { error } = await admin.from('bandeira_tarifaria').upsert(linhas, { onConflict: 'mes' });
+      if (error) return { erro: error.message };
+    }
+    return { meses: linhas.length, ultimo_mes: ultimo.mes, ultima: ultimo.bandeira, adicional_r_mwh: ultimo.adicional_r_mwh };
+  } catch (e) {
+    return { erro: String((e as Error)?.message || e) };
+  }
 }
 
 // Araçatuba: o mesmo ponto que a saúde usa para usina sem coordenada
@@ -23,7 +60,7 @@ Deno.serve(async (req) => {
     if (!tok?.valor || (body.token || '') !== tok.valor) return json({ erro: 'Não autorizado.' }, 403);
 
     const simular = body.simular === true;
-    const dias = Math.min(Math.max(parseInt(body.dias ?? '7', 10) || 7, 1), 60);
+    const dias = Math.min(Math.max(parseInt(body.dias ?? '7', 10) || 7, 1), 92);
 
     const { data: us, error: eu } = await admin.from('usinas')
       .select('latitude, longitude').eq('ativa', true);
@@ -42,7 +79,7 @@ Deno.serve(async (req) => {
     const url = 'https://api.open-meteo.com/v1/forecast'
       + `?latitude=${lista.map((p) => p.lat).join(',')}`
       + `&longitude=${lista.map((p) => p.lon).join(',')}`
-      + '&daily=shortwave_radiation_sum&timezone=America%2FSao_Paulo'
+      + '&daily=shortwave_radiation_sum,precipitation_sum&timezone=America%2FSao_Paulo'
       + `&past_days=${dias}&forecast_days=1`;
     const resp = await fetch(url);
     if (!resp.ok) return json({ erro: `Open-Meteo respondeu ${resp.status}` }, 502);
@@ -54,17 +91,21 @@ Deno.serve(async (req) => {
 
     // só dia fechado: o de hoje ainda está acontecendo
     const hoje = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
-    const linhas: { lat: number; lon: number; dia: string; kwh_m2: number; lido_em: string }[] = [];
+    const linhas: { lat: number; lon: number; dia: string; kwh_m2: number; chuva_mm: number | null; lido_em: string }[] = [];
     const agora = new Date().toISOString();
     arr.forEach((d: any, i: number) => {
       const t: string[] = d?.daily?.time || [];
       const v: (number | null)[] = d?.daily?.shortwave_radiation_sum || [];
+      const ch: (number | null)[] = d?.daily?.precipitation_sum || [];
       t.forEach((dia, j) => {
         if (dia >= hoje || v[j] == null) return;
         linhas.push({ lat: lista[i].lat, lon: lista[i].lon, dia,
-                      kwh_m2: Math.round((v[j]! / 3.6) * 1000) / 1000, lido_em: agora });
+                      kwh_m2: Math.round((v[j]! / 3.6) * 1000) / 1000,
+                      chuva_mm: ch[j] == null ? null : Math.round(ch[j]! * 10) / 10, lido_em: agora });
       });
     });
+
+    const bandeira = await lerBandeira(admin, simular);
 
     if (simular) {
       // compara com o que já está gravado, para ver se a fonte bate
@@ -80,13 +121,13 @@ Deno.serve(async (req) => {
       return json({ ok: true, simular: true, nada_gravado: true, pontos: lista.length, linhas: linhas.length,
                     novos, comparados,
                     dif_media_kwh_m2: comparados ? Math.round((somaDif / comparados) * 1000) / 1000 : null,
-                    dif_maior_kwh_m2: Math.round(maiorDif * 1000) / 1000,
+                    dif_maior_kwh_m2: Math.round(maiorDif * 1000) / 1000, bandeira,
                     ultimo_dia: linhas.reduce((m, l) => (l.dia > m ? l.dia : m), '') });
     }
 
     const { error: eg } = await admin.from('radiacao_dia').upsert(linhas, { onConflict: 'lat,lon,dia' });
     if (eg) return json({ erro: eg.message }, 500);
-    return json({ ok: true, pontos: lista.length, linhas: linhas.length,
+    return json({ ok: true, pontos: lista.length, linhas: linhas.length, bandeira,
                   ultimo_dia: linhas.reduce((m, l) => (l.dia > m ? l.dia : m), '') });
   } catch (e) {
     return json({ erro: String((e as Error)?.message || e) }, 500);
