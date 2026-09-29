@@ -5,8 +5,9 @@
 --   VALDECIR RICOBONI (Atual Noivas, 30,25 kWp): zero de 22 a 27/09. Em 26/09
 --   foi anotado Wi-Fi (usinas.causa = 'wifi') e a mensagem 598 saiu em 28/09
 --   17h pedindo ao cliente para conferir a internet. Em 28/09 o Vitor foi ao
---   local: o sistema estava DESLIGADO. Religou à tarde; o SolarView registrou
---   0,25 kWh no fim do dia. Os zeros de 22–27/09 são geração que não
+--   local: o sistema estava DESLIGADO, motivo desconhecido (Vitor, 29/09).
+--   Religou no fim da tarde; 28/09 fechou com 4,51 kWh e em 29/09 às 8h ela
+--   já gerava. Os zeros de 22–27/09 são geração que não
 --   aconteceu — nenhum dia "volta" com a memória do datalogger.
 --
 --   O sinal estava lá o tempo todo: o SolarView dizia "operando" (falava com o
@@ -48,3 +49,12 @@ update usinas
 -- E os dias dela foram relidos na hora pelo solarview-diario (usina_id, 10
 -- dias) — Av. Brasília, Rua São Bernardo e Valdecir: 200, 11 dias cada, 0
 -- falhas. Av. Brasília voltou a "abaixo do esperado · conferir cadastro" (71%).
+
+-- 29/09: nota ajustada com o motivo desconhecido e o dia 28/09 fechado.
+update usinas
+   set causa_nota = replace(replace(causa_nota,
+         'Sistema DESLIGADO desde 22/09 (não era só Wi-Fi).',
+         'Sistema DESLIGADO desde 22/09, motivo desconhecido (Vitor, 29/09); não era só Wi-Fi.'),
+         'SolarView registrou 0,25 kWh no fim do dia.',
+         'Fechou 28/09 com 4,51 kWh (religada no fim da tarde) e em 29/09 já gerava às 8h.')
+ where id = '54ecb8d6-7015-4e9d-a9fa-56839798ffb5';
