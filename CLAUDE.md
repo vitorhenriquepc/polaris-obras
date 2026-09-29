@@ -344,9 +344,45 @@ corrigido** (regra 3.6; só quem entregou sabe). A tela diz *"marcado entregue n
 cadastro de DD/MM · sem data de retirada"* em vez de afirmar o que ninguém
 registrou. Se for preciso a verdade, é conferir com quem entregou.
 
+### Resumo mensal por cliente e bandeira tarifária
+**`resumo_mensal_obra(obra, mes)`** monta o resumo do mês de **um cliente**,
+somando as usinas dele — nasceu em 29/09 com o **GILBERTO (4436)** de modelo,
+a pedido do Vitor: geração e economia do mês e contra o anterior, cada usina,
+o tempo (dias de sol, parcialmente nublados, nublados, dias de chuva e mm, no
+lugar da usina principal), **dias sem geração com o previsto pelo sol**, o
+acumulado desde a instalação, **quanto do investimento já voltou**
+(`valor_projeto`) e a **bandeira tarifária** do mês (e a do mês seguinte, se a
+ANEEL já definiu e mudou). Texto pronto para o grupo, **sem IA**: todo número
+sai do banco. Não grava nada.
+
+⚠️ **"Dias sem geração" não afirma causa.** Antes de 06/09 não existe
+`usina_leitura`, então não dá para saber se a usina parou ou só não comunicou
+— o texto diz *"sem registro de geração"* e o previsto. Só diz *"sem
+comunicação (internet)"* quando o SolarView registrou datalogger offline no
+período. E só conta a partir da **primeira geração** da usina (zero antes
+disso é "não medi", armadilha 5) — sem essa regra, 10 das 15 "interrupções"
+de agosto eram usina recém-ligada.
+
+⚠️ **O resumo de hoje (dia 5, `mensagens-usina-auto`) é outro**: por **usina**,
+escrito pela IA, com teto de 25 por rodada — na simulação de 22/09 a Tays
+aparecia duas vezes e o Gilberto, com 4 usinas, nenhuma. Trocar um pelo
+outro é decisão do Vitor (pendência no §10).
+
+A bandeira vive em **`bandeira_tarifaria`** (mês, nome, R$/MWh), lida da ANEEL
+(dados abertos) pela `radiacao-diaria` todo dia; a chuva de cada lugar, em
+**`radiacao_dia.chuva_mm`**, na mesma rodada.
+
+`usinas.desliga_dias_semana` guarda os dias em que **o cliente desliga a usina
+de propósito** (0 = domingo). Zero nesses dias fica fora da saúde, do
+`usina_estado`, do alerta do `usina-status` e das perdas do resumo. Hoje só a
+**Rua São Bernardo do Gilberto** (`{0,6}`): ele desliga no domingo por receio
+da parte elétrica (Vitor, 29/09), e os dados mostram metade dos sábados e os
+feriados também. Sem a marca, toda segunda-feira a saúde dava **crítico**.
+
 `usinas`, `usina_dia`, `usina_geracao` · `clima_dia` · `v_indice_dia` ·
 `v_indice_regiao` (cidade com 5+ usinas ganha grupo próprio) ·
-`regua_contatos` + `regua_modelos` · `usina_marco` · `nps`
+`regua_contatos` + `regua_modelos` · `usina_marco` · `nps` ·
+`radiacao_dia` · `bandeira_tarifaria`
 
 ### Planos
 `planos` (tabela de preço por faixa de módulos) · `plano_contratos` (o que
@@ -655,6 +691,7 @@ nenhuma delas. Ver pendência no §10.
 | `usina_adicionar(json, simular)` | acrescenta uma usina a um cliente que já existe. **Só soma no total da obra se ela for cliente de plano** — em obra de venda a potência é o projeto vendido, e mexer ali muda o tamanho de uma venda que já aconteceu |
 | `get_brinde_google()` | **quem avaliou no Google e quem recebeu o brinde**, lido direto de `nps` — inclui obra de manutenção, que a Lista não vê. Devolve `entregue_no_cadastro` para separar retirada de verdade de marcação em lote |
 | `usina_editar(json, simular)` | **corrige** uma usina que já existe — nome, potência, cidade, endereço, data de instalação e o vínculo com o SolarView, num caminho só. Chave ausente no json não sobrescreve nada. Devolve `mudancas` e `avisos` em português (potência mexe no kWh/kWp que o cliente lê; endereço mexe em visita e cobrança do Completo), e recusa roubar o id do SolarView de outra usina |
+| `resumo_mensal_obra(obra, mes)` | **o resumo do mês de um cliente**, todas as usinas juntas, com o texto pronto para o grupo e os números em json — geração, economia, tempo, dias sem geração com o previsto, retorno do investimento, bandeira. Sem IA, não grava. Recusa mês aberto e mês da instalação |
 | `usinas_saude()` · `usina_saude(usina)` | **a saúde da usina** (só equipe). Por dia: descarta dia nublado **no lugar da usina** (`radiacao_dia`, Open-Meteo), compara com a **mediana das outras usinas naquele dia** e devolve `nivel` + `estado` + `projeto` + uma `frase` pronta. Sem comunicação é eixo próprio (`sem_sinal`), nunca "atenção"; <70% é "geração muito abaixo do esperado"; "crítico" só comunicando e sem gerar em dia de sol. **Não usa `fator_local`** de propósito. Lê `plano_visita.corrige_geracao` e `usinas.patamar_desde` para o antes × depois da correção |
 
 ---
@@ -666,7 +703,7 @@ nenhuma delas. Ver pendência no §10.
 09h15/13h15/16h15 status das usinas · 10h20 gera mensagens (seg–sex) ·
 10h40 vincula usina nova · 11h resumo da régua (seg–sex) ·
 14h30 geração parcial (seg/qua/sex) · 17h dispara a régua (seg–sex) ·
-**07h10 sol de cada usina** (`radiacao-diaria`, todo dia) ·
+**07h10 sol e chuva de cada usina + bandeira da ANEEL** (`radiacao-diaria`, todo dia) ·
 **9h aviso de autoleitura no dia · 18h aviso da véspera** (seg–sex) ·
 9h aviso de vencimento de plano, D-30 e D-7 (seg–sex) ·
 dia 2 fechamento · dia 5 resumo mensal · dia 6 marcos · dia 10 lembrete de
@@ -725,6 +762,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `saude_rad_min` | 2,5 | kWh/m²/dia no lugar da usina; abaixo disso o dia é nublado e sai da conta |
 | `saude_atencao_pct` · `saude_muito_abaixo_pct` | 85 · 70 | "geração abaixo do esperado" · "geração muito abaixo do esperado" |
 | `saude_critico_dias` | 2 | dias de sol comunicando e sem gerar para virar crítico |
+| `resumo_sol_pct` | 75 | no resumo mensal, "dia de sol" é radiação ≥ 75% do melhor dia do mês no lugar; abaixo de `saude_rad_min` é nublado; o resto, parcialmente nublado |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -1250,7 +1288,7 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
 ## 10. Estado e pendências
 
 **63 usinas ativas** · **56 normais, 4 sem comunicação, 2 sem dado, 1 silenciosa** ·
-**75 obras, 58 ativas** · 32 cron jobs, **todos ativos** (o 32º é o `radiacao-diaria`, 26/09) · 23 chaves de
+**75 obras, 58 ativas** · 32 cron jobs, **todos ativos** (o 32º é o `radiacao-diaria`, 26/09, que desde 29/09 traz também a chuva e a bandeira) · 23 chaves de
 automação em `config`, 22 ligadas — a única desligada é `iptu_envio_ativo`,
 de propósito (ver pendência abaixo). A `solarview_ativo` foi **removida** em
 12/09: estava em 0, ninguém lia, e fazia parecer que o monitoramento estava
@@ -1505,11 +1543,24 @@ Conferido no banco em **22/09/2026**.
       **Faltam: Luiz P. Barreto** (73%, único que a saúde marca "conferir
       cadastro") e **Gilberto Av. Brasília** (~70% nos 90 dias antes; hoje
       está sem comunicação desde 25/09). A resposta vai para `nota_geracao`.
+      ~~Gilberto Rua São Bernardo zerando em fim de semana~~ **não é defeito**:
+      ele desliga no domingo por receio da parte elétrica (Vitor, 29/09).
+      Marcada em `desliga_dias_semana`. Em agosto foram 7 dias desligada,
+      ≈ 509 kWh (≈ R$ 406) pelo sol — o número fica no json do resumo, não
+      vai no texto para o cliente.
       ⚠️ O `fator_local` "calibrado pelo histórico" **absorve** essas diferenças
       e esconde cadastro errado — por isso a saúde **não usa o fator**.
       A **Jaqueline (Guarulhos) saiu da lista**: com a radiação de Guarulhos
       (Open-Meteo, 3,36 kWh/m²/dia em setembro contra 4,62 em Araçatuba) ela
       rende **88–93%** do típico; os "67% das vizinhas" eram o céu de lá.
+- [ ] **Decidir o resumo mensal do dia 5.** O modelo do Gilberto está pronto
+      (`resumo_mensal_obra`), com o `valor_projeto` dele gravado (R$ 103.000
+      em 29/09 — virou receita de maio no DRE pelo `trg_dre_from_obra`). O
+      cron do dia 5 ainda roda o resumo antigo, por usina e pela IA, e a
+      primeira rodada é **05/10**. Trocar é decisão do Vitor; na simulação de
+      22/09 o Gilberto ficou de fora do antigo (teto de 25 usinas). Nos dois casos a mensagem entra como
+      `aguardando` e a Lívia aprova (regra 3.5). A economia usa a tarifa
+      **provisória** (0,7968).
 - [x] **Saúde da usina: no ar desde 28/09** (PR #39). Arquivo publicado baixado,
       idêntico ao repositório, sintaxe validada e o teste do Chromium repetido
       contra ele: 9 de 9. O Vitor aprovou em
