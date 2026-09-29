@@ -452,3 +452,12 @@ begin
     'texto', t);
 end;
 $function$;
+
+-- Ajuste do mesmo dia: o preparo passa do dia 3 para o dia 2. Em outubro o
+-- dia 3 é sábado, o cron só roda seg–sex, e o resumo de setembro entraria na
+-- régua na segunda 05/10 — e como nunca sai no mesmo dia em que entra, iria
+-- para 06/10. O Vitor quer o dia 5. O dia 2 às 9h vem depois do fechamento do
+-- SolarView (geracao-mensal, 8h30 do dia 2).
+update config set valor = '2' where chave = 'resumo_mensal_preparo_dia';
+-- Setembro: entra na sexta 02/10, sai às 9h de 05/10 se aprovado.
+-- Agosto (602): aprovado pelo Vitor no chat em 29/09 13:08, sai às 9h de 30/09.

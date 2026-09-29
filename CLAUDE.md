@@ -368,7 +368,7 @@ de agosto eram usina recém-ligada.
 **Cliente modelo: só o GILBERTO, desde 29/09** (decisão do Vitor). A lista é
 `config.resumo_mensal_obras`. O caminho:
 
-1. **dia 3 em diante, 9h** — a edge function `resumo-mensal` chama
+1. **dia 2 em diante, 9h** (depois do fechamento do SolarView, 8h30 do dia 2) — a edge function `resumo-mensal` chama
    `resumo_mensal_enfileirar()`, que põe o resumo na régua como `aguardando`
    (modelo `resumo_mensal`) e avisa a Lívia;
 2. a Lívia aprova no card de sempre do Pós-venda → Régua;
@@ -729,7 +729,7 @@ nenhuma delas. Ver pendência no §10.
 10h40 vincula usina nova · 11h resumo da régua (seg–sex) ·
 14h30 geração parcial (seg/qua/sex) · 17h dispara a régua (seg–sex) ·
 **07h10 sol e chuva de cada usina + bandeira da ANEEL** (`radiacao-diaria`, todo dia) ·
-**09h resumo do mês do cliente modelo** (`resumo-mensal`, seg–sex: enfileira a partir do dia 3, envia o aprovado no dia 5 ou no próximo dia útil) ·
+**09h resumo do mês do cliente modelo** (`resumo-mensal`, seg–sex: enfileira a partir do dia 2, envia o aprovado no dia 5 ou no próximo dia útil) ·
 **9h aviso de autoleitura no dia · 18h aviso da véspera** (seg–sex) ·
 9h aviso de vencimento de plano, D-30 e D-7 (seg–sex) ·
 dia 2 fechamento · dia 5 resumo mensal · dia 6 marcos · dia 10 lembrete de
@@ -790,7 +790,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `saude_critico_dias` | 2 | dias de sol comunicando e sem gerar para virar crítico |
 | `resumo_mensal_ativo` | 1 | liga o `resumo-mensal` (9h) |
 | `resumo_mensal_obras` | obra do Gilberto | **quem é cliente modelo** — ids de obra separados por vírgula. Quem está aqui sai do resumo da IA |
-| `resumo_mensal_dia` · `resumo_mensal_preparo_dia` | 5 · 3 | dia do envio (ou o próximo dia útil) · a partir de quando o resumo entra na régua para aprovar |
+| `resumo_mensal_dia` · `resumo_mensal_preparo_dia` | 5 · 2 | dia do envio (ou o próximo dia útil) · a partir de quando o resumo entra na régua para aprovar |
 | `resumo_sol_pct` | 75 | no resumo mensal, "dia de sol" é radiação ≥ 75% do melhor dia do mês no lugar; abaixo de `saude_rad_min` é nublado; o resto, parcialmente nublado |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
@@ -1584,8 +1584,10 @@ Conferido no banco em **22/09/2026**.
       rende **88–93%** do típico; os "67% das vizinhas" eram o céu de lá.
 - [ ] **Resumo mensal do cliente modelo (GILBERTO) — primeiro envio.**
       O de **agosto** está na régua (contato **602**, `aguardando`) para sair
-      às **9h de 30/09** se aprovado; o de **setembro** entra sozinho em
-      03/10 e sai às **9h de 05/10** (segunda). O envio real pela Z-API ainda
+      às **9h de 30/09** se aprovado; o de **setembro** entra sozinho na
+      sexta **02/10** às 9h e sai às **9h de 05/10** (segunda), se aprovado.
+      O preparo era no dia 3 — que em outubro cai num sábado e empurraria o
+      envio para 06/10; o Vitor quer o dia 5, então virou dia 2 (29/09). O envio real pela Z-API ainda
       **não foi testado** — o primeiro é o de 30/09. Conferir no grupo.
       `valor_projeto` do Gilberto gravado em 29/09 (R$ 103.000 — virou
       receita de maio no DRE pelo `trg_dre_from_obra`). A economia usa a
