@@ -470,7 +470,20 @@ function logoAtual(){ return (document.documentElement.getAttribute('data-theme'
 function slugify(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function diffDays(a,b){return Math.round((b-a)/86400000);}
-function parseDate(s){if(!s)return null;const d=new Date(s);return isNaN(d)?null:d;}
+/* Data pura do banco ("2026-10-07") e DIA, nao instante. `new Date('2026-10-07')`
+   le como meia-noite UTC = 21h do dia 06 em Brasilia, e tudo que vinha dela
+   (dia, dia da semana, "vence em X dias") saia um dia antes. Foi assim que o
+   aviso da vistoria dizia "ate 06/10 (terca)" para um prazo de 07/10 (quarta),
+   como se os 5 dias uteis contassem a partir do proprio dia da solicitacao
+   (Vitor, 30/09). Data pura vira meia-noite LOCAL; timestamp continua igual. */
+function parseDate(s){if(!s)return null;
+  var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s));
+  var d=m?new Date(+m[1],+m[2]-1,+m[3]):new Date(s);
+  return isNaN(d)?null:d;}
+/* "hoje" no calendario de Brasilia. toISOString() e UTC: depois das 21h ja
+   devolvia amanha, e a vistoria pedida as 22h ficava registrada no dia seguinte. */
+function hojeLocal(){var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function diasAtras(iso){const d=parseDate(iso);if(!d)return '';const n=diffDays(d,new Date());return n<=0?'hoje':(n===1?'ontem':'há '+n+'d');}
 function toast(m){let t=document.getElementById('tst');if(!t){t=document.createElement('div');t.id='tst';t.className='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2600);}
 function temaAtual(){try{return localStorage.getItem('polaris-tema')||'dark'}catch(_){return 'dark'}}
@@ -1156,8 +1169,8 @@ if(!o||o.etapa_numero===n) return;
 await mudarEtapa(id,n);
 }
 let travaEdit=null, CPFL_ANTES=null, DTI_ANTES=null;
-function fmtD(d){ if(!d) return ''; try{ const x=new Date(d);
-  return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0'); }catch(e){ return ''; } }
+function fmtD(d){ if(!d) return ''; const x=parseDate(d); if(!x) return '';
+  return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0'); }
 function prazoHtml(o){
   if(!o.cpfl_prazo_em) return '';
   const p=parseDate(o.cpfl_prazo_em);
@@ -1178,7 +1191,12 @@ async function previaCpfl(){
   const r=await sb.rpc('soma_dias_uteis',{p_inicio:v,p_dias:5});
   if(r.error||!r.data){ box.innerHTML='<span class="mut">não foi possível calcular</span>'; return; }
   box.innerHTML=prazoHtml({cpfl_prazo_em:r.data});
-  if(acao) acao.innerHTML='<div class="okAviso" style="color:#F5A623">📣 Ao salvar, o cliente é avisado no grupo automaticamente.</div>';
+  const r1=await sb.rpc('soma_dias_uteis',{p_inicio:v,p_dias:1});
+  if(!r1.error && r1.data) box.innerHTML+='<span class="mut" style="margin-left:6px">· conta a partir de '+fmtD(r1.data)+'</span>';
+  const et=parseInt((document.getElementById('f_et')||{}).value,10)||0;
+  if(acao) acao.innerHTML='<div class="okAviso" style="color:#F5A623">📣 Ao salvar, '
+    +(et<ETAPA_VISTORIA?'a obra vai para <b>Vistoria e Conexão</b> e ':'')
+    +'o cliente recebe <b>uma</b> mensagem no grupo com o prazo.</div>';
 }
 function tarjaTravaK(o){
   if(!o.trava) return '';
@@ -1192,26 +1210,44 @@ function cpflVenceu(o){
   const p=parseDate(o.cpfl_prazo_em); if(!p) return false;
   return diffDays(new Date(),p) < 0;
 }
-// dispara sozinho depois que a obra é salva com a data da CPFL
-async function avisarCpfl(id){
+/* A mensagem da VISTORIA e uma so, e sai daqui. O texto vem do banco
+   (cpfl_texto), com o prazo que o proprio banco calculou: 5 dias uteis
+   contados a partir do dia util SEGUINTE a solicitacao. Todos os caminhos
+   chegam aqui -- preencher a data no card, escolher a etapa 7 no card,
+   arrastar para a 7 no kanban e o botao 📣 -- e o banco diz se o cliente ja
+   leu ESTA data (cpfl_avisado_em, que zera quando a data muda). Assim nao sai
+   duas vezes a mesma noticia no grupo (Vitor, 30/09).
+   Ate 30/09 havia dois textos (este e o buildWA da etapa 7) e dois caminhos
+   que mandavam sem saber um do outro; e o daqui estava QUEBRADO desde 27/08
+   (cpfl_texto usava uma variavel que nao existia).
+   forcar = o 📣, reenvio pedido por uma pessoa. */
+function temVistoria(o){ return ((o&&o.trilha)||'padrao')==='padrao'; }
+async function avisarCpfl(id, forcar){
   const t=await sb.rpc('cpfl_texto',{p_obra:id});
   if(t.error||!t.data||t.data.erro){
-    toast('CPFL: '+((t.data&&t.data.erro)||'não foi possível montar o aviso'));
+    toast('Vistoria: '+((t.data&&t.data.erro)||'não foi possível montar o aviso'));
     return false;
   }
   const d=t.data;
-  try{
-    const { data:sess } = await sb.auth.getSession();
-    const r=await fetch(SUPABASE_URL+'/functions/v1/notificar-grupo',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+sess.session.access_token},
-      body:JSON.stringify({grupo_id:d.grupo, message:d.texto})
-    });
-    const res=await r.json().catch(()=>({}));
-    if(!r.ok||res.error){ toast('CPFL: erro ao avisar — '+(res.error||r.status)); return false; }
-  }catch(e){ toast('CPFL: falha de conexão ao avisar'); return false; }
-  await sb.rpc('cpfl_marcar_avisado',{p_obra:id});
-  toast('📣 '+d.cliente+' avisado no grupo — vistoria até '+fmtD(d.prazo));
+  if(!d.grupo){ toast('Vistoria salva, mas o cliente não foi avisado: esta obra não tem grupo'); return false; }
+  if(!forcar){
+    if(d.ja_avisado){ toast('O cliente já foi avisado desta vistoria em '+fmtD(d.ja_avisado)+' — nada novo a mandar'); return 'ja'; }
+    if(d.mesmo_prazo){
+      await sb.rpc('cpfl_marcar_avisado',{p_obra:id});
+      toast('O prazo continua '+fmtD(d.prazo)+' — o cliente já tinha essa data, nada foi enviado');
+      return 'ja';
+    }
+    // data antiga esquecida no card: prazo que ja passou nao vira mensagem sozinho
+    if(d.prazo && d.prazo < hojeLocal()){
+      toast('O prazo desta vistoria ('+fmtD(d.prazo)+') já passou. Confira a data da solicitação; para mandar assim mesmo, use o 📣');
+      return false;
+    }
+  }
+  const r=await invokeFn('notificar-grupo',{grupo_id:d.grupo, message:d.texto});
+  if(r.error){ toast('Vistoria: o aviso no grupo falhou ('+r.error+'). Use o 📣 para reenviar'); return false; }
+  const m=await sb.rpc('cpfl_marcar_avisado',{p_obra:id});
+  if(m.error) toast('Aviso enviado, mas não consegui registrar: '+m.error.message);
+  else toast('📣 '+d.cliente+' avisado no grupo — vistoria até '+fmtD(d.prazo)+(d.correcao?' (data corrigida)':''));
   return true;
 }
 function travaBotoes(o){
@@ -1370,7 +1406,7 @@ async function abrirLinha(id){
         +(e.detalhe?'<div class="ltx">'+esc(e.detalhe)+'</div>':'')+'</div>';
     }).join('') : '<div class="ltx">nada registrado ainda</div>';
   var sel=NOTA_TIPOS.map(function(t){return '<option value="'+t[0]+'">'+t[1]+'</option>';}).join('');
-  var hoje=new Date().toISOString().slice(0,10);
+  var hoje=hojeLocal();
   w.innerHTML='<div class="mbox" onclick="event.stopPropagation()">'
     +'<div class="mtit">Linha do tempo <span>'+esc(o.cliente||'')+'</span></div>'
     +'<div class="ltbox">'+lista+'</div>'
@@ -1428,7 +1464,7 @@ const ETAPA_CONCLUSAO = 8;
 function dataDeConclusao(etapaNova, oAntes){
   if(parseInt(etapaNova,10) !== ETAPA_CONCLUSAO) return null;
   if(oAntes && oAntes.data_conclusao) return null;
-  return new Date().toISOString().slice(0,10);
+  return hojeLocal();
 }
 
 async function mudarEtapa(id,n){
@@ -1443,22 +1479,24 @@ if(mudou && n===ETAPA_VISTORIA && (o.trilha||'padrao')!=='manutencao' && !o.acei
     +'O aceite é o que mostra que o cliente conferiu as fotos antes da vistoria.\n\n'
     +'Avançar mesmo assim?')) return;
 }
-// Vistoria e Conexão: registra a solicitação e calcula o prazo real da CPFL
-let prazoCpfl=null;
-if(mudou && n===ETAPA_VISTORIA && (o.trilha||'padrao')!=='manutencao'){
-  const hoje=new Date().toISOString().slice(0,10);
-  if(!o.cpfl_solicitado_em) patch.cpfl_solicitado_em=hoje;
-  try{
-    const rp=await sb.rpc('soma_dias_uteis',{p_inicio:patch.cpfl_solicitado_em||o.cpfl_solicitado_em,p_dias:5});
-    if(!rp.error && rp.data) prazoCpfl=rp.data;
-  }catch(e){}
-}
+// Vistoria e Conexão: sem data, a vistoria foi pedida hoje. O prazo quem
+// calcula e o banco (trg_cpfl), e a mensagem e a UNICA da vistoria (avisarCpfl)
+// -- se o cliente ja leu esta data, nada sai de novo.
+const ehVistoria = mudou && n===ETAPA_VISTORIA && temVistoria(o);
+if(ehVistoria && !o.cpfl_solicitado_em) patch.cpfl_solicitado_em=hojeLocal();
 const { error } = await sb.from('obras').update(patch).eq('id',id);
-if(error){ toast('Erro ao salvar'); return; }
+if(error){ toast('Erro ao salvar: '+error.message); return; }
+if(ehVistoria){
+  await loadObras();
+  if(!o.whatsapp_grupo_id){ toast('Etapa atualizada. O cliente não foi avisado: esta obra não tem grupo'); return; }
+  toast('Etapa atualizada ✓ Avisando o grupo da vistoria... 📣');
+  await avisarCpfl(id);
+  return;
+}
 // 📣 Notificação automática no grupo do cliente
 if(mudou && o.whatsapp_grupo_id){
 toast('Etapa atualizada ✓ Avisando o grupo... 📣');
-const oNovo=Object.assign({},o,patch,{_prazoCpfl:prazoCpfl});
+const oNovo=Object.assign({},o,patch);
 sb.functions.invoke('notificar-grupo',{body:{grupo_id:o.whatsapp_grupo_id,message:buildWA(oNovo)}})
 .then(r=>{
 if(r.error||(r.data&&r.data.error)) toast('⚠️ Etapa salva, mas o aviso no grupo falhou — use o 📣 pra reenviar');
@@ -1904,26 +1942,10 @@ return `☀️ *${o.cliente}*, seu sistema solar foi *ativado*! Parabéns! 🚀\
 //
 // O anuncio do relatorio ja e feito pelo foto-obra, com a contagem real de
 // fotos, no momento em que o relatorio passa a existir. Aqui era duplicata.
-// Vistoria e Conexão: mensagem única, com a data calculada e o que o cliente precisa fazer
-if(o.etapa_numero===7 && !_elet && (o.trilha||'padrao')!=='manutencao'){
-  const pz=o._prazoCpfl||o.cpfl_prazo_em;
-  const sem=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
-  const pd=pz?parseDate(pz):null;
-  let m=`☀️ *${o.cliente}*, boa notícia!\n\n`
-    +`Sua instalação foi concluída e já solicitamos a *vistoria da ${nomeConc(o)}*.\n\n`;
-  if(pz){
-    m+=`A concessionária tem até *5 dias úteis* para fazer a inspeção e a troca do medidor `
-      +`— o que deve acontecer até *${fmtD(pz)}*${pd?' ('+sem[pd.getDay()]+')':''}.\n\n`;
-  } else {
-    m+=`A concessionária tem até *5 dias úteis* para fazer a inspeção e a troca do medidor.\n\n`;
-  }
-  m+=`Não precisa fazer nada. Só é importante que alguém esteja no local para dar acesso `
-    +`ao padrão, e que o portão esteja destrancado se o medidor ficar dentro.\n\n`
-    +`Assim que o medidor for trocado, seu sistema é ligado e começa a gerar. 💚\n\n`
-    +`Acompanhe sua obra aqui:\n${CLIENT_BASE_URL}?id=${o.slug}\n\n`
-    +`*Equipe Polaris Energia Solar* ☀️`;
-  return m;
-}
+// A etapa 7 da trilha padrao (vistoria) NAO tem texto aqui: ele mora no banco
+// (cpfl_texto) e sai por avisarCpfl(), o caminho unico. Ate 30/09 havia aqui
+// uma segunda versao, que escrevia o prazo um dia antes (fmtD lia a data em
+// UTC) e mandava por fora do controle de "ja avisado".
 let msg=`Olá *${o.cliente}*! 👋\n\n`;
 if(e.mensagem_wa) msg+=e.mensagem_wa+'\n\n';
 msg+=`📍 Etapa atual: *${(e.nome||'').replace('!','')}*`;
@@ -1931,9 +1953,14 @@ if(e.prazo_texto) msg+=`\n⏱️ ${e.prazo_texto}`;
 msg+=`\n\nVocê pode acompanhar sua obra em tempo real neste link:\n${CLIENT_BASE_URL}?id=${o.slug}\n\n*Equipe Polaris Energia Solar* ☀️`;
 return msg;
 }
-function enviarWA(id){
+async function enviarWA(id){
 const o=getObra(id); const fone=waPhone(o.telefone);
-const msg=buildWA(o);
+let msg=buildWA(o);
+if(temVistoria(o) && o.etapa_numero===ETAPA_VISTORIA){
+  const t=await sb.rpc('cpfl_texto',{p_obra:id});
+  if(t.error||!t.data||t.data.erro){ toast('Vistoria: '+((t.data&&t.data.erro)||'não foi possível montar o texto')); return; }
+  msg=t.data.texto;
+}
 if(!fone){
 toast('Cadastre o WhatsApp do cliente primeiro');
 openForm(id, true); return;
@@ -2062,7 +2089,7 @@ ${ehMan?'':`
 <div class="travasel" id="travaSel">${travaBotoes(o)}</div>
 <input id="f_travaobs" value="${esc(o.trava_obs||'')}" placeholder="Observação (opcional): protocolo, nome do contato..." style="margin-top:7px">
 </div>`}
-${(ehMan || (o.etapa_numero||0) < ETAPA_MOSTRA_VISTORIA)?'':`
+${(!temVistoria(o) || (o.etapa_numero||0) < ETAPA_MOSTRA_VISTORIA)?'':`
 <div class="fld" ${o.etapa_numero>=8?'style="opacity:.55"':''}><label>Vistoria da concessionária solicitada em ${o.etapa_numero>=8?'<span style="color:#58b868;font-weight:700">· sistema já ativo</span>':''}</label>
 <div class="grid2" style="gap:8px">
 <input id="f_cpfl" type="date" value="${o.cpfl_solicitado_em||''}" onchange="previaCpfl()" ${o.etapa_numero>=8?'disabled':''}>
@@ -2141,6 +2168,7 @@ if(focoFone) setTimeout(()=>document.getElementById('f_tel').focus(),50);
 window._dtiAntes = o.data_instalacao || null;
 window._instAntes = o.instalador_id || null;
 window._etapaAntes = id ? o.etapa_numero : null;   // obra nova nao tem etapa de antes
+CPFL_ANTES = id ? (o.cpfl_solicitado_em||null) : null;
 if(id) sb.rpc('is_admin').then(r=>{ const rd=document.getElementById('rowDel'); if(r.data&&rd) rd.style.display=''; });
 document.getElementById('f_save').onclick = ()=> salvarForm(id);
 }
@@ -2229,6 +2257,13 @@ tem_estrutura:ckOuMantem('f_est','tem_estrutura'),
 tem_cabo:ckOuMantem('f_cab','tem_cabo'),
 whatsapp_grupo_id:document.getElementById('f_grp').value.trim()||null
 };
+// Etapa 7 escolhida aqui sem data da solicitação: a vistoria foi pedida hoje,
+// igual a arrastar no kanban. (O contrario -- data preenchida com a obra antes
+// da 7 -- o banco resolve: o trg_cpfl leva a obra para a 7.)
+if(id && _oA && temVistoria(rec) && rec.etapa_numero===ETAPA_VISTORIA
+   && (_oA.etapa_numero||0)!==ETAPA_VISTORIA && !rec.cpfl_solicitado_em){
+  rec.cpfl_solicitado_em = hojeLocal();
+}
 document.getElementById('f_save').textContent='Salvando...';
 let error;
 if(id){ ({ error } = await sb.from('obras').update(rec).eq('id',id)); }
@@ -2238,15 +2273,6 @@ rec.slug = await slugUnico(slugify(cli));
 }
 if(error){ toast('Erro: '+error.message); document.getElementById('f_save').textContent='Salvar'; return; }
 
-// CPFL: se a data foi preenchida ou mudou nesta gravação, avisa o cliente sozinho
-let avisouCpfl = false;
-if(id){
-  const cpflNovo = document.getElementById('f_cpfl') ? (document.getElementById('f_cpfl').value||null) : null;
-  if(cpflNovo && cpflNovo !== CPFL_ANTES){
-    document.getElementById('f_save').textContent='Avisando o cliente...';
-    avisouCpfl = await avisarCpfl(id);
-  }
-}
 fecharForm();
 toast(id?'Obra salva ✓':'Obra criada ✓');
 const dtiDepois = rec.data_instalacao || null;
@@ -2262,13 +2288,18 @@ const oAtual = id ? getObra(id) : OBRAS.find(o => o.slug === rec.slug);
 // Ate 15/09 so o kanban avisava: mudarEtapa() chamava o notificar-grupo, e este
 // caminho gravava etapa_numero direto e passava calado. Quem trocasse a etapa
 // pelo formulario via "Obra salva" e ia embora achando que o cliente soube.
-if(id && oAtual && window._etapaAntes != null && rec.etapa_numero !== window._etapaAntes){
+// A etapa que vale e a do banco DEPOIS de salvar: preencher a data da vistoria
+// leva a obra para a 7 pelo trg_cpfl, sem ninguem mexer na etapa.
+const etapaMudou = !!(id && oAtual && window._etapaAntes != null && oAtual.etapa_numero !== window._etapaAntes);
+const dataVistMudou = !!(id && (rec.cpfl_solicitado_em||null) !== (CPFL_ANTES||null));
+const ehVistoria = !!(id && oAtual && temVistoria(oAtual) && oAtual.etapa_numero===ETAPA_VISTORIA
+                      && oAtual.cpfl_solicitado_em && (dataVistMudou || etapaMudou));
+if(ehVistoria){
+  // UMA mensagem: a da vistoria, com o prazo. A da etapa 7 seria a mesma noticia.
+  await avisarCpfl(id);
+} else if(etapaMudou){
   if(!oAtual.whatsapp_grupo_id){
     toast('Etapa salva, mas o cliente nao foi avisado: esta obra nao tem grupo');
-  } else if(avisouCpfl){
-    // o aviso da CPFL saiu nesta mesma gravacao e diz a mesma coisa da etapa 7;
-    // mandar os dois seria a mesma noticia duas vezes no grupo do cliente
-    toast('Cliente avisado da vistoria no grupo');
   } else {
     toast('Etapa atualizada. Avisando o grupo...');
     const rEt = await invokeFn('notificar-grupo',
@@ -2403,6 +2434,12 @@ await loadObras();
 async function notificarGrupo(id){
 const o=getObra(id);
 if(!o.whatsapp_grupo_id){ toast('Esta obra ainda não tem grupo'); return; }
+if(temVistoria(o) && o.etapa_numero===ETAPA_VISTORIA){
+  if(!confirm('Reenviar o aviso da vistoria no grupo do cliente?')) return;
+  await avisarCpfl(id, true);
+  await loadObras();
+  return;
+}
 if(!confirm('Enviar a mensagem da etapa atual no grupo do cliente?')) return;
 toast('Enviando...');
 const r = await invokeFn('notificar-grupo', { grupo_id:o.whatsapp_grupo_id, message:buildWA(o) });
