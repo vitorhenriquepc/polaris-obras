@@ -714,6 +714,7 @@ nenhuma delas. Ver pendência no §10.
 | `usina_adicionar(json, simular)` | acrescenta uma usina a um cliente que já existe. **Só soma no total da obra se ela for cliente de plano** — em obra de venda a potência é o projeto vendido, e mexer ali muda o tamanho de uma venda que já aconteceu |
 | `get_brinde_google()` | **quem avaliou no Google e quem recebeu o brinde**, lido direto de `nps` — inclui obra de manutenção, que a Lista não vê. Devolve `entregue_no_cadastro` para separar retirada de verdade de marcação em lote |
 | `usina_editar(json, simular)` | **corrige** uma usina que já existe — nome, potência, cidade, endereço, data de instalação e o vínculo com o SolarView, num caminho só. Chave ausente no json não sobrescreve nada. Devolve `mudancas` e `avisos` em português (potência mexe no kWh/kWp que o cliente lê; endereço mexe em visita e cobrança do Completo), e recusa roubar o id do SolarView de outra usina |
+| `cpfl_texto(obra)` | **o texto único da vistoria da concessionária**: conta a partir do próximo dia útil, prazo com dia da semana, link do cliente; vira *"Atualização da vistoria"* quando o prazo que o cliente leu mudou. Devolve `ja_avisado` e `mesmo_prazo` para a tela não mandar duas vezes. Só trilha padrão |
 | `resumo_mensal_obra(obra, mes)` | **o resumo do mês de um cliente**, todas as usinas juntas, com o texto pronto para o grupo e os números em json — geração, economia, tempo, dias sem geração com o previsto, retorno do investimento, bandeira. Sem IA, não grava. Recusa mês aberto e mês da instalação |
 | `resumo_mensal_enfileirar(mes, envio, simular)` | põe na régua, como `aguardando`, o resumo das obras do cliente modelo; envio no dia 5 ou no próximo dia útil, nunca hoje; um por obra por mês |
 | `proximo_dia_util(data)` | o primeiro dia útil em `data` ou depois — pula sábado, domingo e `feriados` (o `dia_util_ate` anda para trás e não olha feriado) |
@@ -1312,6 +1313,48 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     **Troca de inversor, ampliação e limpeza pesada são o mesmo caso**: se
     mudou o que a usina consegue gerar, a data tem de virar `patamar_desde`.
 
+30. **Data pura lida como instante sai um dia antes — e o aviso da vistoria
+    estava quebrado havia um mês.** O Vitor viu em 30/09 que o prazo da CPFL
+    parecia contar a partir do próprio dia da solicitação. **A conta do banco
+    sempre esteve certa**: `soma_dias_uteis` pula o dia pedido e conta a partir
+    do próximo dia útil (pedido 30/09 → conta de 01/10 → prazo 07/10, quarta).
+    O erro era a **tela**: `fmtD()` fazia `new Date('2026-10-07')`, que o
+    navegador lê como meia-noite **UTC** = 21h do dia 06 em Brasília. O cliente
+    lia *"até 06/10 (terça)"*. O mesmo defeito deixava o dia da semana errado,
+    o "Vistoria até" do kanban um dia antes e, com `toISOString()`, a vistoria
+    pedida depois das 21h ia para o dia seguinte. Hoje `parseDate()` lê
+    `AAAA-MM-DD` como **data local** e `hojeLocal()` é o "hoje" de Brasília.
+    **Data de coluna `date` nunca passa por `new Date(string)` direto.**
+
+    ⚠️ **E o outro caminho estava morto desde 27/08 19:15 UTC.** A migração
+    `concessionaria_por_obra` trocou "CPFL" por `v_obra.concessionaria` dentro
+    da `cpfl_texto` — variável que não existe na função —, e ela passou a dar
+    `missing FROM-clause entry for table "v_obra"` **toda vez**. Era ela que
+    avisava o cliente quando a data era preenchida no card. O último aviso é
+    de 27/08 17:55 (EDVALDO); **7 obras** tiveram a data preenchida depois e
+    nenhuma foi avisada por esse caminho. Nada acusou: a tela mostrava um
+    toast de erro e seguia. É a armadilha 2 do outro lado: **função plpgsql
+    compila no primeiro uso**, então o `create or replace` passou limpo.
+    **Depois de mexer numa função, chame ela uma vez.**
+
+    ⚠️ **Eram dois textos e dois caminhos.** O `buildWA()` da etapa 7 (arrastar
+    no kanban) e a `cpfl_texto` (data no card) diziam a mesma notícia sem saber
+    um do outro. Desde 30/09 o texto é **um só**, no banco, e sai por
+    `avisarCpfl()` — o card, o kanban, o 📣 e o WhatsApp pessoal passam por
+    ele. **Preencher a data leva a obra para a etapa 7** (`trg_cpfl`, na trilha
+    padrão), `cpfl_avisado_em` zera quando a data muda e `cpfl_avisado_prazo`
+    guarda o prazo que o cliente leu: data nova com o mesmo prazo não manda
+    nada, prazo novo manda **"Atualização da vistoria"**, e prazo já vencido
+    não sai sozinho (só pelo 📣). O `foto-obra` parou de prometer *"Prazo: 1 a
+    5 dias úteis"* ao levar a obra para a 7: a vistoria ainda nem foi pedida —
+    agora diz que o prazo chega quando ela for solicitada.
+
+    Testado: simulação no banco com rollback (dias úteis com fim de semana e
+    feriado de 12/10 e 02/11, etapa 6 → 7, correção, manutenção, sem login),
+    datas da tela em dois fusos, 17 cenários no Chromium com o gatilho imitado
+    (38 verificações, 5 execuções seguidas sem falha; a versão antiga falha em
+    20), e o fluxo de gravação real da tela em obras reais com rollback.
+
 ---
 
 ## 10. Estado e pendências
@@ -1582,13 +1625,23 @@ Conferido no banco em **22/09/2026**.
       A **Jaqueline (Guarulhos) saiu da lista**: com a radiação de Guarulhos
       (Open-Meteo, 3,36 kWh/m²/dia em setembro contra 4,62 em Araçatuba) ela
       rende **88–93%** do típico; os "67% das vizinhas" eram o céu de lá.
+- [ ] **Vistorias abertas depois do conserto de 30/09 (armadilha 30).** Nada
+      foi enviado nem mudado nelas — é decisão de quem acompanha:
+      **JACIR ZATT (4143)** solicitada 24/09, prazo **01/10**, e o cliente
+      nunca recebeu o aviso com data (a `cpfl_texto` estava quebrada);
+      **LUCIANA CORDEIRO (4750)** está na **etapa 6** com vistoria pedida em
+      18/09 (prazo 25/09, vencido) — o card nunca foi avançado;
+      **VANESSA AMORIM (4808)** e **RODRIGO JUNCAL (4402)** estão na 7 pelo
+      instalador (29/09 e 28/09) **sem data** — quando a Lívia preencher,
+      sai a mensagem da vistoria, uma só.
 - [ ] **Resumo mensal do cliente modelo (GILBERTO) — primeiro envio.**
       O de **agosto** está na régua (contato **602**, `aguardando`) para sair
       às **9h de 30/09** se aprovado; o de **setembro** entra sozinho na
       sexta **02/10** às 9h e sai às **9h de 05/10** (segunda), se aprovado.
       O preparo era no dia 3 — que em outubro cai num sábado e empurraria o
-      envio para 06/10; o Vitor quer o dia 5, então virou dia 2 (29/09). O envio real pela Z-API ainda
-      **não foi testado** — o primeiro é o de 30/09. Conferir no grupo.
+      envio para 06/10; o Vitor quer o dia 5, então virou dia 2 (29/09). **Agosto saiu em 30/09 às
+      09:00:05** (cron 200, `enviados: ["GILBERTO JOSE"]`, contato 602
+      `enviado`) — o envio real pela Z-API está provado.
       `valor_projeto` do Gilberto gravado em 29/09 (R$ 103.000 — virou
       receita de maio no DRE pelo `trg_dre_from_obra`). A economia usa a
       tarifa **provisória** (0,7968).

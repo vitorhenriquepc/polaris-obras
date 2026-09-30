@@ -244,7 +244,16 @@ Deno.serve(async (req: Request) => {
       // para a etapa *.*", que foi o que o cliente leu em 17/09
       if (avancou && proxNome) {
         msgFinal += `\n\n✅ Sua obra avançou para a etapa *${proxNome}*.`;
-        if (proxPrazo) msgFinal += `\n⏱️ ${proxPrazo}`;
+        // Na etapa da vistoria (7 da padrão) o prazo genérico da tabela ("1 a 5
+        // dias úteis") prometia um prazo que ainda nem começou: a vistoria só é
+        // pedida depois, e quem avisa com a DATA certa é o painel, numa mensagem
+        // só (cpfl_texto, Vitor 30/09). Aqui fica só o que vem a seguir.
+        if (trilha === 'padrao' && etapaDestino === 7) {
+          const conc = String(obra.concessionaria || '').trim() || 'concessionária de energia';
+          if (!obra.cpfl_solicitado_em) {
+            msgFinal += `\n⏱️ Assim que solicitarmos a vistoria da ${conc}, avisamos aqui com a data prevista.`;
+          }
+        } else if (proxPrazo) msgFinal += `\n⏱️ ${proxPrazo}`;
         msgFinal += `\n\nAcompanhe em tempo real:\n${linkCli}`;
       }
       msgFinal += `\n\n*Equipe Polaris Energia Solar* ☀️`;
