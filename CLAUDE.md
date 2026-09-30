@@ -1629,8 +1629,17 @@ Conferido no banco em **22/09/2026**.
       foi enviado nem mudado nelas — é decisão de quem acompanha:
       **JACIR ZATT (4143)** solicitada 24/09, prazo **01/10**, e o cliente
       nunca recebeu o aviso com data (a `cpfl_texto` estava quebrada);
-      **LUCIANA CORDEIRO (4750)** está na **etapa 6** com vistoria pedida em
-      18/09 (prazo 25/09, vencido) — o card nunca foi avançado;
+      **LUCIANA CORDEIRO (4750)** foi para a 7 às **15:00 de 30/09** pela
+      Lívia, com a **página antiga ainda aberta no navegador** (o conserto
+      tinha subido às 14:59). Saiu no grupo o texto antigo, com a data de
+      18/09 e o prazo 25/09 lido um dia antes: *"até 24/09 (quinta)"* —
+      data já passada. O aviso foi registrado (`cpfl_avisado_em` 18:00:17
+      UTC, `cpfl_avisado_prazo` 25/09) para que, **se a data certa for 25/09**
+      e a Lívia corrigir na página nova, saia a *"📅 Atualização da vistoria"*
+      (conta de 28/09, até **02/10, sexta**) em vez de um segundo "Boa
+      notícia". Simulado com rollback antes de gravar. **Lição: a página
+      aberta desde de manhã roda o código de manhã — depois de publicar,
+      Ctrl+F5 em todo computador da equipe.**
       **VANESSA AMORIM (4808)** e **RODRIGO JUNCAL (4402)** estão na 7 pelo
       instalador (29/09 e 28/09) **sem data** — quando a Lívia preencher,
       sai a mensagem da vistoria, uma só.
