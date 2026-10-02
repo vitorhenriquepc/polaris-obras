@@ -823,7 +823,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `saude_atencao_pct` · `saude_muito_abaixo_pct` | 85 · 70 | "geração abaixo do esperado" · "geração muito abaixo do esperado" |
 | `saude_critico_dias` | 2 | dias de sol comunicando e sem gerar para virar crítico |
 | `resumo_mensal_ativo` | 1 | liga o `resumo-mensal` (9h) |
-| `resumo_mensal_obras` | obras do Gilberto e do Júnior Bassetto (manutenção) | **quem é cliente modelo** — ids de obra separados por vírgula. Quem está aqui sai do resumo da IA |
+| `resumo_mensal_obras` | obras do Gilberto e do UNI AUTO POSTO (Júnior Bassetto) | **quem é cliente modelo** — ids de obra separados por vírgula. Quem está aqui sai do resumo da IA |
 | `resumo_mensal_dia` · `resumo_mensal_preparo_dia` | 5 · 2 | dia do envio (ou o próximo dia útil) · a partir de quando o resumo entra na régua para aprovar |
 | `resumo_sol_pct` | 75 | no resumo mensal, "dia de sol" é radiação ≥ 75% do melhor dia do mês no lugar; abaixo de `saude_rad_min` é nublado; o resto, parcialmente nublado |
 
@@ -1732,26 +1732,34 @@ Conferido no banco em **22/09/2026**.
       simulação a fonte bateu **exatamente** (diferença 0,000 kWh/m² em 210
       linhas) com a carga inicial.
 - [x] ~~Decidir: monitorar Fatima Rino (3067) e o Bassetto?~~ **Bassetto
-      sim, desde 02/10** (Vitor): cortesia, acompanhamento das usinas e resumo
-      do cliente modelo. A Fatima continua fora.
-- [ ] **JÚNIOR BASSETTO — resumo de setembro no dia 05/10.** Feito em 02/10:
-      usina **Fundadores** (Auxsol, 30 kWp) criada na obra de manutenção
-      (`manutencao-bassetto-2026-08`), ligada ao SolarView **960239** e
-      conferida pela série (setembro 3.797 kWh e outubro 60,16 kWh, iguais ao
-      app), histórico de antes de maio gravado, `chamar_de = 'Júnior'`, obra
-      em `resumo_mensal_obras`. Aparece no pós-venda → Usinas como *normal*.
-      **Falta, do Vitor:** (1) potência, cidade e data de instalação das duas
-      SolarEdge (a fazenda solar fica em -21,6055 / -50,4722); (2) setembro
-      delas — o app mostra 9,6 e 10,6 MWh **só até 29/09** e parou de
-      atualizar na terça (as duas sem comunicação desde então?); (3) a data de
-      instalação da Fundadores (o SolarView diz 05/05/2026, o app tem geração
-      em 2025); (4) início da cortesia — **não há contrato de plano nenhum**
-      para ele; simulado Essencial · cortesia · 12 meses, não gravado, porque
-      o fim dispara o aviso que sai direto ao cliente. O aniversário (29/01)
-      está na obra do eletroposto (4674) e só dispara quando ela chegar à
-      etapa 8 — `aniversariantes_hoje` corta em `etapa >= 8`.
-      ⚠️ **Se o resumo não for enfileirado à mão até domingo, o cron de
-      segunda 9h enfileira só com a Fundadores** (e para 06/10).
+      sim, desde 02/10** (Vitor): acompanhamento das usinas e resumo do
+      cliente modelo, pela obra do UNI AUTO POSTO. A Fatima continua fora.
+- [ ] **JÚNIOR BASSETTO = UNI AUTO POSTO — resumo de setembro no dia 05/10.**
+      ⚠️ **O Júnior é o dono do UNI AUTO POSTO.** As duas SolarEdge que o Vitor
+      mandou do app ("Junior Bassetto" 105,40 kWp e "Junior Bassetto - Usina
+      2" 129,60 kWp) são a **USINA 1 e a USINA 2 do posto**, já cadastradas
+      desde 16/09 — por pouco não foram criadas de novo. A cortesia dele é o
+      contrato do posto (Completo especial, 6 meses, 16/09/2026 → 16/03/2027).
+      **Antes de cadastrar usina, procure pela potência, não só pelo nome.**
+      Feito em 02/10, tudo na obra do **posto** (`uni-auto-posto-de-aracatuba-ltda`):
+      a **Fundadores** (Auxsol, 30 kWp, SolarView **960239**, conferida pela
+      série: setembro 3.797 kWh e outubro 60,16 kWh iguais ao app; histórico
+      de 3.990 kWh antes de maio) mudou para lá — o vínculo com a obra da
+      corretiva ficou com `saiu_em` 02/10; as SolarEdge viraram "Usina 1 —
+      fazenda" e "Usina 2 — fazenda", com setembro do app (9,6 e 10,6 MWh,
+      **só até 29/09**: o app parou de atualizar na terça) e histórico de vida
+      útil (549 e 171 MWh); `chamar_de = 'Júnior'`; o grupo da obra do posto
+      passou a ser o **"Cliente - José Antônio #POSTO UNI 4674"** (link do
+      Vitor) — o anterior tinha a CJP Solar dentro, era o da corretiva;
+      `resumo_mensal_obras` aponta para a obra do posto. Resumo na régua:
+      **contato 621**, `aguardando`, sai **05/10 às 9h** se aprovado.
+      **Falta:** setembro fechado das SolarEdge quando voltarem a comunicar
+      (aí se troca o texto do 621 antes de aprovar); a data de instalação da
+      Fundadores (SolarView diz 05/05/2026, o app tem geração em 2025);
+      **aniversário divergente** — 24/01 no posto, 29/01 no eletroposto (4674).
+      ⚠️ A USINA 2 tem 171 MWh de vida útil e só 21,5 MWh em 2026 (10,6 em
+      setembro): parece ter ficado parada até a corretiva de agosto — não
+      confirmado, não vai no texto.
 - [ ] **UNI AUTO POSTO aguardando a API da SolarEdge no SolarView** (Vitor,
       26/09). As duas usinas estão com `nota_geracao = 'Aguardando a API da
       SolarEdge no SolarView'`, e a saúde mostra isso no lugar de "confira o
