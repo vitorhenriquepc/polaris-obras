@@ -1752,10 +1752,15 @@ Conferido no banco em **22/09/2026**.
       passou a ser o **"Cliente - José Antônio #POSTO UNI 4674"** (link do
       Vitor) — o anterior tinha a CJP Solar dentro, era o da corretiva;
       `resumo_mensal_obras` aponta para a obra do posto. Resumo na régua:
-      **contato 621**, `aguardando`, sai **05/10 às 9h** se aprovado.
-      **Falta:** setembro fechado das SolarEdge quando voltarem a comunicar
-      (aí se troca o texto do 621 antes de aprovar); a data de instalação da
-      Fundadores (SolarView diz 05/05/2026, o app tem geração em 2025);
+      **contato 621**, sai **05/10 às 9h** — **aprovado pelo Vitor no chat em
+      02/10 10:44** (junto com o 620 do Gilberto). Setembro das SolarEdge vai
+      de 1 a 29/09 de propósito: **o Wi-Fi da fazenda caiu em 30/09** (Vitor),
+      e a equipe está resolvendo. **A Usina 2 ficou mesmo um tempo parada e já
+      foi corrigida** (Vitor, 02/10) — fica de assunto para um próximo resumo.
+      **Falta:** a Fundadores — o Vitor confirma instalação em **05/05/2026**,
+      mas o SolarView tem geração de 01 a 04/05 (120 · 154 · 162 · 162 kWh) e o
+      contador do inversor tem 17,88 MWh no total contra 17,36 no ano; os
+      3.990 kWh de "antes de maio" ficam até ele decidir (≈ 4 MWh em 738);
       **aniversário divergente** — 24/01 no posto, 29/01 no eletroposto (4674).
       ⚠️ A USINA 2 tem 171 MWh de vida útil e só 21,5 MWh em 2026 (10,6 em
       setembro): parece ter ficado parada até a corretiva de agosto — não
