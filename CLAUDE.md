@@ -1777,8 +1777,13 @@ Conferido no banco em **22/09/2026**.
       A Fundadores fica com instalação **05/05/2026** **e** com os 3.990 kWh de
       antes de maio no acumulado, mesmo o SolarView tendo geração de 01 a 04/05
       e o contador do inversor 17,88 MWh contra 17,36 no ano.
-      **Falta:** o aniversário — 24/01 no posto, 29/01 no eletroposto (4674);
-      o Vitor vai confirmar.
+      **Aniversário: 24/01** (Vitor, 02/10) — corrigido no eletroposto (4674,
+      estava 29/01) e no cadastro dele; o posto já tinha 24/01. Só o
+      eletroposto dispara a mensagem, quando chegar à etapa 8
+      (`aniversariantes_hoje` corta em `etapa >= 8`; as obras de manutenção não
+      chegam lá), então sai **uma** só. **Autoleitura mantida** como ficou
+      (grupo + caseiro + Júnior), confirmada pelo Vitor; o primeiro envio real
+      é 08/10 às 18h.
       ⚠️ A USINA 2 tem 171 MWh de vida útil e só 21,5 MWh em 2026 (10,6 em
       setembro): parece ter ficado parada até a corretiva de agosto — não
       confirmado, não vai no texto.
