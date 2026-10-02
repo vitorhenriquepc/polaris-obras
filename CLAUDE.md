@@ -645,6 +645,15 @@ Para desligar não se mexe em cron nem em código:
 `update config set valor='0' where chave='autoleitura_ativo'` — a função lê a
 chave em toda rodada.
 
+⚠️ **Pode ser mais de um WhatsApp pessoal** (02/10).
+`unidade_consumidora.telefones_extra` guarda quem **também** recebe o lembrete
+daquele relógio, além do telefone da obra. Caso que pediu: na fazenda do
+UNI AUTO POSTO quem lê o relógio é o **caseiro** (o telefone da obra,
+18 99704-1415) e o dono, **Júnior Bassetto** (18 99791-0910), quer receber
+junto. A `autoleitura_fila_svc` devolve os números separados por vírgula e a
+`autoleitura-aviso` (v3) manda um envio por número; o aviso conta como
+enviado se pelo menos um canal aceitou. A régua **não** mudou.
+
 ⚠️ **A autoleitura é o único lugar com canal pessoal.** Desde 16/09 ela manda
 no grupo **e** no WhatsApp pessoal do cliente, e só marca como avisado se pelo
 menos um dos dois aceitou. Isso **não encosta na régua**: a autoleitura tem
