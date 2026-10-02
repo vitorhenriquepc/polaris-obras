@@ -365,8 +365,8 @@ período. E só conta a partir da **primeira geração** da usina (zero antes
 disso é "não medi", armadilha 5) — sem essa regra, 10 das 15 "interrupções"
 de agosto eram usina recém-ligada.
 
-**Cliente modelo: só o GILBERTO, desde 29/09** (decisão do Vitor). A lista é
-`config.resumo_mensal_obras`. O caminho:
+**Clientes modelo: o GILBERTO (desde 29/09) e o JÚNIOR BASSETTO (desde 02/10)**
+(decisões do Vitor). A lista é `config.resumo_mensal_obras`. O caminho:
 
 1. **dia 2 em diante, 9h** (depois do fechamento do SolarView, 8h30 do dia 2) — a edge function `resumo-mensal` chama
    `resumo_mensal_enfileirar()`, que põe o resumo na régua como `aguardando`
@@ -401,6 +401,37 @@ resumo — que mostra esses dias em linha própria, com o custo. Hoje só a
 **Rua São Bernardo do Gilberto** (`{0,6}`): ele desliga no domingo por receio
 da parte elétrica (Vitor, 29/09), e os dados mostram metade dos sábados e os
 feriados também. Sem a marca, toda segunda-feira a saúde dava **crítico**.
+
+⚠️ **Usina sem API entra no resumo pelo número do app do fabricante — com "≈".**
+Nasceu em 02/10 com o Júnior Bassetto: a Fundadores (Auxsol) está no SolarView,
+mas as duas SolarEdge da fazenda solar só existem no app. Duas peças:
+
+- `usina_geracao.origem = 'manual'`, lançado por **`usina_geracao_manual()`**
+  (simular primeiro), com `parcial_ate` quando o app parou no meio do mês e
+  `nota` dizendo de onde veio. **Não sobrescreve mês que veio da plataforma**;
+  quando a API entrar, o upsert do `solarview-geracao` troca a origem e o
+  `trg_usina_geracao_origem` limpa a marca — o dado da plataforma manda.
+- `usinas.historico_kwh` / `historico_ate` / `historico_fonte`, gravados por
+  **`usina_historico_definir()`**: o que a usina gerou **antes** do
+  monitoramento daqui, lido no app. O resumo soma o histórico + os meses de
+  `usina_geracao` **depois** de `historico_ate`. A Fundadores tem 17,88 MWh no
+  app e o SolarView só tem desde maio (13,89 MWh): histórico de 3.990 kWh até
+  30/04 (armadilha 27 de novo — a plataforma não devolve o passado).
+
+No texto: número do app sai com **"≈"** e arredondado, mês parcial vira
+*"(1 a 29/09)"*, e uma linha diz que o "≈" é do app do inversor. **A
+comparação com o mês anterior só sai se TODAS as usinas têm os dois meses
+inteiros** — antes, usina sem o mês anterior entrava como zero e a soma
+comparava 3 usinas contra 1. *"Desde a instalação (mês/ano)"* só afirma o mês
+quando a data de instalação é anterior ao histórico; a Fundadores diz 05/05/2026
+no SolarView e gerou em 2025, então o mês sai em branco.
+
+⚠️ A ficha (`obra_geracao_total`) **não** soma o histórico — mostra só o que é
+medido aqui. O resumo do cliente mostra também o passado do app. Os dois
+números diferem de propósito, e isso tem de ser dito se alguém comparar.
+
+`clientes.chamar_de` é o nome do *"Olá, ...!"* — sem ele, o primeiro nome do
+cadastro, que para o Jose Antonio Bassetto Junior dava "Jose".
 
 `usinas`, `usina_dia`, `usina_geracao` · `clima_dia` · `v_indice_dia` ·
 `v_indice_regiao` (cidade com 5+ usinas ganha grupo próprio) ·
@@ -716,6 +747,8 @@ nenhuma delas. Ver pendência no §10.
 | `usina_editar(json, simular)` | **corrige** uma usina que já existe — nome, potência, cidade, endereço, data de instalação e o vínculo com o SolarView, num caminho só. Chave ausente no json não sobrescreve nada. Devolve `mudancas` e `avisos` em português (potência mexe no kWh/kWp que o cliente lê; endereço mexe em visita e cobrança do Completo), e recusa roubar o id do SolarView de outra usina |
 | `cpfl_texto(obra)` | **o texto único da vistoria da concessionária**: conta a partir do próximo dia útil, prazo com dia da semana, link do cliente; vira *"Atualização da vistoria"* quando o prazo que o cliente leu mudou. Devolve `ja_avisado` e `mesmo_prazo` para a tela não mandar duas vezes. Só trilha padrão |
 | `resumo_mensal_obra(obra, mes)` | **o resumo do mês de um cliente**, todas as usinas juntas, com o texto pronto para o grupo e os números em json — geração, economia, tempo, dias sem geração com o previsto, retorno do investimento, bandeira. Sem IA, não grava. Recusa mês aberto e mês da instalação |
+| `usina_geracao_manual(usina, mes, kwh, parcial_ate, nota, simular)` | lança o mês de uma usina **sem API**, lido no app do fabricante. Recusa sobrescrever mês da plataforma e "até o dia" fora do mês |
+| `usina_historico_definir(usina, kwh, ate, fonte, simular)` | grava o que a usina gerou **antes** do monitoramento daqui (o passado que a plataforma não devolve). Exige dizer a fonte |
 | `resumo_mensal_enfileirar(mes, envio, simular)` | põe na régua, como `aguardando`, o resumo das obras do cliente modelo; envio no dia 5 ou no próximo dia útil, nunca hoje; um por obra por mês |
 | `proximo_dia_util(data)` | o primeiro dia útil em `data` ou depois — pula sábado, domingo e `feriados` (o `dia_util_ate` anda para trás e não olha feriado) |
 | `usinas_saude()` · `usina_saude(usina)` | **a saúde da usina** (só equipe). Por dia: descarta dia nublado **no lugar da usina** (`radiacao_dia`, Open-Meteo), compara com a **mediana das outras usinas naquele dia** e devolve `nivel` + `estado` + `projeto` + uma `frase` pronta. Sem comunicação é eixo próprio (`sem_sinal`), nunca "atenção"; <70% é "geração muito abaixo do esperado"; "crítico" só comunicando e sem gerar em dia de sol. **Não usa `fator_local`** de propósito. Lê `plano_visita.corrige_geracao` e `usinas.patamar_desde` para o antes × depois da correção |
@@ -790,7 +823,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `saude_atencao_pct` · `saude_muito_abaixo_pct` | 85 · 70 | "geração abaixo do esperado" · "geração muito abaixo do esperado" |
 | `saude_critico_dias` | 2 | dias de sol comunicando e sem gerar para virar crítico |
 | `resumo_mensal_ativo` | 1 | liga o `resumo-mensal` (9h) |
-| `resumo_mensal_obras` | obra do Gilberto | **quem é cliente modelo** — ids de obra separados por vírgula. Quem está aqui sai do resumo da IA |
+| `resumo_mensal_obras` | obras do Gilberto e do Júnior Bassetto (manutenção) | **quem é cliente modelo** — ids de obra separados por vírgula. Quem está aqui sai do resumo da IA |
 | `resumo_mensal_dia` · `resumo_mensal_preparo_dia` | 5 · 2 | dia do envio (ou o próximo dia útil) · a partir de quando o resumo entra na régua para aprovar |
 | `resumo_sol_pct` | 75 | no resumo mensal, "dia de sol" é radiação ≥ 75% do melhor dia do mês no lugar; abaixo de `saude_rad_min` é nublado; o resto, parcialmente nublado |
 
@@ -1355,6 +1388,33 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     (38 verificações, 5 execuções seguidas sem falha; a versão antiga falha em
     20), e o fluxo de gravação real da tela em obras reais com rollback.
 
+31. **Aba aberta roda o código de quando foi aberta.** O conserto da vistoria
+    subiu às 14:59 de 30/09; às 15:00 a Lívia moveu a LUCIANA (4750) com o
+    painel aberto desde de manhã, e saiu no grupo o texto **antigo**, com a
+    data lida um dia antes (*"até 24/09"*, já vencida). O log provou: PATCH na
+    obra, `notificar-grupo` 200 e **nenhuma** chamada à `cpfl_texto` — a
+    assinatura da página velha. Publicar não atualiza quem está com a aba
+    aberta, e o Ctrl+F5 depende de alguém lembrar.
+
+    Desde 02/10 o `painel.html` compara o próprio código (os `<script>` sem
+    `src`, que o navegador não altera) com o do arquivo publicado: ao abrir, ao
+    voltar para a aba, a cada 10 minutos e **sempre antes de mandar mensagem
+    para cliente**. Diferente = faixa vermelha "recarregue" e o
+    `notificar-grupo`/`enviar-os` é recusado antes de sair, com o erro caindo
+    no toast que cada caminho já tinha. Mudança só de HTML/CSS não trava; sem
+    internet para conferir também não. Não há número de versão para lembrar
+    de trocar. **Nos ~3 minutos do CDN depois de publicar (armadilha 4) a
+    conferência pode oscilar** — recarregar resolve.
+
+32. **`drop` pelo MCP do Supabase pede confirmação e expira calado.** Em 02/10
+    a migração do Bassetto "deu timeout" três vezes: o banco nem recebia o
+    comando (nenhuma sessão ativa, nada aplicado). O culpado era o
+    `drop trigger if exists` — comando destrutivo, que a ferramenta segura
+    esperando uma confirmação que não aparece. Sem o `drop`, passou na hora.
+    Use `create or replace trigger` (Postgres 14+) e, depois de um timeout,
+    **confira o que ficou no banco antes de repetir**: um lote pode ter entrado
+    pela metade (aqui as colunas entraram, as funções não).
+
 ---
 
 ## 10. Estado e pendências
@@ -1671,10 +1731,27 @@ Conferido no banco em **22/09/2026**.
       `verify_jwt: false` + `cron_token`, 403 com token errado conferido. Em
       simulação a fonte bateu **exatamente** (diferença 0,000 kWh/m² em 210
       linhas) com a carga inicial.
-- [x] ~~Decidir: monitorar Fatima Rino (3067) e o Bassetto?~~ **Por enquanto
-      não** (decisão do Vitor, 26/09). Os dois são obra de manutenção e têm
-      usina no SolarView (973105 e 960239); ficam fora do monitoramento até
-      ele decidir o contrário.
+- [x] ~~Decidir: monitorar Fatima Rino (3067) e o Bassetto?~~ **Bassetto
+      sim, desde 02/10** (Vitor): cortesia, acompanhamento das usinas e resumo
+      do cliente modelo. A Fatima continua fora.
+- [ ] **JÚNIOR BASSETTO — resumo de setembro no dia 05/10.** Feito em 02/10:
+      usina **Fundadores** (Auxsol, 30 kWp) criada na obra de manutenção
+      (`manutencao-bassetto-2026-08`), ligada ao SolarView **960239** e
+      conferida pela série (setembro 3.797 kWh e outubro 60,16 kWh, iguais ao
+      app), histórico de antes de maio gravado, `chamar_de = 'Júnior'`, obra
+      em `resumo_mensal_obras`. Aparece no pós-venda → Usinas como *normal*.
+      **Falta, do Vitor:** (1) potência, cidade e data de instalação das duas
+      SolarEdge (a fazenda solar fica em -21,6055 / -50,4722); (2) setembro
+      delas — o app mostra 9,6 e 10,6 MWh **só até 29/09** e parou de
+      atualizar na terça (as duas sem comunicação desde então?); (3) a data de
+      instalação da Fundadores (o SolarView diz 05/05/2026, o app tem geração
+      em 2025); (4) início da cortesia — **não há contrato de plano nenhum**
+      para ele; simulado Essencial · cortesia · 12 meses, não gravado, porque
+      o fim dispara o aviso que sai direto ao cliente. O aniversário (29/01)
+      está na obra do eletroposto (4674) e só dispara quando ela chegar à
+      etapa 8 — `aniversariantes_hoje` corta em `etapa >= 8`.
+      ⚠️ **Se o resumo não for enfileirado à mão até domingo, o cron de
+      segunda 9h enfileira só com a Fundadores** (e para 06/10).
 - [ ] **UNI AUTO POSTO aguardando a API da SolarEdge no SolarView** (Vitor,
       26/09). As duas usinas estão com `nota_geracao = 'Aguardando a API da
       SolarEdge no SolarView'`, e a saúde mostra isso no lugar de "confira o
