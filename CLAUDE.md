@@ -430,6 +430,12 @@ no SolarView e gerou em 2025, então o mês sai em branco.
 medido aqui. O resumo do cliente mostra também o passado do app. Os dois
 números diferem de propósito, e isso tem de ser dito se alguém comparar.
 
+Desde 02/10 (pedido do Vitor) cada linha de *"Por usina"* traz também a
+**economia em R$**, e uma linha *"Total"* fecha a lista. O total do mês — no
+topo e no Total — é a **soma das linhas como aparecem** (número do app
+arredondado a dezenas), para o cliente somar e bater: Júnior 8.450 + 7.650 +
+3.025 = 19.125. O contato 621 foi regenerado com isso, mantendo o acumulado.
+
 `clientes.chamar_de` é o nome do *"Olá, ...!"* — sem ele, o primeiro nome do
 cadastro, que para o Jose Antonio Bassetto Junior dava "Jose".
 

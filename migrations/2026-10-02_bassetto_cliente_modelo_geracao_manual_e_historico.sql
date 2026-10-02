@@ -45,6 +45,10 @@
 --    acumulado só no primeiro (setembro, contato 621, texto já gravado); a
 --    partir de outubro, só o mês — decisão do Vitor em 02/10.
 --
+-- 7. Economia em R$ de cada usina na linha dela e uma linha "*Total:*"; o
+--    total do mês (no topo e no Total) é a soma das linhas, para bater na conta
+--    do cliente (Vitor, 02/10).
+--
 -- Fora do escopo, de propósito: obra_geracao_total (a ficha) continua sem o
 -- histórico de antes do monitoramento. A ficha mostra o que está medido aqui;
 -- o resumo do cliente mostra também o que o app do fabricante já tinha.
@@ -205,6 +209,7 @@ declare
   v_kwh numeric; v_kwh_ant numeric; v_ant_cheio boolean;
   v_acum numeric; v_desde date;
   v_manual boolean; v_parcial date; v_hist boolean;
+  v_eco_soma numeric;
   -- "Desde a instalação" só no primeiro resumo de quem está nesta lista (Vitor,
   -- 02/10: o Júnior viu o acumulado em setembro; daqui em diante, só o mês)
   v_sem_acum boolean := p_obra::text = any(string_to_array(replace(coalesce(
@@ -364,6 +369,13 @@ begin
   select * into v_band from bandeira_tarifaria where mes = v_mes;
   select * into v_band_prox from bandeira_tarifaria where mes = (v_mes + interval '1 month')::date;
 
+  -- economia por usina, como aparece na linha dela (número do app arredondado
+  -- a dezenas, medido a reais); o total do mês é a SOMA dessas linhas, para o
+  -- cliente poder somar e bater (Vitor, 02/10: "a economia de cada lugar e o total")
+  select sum(case when (uj->>'manual')::boolean then round((uj->>'kwh')::numeric * v_tar, -1)
+                  else round((uj->>'kwh')::numeric * v_tar) end)
+    into v_eco_soma from jsonb_array_elements(v_usinas) as e(uj);
+
   -- ───────────── o texto ─────────────
   t := '☀️ *Resumo de ' || v_nome_mes || ' — ' ||
        case when v_n > 1 then 'suas ' || v_n || ' usinas' else 'sua usina' end || '*' || E'\n\n'
@@ -374,7 +386,8 @@ begin
          ' (' || case when v_kwh >= v_kwh_ant then '+' else '−' end
          || public._rm_num(abs(round((v_kwh / v_kwh_ant - 1) * 100)), 0) || '% em relação a ' || v_nome_ant || ')'
        else '' end || E'\n'
-    || '💰 *Economia estimada:* ' || case when v_manual then '≈ R$ ' || public._rm_num(round(v_kwh * v_tar, -1), 0)
+    || '💰 *Economia estimada:* ' || case when v_n > 1 then case when v_manual then '≈ R$ ' else 'R$ ' end || public._rm_num(v_eco_soma, 0)
+                                          when v_manual then '≈ R$ ' || public._rm_num(round(v_kwh * v_tar, -1), 0)
                                           else 'R$ ' || public._rm_num(v_kwh * v_tar, 0) end || E'\n';
 
   if v_n > 1 then
@@ -382,10 +395,15 @@ begin
     for x in select * from jsonb_array_elements(v_usinas) loop
       t := t || '• ' || (x->>'apelido') || ': '
         || case when (x->>'manual')::boolean then '≈ ' else '' end
-        || public._rm_num((x->>'kwh')::numeric, 0) || ' kWh'
+        || public._rm_num((x->>'kwh')::numeric, 0) || ' kWh · '
+        || case when (x->>'manual')::boolean then '≈ R$ ' || public._rm_num(round((x->>'kwh')::numeric * v_tar, -1), 0)
+                else 'R$ ' || public._rm_num(round((x->>'kwh')::numeric * v_tar), 0) end
         || case when x->>'parcial_ate' is not null
                 then ' (1 a ' || to_char((x->>'parcial_ate')::date, 'DD/MM') || ')' else '' end || E'\n';
     end loop;
+    t := t || '*Total:* ' || case when v_manual then '≈ ' || public._rm_num(round(v_kwh, -2), 0) || ' kWh · ≈ R$ '
+                                  else public._rm_num(v_kwh, 0) || ' kWh · R$ ' end
+      || public._rm_num(v_eco_soma, 0) || E'\n';
   end if;
   if v_manual then
     t := t || '_≈ números do aplicativo do inversor, enquanto ' ||
