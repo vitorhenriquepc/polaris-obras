@@ -430,6 +430,21 @@ no SolarView e gerou em 2025, então o mês sai em branco.
 medido aqui. O resumo do cliente mostra também o passado do app. Os dois
 números diferem de propósito, e isso tem de ser dito se alguém comparar.
 
+Desde 02/10 (pedido do Vitor) cada linha de *"Por usina"* traz também a
+**economia em R$**, e uma linha *"Total"* fecha a lista. O total do mês — no
+topo e no Total — é a **soma das linhas como aparecem** (número do app
+arredondado a dezenas), para o cliente somar e bater: Júnior 8.450 + 7.650 +
+3.025 = 19.125. Cada usina vai em duas linhas (nome; kWh · **R$**), com uma
+linha em branco entre elas, e todo valor de economia sai em negrito — topo,
+usinas, Total e acumulado (Vitor, 02/10: "junto ficava apertado"). O contato
+621 foi regenerado com isso, mantendo o acumulado.
+O **tempo** saiu do parágrafo corrido para uma linha por tipo de dia —
+☀️ sol · ⛅ parcialmente nublado · ☁️ nublado, que somam o mês — e a chuva
+vem depois de uma linha em branco, *"🌧️ Choveu em N desses dias (X mm)"*
+(ou *"🌂 Não choveu no mês"*), para ninguém somar a chuva como quarto grupo.
+Aprovado pelo Vitor para **todos** os clientes modelo em 02/10; o 620
+(Gilberto) e o 621 (Júnior) foram regenerados e seguem aprovados para 05/10.
+
 `clientes.chamar_de` é o nome do *"Olá, ...!"* — sem ele, o primeiro nome do
 cadastro, que para o Jose Antonio Bassetto Junior dava "Jose".
 
@@ -1777,8 +1792,13 @@ Conferido no banco em **22/09/2026**.
       A Fundadores fica com instalação **05/05/2026** **e** com os 3.990 kWh de
       antes de maio no acumulado, mesmo o SolarView tendo geração de 01 a 04/05
       e o contador do inversor 17,88 MWh contra 17,36 no ano.
-      **Falta:** o aniversário — 24/01 no posto, 29/01 no eletroposto (4674);
-      o Vitor vai confirmar.
+      **Aniversário: 24/01** (Vitor, 02/10) — corrigido no eletroposto (4674,
+      estava 29/01) e no cadastro dele; o posto já tinha 24/01. Só o
+      eletroposto dispara a mensagem, quando chegar à etapa 8
+      (`aniversariantes_hoje` corta em `etapa >= 8`; as obras de manutenção não
+      chegam lá), então sai **uma** só. **Autoleitura mantida** como ficou
+      (grupo + caseiro + Júnior), confirmada pelo Vitor; o primeiro envio real
+      é 08/10 às 18h.
       ⚠️ A USINA 2 tem 171 MWh de vida útil e só 21,5 MWh em 2026 (10,6 em
       setembro): parece ter ficado parada até a corretiva de agosto — não
       confirmado, não vai no texto.
