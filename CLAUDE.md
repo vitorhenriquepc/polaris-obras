@@ -833,6 +833,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `saude_critico_dias` | 2 | dias de sol comunicando e sem gerar para virar crítico |
 | `resumo_mensal_ativo` | 1 | liga o `resumo-mensal` (9h) |
 | `resumo_mensal_obras` | obras do Gilberto e do UNI AUTO POSTO (Júnior Bassetto) | **quem é cliente modelo** — ids de obra separados por vírgula. Quem está aqui sai do resumo da IA |
+| `resumo_sem_acumulado_obras` | obra do UNI AUTO POSTO | obras cujo resumo **não** traz o "Desde a instalação" nem o retorno do investimento — o Júnior viu o acumulado só no primeiro (setembro) |
 | `resumo_mensal_dia` · `resumo_mensal_preparo_dia` | 5 · 2 | dia do envio (ou o próximo dia útil) · a partir de quando o resumo entra na régua para aprovar |
 | `resumo_sol_pct` | 75 | no resumo mensal, "dia de sol" é radiação ≥ 75% do melhor dia do mês no lugar; abaixo de `saude_rad_min` é nublado; o resto, parcialmente nublado |
 
@@ -1423,6 +1424,9 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     Use `create or replace trigger` (Postgres 14+) e, depois de um timeout,
     **confira o que ficou no banco antes de repetir**: um lote pode ter entrado
     pela metade (aqui as colunas entraram, as funções não).
+    No mesmo dia um `update usinas set nota_geracao = ... where id = ...`
+    solto também ficou preso duas vezes; o mesmo `update` dentro de um
+    `do $x$ begin ... end $x$` passou na hora.
 
 ---
 
@@ -1766,11 +1770,15 @@ Conferido no banco em **22/09/2026**.
       de 1 a 29/09 de propósito: **o Wi-Fi da fazenda caiu em 30/09** (Vitor),
       e a equipe está resolvendo. **A Usina 2 ficou mesmo um tempo parada e já
       foi corrigida** (Vitor, 02/10) — fica de assunto para um próximo resumo.
-      **Falta:** a Fundadores — o Vitor confirma instalação em **05/05/2026**,
-      mas o SolarView tem geração de 01 a 04/05 (120 · 154 · 162 · 162 kWh) e o
-      contador do inversor tem 17,88 MWh no total contra 17,36 no ano; os
-      3.990 kWh de "antes de maio" ficam até ele decidir (≈ 4 MWh em 738);
-      **aniversário divergente** — 24/01 no posto, 29/01 no eletroposto (4674).
+      **Decidido em 02/10 (Vitor):** o acumulado ("Desde a instalação",
+      ≈ 738.000 kWh · ≈ R$ 588.000) vai **só neste primeiro resumo**, para ele
+      ter a noção do todo; de outubro em diante **só o mês** —
+      `config.resumo_sem_acumulado_obras` (o 621 já estava gravado e não muda).
+      A Fundadores fica com instalação **05/05/2026** **e** com os 3.990 kWh de
+      antes de maio no acumulado, mesmo o SolarView tendo geração de 01 a 04/05
+      e o contador do inversor 17,88 MWh contra 17,36 no ano.
+      **Falta:** o aniversário — 24/01 no posto, 29/01 no eletroposto (4674);
+      o Vitor vai confirmar.
       ⚠️ A USINA 2 tem 171 MWh de vida útil e só 21,5 MWh em 2026 (10,6 em
       setembro): parece ter ficado parada até a corretiva de agosto — não
       confirmado, não vai no texto.

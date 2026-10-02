@@ -40,6 +40,11 @@
 -- 5. clientes.chamar_de: o nome que vai no "Olá, ...!" do resumo. Sem ele, o
 --    primeiro nome do cadastro — "Jose" para quem todo mundo chama de Júnior.
 --
+-- 6. config.resumo_sem_acumulado_obras: obras cujo resumo NÃO traz mais o
+--    "Desde a instalação" (nem o retorno do investimento). O Júnior recebeu o
+--    acumulado só no primeiro (setembro, contato 621, texto já gravado); a
+--    partir de outubro, só o mês — decisão do Vitor em 02/10.
+--
 -- Fora do escopo, de propósito: obra_geracao_total (a ficha) continua sem o
 -- histórico de antes do monitoramento. A ficha mostra o que está medido aqui;
 -- o resumo do cliente mostra também o que o app do fabricante já tinha.
@@ -200,6 +205,10 @@ declare
   v_kwh numeric; v_kwh_ant numeric; v_ant_cheio boolean;
   v_acum numeric; v_desde date;
   v_manual boolean; v_parcial date; v_hist boolean;
+  -- "Desde a instalação" só no primeiro resumo de quem está nesta lista (Vitor,
+  -- 02/10: o Júnior viu o acumulado em setembro; daqui em diante, só o mês)
+  v_sem_acum boolean := p_obra::text = any(string_to_array(replace(coalesce(
+                          (select valor from config where chave = 'resumo_sem_acumulado_obras'), ''), ' ', ''), ','));
   v_cl record; v_rad_ant numeric;
   v_inter jsonb; v_desl jsonb;
   v_band record; v_band_prox record;
@@ -447,6 +456,7 @@ begin
     end loop;
   end if;
 
+  if not v_sem_acum then
   t := t || E'\n📈 *Desde a instalação*' || coalesce(' (' || v_nomes[extract(month from v_desde)::int] || '/' || extract(year from v_desde) || ')', '') || E'\n'
     || case when v_hist or v_manual
             then '≈ ' || public._rm_num(round(v_acum, -3), 0) || ' kWh gerados · ≈ R$ ' || public._rm_num(round(v_acum * v_tar, -3), 0)
@@ -455,6 +465,7 @@ begin
   if coalesce(v_o.valor_projeto, 0) > 0 and not v_o.externo then
     t := t || 'Isso já é ' || public._rm_num(v_acum * v_tar / v_o.valor_projeto * 100, 1)
       || '% do investimento de R$ ' || public._rm_num(v_o.valor_projeto, 0) || '.' || E'\n';
+  end if;
   end if;
 
   if v_band.mes is not null and v_band.adicional_r_mwh > 0 then
@@ -500,3 +511,10 @@ begin
 end;
 $function$;
 
+
+insert into config (chave, valor) values ('resumo_sem_acumulado_obras', '6de5ef85-ed0c-4cee-b2cc-776726c4a0c8')
+on conflict (chave) do nothing;
+-- Fundadores: instalação 05/05/2026 confirmada pelo Vitor, e os ~4 MWh do
+-- contador do inversor de antes de maio ficam no acumulado (decisão dele, 02/10)
+update usinas set nota_geracao = 'Instalação 05/05/2026 (confirmada pelo Vitor em 02/10). O contador do inversor já tinha cerca de 4 MWh antes de maio (app Auxsol 17,88 MWh no total, SolarView 13,89 MWh desde maio); por decisão do Vitor esses 3.990 kWh entram no acumulado.'
+ where id = '5512c821-68ab-40b3-82ca-84f2fbea6b7b';
