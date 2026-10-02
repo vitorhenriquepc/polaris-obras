@@ -49,6 +49,9 @@
 --    total do mês (no topo e no Total) é a soma das linhas, para bater na conta
 --    do cliente (Vitor, 02/10).
 --
+-- 8. Layout (Vitor, 02/10): cada usina em duas linhas com uma em branco entre
+--    elas, e todo valor de economia em negrito (topo, usinas, Total, acumulado).
+--
 -- Fora do escopo, de propósito: obra_geracao_total (a ficha) continua sem o
 -- histórico de antes do monitoramento. A ficha mostra o que está medido aqui;
 -- o resumo do cliente mostra também o que o app do fabricante já tinha.
@@ -386,27 +389,31 @@ begin
          ' (' || case when v_kwh >= v_kwh_ant then '+' else '−' end
          || public._rm_num(abs(round((v_kwh / v_kwh_ant - 1) * 100)), 0) || '% em relação a ' || v_nome_ant || ')'
        else '' end || E'\n'
-    || '💰 *Economia estimada:* ' || case when v_n > 1 then case when v_manual then '≈ R$ ' else 'R$ ' end || public._rm_num(v_eco_soma, 0)
+    -- o valor da economia em negrito, para destacar (Vitor, 02/10)
+    || '💰 *Economia estimada:* *' || case when v_n > 1 then case when v_manual then '≈ R$ ' else 'R$ ' end || public._rm_num(v_eco_soma, 0)
                                           when v_manual then '≈ R$ ' || public._rm_num(round(v_kwh * v_tar, -1), 0)
-                                          else 'R$ ' || public._rm_num(v_kwh * v_tar, 0) end || E'\n';
+                                          else 'R$ ' || public._rm_num(v_kwh * v_tar, 0) end || '*' || E'\n';
 
   if v_n > 1 then
     t := t || E'\n*Por usina*\n';
+    -- cada usina em duas linhas (nome; kWh · R$ em negrito) e uma linha em
+    -- branco entre elas — junto ficava apertado (Vitor, 02/10)
     for x in select * from jsonb_array_elements(v_usinas) loop
-      t := t || '• ' || (x->>'apelido') || ': '
+      t := t || E'\n• ' || (x->>'apelido')
+        || case when x->>'parcial_ate' is not null
+                then ' (1 a ' || to_char((x->>'parcial_ate')::date, 'DD/MM') || ')' else '' end || E'\n'
         || case when (x->>'manual')::boolean then '≈ ' else '' end
-        || public._rm_num((x->>'kwh')::numeric, 0) || ' kWh · '
+        || public._rm_num((x->>'kwh')::numeric, 0) || ' kWh · *'
         || case when (x->>'manual')::boolean then '≈ R$ ' || public._rm_num(round((x->>'kwh')::numeric * v_tar, -1), 0)
                 else 'R$ ' || public._rm_num(round((x->>'kwh')::numeric * v_tar), 0) end
-        || case when x->>'parcial_ate' is not null
-                then ' (1 a ' || to_char((x->>'parcial_ate')::date, 'DD/MM') || ')' else '' end || E'\n';
+        || '*' || E'\n';
     end loop;
-    t := t || '*Total:* ' || case when v_manual then '≈ ' || public._rm_num(round(v_kwh, -2), 0) || ' kWh · ≈ R$ '
-                                  else public._rm_num(v_kwh, 0) || ' kWh · R$ ' end
-      || public._rm_num(v_eco_soma, 0) || E'\n';
+    t := t || E'\n*Total:* ' || case when v_manual then '≈ ' || public._rm_num(round(v_kwh, -2), 0) || ' kWh · *≈ R$ '
+                                  else public._rm_num(v_kwh, 0) || ' kWh · *R$ ' end
+      || public._rm_num(v_eco_soma, 0) || '*' || E'\n';
   end if;
   if v_manual then
-    t := t || '_≈ números do aplicativo do inversor, enquanto ' ||
+    t := t || E'\n_≈ números do aplicativo do inversor, enquanto ' ||
          case when v_n > 1 then 'essas usinas entram' else 'a usina entra' end
          || ' no nosso monitoramento automático._' || E'\n';
   end if;
@@ -477,9 +484,9 @@ begin
   if not v_sem_acum then
   t := t || E'\n📈 *Desde a instalação*' || coalesce(' (' || v_nomes[extract(month from v_desde)::int] || '/' || extract(year from v_desde) || ')', '') || E'\n'
     || case when v_hist or v_manual
-            then '≈ ' || public._rm_num(round(v_acum, -3), 0) || ' kWh gerados · ≈ R$ ' || public._rm_num(round(v_acum * v_tar, -3), 0)
-            else public._rm_num(v_acum, 0) || ' kWh gerados · R$ ' || public._rm_num(v_acum * v_tar, 0) end
-    || ' de economia' || E'\n';
+            then '≈ ' || public._rm_num(round(v_acum, -3), 0) || ' kWh gerados · *≈ R$ ' || public._rm_num(round(v_acum * v_tar, -3), 0)
+            else public._rm_num(v_acum, 0) || ' kWh gerados · *R$ ' || public._rm_num(v_acum * v_tar, 0) end
+    || ' de economia*' || E'\n';
   if coalesce(v_o.valor_projeto, 0) > 0 and not v_o.externo then
     t := t || 'Isso já é ' || public._rm_num(v_acum * v_tar / v_o.valor_projeto * 100, 1)
       || '% do investimento de R$ ' || public._rm_num(v_o.valor_projeto, 0) || '.' || E'\n';

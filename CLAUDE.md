@@ -434,7 +434,10 @@ Desde 02/10 (pedido do Vitor) cada linha de *"Por usina"* traz também a
 **economia em R$**, e uma linha *"Total"* fecha a lista. O total do mês — no
 topo e no Total — é a **soma das linhas como aparecem** (número do app
 arredondado a dezenas), para o cliente somar e bater: Júnior 8.450 + 7.650 +
-3.025 = 19.125. O contato 621 foi regenerado com isso, mantendo o acumulado.
+3.025 = 19.125. Cada usina vai em duas linhas (nome; kWh · **R$**), com uma
+linha em branco entre elas, e todo valor de economia sai em negrito — topo,
+usinas, Total e acumulado (Vitor, 02/10: "junto ficava apertado"). O contato
+621 foi regenerado com isso, mantendo o acumulado.
 
 `clientes.chamar_de` é o nome do *"Olá, ...!"* — sem ele, o primeiro nome do
 cadastro, que para o Jose Antonio Bassetto Junior dava "Jose".
