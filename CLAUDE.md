@@ -438,6 +438,12 @@ arredondado a dezenas), para o cliente somar e bater: Júnior 8.450 + 7.650 +
 linha em branco entre elas, e todo valor de economia sai em negrito — topo,
 usinas, Total e acumulado (Vitor, 02/10: "junto ficava apertado"). O contato
 621 foi regenerado com isso, mantendo o acumulado.
+O **tempo** saiu do parágrafo corrido para uma linha por tipo de dia —
+☀️ sol · ⛅ parcialmente nublado · ☁️ nublado, que somam o mês — e a chuva
+vem depois de uma linha em branco, *"🌧️ Choveu em N desses dias (X mm)"*
+(ou *"🌂 Não choveu no mês"*), para ninguém somar a chuva como quarto grupo.
+Aprovado pelo Vitor para **todos** os clientes modelo em 02/10; o 620
+(Gilberto) e o 621 (Júnior) foram regenerados e seguem aprovados para 05/10.
 
 `clientes.chamar_de` é o nome do *"Olá, ...!"* — sem ele, o primeiro nome do
 cadastro, que para o Jose Antonio Bassetto Junior dava "Jose".
