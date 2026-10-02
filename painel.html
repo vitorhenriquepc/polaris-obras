@@ -455,6 +455,59 @@ const NEEDS_CFG = SUPABASE_URL.startsWith("COLE_AQUI") || SUPABASE_ANON_KEY.star
 let sb = null;
 if(!NEEDS_CFG){ sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
 
+/* ---------- página desatualizada não fala com o cliente ----------
+   30/09: a Lívia moveu a Luciana (4750) para a vistoria às 15:00 com a aba
+   aberta desde de manhã — o conserto tinha subido às 14:59, mas a aba rodava
+   o código velho e mandou no grupo o texto antigo com a data errada. Aba aberta
+   não se atualiza sozinha.
+   Aqui o painel compara o próprio código (os <script> sem src, que o navegador
+   não altera) com o do arquivo publicado. Diferente = página velha: aparece a
+   faixa para recarregar e TODO envio de mensagem é recusado antes de sair —
+   o chamador recebe um erro comum e mostra o toast que já mostrava.
+   Não precisa trocar número de versão a cada publicação. Se a conferência
+   falhar (sem internet), não trava: sem rede o envio também não sai. */
+const ENVIOS_CLIENTE = ['notificar-grupo','enviar-os'];
+let VERSAO = { velha:false, conferida_em:0 };
+function codigoDaPagina(doc){
+  return Array.prototype.map.call(doc.querySelectorAll('script:not([src])'), s=>s.textContent).join('\n<script>\n');
+}
+async function paginaVelha(){
+  if(Date.now()-VERSAO.conferida_em < 60000) return VERSAO.velha;
+  try{
+    const r = await fetch(location.pathname+'?v='+Date.now(), { cache:'no-store' });
+    if(!r.ok) return VERSAO.velha;
+    const pub = new DOMParser().parseFromString(await r.text(), 'text/html');
+    VERSAO = { velha: codigoDaPagina(pub)!==codigoDaPagina(document), conferida_em: Date.now() };
+  }catch(e){ return VERSAO.velha; }
+  if(VERSAO.velha) avisoPaginaVelha();
+  return VERSAO.velha;
+}
+function avisoPaginaVelha(){
+  if(document.getElementById('pagina-velha')) return;
+  const d = document.createElement('div');
+  d.id = 'pagina-velha';
+  d.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9999;background:#b3261e;color:#fff;'
+    +'padding:10px 16px;font:600 14px/1.4 system-ui,sans-serif;text-align:center;cursor:pointer';
+  d.textContent = '⚠️ Saiu uma versão nova do painel. Esta aba está com a antiga e não vai mandar mensagem para cliente. Clique aqui para recarregar.';
+  d.onclick = ()=>location.reload();
+  document.body.appendChild(d);
+}
+if(sb){
+  const invokeOriginal = sb.functions.invoke.bind(sb.functions);
+  sb.functions.invoke = async function(nome, opts){
+    if(ENVIOS_CLIENTE.indexOf(nome)>=0){
+      VERSAO.conferida_em = 0;   // antes de falar com o cliente, confere agora
+      if(await paginaVelha()){
+        return { data:null, error:{ message:'Esta aba está com uma versão antiga do painel. Recarregue a página (Ctrl+F5) e mande de novo — nada foi enviado.' } };
+      }
+    }
+    return invokeOriginal(nome, opts);
+  };
+  paginaVelha();
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) paginaVelha(); });
+  setInterval(paginaVelha, 10*60000);
+}
+
 let ET = {}; // catálogo de etapas {numero: {...}}
 let OBRAS = []; // obras carregadas
 let EQUIPE = []; // equipe (para vendedor e grupos)

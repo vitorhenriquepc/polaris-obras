@@ -365,8 +365,8 @@ período. E só conta a partir da **primeira geração** da usina (zero antes
 disso é "não medi", armadilha 5) — sem essa regra, 10 das 15 "interrupções"
 de agosto eram usina recém-ligada.
 
-**Cliente modelo: só o GILBERTO, desde 29/09** (decisão do Vitor). A lista é
-`config.resumo_mensal_obras`. O caminho:
+**Clientes modelo: o GILBERTO (desde 29/09) e o JÚNIOR BASSETTO (desde 02/10)**
+(decisões do Vitor). A lista é `config.resumo_mensal_obras`. O caminho:
 
 1. **dia 2 em diante, 9h** (depois do fechamento do SolarView, 8h30 do dia 2) — a edge function `resumo-mensal` chama
    `resumo_mensal_enfileirar()`, que põe o resumo na régua como `aguardando`
@@ -401,6 +401,37 @@ resumo — que mostra esses dias em linha própria, com o custo. Hoje só a
 **Rua São Bernardo do Gilberto** (`{0,6}`): ele desliga no domingo por receio
 da parte elétrica (Vitor, 29/09), e os dados mostram metade dos sábados e os
 feriados também. Sem a marca, toda segunda-feira a saúde dava **crítico**.
+
+⚠️ **Usina sem API entra no resumo pelo número do app do fabricante — com "≈".**
+Nasceu em 02/10 com o Júnior Bassetto: a Fundadores (Auxsol) está no SolarView,
+mas as duas SolarEdge da fazenda solar só existem no app. Duas peças:
+
+- `usina_geracao.origem = 'manual'`, lançado por **`usina_geracao_manual()`**
+  (simular primeiro), com `parcial_ate` quando o app parou no meio do mês e
+  `nota` dizendo de onde veio. **Não sobrescreve mês que veio da plataforma**;
+  quando a API entrar, o upsert do `solarview-geracao` troca a origem e o
+  `trg_usina_geracao_origem` limpa a marca — o dado da plataforma manda.
+- `usinas.historico_kwh` / `historico_ate` / `historico_fonte`, gravados por
+  **`usina_historico_definir()`**: o que a usina gerou **antes** do
+  monitoramento daqui, lido no app. O resumo soma o histórico + os meses de
+  `usina_geracao` **depois** de `historico_ate`. A Fundadores tem 17,88 MWh no
+  app e o SolarView só tem desde maio (13,89 MWh): histórico de 3.990 kWh até
+  30/04 (armadilha 27 de novo — a plataforma não devolve o passado).
+
+No texto: número do app sai com **"≈"** e arredondado, mês parcial vira
+*"(1 a 29/09)"*, e uma linha diz que o "≈" é do app do inversor. **A
+comparação com o mês anterior só sai se TODAS as usinas têm os dois meses
+inteiros** — antes, usina sem o mês anterior entrava como zero e a soma
+comparava 3 usinas contra 1. *"Desde a instalação (mês/ano)"* só afirma o mês
+quando a data de instalação é anterior ao histórico; a Fundadores diz 05/05/2026
+no SolarView e gerou em 2025, então o mês sai em branco.
+
+⚠️ A ficha (`obra_geracao_total`) **não** soma o histórico — mostra só o que é
+medido aqui. O resumo do cliente mostra também o passado do app. Os dois
+números diferem de propósito, e isso tem de ser dito se alguém comparar.
+
+`clientes.chamar_de` é o nome do *"Olá, ...!"* — sem ele, o primeiro nome do
+cadastro, que para o Jose Antonio Bassetto Junior dava "Jose".
 
 `usinas`, `usina_dia`, `usina_geracao` · `clima_dia` · `v_indice_dia` ·
 `v_indice_regiao` (cidade com 5+ usinas ganha grupo próprio) ·
@@ -614,6 +645,15 @@ Para desligar não se mexe em cron nem em código:
 `update config set valor='0' where chave='autoleitura_ativo'` — a função lê a
 chave em toda rodada.
 
+⚠️ **Pode ser mais de um WhatsApp pessoal** (02/10).
+`unidade_consumidora.telefones_extra` guarda quem **também** recebe o lembrete
+daquele relógio, além do telefone da obra. Caso que pediu: na fazenda do
+UNI AUTO POSTO quem lê o relógio é o **caseiro** (o telefone da obra,
+18 99704-1415) e o dono, **Júnior Bassetto** (18 99791-0910), quer receber
+junto. A `autoleitura_fila_svc` devolve os números separados por vírgula e a
+`autoleitura-aviso` (v3) manda um envio por número; o aviso conta como
+enviado se pelo menos um canal aceitou. A régua **não** mudou.
+
 ⚠️ **A autoleitura é o único lugar com canal pessoal.** Desde 16/09 ela manda
 no grupo **e** no WhatsApp pessoal do cliente, e só marca como avisado se pelo
 menos um dos dois aceitou. Isso **não encosta na régua**: a autoleitura tem
@@ -716,6 +756,8 @@ nenhuma delas. Ver pendência no §10.
 | `usina_editar(json, simular)` | **corrige** uma usina que já existe — nome, potência, cidade, endereço, data de instalação e o vínculo com o SolarView, num caminho só. Chave ausente no json não sobrescreve nada. Devolve `mudancas` e `avisos` em português (potência mexe no kWh/kWp que o cliente lê; endereço mexe em visita e cobrança do Completo), e recusa roubar o id do SolarView de outra usina |
 | `cpfl_texto(obra)` | **o texto único da vistoria da concessionária**: conta a partir do próximo dia útil, prazo com dia da semana, link do cliente; vira *"Atualização da vistoria"* quando o prazo que o cliente leu mudou. Devolve `ja_avisado` e `mesmo_prazo` para a tela não mandar duas vezes. Só trilha padrão |
 | `resumo_mensal_obra(obra, mes)` | **o resumo do mês de um cliente**, todas as usinas juntas, com o texto pronto para o grupo e os números em json — geração, economia, tempo, dias sem geração com o previsto, retorno do investimento, bandeira. Sem IA, não grava. Recusa mês aberto e mês da instalação |
+| `usina_geracao_manual(usina, mes, kwh, parcial_ate, nota, simular)` | lança o mês de uma usina **sem API**, lido no app do fabricante. Recusa sobrescrever mês da plataforma e "até o dia" fora do mês |
+| `usina_historico_definir(usina, kwh, ate, fonte, simular)` | grava o que a usina gerou **antes** do monitoramento daqui (o passado que a plataforma não devolve). Exige dizer a fonte |
 | `resumo_mensal_enfileirar(mes, envio, simular)` | põe na régua, como `aguardando`, o resumo das obras do cliente modelo; envio no dia 5 ou no próximo dia útil, nunca hoje; um por obra por mês |
 | `proximo_dia_util(data)` | o primeiro dia útil em `data` ou depois — pula sábado, domingo e `feriados` (o `dia_util_ate` anda para trás e não olha feriado) |
 | `usinas_saude()` · `usina_saude(usina)` | **a saúde da usina** (só equipe). Por dia: descarta dia nublado **no lugar da usina** (`radiacao_dia`, Open-Meteo), compara com a **mediana das outras usinas naquele dia** e devolve `nivel` + `estado` + `projeto` + uma `frase` pronta. Sem comunicação é eixo próprio (`sem_sinal`), nunca "atenção"; <70% é "geração muito abaixo do esperado"; "crítico" só comunicando e sem gerar em dia de sol. **Não usa `fator_local`** de propósito. Lê `plano_visita.corrige_geracao` e `usinas.patamar_desde` para o antes × depois da correção |
@@ -790,7 +832,8 @@ Prefira criar parâmetro a chumbar número no código.
 | `saude_atencao_pct` · `saude_muito_abaixo_pct` | 85 · 70 | "geração abaixo do esperado" · "geração muito abaixo do esperado" |
 | `saude_critico_dias` | 2 | dias de sol comunicando e sem gerar para virar crítico |
 | `resumo_mensal_ativo` | 1 | liga o `resumo-mensal` (9h) |
-| `resumo_mensal_obras` | obra do Gilberto | **quem é cliente modelo** — ids de obra separados por vírgula. Quem está aqui sai do resumo da IA |
+| `resumo_mensal_obras` | obras do Gilberto e do UNI AUTO POSTO (Júnior Bassetto) | **quem é cliente modelo** — ids de obra separados por vírgula. Quem está aqui sai do resumo da IA |
+| `resumo_sem_acumulado_obras` | obra do UNI AUTO POSTO | obras cujo resumo **não** traz o "Desde a instalação" nem o retorno do investimento — o Júnior viu o acumulado só no primeiro (setembro) |
 | `resumo_mensal_dia` · `resumo_mensal_preparo_dia` | 5 · 2 | dia do envio (ou o próximo dia útil) · a partir de quando o resumo entra na régua para aprovar |
 | `resumo_sol_pct` | 75 | no resumo mensal, "dia de sol" é radiação ≥ 75% do melhor dia do mês no lugar; abaixo de `saude_rad_min` é nublado; o resto, parcialmente nublado |
 
@@ -1355,6 +1398,36 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     (38 verificações, 5 execuções seguidas sem falha; a versão antiga falha em
     20), e o fluxo de gravação real da tela em obras reais com rollback.
 
+31. **Aba aberta roda o código de quando foi aberta.** O conserto da vistoria
+    subiu às 14:59 de 30/09; às 15:00 a Lívia moveu a LUCIANA (4750) com o
+    painel aberto desde de manhã, e saiu no grupo o texto **antigo**, com a
+    data lida um dia antes (*"até 24/09"*, já vencida). O log provou: PATCH na
+    obra, `notificar-grupo` 200 e **nenhuma** chamada à `cpfl_texto` — a
+    assinatura da página velha. Publicar não atualiza quem está com a aba
+    aberta, e o Ctrl+F5 depende de alguém lembrar.
+
+    Desde 02/10 o `painel.html` compara o próprio código (os `<script>` sem
+    `src`, que o navegador não altera) com o do arquivo publicado: ao abrir, ao
+    voltar para a aba, a cada 10 minutos e **sempre antes de mandar mensagem
+    para cliente**. Diferente = faixa vermelha "recarregue" e o
+    `notificar-grupo`/`enviar-os` é recusado antes de sair, com o erro caindo
+    no toast que cada caminho já tinha. Mudança só de HTML/CSS não trava; sem
+    internet para conferir também não. Não há número de versão para lembrar
+    de trocar. **Nos ~3 minutos do CDN depois de publicar (armadilha 4) a
+    conferência pode oscilar** — recarregar resolve.
+
+32. **`drop` pelo MCP do Supabase pede confirmação e expira calado.** Em 02/10
+    a migração do Bassetto "deu timeout" três vezes: o banco nem recebia o
+    comando (nenhuma sessão ativa, nada aplicado). O culpado era o
+    `drop trigger if exists` — comando destrutivo, que a ferramenta segura
+    esperando uma confirmação que não aparece. Sem o `drop`, passou na hora.
+    Use `create or replace trigger` (Postgres 14+) e, depois de um timeout,
+    **confira o que ficou no banco antes de repetir**: um lote pode ter entrado
+    pela metade (aqui as colunas entraram, as funções não).
+    No mesmo dia um `update usinas set nota_geracao = ... where id = ...`
+    solto também ficou preso duas vezes; o mesmo `update` dentro de um
+    `do $x$ begin ... end $x$` passou na hora.
+
 ---
 
 ## 10. Estado e pendências
@@ -1629,8 +1702,17 @@ Conferido no banco em **22/09/2026**.
       foi enviado nem mudado nelas — é decisão de quem acompanha:
       **JACIR ZATT (4143)** solicitada 24/09, prazo **01/10**, e o cliente
       nunca recebeu o aviso com data (a `cpfl_texto` estava quebrada);
-      **LUCIANA CORDEIRO (4750)** está na **etapa 6** com vistoria pedida em
-      18/09 (prazo 25/09, vencido) — o card nunca foi avançado;
+      **LUCIANA CORDEIRO (4750)** foi para a 7 às **15:00 de 30/09** pela
+      Lívia, com a **página antiga ainda aberta no navegador** (o conserto
+      tinha subido às 14:59). Saiu no grupo o texto antigo, com a data de
+      18/09 e o prazo 25/09 lido um dia antes: *"até 24/09 (quinta)"* —
+      data já passada. O aviso foi registrado (`cpfl_avisado_em` 18:00:17
+      UTC, `cpfl_avisado_prazo` 25/09) para que, **se a data certa for 25/09**
+      e a Lívia corrigir na página nova, saia a *"📅 Atualização da vistoria"*
+      (conta de 28/09, até **02/10, sexta**) em vez de um segundo "Boa
+      notícia". Simulado com rollback antes de gravar. **Lição: a página
+      aberta desde de manhã roda o código de manhã — depois de publicar,
+      Ctrl+F5 em todo computador da equipe.**
       **VANESSA AMORIM (4808)** e **RODRIGO JUNCAL (4402)** estão na 7 pelo
       instalador (29/09 e 28/09) **sem data** — quando a Lívia preencher,
       sai a mensagem da vistoria, uma só.
@@ -1662,10 +1744,44 @@ Conferido no banco em **22/09/2026**.
       `verify_jwt: false` + `cron_token`, 403 com token errado conferido. Em
       simulação a fonte bateu **exatamente** (diferença 0,000 kWh/m² em 210
       linhas) com a carga inicial.
-- [x] ~~Decidir: monitorar Fatima Rino (3067) e o Bassetto?~~ **Por enquanto
-      não** (decisão do Vitor, 26/09). Os dois são obra de manutenção e têm
-      usina no SolarView (973105 e 960239); ficam fora do monitoramento até
-      ele decidir o contrário.
+- [x] ~~Decidir: monitorar Fatima Rino (3067) e o Bassetto?~~ **Bassetto
+      sim, desde 02/10** (Vitor): acompanhamento das usinas e resumo do
+      cliente modelo, pela obra do UNI AUTO POSTO. A Fatima continua fora.
+- [ ] **JÚNIOR BASSETTO = UNI AUTO POSTO — resumo de setembro no dia 05/10.**
+      ⚠️ **O Júnior é o dono do UNI AUTO POSTO.** As duas SolarEdge que o Vitor
+      mandou do app ("Junior Bassetto" 105,40 kWp e "Junior Bassetto - Usina
+      2" 129,60 kWp) são a **USINA 1 e a USINA 2 do posto**, já cadastradas
+      desde 16/09 — por pouco não foram criadas de novo. A cortesia dele é o
+      contrato do posto (Completo especial, 6 meses, 16/09/2026 → 16/03/2027).
+      **Antes de cadastrar usina, procure pela potência, não só pelo nome.**
+      Feito em 02/10, tudo na obra do **posto** (`uni-auto-posto-de-aracatuba-ltda`):
+      a **Fundadores** (Auxsol, 30 kWp, SolarView **960239**, conferida pela
+      série: setembro 3.797 kWh e outubro 60,16 kWh iguais ao app; histórico
+      de 3.990 kWh antes de maio) mudou para lá — o vínculo com a obra da
+      corretiva ficou com `saiu_em` 02/10; as SolarEdge viraram "Usina 1 —
+      fazenda" e "Usina 2 — fazenda", com setembro do app (9,6 e 10,6 MWh,
+      **só até 29/09**: o app parou de atualizar na terça) e histórico de vida
+      útil (549 e 171 MWh); `chamar_de = 'Júnior'`; o grupo da obra do posto
+      passou a ser o **"Cliente - José Antônio #POSTO UNI 4674"** (link do
+      Vitor) — o anterior tinha a CJP Solar dentro, era o da corretiva;
+      `resumo_mensal_obras` aponta para a obra do posto. Resumo na régua:
+      **contato 621**, sai **05/10 às 9h** — **aprovado pelo Vitor no chat em
+      02/10 10:44** (junto com o 620 do Gilberto). Setembro das SolarEdge vai
+      de 1 a 29/09 de propósito: **o Wi-Fi da fazenda caiu em 30/09** (Vitor),
+      e a equipe está resolvendo. **A Usina 2 ficou mesmo um tempo parada e já
+      foi corrigida** (Vitor, 02/10) — fica de assunto para um próximo resumo.
+      **Decidido em 02/10 (Vitor):** o acumulado ("Desde a instalação",
+      ≈ 738.000 kWh · ≈ R$ 588.000) vai **só neste primeiro resumo**, para ele
+      ter a noção do todo; de outubro em diante **só o mês** —
+      `config.resumo_sem_acumulado_obras` (o 621 já estava gravado e não muda).
+      A Fundadores fica com instalação **05/05/2026** **e** com os 3.990 kWh de
+      antes de maio no acumulado, mesmo o SolarView tendo geração de 01 a 04/05
+      e o contador do inversor 17,88 MWh contra 17,36 no ano.
+      **Falta:** o aniversário — 24/01 no posto, 29/01 no eletroposto (4674);
+      o Vitor vai confirmar.
+      ⚠️ A USINA 2 tem 171 MWh de vida útil e só 21,5 MWh em 2026 (10,6 em
+      setembro): parece ter ficado parada até a corretiva de agosto — não
+      confirmado, não vai no texto.
 - [ ] **UNI AUTO POSTO aguardando a API da SolarEdge no SolarView** (Vitor,
       26/09). As duas usinas estão com `nota_geracao = 'Aguardando a API da
       SolarEdge no SolarView'`, e a saúde mostra isso no lugar de "confira o
