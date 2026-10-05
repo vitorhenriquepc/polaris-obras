@@ -1740,7 +1740,15 @@ Conferido no banco em **22/09/2026**.
       UTC, `cpfl_avisado_prazo` 25/09) para que, **se a data certa for 25/09**
       e a Lívia corrigir na página nova, saia a *"📅 Atualização da vistoria"*
       (conta de 28/09, até **02/10, sexta**) em vez de um segundo "Boa
-      notícia". Simulado com rollback antes de gravar. **Lição: a página
+      notícia". Simulado com rollback antes de gravar.
+      **Atualizado em 05/10:** a CPFL respondeu *"providenciando a liberação
+      do atendimento até 07/10/2026"*. A data da solicitação continua 18/09; o
+      `cpfl_prazo_em` virou **07/10** direto, e a `cpfl_texto` ganhou o caso
+      `prazo_da_concessionaria` (prazo fora da conta dos 5 dias úteis): diz
+      *"a CPFL nos informou um novo prazo… até 07/10 (quarta)"* em vez de
+      "data corrigida". **Nada foi enviado** — sai quando alguém apertar o 📣
+      no card. Mexer na data da solicitação depois disso recalcula o prazo
+      pelos 5 dias úteis e perde o 07/10. **Lição: a página
       aberta desde de manhã roda o código de manhã — depois de publicar,
       Ctrl+F5 em todo computador da equipe.**
       **VANESSA AMORIM (4808)** e **RODRIGO JUNCAL (4402)** estão na 7 pelo
