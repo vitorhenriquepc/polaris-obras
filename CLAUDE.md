@@ -114,7 +114,7 @@ da obra quando não há grupo.
 
 ⚠️ **Telefone de cliente é gravado sem o 55, e a Z-API precisa do DDI.** Os
 da equipe, que recebem todo dia, estão **todos** com 55; os de cliente,
-**nenhum** (79 de 79, medido em 05/10). O `lembrete-instalacao` (v9) e o canal
+**nenhum** (86 de 86 obras com telefone, medido em 05/10). O `lembrete-instalacao` (v9) e o canal
 pessoal da `autoleitura-aviso` (v4) mandavam o número cru — o canal pessoal
 nunca teve prova de que chegava. Os dois põem o 55 desde 05/10. O painel já
 fazia isso no `waPhone()`.
