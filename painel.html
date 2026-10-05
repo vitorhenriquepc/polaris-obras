@@ -641,7 +641,7 @@ document.getElementById('bTema').onclick = toggleTema;
 aplicarTema(temaAtual());
 document.getElementById('bUsers').onclick = ()=> location.href='usuarios.html';
 sb.rpc('is_admin').then(r=>{ if(r.data){ document.getElementById('bUsers').style.display=''; const bm=document.getElementById('bMet'); bm.style.display=''; bm.onclick=()=>location.href='metricas.html'; } });
-document.getElementById('bNew').onclick = ()=> openForm(null);
+document.getElementById('bNew').onclick = ()=> (VIEW==='kanban' && KTR==='manutencao') ? openFormManutencao() : openForm(null);
 
 document.getElementById('bEquipe').onclick = ()=> openEquipe();
 document.getElementById('bAgenda').onclick = ()=> abrirAgendas();
@@ -2059,6 +2059,7 @@ function buscarCadastrado(){
   const idx=parseInt(n,10)-1;
   if(isNaN(idx)||!achados[idx]) return;
   const c=achados[idx];
+  window._cadPuxado = c;   // o cadastro rápido de manutenção herda o resto daqui
   const set=(id,v)=>{const e=document.getElementById(id); if(e&&v!=null&&v!=='') e.value=v;};
   set('f_cli',c.cliente); set('f_tel',c.telefone); set('f_end',c.endereco);
   set('f_pot',c.potencia_kwp!=null?String(c.potencia_kwp).replace('.',','):'');
@@ -2071,9 +2072,78 @@ function buscarCadastrado(){
   sel('f_vend',c.vendedor_id); sel('f_cat',c.categoria); sel('f_inst',c.instalador_id);
   toast('Dados de '+c.cliente+' copiados ✓');
 }
+/* Cadastro rápido de manutenção (Vitor, 05/10: "está travando o processo").
+   O formulário de obra pede contrato, valor, vendedor, origem do lead —
+   coisa de venda, que manutenção não tem. Aqui são só quatro campos; o resto
+   (tipo, agenda, instalador, grupo) fica no card, quando a pessoa abrir.
+   "Puxar cadastro" de cliente que já existe herda grupo, potência, cidade e o
+   cliente_id — esse último é o que impede o NPS de perguntar de novo a quem
+   já respondeu numa obra anterior. */
+function openFormManutencao(){
+window._cadPuxado = null;
+FORM_ID = null;
+const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovForm';
+ov.addEventListener('click', function(ev){ if(ev.target===ov) fecharForm(); });
+document.addEventListener('keydown', escFecha);
+ov.innerHTML=`<div class="modal">
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+<button type="button" onclick="fecharForm()" title="Voltar (Esc)"
+ style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#c9d6e2;
+ width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;flex-shrink:0;font-family:inherit">←</button>
+<h2 style="margin:0">🔧 Nova manutenção</h2>
+</div>
+<div class="fld"><label>Nome do cliente * <button type="button" class="tbtn" style="margin-left:6px;padding:3px 9px;font-size:10.5px" onclick="buscarCadastrado()">👥 Já é cliente? Puxar cadastro</button></label>
+<input id="f_cli" placeholder="Nome do cliente"></div>
+<div class="fld"><label>Endereço</label><input id="f_end" placeholder="Rua, número, bairro, cidade"></div>
+<div class="grid2">
+<div class="fld"><label>Telefone (DDD+número)</label><input id="f_tel" inputmode="tel" placeholder="18999999999"></div>
+<div class="fld"><label>Quantidade de placas</label><input id="f_qtm" type="number" inputmode="numeric" min="1" step="1" placeholder="12"></div>
+</div>
+<div class="fld"><div class="flddica">Entra na coluna <b>Solicitada</b> da Manutenção e O&amp;M. Tipo, data e instalador você escolhe depois, abrindo o card.</div></div>
+<div class="row">
+<button class="cancel" onclick="fecharForm()">Cancelar</button>
+<button class="save" id="f_save" onclick="salvarManutencao()">Criar manutenção</button>
+</div>
+</div>`;
+document.body.appendChild(ov);
+setTimeout(()=>{ const e=document.getElementById('f_cli'); if(e) e.focus(); },50);
+}
+async function salvarManutencao(){
+  const val=id=>((document.getElementById(id)||{}).value||'').trim();
+  const cli=val('f_cli');
+  document.querySelectorAll('.faltando').forEach(function(el){el.classList.remove('faltando');});
+  if(!cli){ document.getElementById('f_cli').classList.add('faltando'); toast('Informe o nome do cliente'); return; }
+  const tel=val('f_tel').replace(/\D/g,'');
+  if(tel && tel.length<10){ document.getElementById('f_tel').classList.add('faltando'); toast('Telefone com DDD: 18 99999-9999'); return; }
+  const qtm=parseInt(val('f_qtm'),10);
+  const rec={
+    cliente:cli, telefone:tel||null, endereco:val('f_end')||null,
+    qtd_modulos:(qtm>0?qtm:null),
+    trilha:'manutencao', etapa_numero:0, cliente_externo:false
+  };
+  // herda do cadastro puxado só se o nome continua o dele — trocou o nome,
+  // é outro cliente e não leva grupo nem cliente_id de ninguém
+  const c=window._cadPuxado;
+  if(c && c.cliente===cli){
+    ['cliente_id','whatsapp_grupo_id','potencia_kwp','cidade','categoria','ramo','tipo_telhado',
+     'concessionaria','distancia_km','modelo_modulo','inversor_descricao','sistema_origem']
+      .forEach(function(k){ if(c[k]!=null && c[k]!=='') rec[k]=c[k]; });
+    rec.cliente_externo=!!c.cliente_externo;
+  }
+  const bt=document.getElementById('f_save'); bt.disabled=true; bt.textContent='Salvando...';
+  rec.slug = await slugUnico(slugify(cli));
+  const { error } = await sb.from('obras').insert(rec);
+  if(error){ toast('Não salvou: '+error.message); bt.disabled=false; bt.textContent='Criar manutenção'; return; }
+  fecharForm();
+  toast('Manutenção criada ✓ — abra o card para agendar');
+  await loadObras();
+  if(VIEW==='kanban' && KTR!=='manutencao') setTrilha('manutencao');
+}
 function openForm(id, focoFone, trilhaNova){
 // obra nova nasce na trilha que está aberta no kanban
 const _tn = trilhaNova || (VIEW==='kanban' ? KTR : 'padrao');
+// manutenção nova não passa pelo formulário de venda: cadastro rápido
+if(!id && _tn==='manutencao') return openFormManutencao();
 const o = id ? getObra(id) : {trilha:_tn, etapa_numero:(_tn==='manutencao'?0:1)};
 const novo = !id;
 FORM_ID = id || null;
@@ -2102,6 +2172,7 @@ ov.innerHTML=`<div class="modal">
 <h2 style="margin:0">${novo?'Nova obra':'Editar obra'}</h2>
 </div>
 <button class="act act-gh" style="margin:-4px 0 12px" onclick="importarProposta()">📎 Importar proposta (PDF)</button>
+${novo?`<button class="act act-gh" style="margin:-4px 0 12px 6px" onclick="fecharForm();openFormManutencao()">🔧 É manutenção? Cadastro rápido</button>`:''}
 <input type="file" id="f_pdf" accept="application/pdf" style="display:none" onchange="lerProposta(this)">
 <div class="fld"><label>Cliente * <button type="button" class="tbtn" style="margin-left:6px;padding:3px 9px;font-size:10.5px" onclick="buscarCadastrado()">👥 Puxar cadastro</button></label><input id="f_cli" value="${esc(o.cliente||'')}" placeholder="Nome do cliente"></div>
 <div class="grid2">

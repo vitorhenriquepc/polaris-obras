@@ -89,6 +89,19 @@ atrasou ou falta a data de fechamento. Sai pelos **dois** caminhos da tela
 depois que o Vitor apontou a afirmação errada. **Antes de dizer que uma etapa
 não avisa o cliente, leia o `buildWA()`, não só `etapas.mensagem_wa`.**
 
+**Manutenção nova tem cadastro rápido** (Vitor, 05/10: o formulário de obra
+"estava travando o processo"). `openFormManutencao()` pede só **nome,
+endereço, telefone e quantidade de placas** e grava na trilha `manutencao`,
+etapa 0 (*Solicitada*). Abre pelo "+ Nova obra" com o kanban em Manutenção e
+O&M, pelo atalho "🔧 É manutenção?" no formulário de obra nova, e por
+qualquer `openForm(null)` em trilha `manutencao`. "Já é cliente? Puxar
+cadastro" herda grupo, potência, cidade e o **`cliente_id`** — é ele que faz o
+`obras_para_nps()` não perguntar de novo a quem já respondeu — e só herda se o
+nome continuar o do cadastro puxado. Tipo, agenda e instalador ficam no card
+completo, que continua igual para editar. `cliente_externo` nasce `false`
+como no formulário antigo: `true` jogaria a obra em *"Cliente de plano sem
+contrato"* (`get_painel_planos`).
+
 ### Financeiro
 `obra_financeiro` (preco_negociado, custos, dispensado) · `obra_parcelas`
 (previsão de recebimento) · `extrato_movimentos` (OFX) · `extrato_rateio`
