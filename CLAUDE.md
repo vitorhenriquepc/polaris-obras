@@ -1419,6 +1419,8 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     não sai sozinho (só pelo 📣). O `foto-obra` parou de prometer *"Prazo: 1 a
     5 dias úteis"* ao levar a obra para a 7: a vistoria ainda nem foi pedida —
     agora diz que o prazo chega quando ela for solicitada.
+    Em 05/10 o "Relatório oficial" perdeu a linha *"Toque nas fotos do
+    relatório para vê-las em tela cheia"* (Vitor: muita mensagem nessa etapa).
 
     Testado: simulação no banco com rollback (dias úteis com fim de semana e
     feriado de 12/10 e 02/11, etapa 6 → 7, correção, manutenção, sem login),
