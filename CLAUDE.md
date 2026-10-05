@@ -89,6 +89,19 @@ atrasou ou falta a data de fechamento. Sai pelos **dois** caminhos da tela
 depois que o Vitor apontou a afirmação errada. **Antes de dizer que uma etapa
 não avisa o cliente, leia o `buildWA()`, não só `etapas.mensagem_wa`.**
 
+**Manutenção nova tem cadastro rápido** (Vitor, 05/10: o formulário de obra
+"estava travando o processo"). `openFormManutencao()` pede só **nome,
+endereço, telefone e quantidade de placas** e grava na trilha `manutencao`,
+etapa 0 (*Solicitada*). Abre pelo "+ Nova obra" com o kanban em Manutenção e
+O&M, pelo atalho "🔧 É manutenção?" no formulário de obra nova, e por
+qualquer `openForm(null)` em trilha `manutencao`. "Já é cliente? Puxar
+cadastro" herda grupo, potência, cidade e o **`cliente_id`** — é ele que faz o
+`obras_para_nps()` não perguntar de novo a quem já respondeu — e só herda se o
+nome continuar o do cadastro puxado. Tipo, agenda e instalador ficam no card
+completo, que continua igual para editar. `cliente_externo` nasce `false`
+como no formulário antigo: `true` jogaria a obra em *"Cliente de plano sem
+contrato"* (`get_painel_planos`).
+
 ### Financeiro
 `obra_financeiro` (preco_negociado, custos, dispensado) · `obra_parcelas`
 (previsão de recebimento) · `extrato_movimentos` (OFX) · `extrato_rateio`
@@ -769,7 +782,7 @@ nenhuma delas. Ver pendência no §10.
 | `usina_adicionar(json, simular)` | acrescenta uma usina a um cliente que já existe. **Só soma no total da obra se ela for cliente de plano** — em obra de venda a potência é o projeto vendido, e mexer ali muda o tamanho de uma venda que já aconteceu |
 | `get_brinde_google()` | **quem avaliou no Google e quem recebeu o brinde**, lido direto de `nps` — inclui obra de manutenção, que a Lista não vê. Devolve `entregue_no_cadastro` para separar retirada de verdade de marcação em lote |
 | `usina_editar(json, simular)` | **corrige** uma usina que já existe — nome, potência, cidade, endereço, data de instalação e o vínculo com o SolarView, num caminho só. Chave ausente no json não sobrescreve nada. Devolve `mudancas` e `avisos` em português (potência mexe no kWh/kWp que o cliente lê; endereço mexe em visita e cobrança do Completo), e recusa roubar o id do SolarView de outra usina |
-| `cpfl_texto(obra)` | **o texto único da vistoria da concessionária**: conta a partir do próximo dia útil, prazo com dia da semana, link do cliente; vira *"Atualização da vistoria"* quando o prazo que o cliente leu mudou. Devolve `ja_avisado` e `mesmo_prazo` para a tela não mandar duas vezes. Só trilha padrão |
+| `cpfl_texto(obra)` | **o texto único da vistoria da concessionária**: conta a partir do próximo dia útil, prazo com dia da semana, link do cliente; vira *"Atualização da vistoria"* quando o prazo que o cliente leu mudou. Devolve `ja_avisado` e `mesmo_prazo` para a tela não mandar duas vezes. Só trilha padrão. **Desde 05/10, se o relatório do instalador saiu nas últimas 48 h, vai a versão curta** (prazo + acesso ao padrão, sem repetir "instalação concluída", link e assinatura) e devolve `curta: true` — o MURILO (4804) recebeu as duas mensagens longas com 2 minutos de diferença |
 | `resumo_mensal_obra(obra, mes)` | **o resumo do mês de um cliente**, todas as usinas juntas, com o texto pronto para o grupo e os números em json — geração, economia, tempo, dias sem geração com o previsto, retorno do investimento, bandeira. Sem IA, não grava. Recusa mês aberto e mês da instalação |
 | `usina_geracao_manual(usina, mes, kwh, parcial_ate, nota, simular)` | lança o mês de uma usina **sem API**, lido no app do fabricante. Recusa sobrescrever mês da plataforma e "até o dia" fora do mês |
 | `usina_historico_definir(usina, kwh, ate, fonte, simular)` | grava o que a usina gerou **antes** do monitoramento daqui (o passado que a plataforma não devolve). Exige dizer a fonte |
@@ -1406,6 +1419,8 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     não sai sozinho (só pelo 📣). O `foto-obra` parou de prometer *"Prazo: 1 a
     5 dias úteis"* ao levar a obra para a 7: a vistoria ainda nem foi pedida —
     agora diz que o prazo chega quando ela for solicitada.
+    Em 05/10 o "Relatório oficial" perdeu a linha *"Toque nas fotos do
+    relatório para vê-las em tela cheia"* (Vitor: muita mensagem nessa etapa).
 
     Testado: simulação no banco com rollback (dias úteis com fim de semana e
     feriado de 12/10 e 02/11, etapa 6 → 7, correção, manutenção, sem login),

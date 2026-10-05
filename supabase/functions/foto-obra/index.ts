@@ -239,7 +239,9 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      let msgFinal = `📄 *Relatório oficial da ${servico}*\n\nPreparamos um relatório completo com ${imagens.length} fotos${nVid ? ` e ${nVid} vídeo${nVid > 1 ? 's' : ''}` : ''}, os dados técnicos e o termo de conclusão:\n\n🔗 ${linkRel}\n\nToque nas fotos do relatório para vê-las em tela cheia. 📱`;
+      let msgFinal = `📄 *Relatório oficial da ${servico}*\n\nPreparamos um relatório completo com ${imagens.length} fotos${nVid ? ` e ${nVid} vídeo${nVid > 1 ? 's' : ''}` : ''}, os dados técnicos e o termo de conclusão:\n\n🔗 ${linkRel}`;
+      // a linha "Toque nas fotos do relatório para vê-las em tela cheia" saiu em
+      // 05/10 (Vitor: muita mensagem na etapa da vistoria)
       // só anuncia a etapa se ela tiver nome -- sem nome a frase fica "avançou
       // para a etapa *.*", que foi o que o cliente leu em 17/09
       if (avancou && proxNome) {
