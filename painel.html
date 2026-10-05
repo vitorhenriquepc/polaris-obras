@@ -1771,8 +1771,12 @@ function fichaTexto(o){
   if(o.inversor_descricao) L.push('🔌 '+o.inversor_descricao);
   if(o.tipo_telhado) L.push('🏠 Telhado: '+o.tipo_telhado);
   const inc=[];
+  // estrutura e cabo sao de obra nova; na manutencao sairiam como "Sem" so
+  // porque ninguem preencheu (armadilha 20)
+  if(o.trilha!=='manutencao'){
   if(o.tem_estrutura===true) inc.push('✅ Com estrutura'); else if(o.tem_estrutura===false) inc.push('❌ Sem estrutura');
   if(o.tem_cabo===true) inc.push('✅ Com cabo'); else if(o.tem_cabo===false) inc.push('❌ Sem cabo');
+  }
   if(inc.length) L.push(inc.join(' · '));
   return L.join('\n');
 }
@@ -1793,12 +1797,21 @@ async function avisarInstalador(o, antes, depois){
       +'\n📋 Checklist de fotos:\n'+linkChk
       +'\n\nPor favor, confirmem a disponibilidade. 🙏\n\n*Polaris Energia Solar* ☀️';
   } else {
-    msg='🔧 *Nova obra agendada para vocês!*\n\n'
+    // o nome do servico sai da trilha e do tipo, como na enviar-os: a equipe
+    // de campo recebia "Nova obra agendada" para uma preventiva (armadilha 20)
+    const ehMan=(o.trilha==='manutencao');
+    const serv=!ehMan?'Nova obra agendada':
+      ({preventiva:'Manutenção preventiva agendada',corretiva:'Manutenção corretiva agendada',
+        diagnostico:'Avaliação técnica agendada'}[o.tipo_manutencao]||'Visita técnica agendada');
+    const ficha=fichaTexto(o);
+    msg='🔧 *'+serv+' para vocês!*\n\n'
       +'👤 Cliente: *'+o.cliente+'*'+(o.contrato?' · #'+o.contrato:'')+'\n'
+      +(ehMan&&o.telefone?'📞 '+o.telefone+'\n':'')
       +'📅 Data: *'+dataBRs(depois)+'*\n'
       +(o.endereco?'📍 '+o.endereco+'\n'+(maps?'🗺️ '+maps+'\n':''):'')
-      +'\n*Ficha técnica*\n'+fichaTexto(o)
-      +'\n\n📋 Checklist de fotos da obra:\n'+linkChk
+      +(ehMan&&o.motivo_manutencao?'\n📝 *Relatado pelo cliente:* '+o.motivo_manutencao+'\n':'')
+      +(ficha?'\n*Ficha técnica*\n'+ficha:'')
+      +'\n\n📋 Checklist de fotos'+(ehMan?'':' da obra')+':\n'+linkChk
       +'\n\nQualquer dúvida, é só chamar. 💪\n\n*Polaris Energia Solar* ☀️';
   }
   const r=await sb.functions.invoke('notificar-grupo',{body:{grupo_id:eq.whatsapp_grupo_id,message:msg}});
@@ -1813,6 +1826,12 @@ const reag = !!antes;
 const ehMan = (o.trilha==='manutencao');
 const OQ  = ehMan ? 'atendimento' : 'instalação';
 const OQs = ehMan ? 'seu atendimento' : 'sua instalação';
+// sem grupo, o aviso vai pelo WhatsApp pessoal do cliente (Vitor, 05/10: a
+// manutencao muitas vezes nao tem grupo). Abre o WhatsApp com o texto pronto;
+// quem manda e a pessoa, como no botao de WhatsApp do card.
+const semGrupo = !o.whatsapp_grupo_id;
+if(semGrupo && !waPhone(o.telefone)){ toast('ℹ️ Cliente não avisado: esta obra não tem grupo nem telefone'); return; }
+const onde = semGrupo ? 'no WhatsApp pessoal' : 'no grupo';
 let msg;
 if(reag){
 const motivo = prompt(
@@ -1826,13 +1845,14 @@ msg='📅 *'+primeiro+', precisamos remanejar a data d'+(ehMan?'o seu atendiment
 +'\nPedimos desculpas pelo transtorno e agradecemos a compreensão. Nossa equipe já está organizada para essa nova data. 🙏\n\n'
 +'Qualquer coisa, é só falar por aqui.\n\n*Equipe Polaris Energia Solar* ☀️';
 } else {
-if(!confirm('Avisar o cliente no grupo que '+(ehMan?'o atendimento':'a instalação')+' foi agendad'+(ehMan?'o':'a')+' para '+dataBRs(depois)+'?')) return;
+if(!confirm('Avisar o cliente '+onde+' que '+(ehMan?'o atendimento':'a instalação')+' foi agendad'+(ehMan?'o':'a')+' para '+dataBRs(depois)+'?')) return;
 msg='📅 *'+primeiro+', '+OQs+' está agendad'+(ehMan?'o':'a')+'!*\n\n'
 +'Data: *'+dataBRs(depois)+'*\n'
 +(o.endereco?'📍 Local: '+o.endereco+'\n':'')
 +'\nUm dia antes enviamos um lembrete com tudo que precisa ficar liberado no local. 😉\n\n'
 +'Se essa data não for boa para você, é só nos avisar por aqui.\n\n*Equipe Polaris Energia Solar* ☀️';
 }
+if(semGrupo){ abrirWhatsPessoal(o.telefone, msg); return; }
 toast('Avisando o cliente... 📅');
 const r=await sb.functions.invoke('notificar-grupo',{body:{grupo_id:o.whatsapp_grupo_id,message:msg}});
 if(r.error||(r.data&&r.data.error)) toast('⚠️ Não consegui avisar no grupo — use o 📣 para reenviar');
@@ -2018,6 +2038,10 @@ if(!fone){
 toast('Cadastre o WhatsApp do cliente primeiro');
 openForm(id, true); return;
 }
+abrirWhatsPessoal(o.telefone, msg);
+}
+function abrirWhatsPessoal(tel, msg){
+const fone=waPhone(tel);
 const mobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 if(mobile){
 window.open(`https://wa.me/${fone}?text=${encodeURIComponent(msg)}`,'_blank');
@@ -2081,6 +2105,7 @@ function buscarCadastrado(){
    já respondeu numa obra anterior. */
 function openFormManutencao(){
 window._cadPuxado = null;
+const instOpts='<option value="">— Equipe —</option>'+EQUIPE.filter(p=>p.papel==='Instalador'&&p.ativo!==false).map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join('');
 FORM_ID = null;
 const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovForm';
 ov.addEventListener('click', function(ev){ if(ev.target===ov) fecharForm(); });
@@ -2099,7 +2124,11 @@ ov.innerHTML=`<div class="modal">
 <div class="fld"><label>Telefone (DDD+número)</label><input id="f_tel" inputmode="tel" placeholder="18999999999"></div>
 <div class="fld"><label>Quantidade de placas</label><input id="f_qtm" type="number" inputmode="numeric" min="1" step="1" placeholder="12"></div>
 </div>
-<div class="fld"><div class="flddica">Entra na coluna <b>Solicitada</b> da Manutenção e O&amp;M. Tipo, data e instalador você escolhe depois, abrindo o card.</div></div>
+<div class="grid2">
+<div class="fld"><label>Equipe de campo</label><select id="f_inst">${instOpts}</select></div>
+<div class="fld"><label>Data da execução</label><input id="f_dti" type="date"></div>
+</div>
+<div class="fld"><div class="flddica">Com data, entra em <b>Agendada</b>, aparece na agenda e o cliente é avisado (no grupo ou, sem grupo, no WhatsApp dele). Sem data, entra em <b>Solicitada</b>.</div></div>
 <div class="row">
 <button class="cancel" onclick="fecharForm()">Cancelar</button>
 <button class="save" id="f_save" onclick="salvarManutencao()">Criar manutenção</button>
@@ -2116,10 +2145,13 @@ async function salvarManutencao(){
   const tel=val('f_tel').replace(/\D/g,'');
   if(tel && tel.length<10){ document.getElementById('f_tel').classList.add('faltando'); toast('Telefone com DDD: 18 99999-9999'); return; }
   const qtm=parseInt(val('f_qtm'),10);
+  const dti=val('f_dti')||null;
   const rec={
     cliente:cli, telefone:tel||null, endereco:val('f_end')||null,
     qtd_modulos:(qtm>0?qtm:null),
-    trilha:'manutencao', etapa_numero:0, cliente_externo:false
+    instalador_id:val('f_inst')||null, data_instalacao:dti,
+    // com data marcada ja e "Agendada"; sem data fica em "Solicitada"
+    trilha:'manutencao', etapa_numero:(dti?1:0), cliente_externo:false
   };
   // herda do cadastro puxado só se o nome continua o dele — trocou o nome,
   // é outro cliente e não leva grupo nem cliente_id de ninguém
@@ -2135,9 +2167,15 @@ async function salvarManutencao(){
   const { error } = await sb.from('obras').insert(rec);
   if(error){ toast('Não salvou: '+error.message); bt.disabled=false; bt.textContent='Criar manutenção'; return; }
   fecharForm();
-  toast('Manutenção criada ✓ — abra o card para agendar');
+  toast(dti?'Manutenção criada e agendada ✓':'Manutenção criada ✓ — abra o card para agendar');
   await loadObras();
   if(VIEW==='kanban' && KTR!=='manutencao') setTrilha('manutencao');
+  // agendada no cadastro: avisa equipe e cliente igual a marcar a data no card
+  const o=OBRAS.find(x=>x.slug===rec.slug);
+  if(o && dti){
+    await avisarAgendamento(o, null, dti);
+    if(o.instalador_id) await avisarInstalador(o, null, dti);
+  }
 }
 function openForm(id, focoFone, trilhaNova){
 // obra nova nasce na trilha que está aberta no kanban
@@ -2439,8 +2477,7 @@ if(oAtual && dtiDepois){
 
   if(mudouData){
     // Data nova ou remarcada → avisa cliente e equipe
-    if(oAtual.whatsapp_grupo_id) await avisarAgendamento(oAtual, dtiAntes, dtiDepois);
-    else toast('ℹ️ Cliente não avisado: esta obra ainda não tem grupo de WhatsApp');
+    await avisarAgendamento(oAtual, dtiAntes, dtiDepois);
     await avisarInstalador(oAtual, dtiAntes, dtiDepois);
   } else if(mudouInst && instDepois){
     // Só trocou/definiu a equipe → avisa apenas a equipe nova

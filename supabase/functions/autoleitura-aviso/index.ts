@@ -31,8 +31,14 @@ const CORS = {
 function json(b: unknown, s = 200) {
   return new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } });
 }
+// O telefone do cliente é gravado sem o 55 (18999999999) e a Z-API precisa do
+// DDI. Os da equipe, que recebem todo dia, estão todos com 55; os de cliente,
+// nenhum (05/10). Sem isto o canal pessoal nunca teve prova de que chega.
+function com55(d: string): string {
+  return d.length <= 11 && !d.startsWith('55') ? '55' + d : d;
+}
 function fones(v: unknown): string[] {
-  return [...new Set(String(v || '').split(',').map((x) => x.replace(/\D/g, '')).filter((x) => x.length >= 10))];
+  return [...new Set(String(v || '').split(',').map((x) => x.replace(/\D/g, '')).filter((x) => x.length >= 10).map(com55))];
 }
 
 Deno.serve(async (req: Request) => {

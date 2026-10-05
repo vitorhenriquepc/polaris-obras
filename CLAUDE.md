@@ -102,6 +102,23 @@ completo, que continua igual para editar. `cliente_externo` nasce `false`
 como no formulário antigo: `true` jogaria a obra em *"Cliente de plano sem
 contrato"* (`get_painel_planos`).
 
+Desde 05/10 o cadastro rápido tem também **equipe de campo** e **data da
+execução**, opcionais (Vitor: "para ter no cronograma e avisar o cliente").
+Com data a obra nasce na etapa 1 (*Agendada*), entra na agenda (`get_agenda`
+lê `data_instalacao` + `instalador_id`) e avisa equipe e cliente como marcar
+a data no card. **Grupo não é obrigatório:** sem grupo, o aviso de
+agendamento abre o WhatsApp pessoal do cliente com o texto pronto
+(`abrirWhatsPessoal`, o mesmo do botão de WhatsApp do card — quem manda é a
+pessoa), e o lembrete da véspera (`lembrete-instalacao`) já caía no telefone
+da obra quando não há grupo.
+
+⚠️ **Telefone de cliente é gravado sem o 55, e a Z-API precisa do DDI.** Os
+da equipe, que recebem todo dia, estão **todos** com 55; os de cliente,
+**nenhum** (79 de 79, medido em 05/10). O `lembrete-instalacao` (v9) e o canal
+pessoal da `autoleitura-aviso` (v4) mandavam o número cru — o canal pessoal
+nunca teve prova de que chegava. Os dois põem o 55 desde 05/10. O painel já
+fazia isso no `waPhone()`.
+
 ### Financeiro
 `obra_financeiro` (preco_negociado, custos, dispensado) · `obra_parcelas`
 (previsão de recebimento) · `extrato_movimentos` (OFX) · `extrato_rateio`
@@ -1148,6 +1165,14 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     inversor e telhado, sem estrutura nem cabo. Conferido trilha por trilha
     fora do ar: **padrão fica byte a byte idêntico** (70 obras), eletroposto
     muda só a saudação do cliente para "instalação do eletroposto".
+
+    ⚠️ **O conserto de 22/09 foi para a função errada.** O aviso que a equipe
+    recebe ao marcar a data sai do `avisarInstalador()` do **painel**, não da
+    `enviar-os` — que nenhuma tela chama. O painel seguia mandando *"Nova obra
+    agendada"* com estrutura e cabo para manutenção. Corrigido em 05/10: o
+    título sai da trilha e do tipo (*"Visita técnica agendada"*, *"Manutenção
+    preventiva agendada"*…), estrutura e cabo não saem na manutenção, e entram
+    o telefone do cliente e o `motivo_manutencao`.
 
     ⚠️ **E `observacoes` ficou de fora de propósito.** É campo livre e hoje
     carrega nota comercial — a obra 4599 tem *"Proposta: R$ 15.600,00"* lá
