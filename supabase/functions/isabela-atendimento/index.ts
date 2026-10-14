@@ -5,8 +5,8 @@ import { createClient } from '@supabase/supabase-js';
 // Cliente escreve no grupo e ninguém da equipe responde:
 //   2 h úteis → aviso no privado do VENDEDOR da obra (sem vendedor, vai ao pós-venda)
 //   4 h úteis → aviso ao pós-venda (equipe.resp_posvenda)
-//   sábado, domingo e feriado: passadas 2 h, a Isabela diz NO GRUPO que o
-//   atendimento é de segunda a sexta e que alguém retoma o contato.
+//   mensagem mandada no sábado, domingo ou feriado: passadas 2 h, a Isabela diz
+//   NO GRUPO que o atendimento é de segunda a sexta e que alguém retoma o contato.
 // Antes de avisar, a IA lê a conversa e decide se a mensagem precisa mesmo de
 // resposta e se alguma mensagem nossa — inclusive automática — já respondeu.
 // O que sai pelo número da Isabela não fica em mensagens_recebidas; por isso
@@ -147,6 +147,8 @@ Deno.serve(async (req: Request) => {
 
       const itens: { t: Date; txt: string; cliente: boolean; conteudo: string }[] = [];
       (ms || []).forEach((m: any) => {
+        // "outro" é evento do WhatsApp que não é mensagem (troca de foto do grupo, etc.)
+        if (m.tipo === 'outro') return;
         const conteudo = mascara(String(m.transcricao || m.texto || '').replace(/\s+/g, ' ')).slice(0, 300);
         // "[imagem]" sem legenda já vem assim do webhook; o prefixo é só para legenda e transcrição
         const midia = m.tipo && m.tipo !== 'texto' && !conteudo.startsWith('[') ? `[${m.tipo}] ` : '';
@@ -209,8 +211,8 @@ Responda APENAS com JSON:
     async function decidir(c: any, T: Date, st: Estado) {
       const minCorr = (T.getTime() - new Date(c.desde).getTime()) / 60000;
       const devido = (expediente(T) && c.min_uteis >= P.vendMin && (!st.vend_em || !st.pos_em))
-        || (!diaUtil(T) && minCorr >= P.fdsMin && hh(T) >= P.fdsIni && hh(T) < P.fdsFim && !st.fds_em
-            && T.getTime() - new Date(c.ultima).getTime() < 3 * 86400000);
+        || (!diaUtil(T) && !diaUtil(new Date(c.ultima)) && minCorr >= P.fdsMin && hh(T) >= P.fdsIni && hh(T) < P.fdsFim
+            && !st.fds_em && T.getTime() - new Date(c.ultima).getTime() < 3 * 86400000);
       if (!devido) return null;
 
       if (!st.parecer || !st.avaliado_ate || new Date(c.ultima) > new Date(st.avaliado_ate)) {
@@ -236,7 +238,9 @@ Responda APENAS com JSON:
       const out: any = { minUteis, pend };
       if (expediente(T) && minUteis >= P.vendMin && !st.vend_em) out.degrau1 = vend || posvenda;
       if (expediente(T) && minUteis >= P.posMin && !st.pos_em && vend) out.degrau2 = posvenda;
-      if (!diaUtil(T) && minCorrPend >= P.fdsMin && hh(T) >= P.fdsIni && hh(T) < P.fdsFim && !st.fds_em) out.fds = true;
+      // o aviso de horário é para quem escreveu NO fim de semana ou feriado (Vitor, 14/10);
+      // mensagem de quinta ou sexta sem resposta é assunto da escada, não do aviso no grupo
+      if (!diaUtil(T) && !diaUtil(pend) && minCorrPend >= P.fdsMin && hh(T) >= P.fdsIni && hh(T) < P.fdsFim && !st.fds_em) out.fds = true;
       return out;
     }
 
