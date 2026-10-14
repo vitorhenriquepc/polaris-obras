@@ -119,6 +119,14 @@ pessoal da `autoleitura-aviso` (v4) mandavam o número cru — o canal pessoal
 nunca teve prova de que chegava. Os dois põem o 55 desde 05/10. O painel já
 fazia isso no `waPhone()`.
 
+**Entrega do Material: 1 a 20 dias úteis** (era 1 a 15; Vitor, 14/10). O
+prazo de cada etapa mora **só** em `etapas.prazo_texto` — a mensagem do grupo
+(`buildWA()`) e a página do cliente (`get_acompanhamento`) leem dali; nenhum
+número de dias da etapa está no código. O painel carrega as etapas **ao
+abrir**: depois de mudar, F5 em todo computador — a trava de aba velha
+(armadilha 31) olha código, não dado. O eletroposto tem o prazo próprio de
+equipamentos (etapa 3, 5 a 15 dias úteis) e não mudou.
+
 ### Financeiro
 `obra_financeiro` (preco_negociado, custos, dispensado) · `obra_parcelas`
 (previsão de recebimento) · `extrato_movimentos` (OFX) · `extrato_rateio`
@@ -750,6 +758,83 @@ não pelo nome nem pelo número:
 `grupo_fixos` guardam **número**, e trocar a pessoa em `equipe` não muda
 nenhuma delas. Ver pendência no §10.
 
+**Uma pessoa, mais de um número** (14/10). `equipe.telefones_extra` guarda os
+outros números de quem escreve nos grupos — hoje o Jefferson (…1313 no
+cadastro, …9456 no extra). Serve **só para reconhecer** quem escreveu: o
+`equipe_por_fone()` é o único lugar do banco que identifica a equipe pelo
+telefone, e os avisos continuam indo para `equipe.telefone`. Antes disso, o
+que ele mandava do segundo número entrava como mensagem de **cliente**: não
+fechava a pendência de ninguém e podia virar "cliente esperando". As 5
+mensagens antigas foram corrigidas (o texto ficou; mudou quem escreveu).
+
+### Isabela: a escada de atendimento nos grupos
+**Isabela** é o nome da IA da Polaris, e é o número **18 99690-6474** (a
+instância POS-VENDA da Z-API) — os clientes já falam com ela pelo nome. Em
+14/10 nasceu a escada que o Vitor pediu, **ainda desligada**:
+
+| quando | o quê |
+|---|---|
+| 2 h úteis sem resposta | aviso no privado do **vendedor** da obra (sem vendedor, vai direto ao pós-venda) |
+| 4 h úteis | aviso ao **pós-venda** (`resp_posvenda`, a Lívia) |
+| mensagem mandada no sábado, domingo ou feriado | passadas 2 h (entre 8h e 20h), a Isabela diz **no grupo** que o atendimento é de segunda a sexta e em que dia alguém retoma |
+
+"Hora útil" é segunda a sexta, `atendimento_hora_ini`–`atendimento_hora_fim`
+(8h–18h), fora dos `feriados` — `minutos_uteis(ini, fim)`. Mensagem de sexta
+às 17h vence às 9h do próximo dia útil.
+
+Quem decide é a edge function **`isabela-atendimento`**.
+`atendimento_candidatos(agora)` lista os grupos em que, depois da última
+mensagem de **gente** da equipe, o cliente mandou algo que não é cortesia
+(`msg_trivial`: "ok", "beleza, fico no aguardo", "🙏"…; pergunta com "?" nunca
+é cortesia; foto, áudio e documento sempre entram). Só quando um degrau vence
+a IA (Haiku, `ia_modelo`) lê as últimas 30 mensagens e diz: **precisa de
+resposta? já foi respondida** — inclusive por mensagem automática? — e **qual
+mensagem** está esperando. A espera conta dessa mensagem, não da primeira do
+bloco (o e-mail que a equipe pediu não é pergunta). Senha e e-mail são
+mascarados antes de ir para a IA e para o aviso.
+
+⚠️ **O aviso no grupo fala com o cliente sem a Lívia aprovar.** É exceção à
+regra 3.5 e ao "fim de semana sem mensagem para cliente", decidida pelo Vitor
+em 14/10, com **texto fixo** (`atendimento_fds_texto`) e chave própria
+(`atendimento_fds_ativo`). Sai uma vez por fim de semana em cada grupo e só
+para quem escreveu **no** fim de semana ou feriado: mensagem de sexta sem
+resposta é assunto da escada — avisar no sábado expõe que ninguém respondeu
+na sexta, e não foi isso que o Vitor pediu.
+
+⚠️ **O que sai pelo número da Isabela não é gravado.** Zero linhas em
+`mensagens_recebidas` vindas dela: a Z-API não manda ao webhook as mensagens
+"enviadas por mim" — nem as automáticas, nem o que alguém **digita** no
+WhatsApp da Isabela. A função compensa com os envios que o banco conhece
+(`cpfl_avisado_em` com as datas da vistoria, `relatorio_enviado_em`,
+`regua_contatos.enviado_em`), mas resposta digitada no número da Isabela é
+**invisível** e pode virar aviso falso. O conserto é ligar "notificar as
+enviadas por mim" no webhook da instância; o `webhook-whatsapp-v2` já trata
+`fromMe` (vira equipe, e `automatica` quando traz a assinatura).
+
+**Como ela melhora com o uso:** cada espera vira uma linha em
+`atendimento_espera` (o parecer da IA, quem foi avisado e quando, quando a
+equipe respondeu). O que a equipe corrige vira exemplo:
+`atendimento_ensinar(espera, 'desnecessario' | 'faltou_avisar' | 'util')`
+grava em `atendimento_exemplo`, que entra no prompt da decisão seguinte — o
+mesmo desenho do `classificacoes_exemplo` que o webhook já usa.
+`atendimento_fechar` fecha na mão ("falei por telefone"). **As duas ainda
+não têm tela.** O modelo não é retreinado: ele melhora pelos exemplos e pelos
+limites que a medição mostrar.
+
+**Medido em 14/10, refazendo 05/10–13/10 sem gravar nem enviar** (replay a
+cada 30 min): em 6 dias úteis, **13 avisos ao vendedor** (~2 por dia para a
+equipe toda) e **4 avisos de horário** no fim de semana prolongado (Sáb–Seg
+feriado). A IA descartou **32 conversas** que o filtro deixou passar ("Fechou",
+"Caiu sim", "Assim melhor", e a pergunta dos 5 dias úteis do 4847, já
+respondida pela vistoria). Em 6 dos 13 avisos a equipe respondeu **depois** do
+horário do aviso — de 40 min a 4 dias depois. Nos outros 7 não há resposta
+visível: pendência real, resposta pelo número da Isabela ou por telefone.
+
+Para ligar: `atendimento_desde` = agora (senão a fila antiga dispara de uma
+vez), cron a cada 15 min, `atendimento_ativo = 1` — e
+`alerta_espera_ativo = 0`: o "cliente esperando" antigo (60 min, só para a
+Lívia) passaria na frente do vendedor.
+
 ### Indicações
 `indicacoes` — nova → contatada → visita → fechada/perdida
 
@@ -792,6 +877,11 @@ nenhuma delas. Ver pendência no §10.
 | `uc_leitura_atualizar` · `uc_leitura_apagar` | corrigem uma data; apagar é recusado se o cliente já foi avisado |
 | `autoleitura_resumo_texto(uc)` | o calendário inteiro para mandar no grupo, com os canais que de fato existem |
 | `get_responsavel_posvenda()` | quem é o `resp_posvenda` e o `resp_alertas` hoje |
+| `equipe_por_fone(fone)` | quem da equipe escreveu — pelo `telefone` **ou** pelos `telefones_extra`. É dele que sai o `da_equipe` das mensagens dos grupos |
+| `minutos_uteis(ini, fim)` | minutos de horário de atendimento (seg–sex, 8h–18h, sem feriado) entre dois instantes — a régua da escada da Isabela |
+| `msg_trivial(texto)` | a mensagem é só cortesia ("ok", "beleza, fico no aguardo", "🙏")? Pergunta com "?" nunca é |
+| `atendimento_candidatos(agora, desde)` | grupos com mensagem de cliente sem resposta de **gente** da equipe; aceita um "agora" no passado para refazer a história (replay) |
+| `atendimento_ensinar(espera, feedback, obs)` · `atendimento_fechar(espera, como, obs)` | o que a equipe corrige vira exemplo da IA · fecha a espera na mão |
 | `definir_responsavel(equipe, funcao)` | troca a pessoa de um dos dois papéis; só admin |
 | `get_kpis_financeiro(ini, fim)` | R$/Wp e execução × faturamento, **com a cobertura junto** — quantas obras sustentam cada número e o que falta para as outras |
 | `obra_custos_realizados(obra)` | o realizado da obra vindo do extrato, campo a campo; diz também se o extrato cobre o período da obra |
@@ -881,6 +971,12 @@ Prefira criar parâmetro a chumbar número no código.
 | `resumo_sem_acumulado_obras` | obra do UNI AUTO POSTO | obras cujo resumo **não** traz o "Desde a instalação" nem o retorno do investimento — o Júnior viu o acumulado só no primeiro (setembro) |
 | `resumo_mensal_dia` · `resumo_mensal_preparo_dia` | 5 · 2 | dia do envio (ou o próximo dia útil) · a partir de quando o resumo entra na régua para aprovar |
 | `resumo_sol_pct` | 75 | no resumo mensal, "dia de sol" é radiação ≥ 75% do melhor dia do mês no lugar; abaixo de `saude_rad_min` é nublado; o resto, parcialmente nublado |
+| `atendimento_ativo` · `atendimento_fds_ativo` | **0** · **0** | a escada da Isabela (avisos à equipe) · o aviso de horário no grupo no fim de semana e feriado |
+| `atendimento_vendedor_min` · `atendimento_posvenda_min` | 120 · 240 | minutos úteis sem resposta até avisar o vendedor · o pós-venda |
+| `atendimento_hora_ini` · `atendimento_hora_fim` | 8 · 18 | o horário que conta como "hora útil" |
+| `atendimento_fds_min` · `atendimento_fds_hora_ini` · `atendimento_fds_hora_fim` | 120 · 8 · 20 | espera e janela do aviso de fim de semana |
+| `atendimento_fds_texto` | texto fixo | o que a Isabela diz no grupo; `{quando}` vira "na segunda-feira (DD/MM)" |
+| `atendimento_desde` | vazio | ao ligar, só olha mensagem depois disto |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -1483,6 +1579,21 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     solto também ficou preso duas vezes; o mesmo `update` dentro de um
     `do $x$ begin ... end $x$` passou na hora.
 
+33. **Medir demora de resposta pelos dados exige saber o que é pergunta — e
+    ver o que a Isabela mandou.** Em 14/10 eu disse ao Vitor que 71 conversas
+    tinham levado mais de 2 h para ser respondidas e 16 nunca tinham sido, com
+    três exemplos. Os três estavam errados: *"será realizada hoje mesmo a
+    instalação?"* foi respondida em **1 minuto**, *"ontem minha esposa ficou
+    em casa"* em **5**, e a pergunta dos 5 dias úteis do 4847, em 3 minutos,
+    pela mensagem da vistoria — que saiu pelo número da Isabela e **não é
+    gravada**. A conta tinha dois furos: abria a espera em qualquer mensagem
+    do cliente ("ok, estaremos no aguardo", um recado de quinta, o e-mail que
+    a equipe tinha pedido) e não via nada do que sai pela Isabela. Refeita
+    só com pergunta de verdade: **223** em 30 dias, **76%** respondidas em até
+    15 min, mediana de **2 min**. O Vitor pegou o erro porque conhecia as
+    conversas. **Antes de afirmar que alguém demorou, leia a conversa — e
+    lembre que o que a Isabela fala no grupo não aparece na tabela.**
+
 ---
 
 ## 10. Estado e pendências
@@ -1910,6 +2021,18 @@ Conferido no banco em **22/09/2026**.
       cartões continuam sem as obras de manutenção (Tays, UNI AUTO POSTO,
       Bassetto, Fatima). O certo seria `obra_ativa()` (§6). Mexer muda os
       números do topo da tela, então é decisão, não varredura.
+- [ ] **Ligar a escada da Isabela** (§4, pronta e desligada desde 14/10).
+      Falta: o Vitor aprovar o texto do aviso de fim de semana
+      (`atendimento_fds_texto`); ligar "notificar as enviadas por mim" no
+      webhook da Z-API, para o que sai pela Isabela aparecer; criar o cron de
+      15 min e desligar o `alerta_espera` antigo. Depois: botões "não precisava"
+      / "falei por fora" na tela (é deles que sai o aprendizado) e a resposta
+      sugerida, tirada da base de perguntas e respostas dos grupos.
+- [ ] **Senha de cliente gravada em texto puro.** Em 14/10, **20 mensagens em
+      16 grupos** de `mensagens_recebidas` traziam login e senha (CPFL, app do
+      inversor) que o cliente mandou no grupo. A Isabela já mascara antes de
+      mandar para a IA e para os avisos; o que está gravado continua aberto.
+      Existe `mensagem_mascarada` (6 linhas), mas ela não pegou esses casos.
 
 Próximos módulos: garantia e nota fiscal · tela de indicação com o funil novo ·
 comercial (só depois do financeiro confiável).
