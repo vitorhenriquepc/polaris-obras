@@ -477,11 +477,20 @@ linha em branco entre elas, e todo valor de economia sai em negrito — topo,
 usinas, Total e acumulado (Vitor, 02/10: "junto ficava apertado"). O contato
 621 foi regenerado com isso, mantendo o acumulado.
 O **tempo** saiu do parágrafo corrido para uma linha por tipo de dia —
-☀️ sol · ⛅ parcialmente nublado · ☁️ nublado, que somam o mês — e a chuva
-vem depois de uma linha em branco, *"🌧️ Choveu em N desses dias (X mm)"*
-(ou *"🌂 Não choveu no mês"*), para ninguém somar a chuva como quarto grupo.
+☀️ sol · ⛅ parcialmente nublado · ☁️ nublado, que somam o mês.
 Aprovado pelo Vitor para **todos** os clientes modelo em 02/10; o 620
 (Gilberto) e o 621 (Júnior) foram regenerados e seguem aprovados para 05/10.
+
+⚠️ **A chuva vai junto do tipo de dia, não numa linha à parte** (15/10). A
+versão de 02/10 dizia *"☀️ 17 dias de sol"* e, embaixo, *"🌧️ Choveu em 16
+desses dias"* — o Vitor leu o resumo da Tays e achou confuso: parecia que
+choveu nos dias de sol. Os números estavam certos; a chuva é que não é um
+quarto grupo, ela cai **dentro** dos outros três. Hoje cada dia entra uma vez
+só e a chuva vai entre parênteses, com o total em mm por último:
+*"☀️ 17 dias de sol (3 com chuva rápida) · ⛅ 11 dias parcialmente nublados
+(choveu em todos) · ☁️ 2 dias nublados (choveu nos dois)"* e *"🌧️ 155 mm de
+chuva no mês — 62 mm só no dia 14/09"*. O dia mais chuvoso só aparece quando
+explica o total (≥ 20 mm e ≥ 30% do mês). Dia de chuva continua sendo ≥ 1 mm.
 
 `clientes.chamar_de` é o nome do *"Olá, ...!"* — sem ele, o primeiro nome do
 cadastro, que para o Jose Antonio Bassetto Junior dava "Jose".
