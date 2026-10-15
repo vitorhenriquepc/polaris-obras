@@ -842,6 +842,19 @@ wi-fi"* viraria prova de que a causa é wi-fi); e **`get_marco_svc` /
 ⚠️ **Texto automático novo que fala no grupo do cliente tem de levar a
 assinatura**, senão conta como resposta de gente.
 
+⚠️ **Um grupo pode estar em mais de uma obra** — a obra da visita do plano
+herda o grupo do cliente, e a manutenção que "puxa o cadastro" também. Até
+15/10 o webhook achava a obra com `maybeSingle()` direto em `obras`, que dá
+**erro** com duas, e a mensagem era descartada como "grupo interno", sem
+gravar nada: a **Tays** sumiu desde 26/09 e o **Júnior** desde 02/10, de
+tudo — escada, pendências, NPS. Hoje quem escolhe a obra dona é
+**`obra_do_grupo(grupo)`**: obra de visita do plano nunca é dona; entre as
+outras, a em andamento antes da concluída; empate, a mais antiga (hoje: Tays →
+a obra dela; Júnior → o eletroposto 4674, em andamento). O **envio** não
+mudou: cada obra continua mandando para o grupo dela. O webhook está
+versionado em `supabase/functions/webhook-whatsapp-v2/` desde a v4 (15/10) —
+antes só existia publicado.
+
 **Como ela melhora com o uso:** cada espera vira uma linha em
 `atendimento_espera` (o parecer da IA, quem foi avisado e quando, quando a
 equipe respondeu). O que a equipe corrige vira exemplo:
@@ -913,6 +926,7 @@ agendado e para pela chave; para voltar, é só a chave em 1.
 | `autoleitura_resumo_texto(uc)` | o calendário inteiro para mandar no grupo, com os canais que de fato existem |
 | `get_responsavel_posvenda()` | quem é o `resp_posvenda` e o `resp_alertas` hoje |
 | `equipe_por_fone(fone)` | quem da equipe escreveu — pelo `telefone` **ou** pelos `telefones_extra`. É dele que sai o `da_equipe` das mensagens dos grupos |
+| `obra_do_grupo(grupo)` | **a obra dona de um grupo de WhatsApp** quando ele está em mais de uma (visita do plano nunca; em andamento primeiro; depois a mais antiga). É por ela que o webhook grava a mensagem |
 | `minutos_uteis(ini, fim)` | minutos de horário de atendimento (seg–sex, 8h–18h, sem feriado) entre dois instantes — a régua da escada da Isabela |
 | `msg_trivial(texto)` | a mensagem é só cortesia ("ok", "beleza, fico no aguardo", "🙏")? Pergunta com "?" nunca é |
 | `atendimento_candidatos(agora, desde)` | grupos com mensagem de cliente sem resposta de **gente** da equipe; aceita um "agora" no passado para refazer a história (replay) |
@@ -2066,11 +2080,13 @@ Conferido no banco em **22/09/2026**.
       exemplos está com **0 linhas** — hoje ela não melhora sozinha. Falta:
       "não precisava" / "falei por fora" / "foi útil" na tela, e depois a
       resposta sugerida, tirada da base de perguntas e respostas dos grupos.
-- [ ] **Grupo ligado a duas obras some para a Isabela.** Os da Tays (a obra
-      dela + a da visita) e do Júnior (posto + eletroposto 4674): o webhook faz
-      `maybeSingle()` por grupo, dá erro com duas obras e descarta a mensagem
-      como "grupo interno". O que eles escrevem não entra em lugar nenhum — nem
-      na escada. O conserto é o webhook escolher a obra dona.
+- [x] ~~**Grupo ligado a duas obras some para a Isabela.**~~ **Corrigido em
+      15/10 às 18:49** (webhook v4 + `obra_do_grupo`, ver §4). Os da Tays (a
+      obra dela + a da visita) e do Júnior (posto + eletroposto 4674) caíam no
+      `maybeSingle()`, que dá erro com duas obras, e a mensagem era descartada
+      como "grupo interno". ⚠️ **O que eles escreveram de 26/09 (Tays) e 02/10
+      (Júnior) até 15/10 não foi gravado e não volta** — a Z-API não reenvia;
+      para saber, só lendo os dois grupos.
 - [ ] **Mensagem no privado da Isabela não é lida.** O webhook só grava grupo;
       cliente que escreve direto para o número da Isabela fica fora da escada.
 - [ ] **Senha de cliente gravada em texto puro.** Em 14/10, **20 mensagens em
