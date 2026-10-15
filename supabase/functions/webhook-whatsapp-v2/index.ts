@@ -35,6 +35,9 @@ function achaNum(o: any, chaves: string[]): number | null {
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+  // solta a trava de mensagem repetida se a gravação falhar, para a Z-API poder
+  // entregar de novo
+  let soltarTrava: (() => Promise<unknown>) | null = null;
   try {
     const url = new URL(req.url);
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
@@ -106,6 +109,17 @@ Deno.serve(async (req: Request) => {
     const remetenteFone = body.participantPhone || body.senderPhone || null;
     const remetenteNome = body.senderName || body.participantName || body.chatName || null;
     const midia = { midia_url: midiaUrl, midia_mime: midiaMime, midia_segundos: midiaSeg, zapi_message_id: zapiId };
+
+    // A Z-API entrega de novo o mesmo recado (mesmo messageId, mesmo texto) segundos
+    // depois, e o webhook gravava todas as cópias: "vou mandar pra minha nora" virou
+    // três indicações. A trava é atômica no banco (webhook_ja_visto). Edição — mesmo
+    // messageId com texto novo — continua entrando como antes.
+    if (zapiId) {
+      const { data: jaVisto, error: eVisto } = await admin.rpc('webhook_ja_visto', { p_id: zapiId, p_texto: limpo });
+      if (!eVisto && jaVisto === true) return json({ ok: true, ignorado: 'repetida' });
+      // async: o rpc() do supabase-js só tem then(), e o catch() de quem chama precisa de Promise
+      if (!eVisto) soltarTrava = async () => { await admin.rpc('webhook_esquecer', { p_id: zapiId, p_texto: limpo }); };
+    }
 
     const cfg = async (k: string, d: string) => {
       const { data } = await admin.from('config').select('valor').eq('chave', k).maybeSingle();
@@ -281,7 +295,10 @@ Responda APENAS com JSON:
       nps_checada_em: deixaPendente ? null : new Date().toISOString(),
       ...midia,
     }).select('id').single();
-    if (error) return json({ error: error.message }, 500);
+    if (error) {
+      if (soltarTrava) await soltarTrava().catch(() => {});
+      return json({ error: error.message }, 500);
+    }
 
     const upd: Record<string, unknown> = { ultima_resposta_em: new Date().toISOString() };
     if (contexto === 'iptu' && !obra.iptu_respondido_em) upd.iptu_respondido_em = new Date().toISOString();
@@ -299,6 +316,7 @@ Responda APENAS com JSON:
 
     return json({ ok: true, obra: obra.cliente, contexto, tipo, metodo, confianca });
   } catch (err) {
+    if (soltarTrava) await soltarTrava().catch(() => {});
     return json({ error: 'Erro interno: ' + (err as Error).message }, 500);
   }
 });
