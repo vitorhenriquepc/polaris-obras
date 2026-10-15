@@ -655,6 +655,11 @@ white-space:normal;padding:0 2px}
 .apvctx .lin{display:block}
 .apvctx .warn{display:block;margin-top:5px;color:#e0a33e;font-weight:700}
 .apvctx .para{display:block;margin-top:5px;color:#c0392b;font-weight:800}
+/* aba Isabela (15/10) */
+.issit{margin-left:auto;font-size:11.5px;font-weight:800;color:var(--mut)}
+.issit.esp{color:var(--gold)}
+.issit.ok{color:#5aa469}
+.isfb{font-size:11.5px;font-weight:700;color:var(--mut);margin-top:7px}
 .sug{background:var(--card2);border-left:3px solid var(--gold);border-radius:8px;padding:10px 13px;margin-bottom:10px;font-size:12.5px}
 .sugt{font-size:12px;color:var(--mut);margin-top:5px;font-style:italic}
 .cxrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
@@ -886,6 +891,7 @@ function render(){
       <button class="vtab ${VISAO==='jornada'?'on':''}" onclick="setVisao('jornada')">Jornada</button>
       <button class="vtab ${VISAO==='lista'?'on':''}" onclick="setVisao('lista')">Lista</button>
       <button class="vtab ${VISAO==='regua'?'on':''}" onclick="setVisao('regua')">Régua</button>
+      <button class="vtab ${VISAO==='isabela'?'on':''}" onclick="setVisao('isabela')">Isabela</button>
       <button class="vtab ${VISAO==='indic'?'on':''}" onclick="setVisao('indic')">Indicações</button>
       <button class="vtab ${VISAO==='planos'?'on':''}" onclick="setVisao('planos')">Planos</button>
       <button class="vtab ${VISAO==='usinas'?'on':''}" onclick="setVisao('usinas')">Usinas</button>
@@ -909,6 +915,13 @@ function render(){
   if(VISAO==='regua'){
     document.getElementById('app').innerHTML=h+'<div id="rgbox"><div class="center"><div class="spin"></div>Carregando a régua...</div></div>';
     carregarRegua();
+    return;
+  }
+  if(VISAO==='isabela'){
+    // a busca redesenha a tela a cada tecla: reaproveita o que leu há menos de 1 min
+    const fresco=ISA && Date.now()-ISA_EM<60000;
+    document.getElementById('app').innerHTML=h+'<div id="isbox">'+(fresco?'':'<div class="center"><div class="spin"></div>Carregando a Isabela...</div>')+'</div>';
+    if(fresco) renderIsabela(); else carregarIsabela();
     return;
   }
   if(VISAO==='planos'){
@@ -2368,6 +2381,211 @@ function renderAutomacoes(){
     h+='</div>';
   });
   document.getElementById('mgbox').innerHTML=h;
+}
+
+/* ===== ISABELA: as esperas e as correções =====
+   A escada da Isabela (edge function isabela-atendimento) avisa o vendedor com
+   2 h úteis sem resposta no grupo e o pós-venda com 4 h; cada espera é uma
+   linha em atendimento_espera. Aqui a equipe diz se ela acertou:
+   "Não precisava" e "Precisava responder" viram exemplo que ela lê antes da
+   próxima decisão (atendimento_exemplo); "Foi útil" só conta o acerto;
+   "Falei por fora" fecha a espera, e ela para de avisar até o cliente escrever
+   de novo. O aprendizado existia desde 14/10 sem tela nenhuma — e a tabela de
+   exemplos estava vazia (armadilha 14: estado que pede ação precisa da ação). */
+var ISA=null, ISA_EM=0, ISA_OCUPADO=false;
+async function carregarIsabela(){
+  var r=await sb.rpc('atendimento_painel',{p_dias:14});
+  // guarda mesmo se a pessoa já trocou de aba: ao voltar, vê o que acabou de gravar
+  if(!r.error && r.data && !r.data.erro){ ISA=r.data; ISA_EM=Date.now(); }
+  var box=document.getElementById('isbox'); if(!box) return;
+  if(r.error||!r.data||r.data.erro){
+    box.innerHTML='<div class="vazio">Não consegui carregar a Isabela'
+      +((r.data&&r.data.erro)?' ('+esc(r.data.erro)+')':'')+'. Tente de novo em instantes.</div>';
+    return;
+  }
+  renderIsabela();
+}
+function isHora(iso){
+  if(!iso) return '—';
+  var d=new Date(iso); if(isNaN(d)) return '—';
+  var hoje=new Date(), ontem=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()-1);
+  var hm=d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  if(d.toDateString()===hoje.toDateString()) return 'hoje às '+hm;
+  if(d.toDateString()===ontem.toDateString()) return 'ontem às '+hm;
+  return ['dom','seg','ter','qua','qui','sex','sáb'][d.getDay()]+' '
+    +d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' às '+hm;
+}
+/* "fulano@polaris..." vira "fulano"; o que vem depois de " · " é a anotação */
+function isQuem(s){
+  var p=String(s||'').split(' · '), q=p[0];
+  if(q==='Sistema/Polaris') q='alguém pelo número da Isabela';
+  else if(q.indexOf('@')>0) q=q.split('@')[0];
+  return {quem:q, obs:p.slice(1).join(' · ')};
+}
+function isPrimeiro(nome){ return String(nome||'').trim().split(/\s+/)[0]||''; }
+function isDescartada(e){ return !!e.fechado_em && e.fechado_por==='Isabela'; }
+function isAvisou(e){ return !!(e.vendedor_avisado_em||e.posvenda_avisado_em||e.fds_avisado_em); }
+function isSituacao(e){
+  if(e.aberta) return {t:'esperando resposta', c:'esp'};
+  if(isDescartada(e)) return {t:e.fechado_como==='respondida_isabela'?'ela viu que já tinha resposta':'ela achou que não precisava', c:''};
+  if(e.fechado_como==='respondida') return {t:'respondida no grupo', c:'ok'};
+  if(e.fechado_como==='resolvida_fora') return {t:'resolvida por fora', c:'ok'};
+  if(e.fechado_como==='nao_precisava') return {t:'fechada: não precisava', c:''};
+  return {t:'fechada', c:''};
+}
+function isLinhas(e){
+  var h='', pv=ISA.posvenda?isPrimeiro(ISA.posvenda):'o pós-venda';
+  if(e.resumo) h+='<span class="lin">🧠 '+esc(e.resumo)+'</span>';
+  // sem vendedor que receba aviso (nenhum, inativo ou sem telefone), o 1º degrau
+  // vai direto ao pós-venda e a escada grava os dois horários iguais
+  var direto=!!e.vendedor_avisado_em && e.posvenda_avisado_em===e.vendedor_avisado_em;
+  if(e.vendedor_avisado_em){
+    h+='<span class="lin">📲 Avisei '+(direto
+        ? esc(pv)+' direto ('+(e.vendedor?'o vendedor da obra não recebe aviso':'a obra não tem vendedor')+')'
+        : (e.vendedor?esc(isPrimeiro(e.vendedor)):'o vendedor')+' (vendas)')
+      +' '+esc(isHora(e.vendedor_avisado_em))+'</span>';
+  }
+  if(e.posvenda_avisado_em && !direto)
+    h+='<span class="lin">📲 Avisei '+esc(pv)+' '+esc(isHora(e.posvenda_avisado_em))+'</span>';
+  if(e.fds_avisado_em)
+    h+='<span class="lin">💬 Disse no grupo que o atendimento é de segunda a sexta '+esc(isHora(e.fds_avisado_em))+'</span>';
+  if(e.aberta && !isAvisou(e))
+    h+='<span class="warn">⚠️ Ainda não consegui avisar ninguém — o envio pode ter falhado.</span>';
+  if(e.fechado_como==='respondida'){
+    h+='<span class="lin">✅ '+(e.fechado_por?esc(isQuem(e.fechado_por).quem)+' respondeu':'Responderam no grupo')
+      +' '+esc(isHora(e.respondido_em||e.fechado_em))+'</span>';
+  } else if(e.fechado_em && !isDescartada(e)){
+    var f=isQuem(e.fechado_por);
+    h+='<span class="lin">✅ Fechada por '+esc(f.quem||'alguém da equipe')+' '+esc(isHora(e.fechado_em))
+      +(f.obs?' — '+esc(f.obs):'')+'</span>';
+  }
+  if(isDescartada(e) && e.motivo) h+='<span class="lin">Por que ela não avisou: '+esc(e.motivo)+'</span>';
+  return h;
+}
+function isBotao(rotulo, acao, e, marcado, dica){
+  return '<button class="stb'+(marcado?' prim':'')+'" title="'+esc(dica)+'" onclick="isAgir(\''+acao+'\','+e.id+')">'
+    +(marcado?'✓ ':'')+rotulo+'</button>';
+}
+function isAcoes(e){
+  var fb=e.feedback, h='';
+  if(isDescartada(e)){
+    h+=isBotao('Precisava responder','faltou',e,fb==='faltou_avisar',
+      'Ela errou: o cliente esperava resposta. Vira exemplo para a próxima vez.');
+  } else {
+    if(e.aberta) h+=isBotao('Falei por fora','fora',e,false,'Resolvi por telefone ou no privado — ela para de avisar');
+    h+=isBotao('Não precisava','nao',e,fb==='desnecessario','O cliente não esperava resposta — vira exemplo para ela não avisar casos assim');
+    if(isAvisou(e)) h+=isBotao('Foi útil','util',e,fb==='util','O aviso ajudou');
+  }
+  h+='<button class="stb" style="margin-left:auto" onclick="abrirFicha(\''+e.obra_id+'\')">Ficha ›</button>';
+  var quem=e.feedback_por?isQuem(e.feedback_por).quem:'';
+  return '<div class="apvacts" style="flex-wrap:wrap">'+h+'</div>'
+    +(fb&&quem?'<div class="isfb">Marcado por '+esc(quem)+' '+esc(isHora(e.feedback_em))+'</div>':'');
+}
+function isCard(e){
+  var s=isSituacao(e);
+  return '<div class="apv'+(e.aberta?'':' fria')+'">'
+    +'<div class="apvtop"><b>'+esc(e.cliente||'')+'</b>'
+    +(e.contrato?'<span class="uctag">'+esc(e.contrato)+'</span>':'')
+    +(e.urgente?'<span class="tag red">urgente</span>':'')
+    +'<span class="issit '+s.c+'">'+esc(s.t)+'</span></div>'
+    +'<div class="apvmot">Escreveu no grupo '+esc(isHora(e.escreveu_em))+'</div>'
+    +(e.trecho?'<div class="apvfixo" style="margin-bottom:8px">“'+esc(e.trecho)+'”</div>':'')
+    +'<div class="apvctx">'+isLinhas(e)+'</div>'
+    +isAcoes(e)
+    +'</div>';
+}
+function renderIsabela(){
+  var box=document.getElementById('isbox'); if(!box||!ISA) return;
+  var todas=ISA.esperas||[], lista=todas, dias=ISA.dias||14;
+  if(BUSCA){
+    var b=BUSCA.toLowerCase();
+    lista=lista.filter(function(e){ return (e.cliente||'').toLowerCase().indexOf(b)>=0 || String(e.contrato||'').indexOf(b)>=0; });
+  }
+  var abertas=lista.filter(function(e){ return e.aberta; });
+  var descartadas=lista.filter(isDescartada);
+  var fechadas=lista.filter(function(e){ return !e.aberta && !isDescartada(e); });
+  var horas=function(m){ var x=Number(m); return isNaN(x)?'—':(x/60).toLocaleString('pt-BR',{maximumFractionDigits:1})+' h'; };
+  var pv=ISA.posvenda?isPrimeiro(ISA.posvenda):'o pós-venda';
+
+  var h='<div class="liga"><div class="txt">'
+    +'<div class="tt">'+(ISA.ativo?'✅ Isabela ligada':'⏸️ Isabela desligada')+'</div>'
+    +'<div class="sb">'+(ISA.ativo
+      ? 'Cliente sem resposta no grupo: ela avisa o vendedor com '+horas(ISA.vendedor_min||120)+' úteis e '
+        +esc(pv)+' com '+horas(ISA.posvenda_min||240)+'.'
+        +(ISA.fds_ativo?' No fim de semana e feriado, avisa no grupo que o atendimento é de segunda a sexta.':'')
+      : 'Nenhum aviso está saindo agora.')
+    +'</div></div></div>';
+  h+='<div class="rgstat">'
+    +'<div class="rgs'+(abertas.length?' hot':'')+'"><div class="n">'+abertas.length+'</div><div class="l">Esperando resposta agora</div></div>'
+    +'<div class="rgs"><div class="n">'+descartadas.length+'</div><div class="l">Ela achou que não precisava ('+dias+' dias)</div></div>'
+    +'<div class="rgs"><div class="n">'+fechadas.length+'</div><div class="l">Fechadas ('+dias+' dias)</div></div>'
+    +'<div class="rgs"><div class="n">'+n(ISA.exemplos)+'</div><div class="l">Correções que ela já aprendeu</div></div>'
+    +'</div>';
+
+  if(!todas.length){
+    h+='<div class="vazio">Nenhum cliente ficou sem resposta nos últimos '+dias+' dias.<br>'
+      +'A Isabela está de olho desde '+esc(isHora(ISA.desde))+' — quando alguém esperar, aparece aqui.</div>';
+  } else if(!lista.length){
+    h+='<div class="vazio">Ninguém com esse nome ou contrato por aqui.</div>';
+  } else {
+    if(abertas.length) h+='<div class="sec"><h3>Esperando resposta agora — '+abertas.length+'</h3>'+abertas.map(isCard).join('')+'</div>';
+    else h+='<div class="vazio">Nenhum cliente esperando resposta agora. 👏</div>';
+    if(descartadas.length){
+      h+='<div class="sec"><h3>Ela achou que não precisava avisar — '+descartadas.length+'</h3>'
+        +'<div class="dica" style="margin:0 0 10px">Ela leu a conversa e decidiu não avisar ninguém. Se algum destes clientes '
+        +'esperava resposta, marque <b>Precisava responder</b> e responda no grupo.</div>'
+        +descartadas.map(isCard).join('')+'</div>';
+    }
+    if(fechadas.length) h+='<div class="sec"><h3>Fechadas nos últimos '+dias+' dias — '+fechadas.length+'</h3>'+fechadas.map(isCard).join('')+'</div>';
+  }
+  h+='<div class="dica">Como ela aprende: <b>Não precisava</b> e <b>Precisava responder</b> viram exemplo que a Isabela lê '
+    +'antes de decidir o próximo caso. <b>Foi útil</b> só conta o acerto. <b>Falei por fora</b> fecha a conversa — ela para '
+    +'de avisar até o cliente escrever de novo. Mudou de ideia? Clique no outro botão: o exemplo antigo deixa de valer, mas fica guardado.</div>';
+  box.innerHTML=h;
+}
+async function isAgir(acao, id){
+  if(ISA_OCUPADO) return;
+  var e=((ISA&&ISA.esperas)||[]).find(function(x){ return x.id===id; });
+  if(!e){ toast('Não achei essa conversa — abra a aba de novo'); return; }
+  var obs=null;
+  if(acao==='fora'){
+    obs=prompt('Como foi resolvido? (opcional)\n\nEx.: liguei para ele, respondi no privado');
+    if(obs===null) return;
+  } else if(acao==='nao'||acao==='faltou'){
+    if(e.feedback===(acao==='nao'?'desnecessario':'faltou_avisar')){ toast('Já estava marcado assim'); return; }
+    obs=prompt((acao==='nao'?'Por que não precisava responder?':'O que o cliente esperava?')
+      +' (opcional — ajuda a Isabela a entender)\n\n'
+      +(acao==='nao'?'Ex.: era só um recado, conversa da família':'Ex.: perguntou a data da vistoria'));
+    if(obs===null) return;
+  }
+  obs=(obs||'').trim()||null;
+  ISA_OCUPADO=true;
+  try{
+    var r, msg;
+    if(acao==='fora'){
+      r=await sb.rpc('atendimento_fechar',{p_id:id, p_como:'resolvida_fora', p_obs:obs});
+      msg='Fechada — ela para de avisar até o cliente escrever de novo ✓';
+    } else if(acao==='util'){
+      r=await sb.rpc('atendimento_ensinar',{p_id:id, p_feedback:'util', p_obs:null});
+      msg='Anotado: o aviso foi útil ✓';
+    } else if(acao==='nao'){
+      r=await sb.rpc('atendimento_ensinar',{p_id:id, p_feedback:'desnecessario', p_obs:obs});
+      if(!r.error && !(r.data&&r.data.erro) && e.aberta){
+        var r2=await sb.rpc('atendimento_fechar',{p_id:id, p_como:'nao_precisava', p_obs:null});
+        // "já estava fechada" é a equipe ter respondido no grupo nesse meio-tempo: tudo certo
+        if(r2.error) r=r2;
+      }
+      msg='Anotado — a Isabela vai levar isso em conta ✓';
+    } else if(acao==='faltou'){
+      r=await sb.rpc('atendimento_ensinar',{p_id:id, p_feedback:'faltou_avisar', p_obs:obs});
+      msg='Anotado — ela aprendeu com este caso. Responda o cliente no grupo ✓';
+    } else return;
+    if(r.error||(r.data&&r.data.erro)){ toast('Não gravou: '+((r.data&&r.data.erro)||r.error.message)); return; }
+    toast((r.data&&r.data.ja_estava)?'Já estava marcado assim':msg);
+  } finally {
+    ISA_OCUPADO=false;
+    carregarIsabela();
+  }
 }
 
 /* ===== DETALHE DA USINA ===== */

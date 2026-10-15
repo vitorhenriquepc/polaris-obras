@@ -861,9 +861,20 @@ equipe respondeu). O que a equipe corrige vira exemplo:
 `atendimento_ensinar(espera, 'desnecessario' | 'faltou_avisar' | 'util')`
 grava em `atendimento_exemplo`, que entra no prompt da decisão seguinte — o
 mesmo desenho do `classificacoes_exemplo` que o webhook já usa.
-`atendimento_fechar` fecha na mão ("falei por telefone"). **As duas ainda
-não têm tela.** O modelo não é retreinado: ele melhora pelos exemplos e pelos
-limites que a medição mostrar.
+`atendimento_fechar` fecha na mão ("falei por telefone"). O modelo não é
+retreinado: ele melhora pelos exemplos e pelos limites que a medição mostrar.
+
+**A tela é a aba "Isabela" do `posvenda.html`** (15/10), que lê
+`atendimento_painel(14)`: quem está esperando agora, as que **ela descartou**
+(achou que não precisava avisar — é ali que um cliente pode ficar na mão) e as
+fechadas. Botões: **Falei por fora** (fecha), **Não precisava** (ensina e,
+se aberta, fecha), **Foi útil** (só conta o acerto) e, nas descartadas,
+**Precisava responder** (ensina o contrário). Os dois que ensinam pedem um
+motivo opcional, que vai para o prompt junto com o trecho. Clique repetido não
+duplica exemplo; trocar de botão desliga o exemplo antigo (`ativo = false`,
+não apaga — regra 3.6). E fechar à mão carimba `avaliado_ate = agora`: a
+escada só reavalia quando chega mensagem **mais nova** que isso, então o que o
+cliente mandou antes do clique não vira aviso de novo.
 
 **Medido em 14/10, refazendo 05/10–13/10 sem gravar nem enviar** (replay a
 cada 30 min): em 6 dias úteis, **13 avisos ao vendedor** (~2 por dia para a
@@ -931,6 +942,7 @@ agendado e para pela chave; para voltar, é só a chave em 1.
 | `msg_trivial(texto)` | a mensagem é só cortesia ("ok", "beleza, fico no aguardo", "🙏")? Pergunta com "?" nunca é |
 | `atendimento_candidatos(agora, desde)` | grupos com mensagem de cliente sem resposta de **gente** da equipe; aceita um "agora" no passado para refazer a história (replay) |
 | `atendimento_ensinar(espera, feedback, obs)` · `atendimento_fechar(espera, como, obs)` | o que a equipe corrige vira exemplo da IA · fecha a espera na mão |
+| `atendimento_painel(dias)` | a aba Isabela do pós-venda: esperas abertas + fechadas nos últimos N dias, com cliente, vendedor, quem foi avisado e a correção já feita. Só leitura |
 | `definir_responsavel(equipe, funcao)` | troca a pessoa de um dos dois papéis; só admin |
 | `get_kpis_financeiro(ini, fim)` | R$/Wp e execução × faturamento, **com a cobertura junto** — quantas obras sustentam cada número e o que falta para as outras |
 | `obra_custos_realizados(obra)` | o realizado da obra vindo do extrato, campo a campo; diz também se o extrato cobre o período da obra |
@@ -2076,10 +2088,11 @@ Conferido no banco em **22/09/2026**.
       enviadas (§4).
 - [ ] **Isabela aprender de verdade: os botões de correção.** O mecanismo
       existe (`atendimento_ensinar` → `atendimento_exemplo` → prompt da
-      decisão seguinte), mas **sem botão ninguém corrige**, e a tabela de
-      exemplos está com **0 linhas** — hoje ela não melhora sozinha. Falta:
-      "não precisava" / "falei por fora" / "foi útil" na tela, e depois a
-      resposta sugerida, tirada da base de perguntas e respostas dos grupos.
+      decisão seguinte), e desde 15/10 a **aba "Isabela"** do `posvenda.html`
+      tem os botões (§4) — banco aplicado, tela testada no Chromium (35 de 35)
+      **no branch, ainda não publicada**: a tela só vale depois do merge na
+      `main`. Depois: a resposta sugerida, tirada da base de perguntas e
+      respostas dos grupos.
 - [x] ~~**Grupo ligado a duas obras some para a Isabela.**~~ **Corrigido em
       15/10 às 18:49** (webhook v4 + `obra_do_grupo`, ver §4). Os da Tays (a
       obra dela + a da visita) e do Júnior (posto + eletroposto 4674) caíam no
