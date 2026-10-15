@@ -308,6 +308,19 @@ do `mensagens-usina-auto` (`msg_ia_intervalo_urgente` 7 dias,
 Os 6 modelos de evento são todos `precisa_aprovacao = true`, então destravar
 não põe nada na frente de cliente sem a Lívia.
 
+⚠️ **Texto fixo de modelo não pode afirmar marca nem preço** (d180, 14–15/10).
+O primeiro `d180_manutencao` da história saiu para a ELOANA (4147) em 14/10,
+sem aprovação, dizendo que *"a Sungrow exclui da cobertura..."* (o inversor
+dela é Huawei) e oferecendo um *"Plano de Monitoramento Polaris a partir de
+R$ 289/ano"* que não existe (R$ 289 é o Ativo, sem visita) — para quem já
+tinha o Essencial de cortesia. O modelo passou a exigir aprovação na mesma
+noite e foi reescrito em 15/10: sem marca, e o parágrafo do plano vem do
+placeholder **`{plano_frase}`** do `regua_texto` — o plano atual (e até
+quando vai a cortesia), o Completo pela faixa de módulos com o desconto da
+tabela e o adicional por endereço; acima de 125 módulos, "sob consulta".
+Conferido: as outras 174 mensagens pendentes da régua saíram idênticas antes
+e depois da troca do `regua_texto`.
+
 ### NPS e avaliação no Google
 ⚠️ **O convite AUTOMÁTICO do Google sai UMA vez e nunca mais.** Quem agenda é o
 `nps-resposta`, no instante em que a nota entra (`nps.google_agendado_para`); a
