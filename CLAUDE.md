@@ -792,7 +792,7 @@ mensagens antigas foram corrigidas (o texto ficou; mudou quem escreveu).
 ### Isabela: a escada de atendimento nos grupos
 **Isabela** é o nome da IA da Polaris, e é o número **18 99690-6474** (a
 instância POS-VENDA da Z-API) — os clientes já falam com ela pelo nome. Em
-14/10 nasceu a escada que o Vitor pediu, **ainda desligada**:
+14/10 nasceu a escada que o Vitor pediu, **ligada em 15/10 às 17:17**:
 
 | quando | o quê |
 |---|---|
@@ -823,15 +823,24 @@ para quem escreveu **no** fim de semana ou feriado: mensagem de sexta sem
 resposta é assunto da escada — avisar no sábado expõe que ninguém respondeu
 na sexta, e não foi isso que o Vitor pediu.
 
-⚠️ **O que sai pelo número da Isabela não é gravado.** Zero linhas em
-`mensagens_recebidas` vindas dela: a Z-API não manda ao webhook as mensagens
-"enviadas por mim" — nem as automáticas, nem o que alguém **digita** no
-WhatsApp da Isabela. A função compensa com os envios que o banco conhece
-(`cpfl_avisado_em` com as datas da vistoria, `relatorio_enviado_em`,
-`regua_contatos.enviado_em`), mas resposta digitada no número da Isabela é
-**invisível** e pode virar aviso falso. O conserto é ligar "notificar as
-enviadas por mim" no webhook da instância; o `webhook-whatsapp-v2` já trata
-`fromMe` (vira equipe, e `automatica` quando traz a assinatura).
+⚠️ **Até 15/10 o que saía pelo número da Isabela não era gravado** — nem as
+automáticas, nem o que alguém **digitava** no WhatsApp dela —, e resposta
+digitada ali era invisível e podia virar aviso falso. **Desde 15/10 a opção
+"Notificar as enviadas por mim também" está ligada na Z-API** (POS-VENDA).
+Tudo o que sai pelo número entra no `webhook-whatsapp-v2` como `fromMe`,
+remetente `Sistema/Polaris`: com a assinatura *"Equipe Polaris Energia
+Solar"* vira `automatica` (não fecha pendência); sem ela, `resposta_equipe` —
+é o que alguém digitou — e fecha a pendência do cliente. Prova: as 6 da régua
+das 17h de 15/10 entraram como `automatica`, 5 a 6 s depois de cada envio.
+
+Três coisas tiveram de mudar antes de ligar, porque iam ler essas linhas do
+jeito errado: o **aviso de fim de semana ganhou a assinatura** (sem ela, o
+próprio aviso contaria como "a equipe respondeu" e calaria a escada); a
+**`pista_de_causa`** passou a ignorar `automatica` (o nosso *"confira o
+wi-fi"* viraria prova de que a causa é wi-fi); e **`get_marco_svc` /
+`get_queda_svc`** também, para a IA não ler os modelos da régua como conversa.
+⚠️ **Texto automático novo que fala no grupo do cliente tem de levar a
+assinatura**, senão conta como resposta de gente.
 
 **Como ela melhora com o uso:** cada espera vira uma linha em
 `atendimento_espera` (o parecer da IA, quem foi avisado e quando, quando a
@@ -852,10 +861,14 @@ respondida pela vistoria). Em 6 dos 13 avisos a equipe respondeu **depois** do
 horário do aviso — de 40 min a 4 dias depois. Nos outros 7 não há resposta
 visível: pendência real, resposta pelo número da Isabela ou por telefone.
 
-Para ligar: `atendimento_desde` = agora (senão a fila antiga dispara de uma
-vez), cron a cada 15 min, `atendimento_ativo = 1` — e
-`alerta_espera_ativo = 0`: o "cliente esperando" antigo (60 min, só para a
-Lívia) passaria na frente do vendedor.
+**Ligada em 15/10 às 17:17** (`migrations/2026-10-15_isabela_liga.sql`):
+cron `isabela-atendimento` a cada 15 min, todos os dias;
+`atendimento_desde` = 15/10 17:17 (sem isso a fila antiga dispararia de uma
+vez — a simulação daquela manhã avisaria de conversas de 09/10);
+`atendimento_ativo = 1`, `atendimento_fds_ativo = 1`; e
+`alerta_espera_ativo = 0` — o "cliente esperando" antigo (60 min, só para a
+Lívia) passaria na frente do vendedor. O job `alerta-espera` continua
+agendado e para pela chave; para voltar, é só a chave em 1.
 
 ### Indicações
 `indicacoes` — nova → contatada → visita → fechada/perdida
@@ -993,12 +1006,13 @@ Prefira criar parâmetro a chumbar número no código.
 | `resumo_sem_acumulado_obras` | obra do UNI AUTO POSTO | obras cujo resumo **não** traz o "Desde a instalação" nem o retorno do investimento — o Júnior viu o acumulado só no primeiro (setembro) |
 | `resumo_mensal_dia` · `resumo_mensal_preparo_dia` | 5 · 2 | dia do envio (ou o próximo dia útil) · a partir de quando o resumo entra na régua para aprovar |
 | `resumo_sol_pct` | 75 | no resumo mensal, "dia de sol" é radiação ≥ 75% do melhor dia do mês no lugar; abaixo de `saude_rad_min` é nublado; o resto, parcialmente nublado |
-| `atendimento_ativo` · `atendimento_fds_ativo` | **0** · **0** | a escada da Isabela (avisos à equipe) · o aviso de horário no grupo no fim de semana e feriado |
+| `atendimento_ativo` · `atendimento_fds_ativo` | **1** · **1** (desde 15/10 17:17) | a escada da Isabela (avisos à equipe) · o aviso de horário no grupo no fim de semana e feriado |
 | `atendimento_vendedor_min` · `atendimento_posvenda_min` | 120 · 240 | minutos úteis sem resposta até avisar o vendedor · o pós-venda |
 | `atendimento_hora_ini` · `atendimento_hora_fim` | 8 · 18 | o horário que conta como "hora útil" |
 | `atendimento_fds_min` · `atendimento_fds_hora_ini` · `atendimento_fds_hora_fim` | 120 · 8 · 20 | espera e janela do aviso de fim de semana |
 | `atendimento_fds_texto` | texto fixo | o que a Isabela diz no grupo; `{quando}` vira "na segunda-feira (DD/MM)" |
-| `atendimento_desde` | vazio | ao ligar, só olha mensagem depois disto |
+| `atendimento_desde` | 2026-10-15T20:17:01Z | ao ligar, só olha mensagem depois disto |
+| `alerta_espera_ativo` | **0** (desde 15/10 17:17) | o "cliente esperando" antigo, substituído pela escada da Isabela |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -2043,13 +2057,22 @@ Conferido no banco em **22/09/2026**.
       cartões continuam sem as obras de manutenção (Tays, UNI AUTO POSTO,
       Bassetto, Fatima). O certo seria `obra_ativa()` (§6). Mexer muda os
       números do topo da tela, então é decisão, não varredura.
-- [ ] **Ligar a escada da Isabela** (§4, pronta e desligada desde 14/10).
-      Falta: o Vitor aprovar o texto do aviso de fim de semana
-      (`atendimento_fds_texto`); ligar "notificar as enviadas por mim" no
-      webhook da Z-API, para o que sai pela Isabela aparecer; criar o cron de
-      15 min e desligar o `alerta_espera` antigo. Depois: botões "não precisava"
-      / "falei por fora" na tela (é deles que sai o aprendizado) e a resposta
-      sugerida, tirada da base de perguntas e respostas dos grupos.
+- [x] ~~**Ligar a escada da Isabela**~~ **Ligada em 15/10 às 17:17**, com o
+      texto de fim de semana aprovado pelo Vitor e a Z-API gravando as
+      enviadas (§4).
+- [ ] **Isabela aprender de verdade: os botões de correção.** O mecanismo
+      existe (`atendimento_ensinar` → `atendimento_exemplo` → prompt da
+      decisão seguinte), mas **sem botão ninguém corrige**, e a tabela de
+      exemplos está com **0 linhas** — hoje ela não melhora sozinha. Falta:
+      "não precisava" / "falei por fora" / "foi útil" na tela, e depois a
+      resposta sugerida, tirada da base de perguntas e respostas dos grupos.
+- [ ] **Grupo ligado a duas obras some para a Isabela.** Os da Tays (a obra
+      dela + a da visita) e do Júnior (posto + eletroposto 4674): o webhook faz
+      `maybeSingle()` por grupo, dá erro com duas obras e descarta a mensagem
+      como "grupo interno". O que eles escrevem não entra em lugar nenhum — nem
+      na escada. O conserto é o webhook escolher a obra dona.
+- [ ] **Mensagem no privado da Isabela não é lida.** O webhook só grava grupo;
+      cliente que escreve direto para o número da Isabela fica fora da escada.
 - [ ] **Senha de cliente gravada em texto puro.** Em 14/10, **20 mensagens em
       16 grupos** de `mensagens_recebidas` traziam login e senha (CPFL, app do
       inversor) que o cliente mandou no grupo. A Isabela já mascara antes de
