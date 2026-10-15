@@ -1,13 +1,12 @@
--- ⚠️ AINDA NÃO APLICADA (15/10, 09:45). Fica no repositório para a conferência
--- das 17h25 aplicar se a Z-API já estiver gravando as enviadas; quando for
--- aplicada, este aviso sai e entra a hora em que foi.
+-- APLICADA em 15/10 às 17:17 (atendimento_desde = 2026-10-15T20:17:01Z).
 --
 -- Liga a escada de atendimento da Isabela (Vitor, 15/10: "pode fazer todos").
 --
 -- Pré-requisito: "Notificar as enviadas por mim também" ligado na Z-API
 -- (instância POS-VENDA), para o que sai pelo número da Isabela — automático
--- ou digitado — entrar em mensagens_recebidas. Conferido antes de aplicar
--- isto: linhas novas com remetente 'Sistema/Polaris' depois do horário da troca.
+-- ou digitado — entrar em mensagens_recebidas. Conferido às 17:16 de 15/10:
+-- as 6 mensagens da régua das 17h entraram como 'automatica' /
+-- 'Sistema/Polaris', 5 a 6 s depois de cada envio.
 --
 -- 1) cron a cada 15 min, todos os dias (o aviso de fim de semana precisa rodar
 --    sábado e domingo; a função decide o resto pelo horário e pela config);
