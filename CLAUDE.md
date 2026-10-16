@@ -906,7 +906,9 @@ mandou às 7h24 de 16/10 a foto da conta de luz e, ao meio-dia, eram 242
 minutos úteis sem resposta e nenhum aviso — o bloco dela começava num recado
 de 12/10. Hoje só conta o que chegou depois do corte, e a espera começa na
 primeira mensagem nova. Simulado antes de gravar: de 13 grupos com mensagem
-pendente, só o 4767 mudava.
+pendente, só o 4767 mudava. **Provado na rodada das 12h15:** a IA leu a
+conversa (*"foto da conta de energia para análise"*, precisa de resposta) e a
+escada avisou o Jefferson (vendedor) e a Lívia juntos — já passava das 2 h úteis.
 
 ### A tela do Pós-venda: Hoje · Clientes · Usinas · Planos · Automações
 Até 15/10 eram **8 abas** (Jornada, Lista, Régua, Isabela, Indicações, Planos,
