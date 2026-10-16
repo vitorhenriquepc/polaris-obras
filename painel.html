@@ -60,6 +60,9 @@ font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-decoratio
 display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:.18s}
 .tab:hover{color:var(--txt)}
 .tab.on{background:var(--card);color:var(--gold);box-shadow:0 1px 6px rgba(0,0,0,.18)}
+/* o selo "Pós-venda · N" (15/10) */
+.tab .tbnum{min-width:18px;padding:1px 6px;border-radius:20px;background:var(--gold);color:#011D2E;
+font-size:10.5px;font-weight:800;line-height:1.5;text-align:center}
 @media(max-width:640px){.tab{padding:7px 10px;font-size:12px}}
 .topbar .ttl span{color:var(--gold)}
 .topbar .who{margin-left:auto;font-size:12px;color:var(--muted);text-align:right;line-height:1.3}
@@ -290,7 +293,9 @@ width:100%;max-width:560px;max-height:90vh;overflow-y:auto;padding:22px 20px 30p
   .tbacts .who{display:none}
   .hide-sm{display:none}
   .tabs{order:3;flex:1 1 100%;justify-content:center}
-  .tab{flex:1;justify-content:center;padding:9px 8px;font-size:12.5px}
+  /* cada aba do tamanho do texto + uma parte igual da sobra: com o selo do
+     Pós-venda, a divisão em partes iguais fazia o número invadir "Financeiro" */
+  .tab{flex:1 1 auto;justify-content:center;padding:9px 8px;font-size:12.5px}
   .btn-out{padding:6px 9px;font-size:12px;min-height:32px}
 
   /* Conteúdo colado nas bordas ganha espaço */
@@ -504,8 +509,9 @@ if(sb){
     return invokeOriginal(nome, opts);
   };
   paginaVelha();
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) paginaVelha(); });
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ paginaVelha(); checarPosvenda(); } });
   setInterval(paginaVelha, 10*60000);
+  setInterval(checarPosvenda, 5*60000);
 }
 
 let ET = {}; // catálogo de etapas {numero: {...}}
@@ -605,7 +611,7 @@ root.innerHTML = `
 <div class="tabs">
 <button class="tab on">Obras</button>
 <a class="tab" href="inicio.html">Início</a>
-<a class="tab" href="posvenda.html?v=${Date.now()}">Pós-venda</a>
+<a class="tab" id="tabPv" href="posvenda.html?v=${Date.now()}">Pós-venda<span class="tbnum" id="bdgPv" style="display:none"></span></a>
 <a class="tab" href="financeiro.html?v=${Date.now()}">Financeiro</a>
 </div>
 <div class="tbacts">
@@ -747,7 +753,7 @@ async function loadObras(){
 const { data, error } = await sb.from('obras').select('*');
 if(error){ document.getElementById('list').innerHTML=`<div class="empty"><span class="i">⚠️</span>Erro ao carregar: ${esc(error.message)}</div>`; return; }
 OBRAS = data||[];
-renderStats(); renderDChips(); renderCChips(); renderList(); checarRespostas();
+renderStats(); renderDChips(); renderCChips(); renderList(); checarRespostas(); checarPosvenda();
 }
 
 /* ---------- stats ---------- */
@@ -1771,8 +1777,12 @@ function fichaTexto(o){
   if(o.inversor_descricao) L.push('🔌 '+o.inversor_descricao);
   if(o.tipo_telhado) L.push('🏠 Telhado: '+o.tipo_telhado);
   const inc=[];
+  // estrutura e cabo sao de obra nova; na manutencao sairiam como "Sem" so
+  // porque ninguem preencheu (armadilha 20)
+  if(o.trilha!=='manutencao'){
   if(o.tem_estrutura===true) inc.push('✅ Com estrutura'); else if(o.tem_estrutura===false) inc.push('❌ Sem estrutura');
   if(o.tem_cabo===true) inc.push('✅ Com cabo'); else if(o.tem_cabo===false) inc.push('❌ Sem cabo');
+  }
   if(inc.length) L.push(inc.join(' · '));
   return L.join('\n');
 }
@@ -1793,12 +1803,21 @@ async function avisarInstalador(o, antes, depois){
       +'\n📋 Checklist de fotos:\n'+linkChk
       +'\n\nPor favor, confirmem a disponibilidade. 🙏\n\n*Polaris Energia Solar* ☀️';
   } else {
-    msg='🔧 *Nova obra agendada para vocês!*\n\n'
+    // o nome do servico sai da trilha e do tipo, como na enviar-os: a equipe
+    // de campo recebia "Nova obra agendada" para uma preventiva (armadilha 20)
+    const ehMan=(o.trilha==='manutencao');
+    const serv=!ehMan?'Nova obra agendada':
+      ({preventiva:'Manutenção preventiva agendada',corretiva:'Manutenção corretiva agendada',
+        diagnostico:'Avaliação técnica agendada'}[o.tipo_manutencao]||'Visita técnica agendada');
+    const ficha=fichaTexto(o);
+    msg='🔧 *'+serv+' para vocês!*\n\n'
       +'👤 Cliente: *'+o.cliente+'*'+(o.contrato?' · #'+o.contrato:'')+'\n'
+      +(ehMan&&o.telefone?'📞 '+o.telefone+'\n':'')
       +'📅 Data: *'+dataBRs(depois)+'*\n'
       +(o.endereco?'📍 '+o.endereco+'\n'+(maps?'🗺️ '+maps+'\n':''):'')
-      +'\n*Ficha técnica*\n'+fichaTexto(o)
-      +'\n\n📋 Checklist de fotos da obra:\n'+linkChk
+      +(ehMan&&o.motivo_manutencao?'\n📝 *Relatado pelo cliente:* '+o.motivo_manutencao+'\n':'')
+      +(ficha?'\n*Ficha técnica*\n'+ficha:'')
+      +'\n\n📋 Checklist de fotos'+(ehMan?'':' da obra')+':\n'+linkChk
       +'\n\nQualquer dúvida, é só chamar. 💪\n\n*Polaris Energia Solar* ☀️';
   }
   const r=await sb.functions.invoke('notificar-grupo',{body:{grupo_id:eq.whatsapp_grupo_id,message:msg}});
@@ -1813,6 +1832,12 @@ const reag = !!antes;
 const ehMan = (o.trilha==='manutencao');
 const OQ  = ehMan ? 'atendimento' : 'instalação';
 const OQs = ehMan ? 'seu atendimento' : 'sua instalação';
+// sem grupo, o aviso vai pelo WhatsApp pessoal do cliente (Vitor, 05/10: a
+// manutencao muitas vezes nao tem grupo). Abre o WhatsApp com o texto pronto;
+// quem manda e a pessoa, como no botao de WhatsApp do card.
+const semGrupo = !o.whatsapp_grupo_id;
+if(semGrupo && !waPhone(o.telefone)){ toast('ℹ️ Cliente não avisado: esta obra não tem grupo nem telefone'); return; }
+const onde = semGrupo ? 'no WhatsApp pessoal' : 'no grupo';
 let msg;
 if(reag){
 const motivo = prompt(
@@ -1826,13 +1851,14 @@ msg='📅 *'+primeiro+', precisamos remanejar a data d'+(ehMan?'o seu atendiment
 +'\nPedimos desculpas pelo transtorno e agradecemos a compreensão. Nossa equipe já está organizada para essa nova data. 🙏\n\n'
 +'Qualquer coisa, é só falar por aqui.\n\n*Equipe Polaris Energia Solar* ☀️';
 } else {
-if(!confirm('Avisar o cliente no grupo que '+(ehMan?'o atendimento':'a instalação')+' foi agendad'+(ehMan?'o':'a')+' para '+dataBRs(depois)+'?')) return;
+if(!confirm('Avisar o cliente '+onde+' que '+(ehMan?'o atendimento':'a instalação')+' foi agendad'+(ehMan?'o':'a')+' para '+dataBRs(depois)+'?')) return;
 msg='📅 *'+primeiro+', '+OQs+' está agendad'+(ehMan?'o':'a')+'!*\n\n'
 +'Data: *'+dataBRs(depois)+'*\n'
 +(o.endereco?'📍 Local: '+o.endereco+'\n':'')
 +'\nUm dia antes enviamos um lembrete com tudo que precisa ficar liberado no local. 😉\n\n'
 +'Se essa data não for boa para você, é só nos avisar por aqui.\n\n*Equipe Polaris Energia Solar* ☀️';
 }
+if(semGrupo){ abrirWhatsPessoal(o.telefone, msg); return; }
 toast('Avisando o cliente... 📅');
 const r=await sb.functions.invoke('notificar-grupo',{body:{grupo_id:o.whatsapp_grupo_id,message:msg}});
 if(r.error||(r.data&&r.data.error)) toast('⚠️ Não consegui avisar no grupo — use o 📣 para reenviar');
@@ -1844,6 +1870,25 @@ try{
   const n = (r.data||[]).length;
   const b = document.getElementById('bdgResp');
   if(b){ b.style.display = n ? 'block' : 'none'; b.textContent = n>9?'9+':n; }
+}catch(e){}
+}
+/* O selo "Pós-venda · N" (15/10): mensagens da IA esperando aprovação, clientes
+   esperando resposta no grupo (a escada da Isabela) e indicações novas — o
+   mesmo número da aba Hoje do posvenda.html. Medido em 08–15/10: a Lívia não
+   abriu o Pós-venda nenhuma vez; ela trabalha aqui, e o selo é o que leva lá.
+   O loadObras roda a cada mudança em obras (realtime): no máximo 1 leitura/min. */
+let PV_SELO_EM = 0;
+async function checarPosvenda(){
+if(Date.now()-PV_SELO_EM < 60000) return;
+PV_SELO_EM = Date.now();
+try{
+  const r = await sb.rpc('posvenda_selo');
+  const s = r && r.data, b = document.getElementById('bdgPv'), t = document.getElementById('tabPv');
+  if(!s || !b) return;
+  const q = Number(s.total)||0;
+  b.style.display = q ? 'inline-block' : 'none';
+  b.textContent = q>99 ? '99+' : q;
+  if(t) t.title = q ? (s.aprovar+' para aprovar · '+s.esperando+' esperando resposta · '+s.indicacoes+' indicações novas') : '';
 }catch(e){}
 }
 async function openRespostas(){
@@ -2018,6 +2063,10 @@ if(!fone){
 toast('Cadastre o WhatsApp do cliente primeiro');
 openForm(id, true); return;
 }
+abrirWhatsPessoal(o.telefone, msg);
+}
+function abrirWhatsPessoal(tel, msg){
+const fone=waPhone(tel);
 const mobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 if(mobile){
 window.open(`https://wa.me/${fone}?text=${encodeURIComponent(msg)}`,'_blank');
@@ -2081,6 +2130,7 @@ function buscarCadastrado(){
    já respondeu numa obra anterior. */
 function openFormManutencao(){
 window._cadPuxado = null;
+const instOpts='<option value="">— Equipe —</option>'+EQUIPE.filter(p=>p.papel==='Instalador'&&p.ativo!==false).map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join('');
 FORM_ID = null;
 const ov=document.createElement('div'); ov.className='ov on'; ov.id='ovForm';
 ov.addEventListener('click', function(ev){ if(ev.target===ov) fecharForm(); });
@@ -2099,7 +2149,11 @@ ov.innerHTML=`<div class="modal">
 <div class="fld"><label>Telefone (DDD+número)</label><input id="f_tel" inputmode="tel" placeholder="18999999999"></div>
 <div class="fld"><label>Quantidade de placas</label><input id="f_qtm" type="number" inputmode="numeric" min="1" step="1" placeholder="12"></div>
 </div>
-<div class="fld"><div class="flddica">Entra na coluna <b>Solicitada</b> da Manutenção e O&amp;M. Tipo, data e instalador você escolhe depois, abrindo o card.</div></div>
+<div class="grid2">
+<div class="fld"><label>Equipe de campo</label><select id="f_inst">${instOpts}</select></div>
+<div class="fld"><label>Data da execução</label><input id="f_dti" type="date"></div>
+</div>
+<div class="fld"><div class="flddica">Com data, entra em <b>Agendada</b>, aparece na agenda e o cliente é avisado (no grupo ou, sem grupo, no WhatsApp dele). Sem data, entra em <b>Solicitada</b>.</div></div>
 <div class="row">
 <button class="cancel" onclick="fecharForm()">Cancelar</button>
 <button class="save" id="f_save" onclick="salvarManutencao()">Criar manutenção</button>
@@ -2116,10 +2170,13 @@ async function salvarManutencao(){
   const tel=val('f_tel').replace(/\D/g,'');
   if(tel && tel.length<10){ document.getElementById('f_tel').classList.add('faltando'); toast('Telefone com DDD: 18 99999-9999'); return; }
   const qtm=parseInt(val('f_qtm'),10);
+  const dti=val('f_dti')||null;
   const rec={
     cliente:cli, telefone:tel||null, endereco:val('f_end')||null,
     qtd_modulos:(qtm>0?qtm:null),
-    trilha:'manutencao', etapa_numero:0, cliente_externo:false
+    instalador_id:val('f_inst')||null, data_instalacao:dti,
+    // com data marcada ja e "Agendada"; sem data fica em "Solicitada"
+    trilha:'manutencao', etapa_numero:(dti?1:0), cliente_externo:false
   };
   // herda do cadastro puxado só se o nome continua o dele — trocou o nome,
   // é outro cliente e não leva grupo nem cliente_id de ninguém
@@ -2135,9 +2192,15 @@ async function salvarManutencao(){
   const { error } = await sb.from('obras').insert(rec);
   if(error){ toast('Não salvou: '+error.message); bt.disabled=false; bt.textContent='Criar manutenção'; return; }
   fecharForm();
-  toast('Manutenção criada ✓ — abra o card para agendar');
+  toast(dti?'Manutenção criada e agendada ✓':'Manutenção criada ✓ — abra o card para agendar');
   await loadObras();
   if(VIEW==='kanban' && KTR!=='manutencao') setTrilha('manutencao');
+  // agendada no cadastro: avisa equipe e cliente igual a marcar a data no card
+  const o=OBRAS.find(x=>x.slug===rec.slug);
+  if(o && dti){
+    await avisarAgendamento(o, null, dti);
+    if(o.instalador_id) await avisarInstalador(o, null, dti);
+  }
 }
 function openForm(id, focoFone, trilhaNova){
 // obra nova nasce na trilha que está aberta no kanban
@@ -2439,8 +2502,7 @@ if(oAtual && dtiDepois){
 
   if(mudouData){
     // Data nova ou remarcada → avisa cliente e equipe
-    if(oAtual.whatsapp_grupo_id) await avisarAgendamento(oAtual, dtiAntes, dtiDepois);
-    else toast('ℹ️ Cliente não avisado: esta obra ainda não tem grupo de WhatsApp');
+    await avisarAgendamento(oAtual, dtiAntes, dtiDepois);
     await avisarInstalador(oAtual, dtiAntes, dtiDepois);
   } else if(mudouInst && instDepois){
     // Só trocou/definiu a equipe → avisa apenas a equipe nova

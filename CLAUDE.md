@@ -32,7 +32,7 @@ Páginas (HTML puro, sem framework, um arquivo cada):
 
 - `painel.html` — kanban, card da obra, relatórios, linha do tempo
 - `financeiro.html` — ficha, parcelas, extrato, DRE
-- `posvenda.html` — régua, usinas, aprovações
+- `posvenda.html` — **Hoje** (o que precisa de alguém), clientes, usinas, planos, automações (régua, Isabela)
 - `relatorio.html` — relatório público da obra
 
 ---
@@ -101,6 +101,32 @@ nome continuar o do cadastro puxado. Tipo, agenda e instalador ficam no card
 completo, que continua igual para editar. `cliente_externo` nasce `false`
 como no formulário antigo: `true` jogaria a obra em *"Cliente de plano sem
 contrato"* (`get_painel_planos`).
+
+Desde 05/10 (no ar só em 16/10: ficou no branch — armadilha 36) o cadastro
+rápido tem também **equipe de campo** e **data da
+execução**, opcionais (Vitor: "para ter no cronograma e avisar o cliente").
+Com data a obra nasce na etapa 1 (*Agendada*), entra na agenda (`get_agenda`
+lê `data_instalacao` + `instalador_id`) e avisa equipe e cliente como marcar
+a data no card. **Grupo não é obrigatório:** sem grupo, o aviso de
+agendamento abre o WhatsApp pessoal do cliente com o texto pronto
+(`abrirWhatsPessoal`, o mesmo do botão de WhatsApp do card — quem manda é a
+pessoa), e o lembrete da véspera (`lembrete-instalacao`) já caía no telefone
+da obra quando não há grupo.
+
+⚠️ **Telefone de cliente é gravado sem o 55, e a Z-API precisa do DDI.** Os
+da equipe, que recebem todo dia, estão **todos** com 55; os de cliente,
+**nenhum** (86 de 86 obras com telefone, medido em 05/10). O `lembrete-instalacao` (v9) e o canal
+pessoal da `autoleitura-aviso` (v4) mandavam o número cru — o canal pessoal
+nunca teve prova de que chegava. Os dois põem o 55 desde 05/10. O painel já
+fazia isso no `waPhone()`.
+
+**Entrega do Material: 1 a 20 dias úteis** (era 1 a 15; Vitor, 14/10). O
+prazo de cada etapa mora **só** em `etapas.prazo_texto` — a mensagem do grupo
+(`buildWA()`) e a página do cliente (`get_acompanhamento`) leem dali; nenhum
+número de dias da etapa está no código. O painel carrega as etapas **ao
+abrir**: depois de mudar, F5 em todo computador — a trava de aba velha
+(armadilha 31) olha código, não dado. O eletroposto tem o prazo próprio de
+equipamentos (etapa 3, 5 a 15 dias úteis) e não mudou.
 
 ### Financeiro
 `obra_financeiro` (preco_negociado, custos, dispensado) · `obra_parcelas`
@@ -283,6 +309,19 @@ do `mensagens-usina-auto` (`msg_ia_intervalo_urgente` 7 dias,
 Os 6 modelos de evento são todos `precisa_aprovacao = true`, então destravar
 não põe nada na frente de cliente sem a Lívia.
 
+⚠️ **Texto fixo de modelo não pode afirmar marca nem preço** (d180, 14–15/10).
+O primeiro `d180_manutencao` da história saiu para a ELOANA (4147) em 14/10,
+sem aprovação, dizendo que *"a Sungrow exclui da cobertura..."* (o inversor
+dela é Huawei) e oferecendo um *"Plano de Monitoramento Polaris a partir de
+R$ 289/ano"* que não existe (R$ 289 é o Ativo, sem visita) — para quem já
+tinha o Essencial de cortesia. O modelo passou a exigir aprovação na mesma
+noite e foi reescrito em 15/10: sem marca, e o parágrafo do plano vem do
+placeholder **`{plano_frase}`** do `regua_texto` — o plano atual (e até
+quando vai a cortesia), o Completo pela faixa de módulos com o desconto da
+tabela e o adicional por endereço; acima de 125 módulos, "sob consulta".
+Conferido: as outras 174 mensagens pendentes da régua saíram idênticas antes
+e depois da troca do `regua_texto`.
+
 ### NPS e avaliação no Google
 ⚠️ **O convite AUTOMÁTICO do Google sai UMA vez e nunca mais.** Quem agenda é o
 `nps-resposta`, no instante em que a nota entra (`nps.google_agendado_para`); a
@@ -452,11 +491,20 @@ linha em branco entre elas, e todo valor de economia sai em negrito — topo,
 usinas, Total e acumulado (Vitor, 02/10: "junto ficava apertado"). O contato
 621 foi regenerado com isso, mantendo o acumulado.
 O **tempo** saiu do parágrafo corrido para uma linha por tipo de dia —
-☀️ sol · ⛅ parcialmente nublado · ☁️ nublado, que somam o mês — e a chuva
-vem depois de uma linha em branco, *"🌧️ Choveu em N desses dias (X mm)"*
-(ou *"🌂 Não choveu no mês"*), para ninguém somar a chuva como quarto grupo.
+☀️ sol · ⛅ parcialmente nublado · ☁️ nublado, que somam o mês.
 Aprovado pelo Vitor para **todos** os clientes modelo em 02/10; o 620
 (Gilberto) e o 621 (Júnior) foram regenerados e seguem aprovados para 05/10.
+
+⚠️ **A chuva vai junto do tipo de dia, não numa linha à parte** (15/10). A
+versão de 02/10 dizia *"☀️ 17 dias de sol"* e, embaixo, *"🌧️ Choveu em 16
+desses dias"* — o Vitor leu o resumo da Tays e achou confuso: parecia que
+choveu nos dias de sol. Os números estavam certos; a chuva é que não é um
+quarto grupo, ela cai **dentro** dos outros três. Hoje cada dia entra uma vez
+só e a chuva vai entre parênteses, com o total em mm por último:
+*"☀️ 17 dias de sol (3 com chuva rápida) · ⛅ 11 dias parcialmente nublados
+(choveu em todos) · ☁️ 2 dias nublados (choveu nos dois)"* e *"🌧️ 155 mm de
+chuva no mês — 62 mm só no dia 14/09"*. O dia mais chuvoso só aparece quando
+explica o total (≥ 20 mm e ≥ 30% do mês). Dia de chuva continua sendo ≥ 1 mm.
 
 `clientes.chamar_de` é o nome do *"Olá, ...!"* — sem ele, o primeiro nome do
 cadastro, que para o Jose Antonio Bassetto Junior dava "Jose".
@@ -733,8 +781,196 @@ não pelo nome nem pelo número:
 `grupo_fixos` guardam **número**, e trocar a pessoa em `equipe` não muda
 nenhuma delas. Ver pendência no §10.
 
+**Uma pessoa, mais de um número** (14/10). `equipe.telefones_extra` guarda os
+outros números de quem escreve nos grupos — hoje o Jefferson (…1313 no
+cadastro, …9456 no extra). Serve **só para reconhecer** quem escreveu: o
+`equipe_por_fone()` é o único lugar do banco que identifica a equipe pelo
+telefone, e os avisos continuam indo para `equipe.telefone`. Antes disso, o
+que ele mandava do segundo número entrava como mensagem de **cliente**: não
+fechava a pendência de ninguém e podia virar "cliente esperando". As 5
+mensagens antigas foram corrigidas (o texto ficou; mudou quem escreveu).
+
+### Isabela: a escada de atendimento nos grupos
+**Isabela** é o nome da IA da Polaris, e é o número **18 99690-6474** (a
+instância POS-VENDA da Z-API) — os clientes já falam com ela pelo nome. Em
+14/10 nasceu a escada que o Vitor pediu, **ligada em 15/10 às 17:17**:
+
+| quando | o quê |
+|---|---|
+| 1 h útil sem resposta | aviso no privado do **vendedor** da obra (sem vendedor, vai direto ao pós-venda) |
+| 2 h úteis | aviso ao **pós-venda** (`resp_posvenda`, a Lívia) |
+| mensagem mandada no sábado, domingo ou feriado | passadas 2 h (entre 8h e 20h), a Isabela diz **no grupo** que o atendimento é de segunda a sexta e em que dia alguém retoma |
+
+"Hora útil" é segunda a sexta, `atendimento_hora_ini`–`atendimento_hora_fim`
+(8h–18h), fora dos `feriados` — `minutos_uteis(ini, fim)`. Mensagem de sexta
+às 17h vence às 9h do próximo dia útil. **Eram 2 h e 4 h até 15/10**; o Vitor
+encurtou para 1 h e 2 h (`migrations/2026-10-15_isabela_1h_2h.sql` — é só a
+`config`, a edge function lê em toda rodada).
+
+Quem decide é a edge function **`isabela-atendimento`**.
+`atendimento_candidatos(agora)` lista os grupos em que, depois da última
+mensagem de **gente** da equipe, o cliente mandou algo que não é cortesia
+(`msg_trivial`: "ok", "beleza, fico no aguardo", "🙏"…; pergunta com "?" nunca
+é cortesia; foto, áudio e documento sempre entram). Só quando um degrau vence
+a IA (Haiku, `ia_modelo`) lê as últimas 30 mensagens e diz: **precisa de
+resposta? já foi respondida** — inclusive por mensagem automática? — e **qual
+mensagem** está esperando. A espera conta dessa mensagem, não da primeira do
+bloco (o e-mail que a equipe pediu não é pergunta). Senha e e-mail são
+mascarados antes de ir para a IA e para o aviso.
+
+⚠️ **O aviso no grupo fala com o cliente sem a Lívia aprovar.** É exceção à
+regra 3.5 e ao "fim de semana sem mensagem para cliente", decidida pelo Vitor
+em 14/10, com **texto fixo** (`atendimento_fds_texto`) e chave própria
+(`atendimento_fds_ativo`). Sai uma vez por fim de semana em cada grupo e só
+para quem escreveu **no** fim de semana ou feriado: mensagem de sexta sem
+resposta é assunto da escada — avisar no sábado expõe que ninguém respondeu
+na sexta, e não foi isso que o Vitor pediu.
+
+⚠️ **Até 15/10 o que saía pelo número da Isabela não era gravado** — nem as
+automáticas, nem o que alguém **digitava** no WhatsApp dela —, e resposta
+digitada ali era invisível e podia virar aviso falso. **Desde 15/10 a opção
+"Notificar as enviadas por mim também" está ligada na Z-API** (POS-VENDA).
+Tudo o que sai pelo número entra no `webhook-whatsapp-v2` como `fromMe`,
+remetente `Sistema/Polaris`: com a assinatura *"Equipe Polaris Energia
+Solar"* vira `automatica` (não fecha pendência); sem ela, `resposta_equipe` —
+é o que alguém digitou — e fecha a pendência do cliente. Prova: as 6 da régua
+das 17h de 15/10 entraram como `automatica`, 5 a 6 s depois de cada envio.
+
+Três coisas tiveram de mudar antes de ligar, porque iam ler essas linhas do
+jeito errado: o **aviso de fim de semana ganhou a assinatura** (sem ela, o
+próprio aviso contaria como "a equipe respondeu" e calaria a escada); a
+**`pista_de_causa`** passou a ignorar `automatica` (o nosso *"confira o
+wi-fi"* viraria prova de que a causa é wi-fi); e **`get_marco_svc` /
+`get_queda_svc`** também, para a IA não ler os modelos da régua como conversa.
+⚠️ **Texto automático novo que fala no grupo do cliente tem de levar a
+assinatura**, senão conta como resposta de gente.
+
+⚠️ **Um grupo pode estar em mais de uma obra** — a obra da visita do plano
+herda o grupo do cliente, e a manutenção que "puxa o cadastro" também. Até
+15/10 o webhook achava a obra com `maybeSingle()` direto em `obras`, que dá
+**erro** com duas, e a mensagem era descartada como "grupo interno", sem
+gravar nada: a **Tays** sumiu desde 26/09 e o **Júnior** desde 02/10, de
+tudo — escada, pendências, NPS. Hoje quem escolhe a obra dona é
+**`obra_do_grupo(grupo)`**: obra de visita do plano nunca é dona; entre as
+outras, a em andamento antes da concluída; empate, a mais antiga (hoje: Tays →
+a obra dela; Júnior → o eletroposto 4674, em andamento). O **envio** não
+mudou: cada obra continua mandando para o grupo dela. O webhook está
+versionado em `supabase/functions/webhook-whatsapp-v2/` desde a v4 (15/10) —
+antes só existia publicado.
+
+**Como ela melhora com o uso:** cada espera vira uma linha em
+`atendimento_espera` (o parecer da IA, quem foi avisado e quando, quando a
+equipe respondeu). O que a equipe corrige vira exemplo:
+`atendimento_ensinar(espera, 'desnecessario' | 'faltou_avisar' | 'util')`
+grava em `atendimento_exemplo`, que entra no prompt da decisão seguinte — o
+mesmo desenho do `classificacoes_exemplo` que o webhook já usa.
+`atendimento_fechar` fecha na mão ("falei por telefone"). O modelo não é
+retreinado: ele melhora pelos exemplos e pelos limites que a medição mostrar.
+
+**A tela é Automações › Isabela do `posvenda.html`** (15/10; as esperas
+abertas aparecem também na aba **Hoje**, com os mesmos botões), que lê
+`atendimento_painel(14)`: quem está esperando agora, as que **ela descartou**
+(achou que não precisava avisar — é ali que um cliente pode ficar na mão) e as
+fechadas. Botões: **Falei por fora** (fecha), **Não precisava** (ensina e,
+se aberta, fecha), **Foi útil** (só conta o acerto) e, nas descartadas,
+**Precisava responder** (ensina o contrário). Os dois que ensinam pedem um
+motivo opcional, que vai para o prompt junto com o trecho. Clique repetido não
+duplica exemplo; trocar de botão desliga o exemplo antigo (`ativo = false`,
+não apaga — regra 3.6). E fechar à mão carimba `avaliado_ate = agora`: a
+escada só reavalia quando chega mensagem **mais nova** que isso, então o que o
+cliente mandou antes do clique não vira aviso de novo.
+
+**Medido em 14/10, refazendo 05/10–13/10 sem gravar nem enviar** (replay a
+cada 30 min): em 6 dias úteis, **13 avisos ao vendedor** (~2 por dia para a
+equipe toda) e **4 avisos de horário** no fim de semana prolongado (Sáb–Seg
+feriado). A IA descartou **32 conversas** que o filtro deixou passar ("Fechou",
+"Caiu sim", "Assim melhor", e a pergunta dos 5 dias úteis do 4847, já
+respondida pela vistoria). Em 6 dos 13 avisos a equipe respondeu **depois** do
+horário do aviso — de 40 min a 4 dias depois. Nos outros 7 não há resposta
+visível: pendência real, resposta pelo número da Isabela ou por telefone.
+
+**Ligada em 15/10 às 17:17** (`migrations/2026-10-15_isabela_liga.sql`):
+cron `isabela-atendimento` a cada 15 min, todos os dias;
+`atendimento_desde` = 15/10 17:17 (sem isso a fila antiga dispararia de uma
+vez — a simulação daquela manhã avisaria de conversas de 09/10);
+`atendimento_ativo = 1`, `atendimento_fds_ativo = 1`; e
+`alerta_espera_ativo = 0` — o "cliente esperando" antigo (60 min, só para a
+Lívia) passaria na frente do vendedor. O job `alerta-espera` continua
+agendado e para pela chave; para voltar, é só a chave em 1.
+
+### A tela do Pós-venda: Hoje · Clientes · Usinas · Planos · Automações
+Até 15/10 eram **8 abas** (Jornada, Lista, Régua, Isabela, Indicações, Planos,
+Usinas, Automações). Medido pelos logs de 08 a 15/10: só o **Vitor** abriu o
+`posvenda.html` (12 vezes, quase sempre para aprovar mensagem na Régua); a
+**Lívia, nenhuma** — o trabalho dela vive no Painel e no WhatsApp. Decisão do
+Vitor em 15/10: 5 abas, e a tela abre no que precisa de alguém.
+
+| aba | o que tem | de onde veio |
+|---|---|---|
+| **Hoje** (abre aqui) | mensagens da IA para aprovar · clientes esperando resposta (a escada da Isabela, com os botões) · indicações novas (pôr telefone, "já falei", "não era indicação") · o mesmo do aviso das 8h (`pendencias_posvenda`: usina parada, Google, brinde, geração faltando, sem NPS, mensagens sem tratar, aniversário) | Régua (aprovação), Isabela, Indicações |
+| **Clientes** | a lista de sempre + os chips **🗓️ Por fase** (a antiga Jornada) e **🤝 Indicações** (funil, ranking, pagamentos) | Lista, Jornada, Indicações |
+| **Usinas** · **Planos** | iguais | — |
+| **Automações** | sub-abas **Régua de mensagens** · **Isabela** · **Liga/desliga** | Régua, Isabela, Automações |
+
+Quem tinha uma aba antiga guardada no navegador cai na casa nova dela. O
+número da aba Hoje e o selo **"Pós-venda · N"** no Painel saem de
+**`posvenda_selo()`** (aprovações + esperas abertas + indicações novas) — o
+selo é o que leva a Lívia do Painel para lá, e o Painel lê no máximo uma vez
+por minuto (o `loadObras` roda a cada mudança em obras). **`posvenda_hoje()`**
+é a porta da tela para a lista das 8h: a `pendencias_posvenda` é só do
+service_role e não confere quem chama.
+
+⚠️ **A lista das 8h leva ~1,5 s no banco** (medido em 16/10; o selo, 54 ms).
+A aba Hoje mostra primeiro o que pede ação e a lista das 8h logo depois,
+guardada por 5 min — sem isso, cada clique (aprovar, "falei por fora")
+esperava 1,5 s para redesenhar. Redesenhar **não apaga** o texto que alguém
+começou a ajustar numa mensagem da IA (fica marcado *"ajustado aqui e ainda
+não aprovado"* até decidir). Leitura que falhou aparece no topo, nunca como
+"nada esperando".
+
+⚠️ **A tela dizia que a régua sai às 11h; sai às 17h** (cron `regua-disparo`,
+`0 20 * * 1-5` UTC). Corrigido em 16/10.
+
 ### Indicações
-`indicacoes` — nova → contatada → visita → fechada/perdida
+`indicacoes` — nova → contatada → visita → fechada/perdida, e **descartada**
+("não era indicação", desde 15/10).
+
+**Medido em 15/10:** 20 indicações desde agosto, **todas detectadas pela IA**
+nos grupos e **nenhuma fechou**. Lendo as conversas, a maioria não era
+indicação: a conta de luz que o cliente ia mandar para a nora (**3 cópias**),
+o vídeo do Wi-Fi para o filho, os contatos da atendente da CPFL, vontades
+genéricas de indicar sem nome nem telefone. O único jeito de tirar uma da
+frente era "perdida" — que entra na conversão como venda perdida.
+
+⚠️ **As cópias vinham da Z-API.** Ela entrega de novo a mesma mensagem (mesmo
+messageId, mesmo texto) segundos depois — 89 identificadores repetidos em 30
+dias — e o webhook gravava todas; o gatilho `msg_indicacao_auto` cria uma
+indicação por linha. Desde 15/10 (webhook v5) a trava **`webhook_ja_visto(id,
+texto)`** é atômica no banco (`webhook_vistos`, só service_role). **Edição**
+(mesmo id, texto novo) continua entrando, e se a gravação falha a trava é
+solta (`webhook_esquecer`) para a Z-API poder entregar de novo.
+
+**`indicacao_descartar(id, motivo, reclassificar, simular)`** marca "não era
+indicação": exige motivo, guarda o status anterior no `motivo_perda` (regra
+3.6), reclassifica o recado para `geral` e ensina a IA do webhook com um
+exemplo em `classificacoes_exemplo`. **Cópia de uma indicação que continua
+valendo não reclassifica** (devolve `copia_de`): só quando a última cópia de um
+falso alarme é descartada o texto vira exemplo. Descartada **não volta** pelo
+`indicacao_status` — se era indicação, registra-se de novo. Fica fora do funil,
+da conversão, do ranking e da ficha.
+
+⚠️ **"Já indicou" é uma regra só** (envio da régua, régua do dia e
+trajetória): indicação de verdade (não descartada) **ou** recado classificado
+como indicação. Quem teve recado mal classificado nunca mais recebia o pedido
+de indicação da régua (`d90_indica2`) — o 4324 e o 4620 estavam assim.
+
+⚠️ **Indicação que a IA detecta vem sem telefone**: das 20, nenhuma tinha
+telefone de verdade (17 vazias; as 3 "com número" eram o falso alarme do
+prestador no telhado, com um código de 14 dígitos), e o `trava_indicacao`
+não deixa indicação sem telefone avançar.
+**`indicacao_telefone(id, telefone)`** põe o número (aceita com ou sem 55,
+grava sem, como os de cliente) — botão "📞 Pôr telefone" na aba Hoje e no
+cartão da indicação.
 
 ---
 
@@ -775,6 +1011,17 @@ nenhuma delas. Ver pendência no §10.
 | `uc_leitura_atualizar` · `uc_leitura_apagar` | corrigem uma data; apagar é recusado se o cliente já foi avisado |
 | `autoleitura_resumo_texto(uc)` | o calendário inteiro para mandar no grupo, com os canais que de fato existem |
 | `get_responsavel_posvenda()` | quem é o `resp_posvenda` e o `resp_alertas` hoje |
+| `equipe_por_fone(fone)` | quem da equipe escreveu — pelo `telefone` **ou** pelos `telefones_extra`. É dele que sai o `da_equipe` das mensagens dos grupos |
+| `obra_do_grupo(grupo)` | **a obra dona de um grupo de WhatsApp** quando ele está em mais de uma (visita do plano nunca; em andamento primeiro; depois a mais antiga). É por ela que o webhook grava a mensagem |
+| `minutos_uteis(ini, fim)` | minutos de horário de atendimento (seg–sex, 8h–18h, sem feriado) entre dois instantes — a régua da escada da Isabela |
+| `msg_trivial(texto)` | a mensagem é só cortesia ("ok", "beleza, fico no aguardo", "🙏")? Pergunta com "?" nunca é |
+| `atendimento_candidatos(agora, desde)` | grupos com mensagem de cliente sem resposta de **gente** da equipe; aceita um "agora" no passado para refazer a história (replay) |
+| `atendimento_ensinar(espera, feedback, obs)` · `atendimento_fechar(espera, como, obs)` | o que a equipe corrige vira exemplo da IA · fecha a espera na mão |
+| `atendimento_painel(dias)` | a aba Isabela do pós-venda: esperas abertas + fechadas nos últimos N dias, com cliente, vendedor, quem foi avisado e a correção já feita. Só leitura |
+| `posvenda_selo()` · `posvenda_hoje()` | o número do selo do Painel e da aba Hoje (aprovações + clientes esperando + indicações novas) · o selo + a lista das 8h, atrás de `is_autorizado()` |
+| `indicacao_descartar(id, motivo, reclassificar, simular)` | "não era indicação": guarda o status de antes, reclassifica o recado e ensina a IA — menos quando é cópia de uma indicação viva |
+| `indicacao_telefone(id, telefone)` | põe o telefone na indicação que a IA achou sem número; sem ele ela não anda no funil |
+| `webhook_ja_visto(id, texto)` · `webhook_esquecer(id, texto)` | a trava do webhook contra a mesma mensagem entregue de novo pela Z-API · solta a trava quando a gravação falha (só service_role) |
 | `definir_responsavel(equipe, funcao)` | troca a pessoa de um dos dois papéis; só admin |
 | `get_kpis_financeiro(ini, fim)` | R$/Wp e execução × faturamento, **com a cobertura junto** — quantas obras sustentam cada número e o que falta para as outras |
 | `obra_custos_realizados(obra)` | o realizado da obra vindo do extrato, campo a campo; diz também se o extrato cobre o período da obra |
@@ -864,6 +1111,13 @@ Prefira criar parâmetro a chumbar número no código.
 | `resumo_sem_acumulado_obras` | obra do UNI AUTO POSTO | obras cujo resumo **não** traz o "Desde a instalação" nem o retorno do investimento — o Júnior viu o acumulado só no primeiro (setembro) |
 | `resumo_mensal_dia` · `resumo_mensal_preparo_dia` | 5 · 2 | dia do envio (ou o próximo dia útil) · a partir de quando o resumo entra na régua para aprovar |
 | `resumo_sol_pct` | 75 | no resumo mensal, "dia de sol" é radiação ≥ 75% do melhor dia do mês no lugar; abaixo de `saude_rad_min` é nublado; o resto, parcialmente nublado |
+| `atendimento_ativo` · `atendimento_fds_ativo` | **1** · **1** (desde 15/10 17:17) | a escada da Isabela (avisos à equipe) · o aviso de horário no grupo no fim de semana e feriado |
+| `atendimento_vendedor_min` · `atendimento_posvenda_min` | **60 · 120** (desde 15/10; eram 120 · 240) | minutos úteis sem resposta até avisar o vendedor · o pós-venda |
+| `atendimento_hora_ini` · `atendimento_hora_fim` | 8 · 18 | o horário que conta como "hora útil" |
+| `atendimento_fds_min` · `atendimento_fds_hora_ini` · `atendimento_fds_hora_fim` | 120 · 8 · 20 | espera e janela do aviso de fim de semana |
+| `atendimento_fds_texto` | texto fixo | o que a Isabela diz no grupo; `{quando}` vira "na segunda-feira (DD/MM)" |
+| `atendimento_desde` | 2026-10-15T20:17:01Z | ao ligar, só olha mensagem depois disto |
+| `alerta_espera_ativo` | **0** (desde 15/10 17:17) | o "cliente esperando" antigo, substituído pela escada da Isabela |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -1148,6 +1402,14 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     inversor e telhado, sem estrutura nem cabo. Conferido trilha por trilha
     fora do ar: **padrão fica byte a byte idêntico** (70 obras), eletroposto
     muda só a saudação do cliente para "instalação do eletroposto".
+
+    ⚠️ **O conserto de 22/09 foi para a função errada.** O aviso que a equipe
+    recebe ao marcar a data sai do `avisarInstalador()` do **painel**, não da
+    `enviar-os` — que nenhuma tela chama. O painel seguia mandando *"Nova obra
+    agendada"* com estrutura e cabo para manutenção. Corrigido em 05/10 (no
+    ar em 16/10, armadilha 36): o título sai da trilha e do tipo (*"Visita técnica agendada"*, *"Manutenção
+    preventiva agendada"*…), estrutura e cabo não saem na manutenção, e entram
+    o telefone do cliente e o `motivo_manutencao`.
 
     ⚠️ **E `observacoes` ficou de fora de propósito.** É campo livre e hoje
     carrega nota comercial — a obra 4599 tem *"Proposta: R$ 15.600,00"* lá
@@ -1458,6 +1720,48 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     solto também ficou preso duas vezes; o mesmo `update` dentro de um
     `do $x$ begin ... end $x$` passou na hora.
 
+33. **Medir demora de resposta pelos dados exige saber o que é pergunta — e
+    ver o que a Isabela mandou.** Em 14/10 eu disse ao Vitor que 71 conversas
+    tinham levado mais de 2 h para ser respondidas e 16 nunca tinham sido, com
+    três exemplos. Os três estavam errados: *"será realizada hoje mesmo a
+    instalação?"* foi respondida em **1 minuto**, *"ontem minha esposa ficou
+    em casa"* em **5**, e a pergunta dos 5 dias úteis do 4847, em 3 minutos,
+    pela mensagem da vistoria — que saiu pelo número da Isabela e **não é
+    gravada**. A conta tinha dois furos: abria a espera em qualquer mensagem
+    do cliente ("ok, estaremos no aguardo", um recado de quinta, o e-mail que
+    a equipe tinha pedido) e não via nada do que sai pela Isabela. Refeita
+    só com pergunta de verdade: **223** em 30 dias, **76%** respondidas em até
+    15 min, mediana de **2 min**. O Vitor pegou o erro porque conhecia as
+    conversas. **Antes de afirmar que alguém demorou, leia a conversa — e
+    lembre que o que a Isabela fala no grupo não aparece na tabela.**
+
+34. **`delete` pelo MCP do Supabase também espera confirmação** — não é só o
+    `drop` (armadilha 32). Em 15/10 o `delete` das 2 linhas de teste do
+    webhook (`TESTE-DEDUP-1510`, obra 4147) expirou duas vezes, por
+    `execute_sql` e por `apply_migration`, sem chegar ao banco. Não contorne:
+    quem apaga é quem tem o painel do Supabase. **Teste que grava em tabela de
+    produção precisa de jeito de sair antes de entrar** — de preferência,
+    rode dentro de `begin … rollback`.
+
+35. **O supabase-js só dispara a consulta quando alguém espera por ela.**
+    `sb.rpc(...)` devolve um construtor "preguiçoso": guardar numa variável e
+    dar `await` depois **não** roda em paralelo — a consulta só sai no
+    `await`. Para disparar já, `Promise.resolve(sb.rpc(...))` ou
+    `Promise.all([...])`. E ele não tem `.catch()`: quem precisa de Promise de
+    verdade embrulha numa função `async` (é o que o `soltarTrava` do webhook faz).
+
+36. **O site publica o repositório inteiro.** O `obras.polarisenergiasolar.com`
+    sai da `main` (há `CNAME`): todo arquivo que entra no repositório vira URL
+    pública. As prévias do resumo mensal (`previas/resumo_setembro_gilberto.png`
+    e `_junior.png`, com nome, geração e economia em R$) estavam abertas a
+    qualquer um, num endereço fácil de adivinhar, e o branch ia somar a Tays, o
+    Valdir e a academia. Saíram em 16/10 (continuam no histórico do git).
+    **Prévia para alguém olhar vai como arquivo na conversa ou Artifact privado
+    — nunca commitada.** E o branch pode acumular trabalho que nunca foi para a
+    `main`: em 16/10 eram 24 commits desde 05/10, entre eles o cadastro rápido
+    de manutenção com equipe e data, que este documento já dava como no ar.
+    Antes de dizer "está publicado", compare o arquivo do site com o do branch.
+
 ---
 
 ## 10. Estado e pendências
@@ -1740,7 +2044,15 @@ Conferido no banco em **22/09/2026**.
       UTC, `cpfl_avisado_prazo` 25/09) para que, **se a data certa for 25/09**
       e a Lívia corrigir na página nova, saia a *"📅 Atualização da vistoria"*
       (conta de 28/09, até **02/10, sexta**) em vez de um segundo "Boa
-      notícia". Simulado com rollback antes de gravar. **Lição: a página
+      notícia". Simulado com rollback antes de gravar.
+      **Atualizado em 05/10:** a CPFL respondeu *"providenciando a liberação
+      do atendimento até 07/10/2026"*. A data da solicitação continua 18/09; o
+      `cpfl_prazo_em` virou **07/10** direto, e a `cpfl_texto` ganhou o caso
+      `prazo_da_concessionaria` (prazo fora da conta dos 5 dias úteis): diz
+      *"a CPFL nos informou um novo prazo… até 07/10 (quarta)"* em vez de
+      "data corrigida". **Nada foi enviado** — sai quando alguém apertar o 📣
+      no card. Mexer na data da solicitação depois disso recalcula o prazo
+      pelos 5 dias úteis e perde o 07/10. **Lição: a página
       aberta desde de manhã roda o código de manhã — depois de publicar,
       Ctrl+F5 em todo computador da equipe.**
       **VANESSA AMORIM (4808)** e **RODRIGO JUNCAL (4402)** estão na 7 pelo
@@ -1877,6 +2189,46 @@ Conferido no banco em **22/09/2026**.
       cartões continuam sem as obras de manutenção (Tays, UNI AUTO POSTO,
       Bassetto, Fatima). O certo seria `obra_ativa()` (§6). Mexer muda os
       números do topo da tela, então é decisão, não varredura.
+- [x] ~~**Ligar a escada da Isabela**~~ **Ligada em 15/10 às 17:17**, com o
+      texto de fim de semana aprovado pelo Vitor e a Z-API gravando as
+      enviadas (§4).
+- [ ] **Isabela aprender de verdade: os botões de correção.** O mecanismo
+      existe (`atendimento_ensinar` → `atendimento_exemplo` → prompt da
+      decisão seguinte), e os botões estão em Automações › Isabela e na aba
+      Hoje (§4), publicados em 16/10 junto com a navegação nova. Falta usar:
+      `atendimento_exemplo` estava vazia. Depois: a resposta sugerida, tirada
+      da base de perguntas e respostas dos grupos.
+- [ ] **Limpeza das indicações: simulada, espera o OK do Vitor.** Refeita em
+      16/10 com a função final, sem gravar: **17** viram "não era indicação"
+      (12 falsos alarmes com o recado reclassificado + 5 que repetiam
+      indicações verdadeiras — o filho do 4791 e o amigo do 4425 —, sem
+      reclassificar), **12** mensagens voltam para `geral`,
+      **9** exemplos para a IA, zero erro. O funil fica com **3** de verdade:
+      a irmã do 4618 (#12, nova, **sem telefone**, vendedor Vitor), o filho do
+      4791 (#6) e o amigo do 4425 (#11), as duas contatadas. Na régua: o 4324
+      e o 4620 voltam a poder receber o pedido de indicação (`d90_indica2`,
+      04/11 e 10/11 — já estão autorizados); 4425, 4618 e 4791 continuam "já
+      indicou", que é verdade.
+- [ ] **Duas linhas de teste na obra 4147** (`zapi_message_id =
+      'TESTE-DEDUP-1510'`, em `mensagens_recebidas` e `webhook_vistos`): o
+      delete pelo MCP não passa (armadilha 34). Apagar pelo painel do Supabase.
+- [ ] **Provar com tráfego real** o webhook v5 (nenhuma cópia gravada) e a v4
+      (mensagens da Tays e do Júnior entrando). Até 16/10 06h45 não tinha
+      chegado mensagem de cliente desde a publicação (15/10 20h03).
+- [x] ~~**Grupo ligado a duas obras some para a Isabela.**~~ **Corrigido em
+      15/10 às 18:49** (webhook v4 + `obra_do_grupo`, ver §4). Os da Tays (a
+      obra dela + a da visita) e do Júnior (posto + eletroposto 4674) caíam no
+      `maybeSingle()`, que dá erro com duas obras, e a mensagem era descartada
+      como "grupo interno". ⚠️ **O que eles escreveram de 26/09 (Tays) e 02/10
+      (Júnior) até 15/10 não foi gravado e não volta** — a Z-API não reenvia;
+      para saber, só lendo os dois grupos.
+- [ ] **Mensagem no privado da Isabela não é lida.** O webhook só grava grupo;
+      cliente que escreve direto para o número da Isabela fica fora da escada.
+- [ ] **Senha de cliente gravada em texto puro.** Em 14/10, **20 mensagens em
+      16 grupos** de `mensagens_recebidas` traziam login e senha (CPFL, app do
+      inversor) que o cliente mandou no grupo. A Isabela já mascara antes de
+      mandar para a IA e para os avisos; o que está gravado continua aberto.
+      Existe `mensagem_mascarada` (6 linhas), mas ela não pegou esses casos.
 
 Próximos módulos: garantia e nota fiscal · tela de indicação com o funil novo ·
 comercial (só depois do financeiro confiável).
