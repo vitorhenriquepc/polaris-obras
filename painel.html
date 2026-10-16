@@ -414,7 +414,7 @@ background:rgba(224,112,112,.12);border:1px solid rgba(224,112,112,.35);
 border-radius:6px;padding:3px 7px;display:inline-block}
 .krel.ok{color:#58b868;background:rgba(88,184,104,.10);border-color:rgba(88,184,104,.28)}
 .kcard.relpend{box-shadow:inset 3px 0 0 #e07070}
-.ktrv{margin-top:6px;font-size:10.5px;font-weight:800;color:#d99a3a;
+.ktrv,.ksemdata{margin-top:6px;font-size:10.5px;font-weight:800;color:#d99a3a;
 background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.32);
 border-radius:6px;padding:3px 7px;display:inline-block}
 .ktrv.crit{color:#e07070;background:rgba(224,112,112,.14);border-color:rgba(224,112,112,.45)}
@@ -543,6 +543,33 @@ function parseDate(s){if(!s)return null;
    devolvia amanha, e a vistoria pedida as 22h ficava registrada no dia seguinte. */
 function hojeLocal(){var d=new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+/* Data que nao pode existir. RINALDO (4519), 13/10: o card foi salvo com
+   01/01/0001, a receita de R$ 42.000 foi para o ano 1 no DRE e a CJP recebeu
+   "Nova data: 01/01/0001" -- o kanban mostrava so "01/01" e ninguem viu. A
+   mesma faixa o banco recusa (trava_datas_obra): de 2020 ate 3 anos a frente. */
+var DATA_MIN='2020-01-01';
+function dataMax(){var d=new Date();
+  return (d.getFullYear()+3)+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function dataImpossivel(v){ if(!v) return false;
+  return !/^\d{4}-\d{2}-\d{2}$/.test(v) || v<DATA_MIN || v>dataMax(); }
+function limitaDatas(raiz){ (raiz||document).querySelectorAll('input[type=date]').forEach(function(el){
+  el.min=DATA_MIN; el.max=dataMax(); }); }
+/* dd/mm, e o ano junto quando nao e o deste ano: "01/01" escondia o 0001 */
+function diaMesAno(iso){ if(!iso) return ''; var p=String(iso).split('-');
+  return p[2]+'/'+p[1]+(p[0]!==String(new Date().getFullYear())?'/'+p[0]:''); }
+/* Obra que passou da execucao sem data de instalacao (TANAKA 4745, 16/10). E a
+   data que manda a equipe o link do checklist (avisarInstalador), que a
+   cobranca das fotos das 8h usa e que o DRE usa como competencia da venda.
+   Manutencao fica de fora: la a data e o inicio do atendimento, outro fluxo. */
+function semDataInstalacao(o){
+  return !!o && (o.trilha||'padrao')!=='manutencao' && (o.etapa_numero||0)>=6 && !o.data_instalacao;
+}
+function avisoSemData(o){
+  return '⚠️ '+o.cliente+' está sem data de instalação.\n\n'
+    +'Sem ela, a equipe não recebe o link do checklist de fotos, a cobrança automática do relatório '
+    +'não enxerga a obra e a venda não entra no DRE.\n\n'
+    +'Marque a data no card (📅 Agenda e equipe). Avançar mesmo assim?';
+}
 function diasAtras(iso){const d=parseDate(iso);if(!d)return '';const n=diffDays(d,new Date());return n<=0?'hoje':(n===1?'ontem':'há '+n+'d');}
 function toast(m){let t=document.getElementById('tst');if(!t){t=document.createElement('div');t.id='tst';t.className='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2600);}
 function temaAtual(){try{return localStorage.getItem('polaris-tema')||'dark'}catch(_){return 'dark'}}
@@ -1174,8 +1201,9 @@ h+='<div class="kcard '+(n===nEt?'fim':(late?'late':''))+(o.trava?(travaCritica(
  +'<div class="km">'+(o.contrato?'<span>#'+esc(o.contrato)+'</span>':'')
  +(o.potencia_kwp?'<span>'+esc(String(o.potencia_kwp).replace('.',','))+' kWp</span>':'')
  +(d!=null&&n<nEt?'<span class="kdias '+(late?'late':(warn?'warn':''))+'">'+d+'d</span>':'')
- +(o.data_instalacao?'<span>📅 '+o.data_instalacao.split('-').reverse().slice(0,2).join('/')+'</span>':'')
+ +(o.data_instalacao?'<span>📅 '+diaMesAno(o.data_instalacao)+'</span>':'')
  +(o.aceite_em?'<span>✍️</span>':'')+'</div>'
+ +(semDataInstalacao(o)?'<div class="ksemdata" title="Sem a data a equipe não recebe o link do checklist, a cobrança das fotos não vê a obra e a venda não entra no DRE">📅 Sem data de instalação</div>':'')
  +tarjaTravaK(o)
  +tarjaRel(o)
  +(o.trilha==='manutencao'?tarjaMan(o):'')
@@ -1342,7 +1370,8 @@ const e=etOf(o);
 const metaBits=[];
 if(o.contrato) metaBits.push('#'+esc(o.contrato));
 if(o.potencia_kwp) metaBits.push(esc(String(o.potencia_kwp).replace('.',','))+' kWp');
-if(o.data_instalacao){const di=o.data_instalacao.split('-');metaBits.push('📅 instalação '+di[2]+'/'+di[1]);}
+if(o.data_instalacao){metaBits.push('📅 instalação '+diaMesAno(o.data_instalacao));}
+else if(semDataInstalacao(o)){metaBits.push('<span style="color:#d99a3a;font-weight:700">📅 sem data de instalação</span>');}
 if(o.aceite_em){metaBits.push('✍️ termo assinado');}
 if(o.trilha&&o.trilha!=='padrao'){metaBits.push(trilhaNome(o.trilha));}
 const _ci=catInfo(o.categoria);
@@ -1532,8 +1561,15 @@ const o=getObra(id);
 const mudou = n!==o.etapa_numero;
 const patch={etapa_numero:n};
 const dConc=dataDeConclusao(n,o); if(dConc) patch.data_conclusao=dConc;
+// Passou da execução sem data de instalação (TANAKA 4745, 16/10: foi da 6 para
+// a 8 sem data, e a equipe nunca recebeu o link). Sem a data, o aviso do
+// relatório logo abaixo seria o mesmo problema dito de novo: sai um só.
+if(mudou && n>=ETAPA_VISTORIA && n>(o.etapa_numero||0)
+   && semDataInstalacao(Object.assign({},o,{etapa_numero:n}))){
+  if(!confirm(avisoSemData(o))) return;
+}
 // Avisa quando o cliente ainda não confirmou o relatório
-if(mudou && n===ETAPA_VISTORIA && (o.trilha||'padrao')!=='manutencao' && !o.aceite_em){
+else if(mudou && n===ETAPA_VISTORIA && (o.trilha||'padrao')!=='manutencao' && !o.aceite_em){
   if(!confirm('⚠️ '+o.cliente+' ainda não confirmou o relatório da instalação.\n\n'
     +'O aceite é o que mostra que o cliente conferiu as fotos antes da vistoria.\n\n'
     +'Avançar mesmo assim?')) return;
@@ -1823,6 +1859,35 @@ async function avisarInstalador(o, antes, depois){
   const r=await sb.functions.invoke('notificar-grupo',{body:{grupo_id:eq.whatsapp_grupo_id,message:msg}});
   if(r.error||(r.data&&r.data.error)) toast('⚠️ Não consegui avisar a equipe '+eq.nome);
   else toast('✓ '+eq.nome+' avisada no grupo 🔧');
+}
+/* Data que ja passou e REGISTRO, nao agendamento (TANAKA 4745, 16/10). Marcar no
+   card a data de uma obra ja feita mandava ao cliente "sua instalacao esta
+   agendada" e a equipe "Nova obra agendada" -- de um dia que ja foi. O que falta
+   nesse caso e o link do checklist, e so se o instalador ainda nao enviou o
+   relatorio. Quem decide mandar e a pessoa; o cliente nao recebe nada. */
+async function dataQueJaPassou(o){
+  const quando=dataBRs(o.data_instalacao)+(o.data_fim&&o.data_fim!==o.data_instalacao?' a '+dataBRs(o.data_fim):'');
+  if(o.relatorio_enviado_em || !o.instalador_id){
+    toast('Data registrada ('+quando+'). Como já passou, ninguém foi avisado de agendamento.'); return;
+  }
+  const eq=EQUIPE.find(x=>x.id===o.instalador_id);
+  if(!eq || !eq.whatsapp_grupo_id){
+    toast('Data registrada ('+quando+'). Ninguém foi avisado: a equipe não tem grupo em 👥 Equipe.'); return;
+  }
+  if(!confirm('A data ('+quando+') já passou: ninguém vai receber aviso de agendamento.\n\n'
+      +'O instalador ainda não enviou o relatório desta obra. Mandar agora para '+eq.nome
+      +' o link do checklist de fotos?')){
+    toast('Data registrada. Ninguém foi avisado.'); return;
+  }
+  const ehMan=(o.trilha==='manutencao');
+  const linkChk=`${location.origin}/instalador.html?id=${encodeURIComponent(o.slug)}&t=${o.instalador_token}`;
+  const msg='📋 *Relatório da obra — '+o.cliente+'*'+(o.contrato?' · #'+o.contrato:'')+'\n\n'
+    +'📅 '+(ehMan?'Atendimento':'Instalação')+' em *'+quando+'*\n\n'
+    +'O relatório ainda não foi enviado. Checklist de fotos'+(ehMan?'':' da obra')+':\n'+linkChk
+    +'\n\nAssim que as fotos estiverem lá, é só enviar pelo link. 🙏\n\n*Polaris Energia Solar* ☀️';
+  const r=await invokeFn('notificar-grupo',{grupo_id:eq.whatsapp_grupo_id,message:msg});
+  if(r.error) toast('⚠️ Não consegui mandar o link para '+eq.nome+': '+r.error);
+  else toast('✓ Link do checklist enviado para '+eq.nome+' 🔧');
 }
 async function avisarAgendamento(o, antes, depois){
 const primeiro=(o.cliente||'').split(' ')[0];
@@ -2160,6 +2225,7 @@ ov.innerHTML=`<div class="modal">
 </div>
 </div>`;
 document.body.appendChild(ov);
+limitaDatas(ov);
 setTimeout(()=>{ const e=document.getElementById('f_cli'); if(e) e.focus(); },50);
 }
 async function salvarManutencao(){
@@ -2171,6 +2237,8 @@ async function salvarManutencao(){
   if(tel && tel.length<10){ document.getElementById('f_tel').classList.add('faltando'); toast('Telefone com DDD: 18 99999-9999'); return; }
   const qtm=parseInt(val('f_qtm'),10);
   const dti=val('f_dti')||null;
+  if(dataImpossivel(dti)){ document.getElementById('f_dti').classList.add('faltando');
+    toast('Data impossível: '+dataBRs(dti)+'. Confira o ano.'); return; }
   const rec={
     cliente:cli, telefone:tel||null, endereco:val('f_end')||null,
     qtd_modulos:(qtm>0?qtm:null),
@@ -2198,8 +2266,12 @@ async function salvarManutencao(){
   // agendada no cadastro: avisa equipe e cliente igual a marcar a data no card
   const o=OBRAS.find(x=>x.slug===rec.slug);
   if(o && dti){
-    await avisarAgendamento(o, null, dti);
-    if(o.instalador_id) await avisarInstalador(o, null, dti);
+    // atendimento que já aconteceu é registro: ninguém recebe "agendado"
+    if(dti < hojeLocal()) await dataQueJaPassou(o);
+    else {
+      await avisarAgendamento(o, null, dti);
+      if(o.instalador_id) await avisarInstalador(o, null, dti);
+    }
   }
 }
 function openForm(id, focoFone, trilhaNova){
@@ -2349,6 +2421,7 @@ ${ehMan?'':`
 </div>
 </div>`;
 document.body.appendChild(ov);
+limitaDatas(ov);
 ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
 if(focoFone) setTimeout(()=>document.getElementById('f_tel').focus(),50);
 
@@ -2391,6 +2464,19 @@ async function salvarForm(id){
     }
   }
   if(!cli){ toast('Informe o nome do cliente'); return; }
+  // data impossível não sai daqui (RINALDO 4519: 01/01/0001); o banco recusa a mesma faixa
+  var DATAS=[['f_dti','data de instalação'],['f_dfim','término previsto'],['f_dtf','data de fechamento'],
+             ['f_dtc','data de conclusão'],['f_cpfl','solicitação da vistoria']];
+  for(var di=0;di<DATAS.length;di++){
+    var de=document.getElementById(DATAS[di][0]);
+    if(de && !de.disabled && dataImpossivel(de.value)){
+      de.classList.add('faltando');
+      var blq=de.closest('details'); if(blq) blq.open=true;
+      if(de.scrollIntoView) de.scrollIntoView({block:'center',behavior:'smooth'});
+      toast('Data impossível em '+DATAS[di][1]+': '+dataBRs(de.value)+'. Confira o ano.');
+      return;
+    }
+  }
 const potRaw=document.getElementById('f_pot').value.trim().replace(',','.');
 const _oA = id ? getObra(id) : null;
 const vOuMantem = function(elId, campo){
@@ -2451,6 +2537,15 @@ if(id && _oA && temVistoria(rec) && rec.etapa_numero===ETAPA_VISTORIA
    && (_oA.etapa_numero||0)!==ETAPA_VISTORIA && !rec.cpfl_solicitado_em){
   rec.cpfl_solicitado_em = hojeLocal();
 }
+// Etapa levada para depois da execução sem data de instalação: o mesmo aviso do
+// kanban (TANAKA 4745). Aqui o campo está na tela -- desistir leva até ele.
+if(rec.etapa_numero>=ETAPA_VISTORIA && rec.etapa_numero>((_oA&&_oA.etapa_numero)||0)
+   && semDataInstalacao(rec) && !confirm(avisoSemData(rec))){
+  const fd=document.getElementById('f_dti');
+  if(fd){ fd.classList.add('faltando'); const bd=fd.closest('details'); if(bd) bd.open=true;
+          if(fd.scrollIntoView) fd.scrollIntoView({block:'center',behavior:'smooth'}); fd.focus(); }
+  return;
+}
 document.getElementById('f_save').textContent='Salvando...';
 let error;
 if(id){ ({ error } = await sb.from('obras').update(rec).eq('id',id)); }
@@ -2500,7 +2595,10 @@ if(oAtual && dtiDepois){
   const mudouData = (dtiDepois !== dtiAntes);
   const mudouInst = (instDepois !== instAntes);
 
-  if(mudouData){
+  if((mudouData || (mudouInst && instDepois)) && dtiDepois < hojeLocal()){
+    // Data que já passou é registro, não agendamento (TANAKA 4745)
+    await dataQueJaPassou(oAtual);
+  } else if(mudouData){
     // Data nova ou remarcada → avisa cliente e equipe
     await avisarAgendamento(oAtual, dtiAntes, dtiDepois);
     await avisarInstalador(oAtual, dtiAntes, dtiDepois);

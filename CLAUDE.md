@@ -128,6 +128,18 @@ abrir**: depois de mudar, F5 em todo computador — a trava de aba velha
 (armadilha 31) olha código, não dado. O eletroposto tem o prazo próprio de
 equipamentos (etapa 3, 5 a 15 dias úteis) e não mudou.
 
+⚠️ **A data de instalação é gatilho, não enfeite** (TANAKA 4745, 16/10 —
+armadilha 37). É ela que manda à equipe o **link do checklist** (marcar a data
+no card → `avisarInstalador`), que a **cobrança das fotos** das 8h usa e que o
+**DRE** usa como competência da venda (`trg_dre_from_obra`). Obra que passa da
+execução sem ela fica sem link, sem cobrança e com a venda fora de todo mês —
+sem erro nenhum. Desde 16/10 o card mostra **"📅 Sem data de instalação"** da
+etapa 6 em diante, levar para a 7 ou além sem data pergunta antes, e data que
+**já passou** é registro: ninguém recebe "agendada", e a tela oferece mandar à
+equipe só o link do checklist (se o relatório ainda não foi enviado). Data fora
+de 2020 a 3 anos à frente é recusada na tela e no banco (`trava_datas_obra`,
+armadilha 38).
+
 ### Financeiro
 `obra_financeiro` (preco_negociado, custos, dispensado) · `obra_parcelas`
 (previsão de recebimento) · `extrato_movimentos` (OFX) · `extrato_rateio`
@@ -334,8 +346,12 @@ o da pesquisa da `relatorio_base_url`; nada chumbado na tela. Ela recusa nota
 abaixo de 9, quem já avaliou e obra sem grupo.
 
 ⚠️ **`nps_para_lembrete_google()` foi APAGADA em 17/09**, junto com a chave
-`lembrete_google_max`. Não tinha chamador nenhum desde que a fila virou
-`google_agendado_para` — ficava na documentação parecendo viva. A
+`lembrete_google_max`. Não tinha chamador **no banco** desde que a fila virou
+`google_agendado_para` — ficava na documentação parecendo viva. ⚠️ Mas a edge
+function **`nps-lembretes`** (cron 18h30, seg–sex, `nps_lembretes_ativo = 1`)
+ainda chama: a primeira parte dela (o pedido de Google) leva erro e passa calada
+todo dia, que é o comportamento combinado — não há segunda cobrança automática.
+A segunda parte (brinde não escolhido) segue funcionando. Visto em 16/10. A
 `lembrete_google_dias` (3) **ficou**: é o corte de dias do aviso das 8h.
 `registrar_lembrete_google()` também era morta e voltou, agora chamada pela
 tela (com trava de `is_autorizado()`), para carimbar cada cobrança manual.
@@ -898,6 +914,18 @@ vez — a simulação daquela manhã avisaria de conversas de 09/10);
 Lívia) passaria na frente do vendedor. O job `alerta-espera` continua
 agendado e para pela chave; para voltar, é só a chave em 1.
 
+⚠️ **O corte do `atendimento_desde` valia pelo começo do bloco, não pela
+mensagem** (corrigido em 16/10, `migrations/2026-10-16_isabela_corte_por_mensagem.sql`).
+Quem tinha um recado antigo sem resposta da equipe ficava invisível para a
+escada mesmo escrevendo de novo depois do corte: a MARIA APARECIDA (4767)
+mandou às 7h24 de 16/10 a foto da conta de luz e, ao meio-dia, eram 242
+minutos úteis sem resposta e nenhum aviso — o bloco dela começava num recado
+de 12/10. Hoje só conta o que chegou depois do corte, e a espera começa na
+primeira mensagem nova. Simulado antes de gravar: de 13 grupos com mensagem
+pendente, só o 4767 mudava. **Provado na rodada das 12h15:** a IA leu a
+conversa (*"foto da conta de energia para análise"*, precisa de resposta) e a
+escada avisou o Jefferson (vendedor) e a Lívia juntos — já passava das 2 h úteis.
+
 ### A tela do Pós-venda: Hoje · Clientes · Usinas · Planos · Automações
 Até 15/10 eram **8 abas** (Jornada, Lista, Régua, Isabela, Indicações, Planos,
 Usinas, Automações). Medido pelos logs de 08 a 15/10: só o **Vitor** abriu o
@@ -1035,6 +1063,8 @@ cartão da indicação.
 | `usina_historico_definir(usina, kwh, ate, fonte, simular)` | grava o que a usina gerou **antes** do monitoramento daqui (o passado que a plataforma não devolve). Exige dizer a fonte |
 | `resumo_mensal_enfileirar(mes, envio, simular)` | põe na régua, como `aguardando`, o resumo das obras do cliente modelo; envio no dia 5 ou no próximo dia útil, nunca hoje; um por obra por mês |
 | `proximo_dia_util(data)` | o primeiro dia útil em `data` ou depois — pula sábado, domingo e `feriados` (o `dia_util_ate` anda para trás e não olha feriado) |
+| `obras_cobranca_fotos()` | quem a `cobranca-fotos` (8h, seg–sáb) cobra no grupo da equipe: obra **com data de instalação** já passada, faltando foto obrigatória, no máximo 2 avisos. Vale na execução (6–7; 2–3 na manutenção) e, desde 16/10, por **30 dias depois da ativação** (`cobranca_fotos_dias_pos_ativacao`) — a TANAKA foi ativada com 0 de 11 fotos e a cobrança tinha parado |
+| `trava_datas_obra()` (gatilho `trg_datas_obra`) | recusa em `obras` data antes de 2020 ou a mais de 3 anos de hoje nos campos digitados (fechamento, instalação, término, conclusão, vistoria, trava). Só confere o campo que **mudou**. Mensagem: *"Data impossível em data de instalação: 01/01/0001. Confira o ano."* |
 | `usinas_saude()` · `usina_saude(usina)` | **a saúde da usina** (só equipe). Por dia: descarta dia nublado **no lugar da usina** (`radiacao_dia`, Open-Meteo), compara com a **mediana das outras usinas naquele dia** e devolve `nivel` + `estado` + `projeto` + uma `frase` pronta. Sem comunicação é eixo próprio (`sem_sinal`), nunca "atenção"; <70% é "geração muito abaixo do esperado"; "crítico" só comunicando e sem gerar em dia de sol. **Não usa `fator_local`** de propósito. Lê `plano_visita.corrige_geracao` e `usinas.patamar_desde` para o antes × depois da correção |
 
 ---
@@ -1098,6 +1128,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `recorde_intervalo_meses` | 6 | descanso entre avisos de recorde |
 | `plano_endereco_adicional` | 200 | R$/ano por endereço além do primeiro no Completo — a visita técnica é em cada um |
 | `autoleitura_ativo` | 1 | envio automático do lembrete de autoleitura (9h no dia, 18h na véspera) |
+| `cobranca_fotos_dias_pos_ativacao` | 30 | por quantos dias depois da ativação a cobrança das fotos continua (16/10, TANAKA). Antes parava na última etapa |
 | `clima_cidade_base` | Araçatuba | onde o `clima_dia` é medido de verdade — é só **um** ponto |
 | `clima_cidades` | Araçatuba | para quais cidades o clima vale. Usina fora da lista ganha aviso no card de aprovação em vez de um número que não é dela |
 | `causa_caduca_dias` | 2 | quantos dias a anotação `usinas.causa = 'wifi'` continua valendo depois que a usina volta a gerar. Gerou dentro da janela, a medição manda e o palpite é ignorado |
@@ -1762,6 +1793,43 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     de manutenção com equipe e data, que este documento já dava como no ar.
     Antes de dizer "está publicado", compare o arquivo do site com o do branch.
 
+37. **Sem data de instalação, a obra some de três lugares — e nada acusa.**
+    TANAKA (4745), 16/10: o Vitor perguntou por que o instalador não tinha sido
+    cobrado do relatório nem recebido o link. A obra ficou na etapa 6 de 05/10 a
+    16/10 **sem data de instalação** — o serviço foi feito em 08–09/10, pelo que
+    está no grupo — e às 08:35 de 16/10 foi da 6 direto para a 8. A data é o
+    gatilho de três coisas, e a falta dela não dá erro em nenhuma:
+    - o **link do checklist** só vai à equipe quando alguém marca a data no card
+      (`avisarInstalador`, *"Nova obra agendada para vocês!"*);
+    - a **cobrança das fotos** das 8h (`obras_cobranca_fotos`) só olha obra com data;
+    - a **venda no DRE**: `trg_dre_from_obra` usa a data como competência — sem
+      ela a receita não existe em mês nenhum.
+
+    E a cobrança só valia nas etapas 6–7: ativou, parou de cobrar para sempre,
+    com **0 de 11 fotos**. Em 16/10 eram **6 obras** da etapa 6 em diante sem
+    data, **R$ 275.700** de venda fora do DRE (§10).
+
+    Corrigido em 16/10: o card mostra **"📅 Sem data de instalação"** da etapa 6
+    em diante; levar a obra para a 7 ou além sem data **pergunta antes** (kanban
+    e card — no card, desistir põe o cursor na data); a cobrança continua por
+    **30 dias depois da ativação**; e marcar uma data **que já passou** não manda
+    "agendada" a ninguém — a tela oferece mandar à equipe só o link do checklist,
+    se o relatório ainda não foi enviado. Antes, preencher a data da TANAKA
+    agora mandaria ao cliente *"sua instalação está agendada para 08/10"*.
+    **Quando um aviso "não saiu", procure primeiro o campo que dispara ele — e
+    pergunte quem mais depende do mesmo campo.**
+
+38. **Data impossível passava pelo card e pelo banco.** RINALDO (4519), 13/10:
+    o card foi salvo com a instalação em **01/01/0001**. O banco aceitou, a
+    receita de R$ 42.000 foi para o ano 1 do DRE, a CJP recebeu *"🔄 Obra
+    remarcada — Nova data: 01/01/0001"*, e o kanban mostrava só **"01/01"** —
+    que parece uma data de verdade. Desde 16/10 a tela e o banco
+    (`trava_datas_obra`) recusam, em `obras`, data antes de 2020 ou a mais de
+    3 anos de hoje, e o kanban mostra o ano quando não é o deste ano. O banco só
+    confere o campo que **mudou**: o card regrava tudo a cada salvar, e um valor
+    antigo não pode travar outro salvamento. As datas das **usinas** (posvenda)
+    não passam por essa trava.
+
 ---
 
 ## 10. Estado e pendências
@@ -2198,23 +2266,53 @@ Conferido no banco em **22/09/2026**.
       Hoje (§4), publicados em 16/10 junto com a navegação nova. Falta usar:
       `atendimento_exemplo` estava vazia. Depois: a resposta sugerida, tirada
       da base de perguntas e respostas dos grupos.
-- [ ] **Limpeza das indicações: simulada, espera o OK do Vitor.** Refeita em
-      16/10 com a função final, sem gravar: **17** viram "não era indicação"
-      (12 falsos alarmes com o recado reclassificado + 5 que repetiam
-      indicações verdadeiras — o filho do 4791 e o amigo do 4425 —, sem
-      reclassificar), **12** mensagens voltam para `geral`,
-      **9** exemplos para a IA, zero erro. O funil fica com **3** de verdade:
-      a irmã do 4618 (#12, nova, **sem telefone**, vendedor Vitor), o filho do
-      4791 (#6) e o amigo do 4425 (#11), as duas contatadas. Na régua: o 4324
-      e o 4620 voltam a poder receber o pedido de indicação (`d90_indica2`,
-      04/11 e 10/11 — já estão autorizados); 4425, 4618 e 4791 continuam "já
-      indicou", que é verdade.
+- [x] ~~**Limpeza das indicações**~~ **Gravada em 16/10** com o OK do Vitor
+      (`migrations/2026-10-16_indicacoes_limpeza.sql`), e o resultado real bateu
+      com a simulação: **17** viraram "não era indicação" (12 falsos alarmes com
+      o recado reclassificado + 5 que repetiam indicações verdadeiras — o filho
+      do 4791 e o amigo do 4425 —, sem reclassificar), **12** mensagens voltaram
+      para `geral`, **9** exemplos para a IA, zero erro. O funil ficou com **3**
+      de verdade: a irmã do 4618 (#12, nova, **sem telefone**, vendedor Vitor),
+      o filho do 4791 (#6) e o amigo do 4425 (#11), as duas contatadas. Na
+      régua, o 4324 e o 4620 ficaram livres para o `d90_indica2` (04/11 e
+      10/11); 4425, 4618 e 4791 seguem "cliente já indicou". **Falta:** pôr o
+      telefone da irmã do 4618 ("📞 Pôr telefone" na aba Hoje).
 - [ ] **Duas linhas de teste na obra 4147** (`zapi_message_id =
-      'TESTE-DEDUP-1510'`, em `mensagens_recebidas` e `webhook_vistos`): o
-      delete pelo MCP não passa (armadilha 34). Apagar pelo painel do Supabase.
+      'TESTE-DEDUP-1510'` — são **2 em cada** tabela, `mensagens_recebidas` e
+      `webhook_vistos`): o delete pelo MCP não passa (armadilha 34; tentado de
+      novo em 16/10 com o OK do Vitor, expirou e nada foi aplicado). Apagar pelo
+      painel do Supabase:
+      `delete from mensagens_recebidas where zapi_message_id = 'TESTE-DEDUP-1510';`
+      `delete from webhook_vistos where zapi_message_id = 'TESTE-DEDUP-1510';`
+- [ ] **Seis obras da etapa 6 em diante sem data de instalação** (armadilha 37).
+      Nenhuma tem a venda no DRE — **R$ 275.700** fora de todo mês. A data é de
+      quem acompanhou a obra; aqui fica o que o banco e os grupos mostram:
+
+      | obra | etapa | venda | o que se sabe |
+      |---|---|---|---|
+      | **TANAKA (4745)** | 8 desde 16/10 | R$ 49.500 | obra em 08–09/10 pelo grupo; **0 fotos**; o instalador nunca recebeu o link |
+      | RODRIGO JUNCAL (4402) | 8 desde 01/10 | R$ 14.300 | 27 fotos do instalador em 28/09 |
+      | JORGE NAKAZA (4846) | 7 | R$ 13.900 | 20 fotos do instalador em 06/10 |
+      | IGREJA BATISTA (4810) | 6 | R$ 30.000 | a quadra foi combinada para 07/10 no grupo; o espaço Comunhão, para 19/10 |
+      | Bassetto, eletroposto (4674) | 7 | R$ 150.000 | também sem instalador |
+      | BARBARA (4756) | 6 | R$ 18.000 | a cliente pediu o cancelamento em 07/10 |
+
+      Para a TANAKA: marcar a data no card (com a página recarregada) **não**
+      manda "agendada" a ninguém e pergunta se manda o link do checklist à CJP;
+      e a cobrança das 8h passa a cobrar as fotos dela no dia seguinte.
+- [ ] **O termo de aceite pedido na ativação nunca é cobrado.**
+      `trg_marcar_aceite_pedido` carimba `aceite_pedido_em` quando a obra chega
+      na 8, e `obras_para_cobrar_aceite()` diz quem cobrar em 3 e 7 dias — mas
+      **nada chama essa função** (nenhum cron, nenhuma edge function). Em 16/10:
+      **33 obras** esperando o aceite desde 27/08 e `aceite_cobranca_qtd = 0` em
+      todas as 91. Cobrar o cliente é decisão do Vitor; e cobrar o aceite de
+      relatório que não existe repetiria a armadilha 21 (a TANAKA entraria).
 - [ ] **Provar com tráfego real** o webhook v5 (nenhuma cópia gravada) e a v4
-      (mensagens da Tays e do Júnior entrando). Até 16/10 06h45 não tinha
-      chegado mensagem de cliente desde a publicação (15/10 20h03).
+      (mensagens da Tays e do Júnior entrando). **Até 16/10 12h:** 22
+      mensagens reais desde a v4, 18 depois da v5, **nenhuma cópia gravada** e
+      uma trava por mensagem; o grupo do Júnior gravou na obra certa (4674, três
+      mensagens do Vitor às 7h50). Falta a Tays escrever — e uma cópia de verdade
+      chegar e ser barrada: a trava não deixa rastro do que barrou.
 - [x] ~~**Grupo ligado a duas obras some para a Isabela.**~~ **Corrigido em
       15/10 às 18:49** (webhook v4 + `obra_do_grupo`, ver §4). Os da Tays (a
       obra dela + a da visita) e do Júnior (posto + eletroposto 4674) caíam no
