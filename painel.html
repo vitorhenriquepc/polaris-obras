@@ -60,6 +60,9 @@ font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-decoratio
 display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:.18s}
 .tab:hover{color:var(--txt)}
 .tab.on{background:var(--card);color:var(--gold);box-shadow:0 1px 6px rgba(0,0,0,.18)}
+/* o selo "Pós-venda · N" (15/10) */
+.tab .tbnum{min-width:18px;padding:1px 6px;border-radius:20px;background:var(--gold);color:#011D2E;
+font-size:10.5px;font-weight:800;line-height:1.5;text-align:center}
 @media(max-width:640px){.tab{padding:7px 10px;font-size:12px}}
 .topbar .ttl span{color:var(--gold)}
 .topbar .who{margin-left:auto;font-size:12px;color:var(--muted);text-align:right;line-height:1.3}
@@ -290,7 +293,9 @@ width:100%;max-width:560px;max-height:90vh;overflow-y:auto;padding:22px 20px 30p
   .tbacts .who{display:none}
   .hide-sm{display:none}
   .tabs{order:3;flex:1 1 100%;justify-content:center}
-  .tab{flex:1;justify-content:center;padding:9px 8px;font-size:12.5px}
+  /* cada aba do tamanho do texto + uma parte igual da sobra: com o selo do
+     Pós-venda, a divisão em partes iguais fazia o número invadir "Financeiro" */
+  .tab{flex:1 1 auto;justify-content:center;padding:9px 8px;font-size:12.5px}
   .btn-out{padding:6px 9px;font-size:12px;min-height:32px}
 
   /* Conteúdo colado nas bordas ganha espaço */
@@ -504,8 +509,9 @@ if(sb){
     return invokeOriginal(nome, opts);
   };
   paginaVelha();
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) paginaVelha(); });
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ paginaVelha(); checarPosvenda(); } });
   setInterval(paginaVelha, 10*60000);
+  setInterval(checarPosvenda, 5*60000);
 }
 
 let ET = {}; // catálogo de etapas {numero: {...}}
@@ -605,7 +611,7 @@ root.innerHTML = `
 <div class="tabs">
 <button class="tab on">Obras</button>
 <a class="tab" href="inicio.html">Início</a>
-<a class="tab" href="posvenda.html?v=${Date.now()}">Pós-venda</a>
+<a class="tab" id="tabPv" href="posvenda.html?v=${Date.now()}">Pós-venda<span class="tbnum" id="bdgPv" style="display:none"></span></a>
 <a class="tab" href="financeiro.html?v=${Date.now()}">Financeiro</a>
 </div>
 <div class="tbacts">
@@ -747,7 +753,7 @@ async function loadObras(){
 const { data, error } = await sb.from('obras').select('*');
 if(error){ document.getElementById('list').innerHTML=`<div class="empty"><span class="i">⚠️</span>Erro ao carregar: ${esc(error.message)}</div>`; return; }
 OBRAS = data||[];
-renderStats(); renderDChips(); renderCChips(); renderList(); checarRespostas();
+renderStats(); renderDChips(); renderCChips(); renderList(); checarRespostas(); checarPosvenda();
 }
 
 /* ---------- stats ---------- */
@@ -1864,6 +1870,25 @@ try{
   const n = (r.data||[]).length;
   const b = document.getElementById('bdgResp');
   if(b){ b.style.display = n ? 'block' : 'none'; b.textContent = n>9?'9+':n; }
+}catch(e){}
+}
+/* O selo "Pós-venda · N" (15/10): mensagens da IA esperando aprovação, clientes
+   esperando resposta no grupo (a escada da Isabela) e indicações novas — o
+   mesmo número da aba Hoje do posvenda.html. Medido em 08–15/10: a Lívia não
+   abriu o Pós-venda nenhuma vez; ela trabalha aqui, e o selo é o que leva lá.
+   O loadObras roda a cada mudança em obras (realtime): no máximo 1 leitura/min. */
+let PV_SELO_EM = 0;
+async function checarPosvenda(){
+if(Date.now()-PV_SELO_EM < 60000) return;
+PV_SELO_EM = Date.now();
+try{
+  const r = await sb.rpc('posvenda_selo');
+  const s = r && r.data, b = document.getElementById('bdgPv'), t = document.getElementById('tabPv');
+  if(!s || !b) return;
+  const q = Number(s.total)||0;
+  b.style.display = q ? 'inline-block' : 'none';
+  b.textContent = q>99 ? '99+' : q;
+  if(t) t.title = q ? (s.aprovar+' para aprovar · '+s.esperando+' esperando resposta · '+s.indicacoes+' indicações novas') : '';
 }catch(e){}
 }
 async function openRespostas(){

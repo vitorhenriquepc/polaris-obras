@@ -1,5 +1,6 @@
--- APLICADA em 15/10 (todas as partes, na ordem do arquivo). A limpeza dos dados
--- (as 17 indicações) NÃO está aqui: foi só simulada e espera o OK do Vitor.
+-- APLICADA em 15/10 (todas as partes, na ordem do arquivo; a 10 e a 11 depois da
+-- revisão antes de publicar). A limpeza dos dados (as 17 indicações) NÃO está
+-- aqui: foi só simulada e espera o OK do Vitor.
 --
 -- "Não era indicação" vira status próprio (15/10, plano das abas aprovado pelo Vitor).
 --
@@ -367,8 +368,9 @@ begin
   return new;
 end $function$;
 
--- 8) Achado na revisão: indicação que a IA detecta nunca vem com telefone (20
---    de 20 vieram sem — as 3 com número eram o falso alarme do condomínio), e o
+-- 8) Achado na revisão: indicação que a IA detecta não vem com telefone (das 20,
+--    17 vazias; as 3 "com número" têm um código de 14 dígitos, do falso alarme
+--    do prestador no telhado), e o
 --    trava_indicacao não deixa indicação sem telefone avançar. Ou seja: nem a
 --    indicação de verdade da irmã (4618) conseguia andar no funil, e não havia
 --    tela nem função para pôr o número. indicacao_telefone resolve isso.
@@ -413,3 +415,116 @@ begin
   d := replace(d, m, m || E'\n' || '             (select left(mr.texto, 300) from mensagens_recebidas mr where mr.id = i.mensagem_id) as mensagem,');
   execute d;
 end $x$;
+
+-- 10) Achado na revisão antes de publicar: o seletor de status da tela tirava
+--     uma indicação de "não era indicação" sem desfazer nada do que o descarte
+--     fez (a mensagem continuaria 'geral' e o exemplo continuaria ensinando a IA
+--     que aquilo não é indicação). Descartada não volta pelo indicacao_status: se
+--     era indicação de verdade, registra-se de novo — o histórico fica (regra 3.6).
+create or replace function public.indicacao_status(p_id bigint, p_status text, p_motivo text default null::text,
+  p_obra_gerada uuid default null::uuid, p_kwp numeric default null::numeric, p_contrato numeric default null::numeric)
+ returns json
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+declare v_i record; v_calc json;
+begin
+  if not public.pode_agir_posvenda() then return json_build_object('erro','Sem permissão'); end if;
+  -- até 15/10 aceitava qualquer texto; "não era indicação" tem caminho próprio
+  if p_status is null or p_status not in ('nova','contatada','visita_agendada','visita_feita','proposta','fechada','perdida') then
+    return json_build_object('erro', case when p_status = 'descartada'
+      then 'Para dizer que não era indicação, use indicacao_descartar' else 'Status inválido' end);
+  end if;
+  select * into v_i from indicacoes where id = p_id;
+  if v_i is null then return json_build_object('erro','Indicação não encontrada'); end if;
+  if v_i.status = 'descartada' then
+    return json_build_object('erro', 'Esta foi marcada como "não era indicação"'
+      || coalesce(' em ' || to_char(v_i.descartada_em at time zone 'America/Sao_Paulo', 'DD/MM'), '')
+      || '. Se era indicação de verdade, registre de novo.');
+  end if;
+  update indicacoes set
+    status = p_status,
+    contatada_em = case when p_status='contatada' and contatada_em is null then now() else contatada_em end,
+    visita_em = case when p_status in ('visita_feita','visita_agendada') and visita_em is null then now() else visita_em end,
+    perdida_em = case when p_status='perdida' then now() else perdida_em end,
+    motivo_perda = case when p_status='perdida' then p_motivo else motivo_perda end,
+    obra_gerada_id = coalesce(p_obra_gerada, obra_gerada_id)
+  where id = p_id;
+  -- Ao fechar, calcula a recompensa
+  if p_status = 'fechada' then
+    v_calc := public.calcular_recompensa(coalesce(p_kwp, 0), p_contrato, v_i.indicador_obra_id);
+    if (v_calc->>'erro') is null then
+      update indicacoes set fechada_em = now(), faixa = v_calc->>'faixa',
+        valor_previsto = (v_calc->>'valor_total')::numeric, valor_etapa2 = (v_calc->>'etapa2')::numeric,
+        bonus_clube_pct = (v_calc->>'bonus_pct')::numeric
+      where id = p_id;
+    end if;
+    return json_build_object('ok', true, 'calculo', v_calc);
+  end if;
+  return json_build_object('ok', true);
+end; $function$;
+
+-- 11) Achado na revisão antes de publicar: "não era indicação" numa CÓPIA de
+--     indicação que continua valendo (o mesmo recado gravado duas vezes pela
+--     Z-API, como o 5 e o 6 do 4791) reclassificaria TODAS as cópias do texto —
+--     inclusive a da indicação de verdade — e ensinaria a IA que aquilo não é
+--     indicação. Agora, enquanto houver outra indicação viva (não descartada) do
+--     mesmo cliente com o mesmo texto, o descarte não reclassifica nem ensina, e
+--     devolve copia_de. Quando a última cópia de um falso alarme é descartada, aí
+--     sim o texto é reclassificado e vira exemplo — o resultado final é o mesmo.
+create or replace function public.indicacao_descartar(p_id bigint, p_motivo text, p_reclassificar boolean default true,
+  p_simular boolean default false)
+ returns json
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+declare
+  v_i record; v_txt text; v_msgs int := 0; v_ex boolean := false; v_copia bigint;
+  v_quem text := coalesce(auth.jwt() ->> 'email', 'equipe');
+  v_motivo text := nullif(btrim(coalesce(p_motivo, '')), '');
+begin
+  if not public.pode_agir_posvenda() then return json_build_object('erro','Sem permissão'); end if;
+  if v_motivo is null then return json_build_object('erro','Diga por que não era indicação'); end if;
+  select * into v_i from indicacoes where id = p_id;
+  if v_i.id is null then return json_build_object('erro','Indicação não encontrada'); end if;
+  if v_i.status = 'descartada' then return json_build_object('ok', true, 'ja_estava', true); end if;
+  if v_i.status = 'fechada' or v_i.pago_etapa1_em is not null or v_i.pago_etapa2_em is not null then
+    return json_build_object('erro','Indicação fechada ou com pagamento não pode ser descartada');
+  end if;
+  if p_reclassificar and v_i.mensagem_id is not null then
+    select texto into v_txt from mensagens_recebidas where id = v_i.mensagem_id;
+    if v_txt is not null then
+      select i2.id into v_copia
+        from indicacoes i2 join mensagens_recebidas m2 on m2.id = i2.mensagem_id
+       where i2.indicador_obra_id = v_i.indicador_obra_id and i2.id <> v_i.id
+         and coalesce(i2.status, '') <> 'descartada' and m2.texto = v_txt
+       order by i2.id limit 1;
+      if v_copia is null then
+        -- as cópias do mesmo recado também bloqueiam a régua: reclassifica todas
+        select count(*) into v_msgs from mensagens_recebidas
+         where obra_id = v_i.indicador_obra_id and contexto = 'indicacao' and texto = v_txt;
+        v_ex := not exists (select 1 from classificacoes_exemplo where texto = v_txt and contexto = 'geral');
+      end if;
+    end if;
+  end if;
+  if p_simular then
+    return json_build_object('ok', true, 'simulado', true, 'id', p_id, 'status_antes', v_i.status,
+      'mensagens_reclassificadas', v_msgs, 'exemplo_novo', v_ex, 'copia_de', v_copia);
+  end if;
+  update indicacoes set
+    status = 'descartada', descartada_em = now(),
+    -- o status anterior (e o motivo antigo, se havia) fica escrito
+    motivo_perda = left(v_motivo || ' (antes: ' || coalesce(v_i.status, '?')
+                        || coalesce(' — ' || nullif(v_i.motivo_perda, ''), '') || ')', 300)
+  where id = p_id;
+  if v_msgs > 0 then
+    update mensagens_recebidas set contexto = 'geral'
+     where obra_id = v_i.indicador_obra_id and contexto = 'indicacao' and texto = v_txt;
+  end if;
+  if v_ex then
+    insert into classificacoes_exemplo (texto, contexto, corrigido_por) values (v_txt, 'geral', v_quem);
+  end if;
+  return json_build_object('ok', true, 'mensagens_reclassificadas', v_msgs, 'exemplo_novo', v_ex, 'copia_de', v_copia);
+end $function$;

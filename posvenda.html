@@ -660,6 +660,27 @@ white-space:normal;padding:0 2px}
 .issit.esp{color:var(--gold)}
 .issit.ok{color:#5aa469}
 .isfb{font-size:11.5px;font-weight:700;color:var(--mut);margin-top:7px}
+/* aba Hoje e sub-abas de Automações (15/10) */
+.vnum{display:inline-block;min-width:18px;padding:1px 6px;margin-left:5px;border-radius:20px;
+  background:var(--gold);color:#011D2E;font-size:10.5px;font-weight:800;line-height:1.5;text-align:center}
+.subtabs{display:flex;gap:7px;flex-wrap:wrap;margin:-2px 0 14px}
+.hjerro{background:var(--card);border:1px solid #e0a33e;border-left:3px solid #e0a33e;border-radius:10px;
+  padding:10px 13px;margin-bottom:14px;font-size:12.5px;font-weight:700;color:#e0a33e;line-height:1.5}
+.hjok{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--green-l);border-radius:12px;
+  padding:13px 15px;margin-bottom:18px;font-size:14px;font-weight:800;color:var(--green-l)}
+.hjrow{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);
+  border-radius:11px;padding:10px 12px;margin-bottom:7px}
+.hjrow .ic{font-size:17px;flex-shrink:0;width:20px;text-align:center}
+.hjrow .tx{flex:1;min-width:0;font-size:13px;line-height:1.45}
+.hjrow .tx span{color:var(--muted);font-weight:600}
+.hjrow .stb{flex-shrink:0;white-space:nowrap}
+.hjponte{display:block;width:100%;text-align:left;margin-bottom:14px;font-family:inherit;color:var(--txt);cursor:pointer}
+.icard.desc{border-left-color:var(--border);opacity:.72}
+@media(max-width:640px){
+  .hjrow{flex-wrap:wrap;gap:8px}
+  .hjrow .tx{flex:1 1 calc(100% - 28px)}
+  .hjrow .stb{margin-left:28px}
+}
 .sug{background:var(--card2);border-left:3px solid var(--gold);border-radius:8px;padding:10px 13px;margin-bottom:10px;font-size:12.5px}
 .sugt{font-size:12px;color:var(--mut);margin-top:5px;font-style:italic}
 .cxrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
@@ -798,8 +819,14 @@ const SB_KEY='sb_publishable_hue0wC6DINtAaxTPlSIOIg_X1Tr0vJx';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const LOGO_D='https://obras.polarisenergiasolar.com/logo.png', LOGO_L='https://obras.polarisenergiasolar.com/logo-claro.png';
 let DADOS=null, FILTRO='', BUSCA='';
-let VISAO='jornada', KB=null, BG=null;
-try{VISAO=localStorage.getItem('polaris-pv-visao')||'jornada'}catch(e){}
+let VISAO='hoje', KB=null, BG=null;
+try{VISAO=localStorage.getItem('polaris-pv-visao')||'hoje'}catch(e){}
+/* 15/10: as 8 abas viraram 5 (Hoje · Clientes · Usinas · Planos · Automações).
+   Quem tinha uma aba antiga guardada no navegador cai na casa nova dela. */
+var VISAO_ANTIGA={jornada:'hoje', isabela:'hoje', regua:'auto', indic:'lista'};
+if(VISAO_ANTIGA[VISAO]) VISAO=VISAO_ANTIGA[VISAO];
+if(['hoje','lista','usinas','planos','auto'].indexOf(VISAO)<0) VISAO='hoje';
+var AUTOSUB='regua';   // sub-aba de Automações: regua · isabela · chaves
 
 function tema(t){document.documentElement.setAttribute('data-theme',t);
   document.getElementById('bTema').textContent=t==='dark'?'🌙':'☀️';
@@ -847,9 +874,10 @@ async function boot(){
     return;
   }
   DADOS=r.data;
-  const [k,bg]=await Promise.all([sb.rpc('get_kanban_posvenda'), sb.rpc('get_brinde_google')]);
+  const [k,bg,sl]=await Promise.all([sb.rpc('get_kanban_posvenda'), sb.rpc('get_brinde_google'), sb.rpc('posvenda_selo')]);
   KB=k.data||null;
   BG=bg.data||null;
+  guardaSelo(sl && sl.data);
   render();
 }
 
@@ -860,6 +888,7 @@ function ehGooglePendente(c){
   return !!c.ativo && c.nps!=null && c.nps>=9 && !c.avaliou_google;
 }
 function render(){
+  guardaRascunhos();   // o texto que alguém ajustava numa mensagem da IA sobrevive ao redesenho
   const R=DADOS.resumo||{}, cl=DADOS.clientes||[];
   // a contagem vem da tabela nps (get_brinde_google), nao da lista: a lista
   // corta em etapa >= 8 e deixava de fora quem esta em obra de manutencao
@@ -873,8 +902,8 @@ function render(){
     <h1>${saud}. ${pend? `Você tem ${pend} ${pend>1?'mensagens':'mensagem'} para tratar.` : 'Nada pendente por aqui.'}</h1>
     <div class="sub">${pend? 'Clientes escreveram nos grupos e ainda não tiveram retorno.' : 'Todas as mensagens dos clientes foram tratadas. 👏'}</div>
     <div class="pend">
-      <button class="pcard ${R.indicacoes_pendentes?'alerta':''}" onclick="setFiltro('indicacao')">
-        <div class="n">${R.indicacoes_pendentes||0}</div><div class="l">Indicações aguardando</div></button>
+      <button class="pcard ${indNovas(R)?'alerta':''}" id="pcInd" onclick="setFiltro('indic')">
+        <div class="n">${indNovas(R)}</div><div class="l">Indicações novas</div></button>
       <button class="pcard ${pend?'alerta':''}" onclick="setFiltro('pendentes')">
         <div class="n">${pend}</div><div class="l">Respostas para tratar</div></button>
       <button class="pcard ok" onclick="setFiltro('')">
@@ -888,13 +917,10 @@ function render(){
 
   h+=`<div class="tools">
     <div class="vtabs">
-      <button class="vtab ${VISAO==='jornada'?'on':''}" onclick="setVisao('jornada')">Jornada</button>
-      <button class="vtab ${VISAO==='lista'?'on':''}" onclick="setVisao('lista')">Lista</button>
-      <button class="vtab ${VISAO==='regua'?'on':''}" onclick="setVisao('regua')">Régua</button>
-      <button class="vtab ${VISAO==='isabela'?'on':''}" onclick="setVisao('isabela')">Isabela</button>
-      <button class="vtab ${VISAO==='indic'?'on':''}" onclick="setVisao('indic')">Indicações</button>
-      <button class="vtab ${VISAO==='planos'?'on':''}" onclick="setVisao('planos')">Planos</button>
+      <button class="vtab ${VISAO==='hoje'?'on':''}" data-v="hoje" onclick="setVisao('hoje')">${rotuloHoje()}</button>
+      <button class="vtab ${VISAO==='lista'?'on':''}" onclick="setVisao('lista')">Clientes</button>
       <button class="vtab ${VISAO==='usinas'?'on':''}" onclick="setVisao('usinas')">Usinas</button>
+      <button class="vtab ${VISAO==='planos'?'on':''}" onclick="setVisao('planos')">Planos</button>
       <button class="vtab ${VISAO==='auto'?'on':''}" onclick="setVisao('auto')">Automações</button>
     </div>
     <div class="search">🔍<input id="q" placeholder="Buscar cliente, contrato ou código do brinde..." value="${esc(BUSCA)}" oninput="setBusca(this.value)"></div>
@@ -904,24 +930,36 @@ function render(){
     <button class="chip ${FILTRO==='sem_nps'?'on':''}" onclick="setFiltro('sem_nps')">Sem NPS</button>
     <button class="chip ${FILTRO==='sem_aniv'?'on':''}" onclick="setFiltro('sem_aniv')">🎂 Sem aniversário</button>
     <button class="chip ${FILTRO==='bg'?'on':''}" onclick="setFiltro('bg')">🎁⭐ Brinde e Google${bgPend?' <b>'+bgPend+'</b>':''}</button>
-    <button class="chip ${FILTRO==='usina'?'on':''}" onclick="setFiltro('usina')">⚡ Usina com problema${R.usinas_com_problema?' <b>'+R.usinas_com_problema+'</b>':''}</button>`:''}
+    <button class="chip ${FILTRO==='usina'?'on':''}" onclick="setFiltro('usina')">⚡ Usina com problema${R.usinas_com_problema?' <b>'+R.usinas_com_problema+'</b>':''}</button>
+    <button class="chip ${FILTRO==='fase'?'on':''}" onclick="setFiltro('fase')">🗓️ Por fase</button>
+    <button class="chip ${FILTRO==='indic'?'on':''}" onclick="setFiltro('indic')">🤝 Indicações</button>`:''}
   </div>`;
 
-  if(VISAO==='indic'){
-    document.getElementById('app').innerHTML=h+'<div id="inbox"><div class="center"><div class="spin"></div>Carregando indicações...</div></div>';
-    carregarIndic();
-    return;
-  }
-  if(VISAO==='regua'){
-    document.getElementById('app').innerHTML=h+'<div id="rgbox"><div class="center"><div class="spin"></div>Carregando a régua...</div></div>';
-    carregarRegua();
-    return;
-  }
-  if(VISAO==='isabela'){
+  if(VISAO==='hoje'){
     // a busca redesenha a tela a cada tecla: reaproveita o que leu há menos de 1 min
-    const fresco=ISA && Date.now()-ISA_EM<60000;
-    document.getElementById('app').innerHTML=h+'<div id="isbox">'+(fresco?'':'<div class="center"><div class="spin"></div>Carregando a Isabela...</div>')+'</div>';
-    if(fresco) renderIsabela(); else carregarIsabela();
+    const fresco=HJ_LEVE && Date.now()-HJ_EM<60000;
+    document.getElementById('app').innerHTML=h+'<div id="hjbox">'+(fresco?'':'<div class="center"><div class="spin"></div>Vendo o que precisa de você hoje...</div>')+'</div>';
+    if(fresco) renderHoje(); else carregarHoje();
+    return;
+  }
+  if(VISAO==='auto'){
+    // a régua, a Isabela e o liga/desliga: o que o sistema faz sozinho
+    h+='<div class="subtabs">'
+      +'<button class="chip '+(AUTOSUB==='regua'?'on':'')+'" onclick="setAutosub(\'regua\')">📨 Régua de mensagens</button>'
+      +'<button class="chip '+(AUTOSUB==='isabela'?'on':'')+'" onclick="setAutosub(\'isabela\')">💬 Isabela</button>'
+      +'<button class="chip '+(AUTOSUB==='chaves'?'on':'')+'" onclick="setAutosub(\'chaves\')">⚙️ Liga/desliga</button>'
+      +'</div>';
+    if(AUTOSUB==='isabela'){
+      const fresco=ISA && Date.now()-ISA_EM<60000;
+      document.getElementById('app').innerHTML=h+'<div id="isbox">'+(fresco?'':'<div class="center"><div class="spin"></div>Carregando a Isabela...</div>')+'</div>';
+      if(fresco) renderIsabela(); else carregarIsabela();
+    } else if(AUTOSUB==='chaves'){
+      document.getElementById('app').innerHTML=h+'<div id="mgbox"><div class="center"><div class="spin"></div>Carregando automações...</div></div>';
+      carregarAutomacoes();
+    } else {
+      document.getElementById('app').innerHTML=h+'<div id="rgbox"><div class="center"><div class="spin"></div>Carregando a régua...</div></div>';
+      carregarRegua();
+    }
     return;
   }
   if(VISAO==='planos'){
@@ -934,15 +972,18 @@ function render(){
     carregarUsinas();
     return;
   }
-  if(VISAO==='auto'){
-    document.getElementById('app').innerHTML=h+'<div id="mgbox"><div class="center"><div class="spin"></div>Carregando automações...</div></div>';
-    carregarAutomacoes();
-    return;
-  }
-  if(VISAO==='jornada'){
-    h+=renderJornada();
+  // daqui para baixo é Clientes (VISAO 'lista')
+  if(FILTRO==='fase'){
+    // a antiga aba Jornada: cada cliente na coluna do tempo desde a ativação
+    h+=faixaFiltro(null)+renderJornada();
     document.getElementById('app').innerHTML=h;
     setTimeout(ligaKb, 30);
+    return;
+  }
+  if(FILTRO==='indic'){
+    // a antiga aba Indicações: funil, ranking e pagamentos
+    document.getElementById('app').innerHTML=h+faixaFiltro(null)+'<div id="inbox"><div class="center"><div class="spin"></div>Carregando indicações...</div></div>';
+    carregarIndic();
     return;
   }
   if(FILTRO==='bg'){
@@ -2349,7 +2390,8 @@ async function enviarPlano(){
 var AUTOS=null;
 async function carregarAutomacoes(){
   var r=await sb.rpc('get_automacoes');
-  if(r.error||!r.data){ document.getElementById('mgbox').innerHTML='<div class="vazio">Não consegui carregar.</div>'; return; }
+  // a pessoa pode ter trocado de aba enquanto carregava
+  if(r.error||!r.data){ var el=document.getElementById('mgbox'); if(el) el.innerHTML='<div class="vazio">Não consegui carregar.</div>'; return; }
   AUTOS=r.data; renderAutomacoes();
 }
 async function ligarAutomacao(chave, ligar){
@@ -2380,12 +2422,223 @@ function renderAutomacoes(){
     });
     h+='</div>';
   });
-  document.getElementById('mgbox').innerHTML=h;
+  var box=document.getElementById('mgbox'); if(box) box.innerHTML=h;
+}
+
+/* ===== HOJE: o que precisa de alguém =====
+   A aba que abre o Pós-venda (15/10). Medido em 08–15/10: a tela era aberta
+   quase só para aprovar mensagem na Régua, e a Lívia, que cuida do
+   pós-venda, não a abriu nenhuma vez — o trabalho dela vive no Painel e no
+   WhatsApp. Aqui fica, com o botão de agir no próprio item:
+     1) mensagens da IA esperando aprovação (regra 3.5);
+     2) cliente esperando resposta no grupo (a escada da Isabela);
+     3) indicação nova (pôr telefone, marcar contato, ou "não era indicação");
+     4) o mesmo que a Lívia recebe às 8h (pendencias_posvenda): usina parada,
+        Google e brinde, mensagens sem tratar, cadastro.
+   O número da aba e o selo do Painel (posvenda_selo) contam só 1 a 3.
+   Se uma das leituras falhar, a tela diz qual — nunca "tudo em dia" por erro.
+   A lista das 8h leva ~1,5 s no banco (medido em 16/10): vem em paralelo e fica
+   guardada por 5 min; o que pede ação (1 a 3) aparece sem esperar por ela. */
+var HJ_LEVE=false, HJ_EM=0, HJ_PEND=null, HJ_PEND_EM=0, HJ_PEND_ERRO=false;
+var HJ_SELO=0, SELO=null, HJ_ERROS=[], HJ_OCUPADO=false;
+var RASCUNHO={};   // texto de mensagem da IA editado na tela e ainda não decidido, por id
+function rotuloHoje(){ return 'Hoje'+(HJ_SELO?' <b class="vnum">'+HJ_SELO+'</b>':''); }
+function guardaSelo(s){ if(s){ SELO=s; HJ_SELO=n(s.total); } }
+/* o número das indicações no topo: as novas, as mesmas que a aba Hoje mostra */
+function indNovas(R){ return SELO ? n(SELO.indicacoes) : n(R&&R.indicacoes_pendentes); }
+function pintaNumeroHoje(){
+  var t=document.querySelector('.vtab[data-v="hoje"]');
+  if(t) t.innerHTML=rotuloHoje();
+  var p=document.getElementById('pcInd');
+  if(p){ var q=indNovas(DADOS&&DADOS.resumo); p.classList.toggle('alerta', q>0); p.querySelector('.n').textContent=q; }
+}
+async function carregarHoje(){
+  var pesada=!HJ_PEND || Date.now()-HJ_PEND_EM>5*60000;
+  // o supabase-js só manda a consulta quando alguém espera por ela:
+  // Promise.resolve dispara agora, junto com as leves
+  var pend=pesada?Promise.resolve(sb.rpc('posvenda_hoje')):null;
+  var res=await Promise.all([
+    sb.rpc('posvenda_selo'), sb.rpc('get_regua_aprovacoes'),
+    sb.rpc('atendimento_painel',{p_dias:14}), sb.rpc('get_indicacoes')
+  ]);
+  var erros=[];
+  if(!res[0].error && res[0].data) guardaSelo(res[0].data);   // se falhar, fica o número anterior
+  if(!res[1].error && res[1].data){ APROV=res[1].data; } else erros.push('as mensagens para aprovar');
+  if(!res[2].error && res[2].data && !res[2].data.erro){ ISA=res[2].data; ISA_EM=Date.now(); } else erros.push('os clientes esperando resposta');
+  if(!res[3].error && res[3].data){ IND=res[3].data; } else erros.push('as indicações');
+  HJ_ERROS=erros; HJ_LEVE=true; HJ_EM=Date.now();
+  pintaNumeroHoje();
+  renderHoje();
+  if(!pend) return;
+  var r=await pend;
+  if(!r.error && r.data && r.data.pendencias){
+    HJ_PEND=r.data.pendencias; HJ_PEND_EM=Date.now(); HJ_PEND_ERRO=false;
+    guardaSelo(r.data.selo); pintaNumeroHoje();
+  } else HJ_PEND_ERRO=true;
+  renderHoje();
+}
+/* Redesenhar a tela não pode apagar o texto que alguém começou a ajustar numa
+   mensagem da IA: guarda antes, e o bloco de aprovação devolve depois. */
+function guardaRascunhos(){
+  var ts=document.querySelectorAll('textarea.apvtxt');
+  for(var i=0;i<ts.length;i++){
+    var t=ts[i], id=t.id.replace('rg-','');
+    if(t.value!==t.defaultValue) RASCUNHO[id]=t.value;
+  }
+}
+/* texto que vai dentro de onclick="f('...')": aspas simples e barra escapadas */
+function jsArg(s){ return esc(String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'")); }
+var BUSCA_AUTO=false;   // a busca foi posta por um atalho, não digitada
+function irPara(visao, filtro, busca){
+  FILTRO=filtro||''; BUSCA=busca||''; BUSCA_AUTO=!!busca;
+  if(visao==='usinas') UFILTRO='';   // um filtro antigo esconderia a usina procurada
+  VISAO=visao; try{localStorage.setItem('polaris-pv-visao',visao)}catch(e){}
+  render();
+  var el=document.getElementById('app'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function hjLinha(icone, texto, botao){
+  return '<div class="hjrow"><span class="ic">'+icone+'</span><div class="tx">'+texto+'</div>'+(botao||'')+'</div>';
+}
+function hjIndCard(i){
+  var pode=!!(IND&&IND.pode_agir);   // quem não é do pós-venda vê, mas não mexe
+  var tel=String(i.telefone_indicado||'').replace(/\D/g,'');
+  var wa=tel?(tel.length<=11?'55'+tel:tel):'';
+  var origem=i.mensagem||i.observacao||'';
+  return '<div class="apv">'
+    +'<div class="apvtop"><b>'+esc(i.nome_indicado||'(sem nome)')+'</b>'
+    +(i.codigo?'<span class="uctag">'+esc(i.codigo)+'</span>':'')
+    +'<span class="issit esp">nova</span></div>'
+    +'<div class="apvmot">Indicada por <b>'+esc(i.indicador||'')+'</b>'+(i.indicador_contrato?' (#'+esc(i.indicador_contrato)+')':'')
+    +' · '+esc(isHora(i.criado_em))+(i.vendedor?' · vendedor: '+esc(isPrimeiro(i.vendedor)):'')+'</div>'
+    +(origem?'<div class="apvfixo" style="margin-bottom:8px">“'+esc(origem)+'”</div>':'')
+    +(tel?'':'<div class="apvctx"><span class="warn">Sem telefone: peça o número a quem indicou. Sem ele a indicação não anda no funil.</span></div>')
+    +'<div class="apvacts" style="flex-wrap:wrap">'
+    +(tel?'<a class="stb" style="text-decoration:none" href="https://wa.me/'+wa+'" target="_blank" rel="noopener">💬 WhatsApp</a>':'')
+    +(!pode?'':(tel?'<button class="stb" onclick="indAgir(\'contatada\','+i.id+')">Já falei com a pessoa</button>'
+         :'<button class="stb prim" onclick="indAgir(\'telefone\','+i.id+')">📞 Pôr telefone</button>')
+      +'<button class="stb" onclick="indAgir(\'descartar\','+i.id+')">Não era indicação</button>')
+    +'<button class="stb" style="margin-left:auto" onclick="abrirFicha(\''+i.indicador_id+'\')">Ficha ›</button>'
+    +'</div></div>';
+}
+function renderHoje(){
+  var box=document.getElementById('hjbox'); if(!box||!HJ_LEVE) return;
+  guardaRascunhos();
+  var P=HJ_PEND||{};
+  var b=(BUSCA||'').toLowerCase();
+  var casa=function(nome, contrato){ return !b || String(nome||'').toLowerCase().indexOf(b)>=0 || String(contrato||'').indexOf(b)>=0; };
+  var h='', agir=0;
+  var erros=HJ_ERROS.slice();
+  if(HJ_PEND_ERRO) erros.push('a lista das 8h (usinas, Google, brinde)');
+  if(erros.length)
+    h+='<div class="hjerro">⚠️ Não consegui ler '+esc(erros.join(', '))+' agora — o que aparece abaixo pode estar incompleto. Recarregue a página em instantes.</div>';
+
+  // 1) o que a IA escreveu e espera alguém aprovar (regra 3.5)
+  var aprov=(APROV||[]).filter(function(a){ return casa(a.cliente, a.contrato); });
+  if(aprov.length){ agir+=aprov.length; h+=blocoAprovacao(aprov); }
+
+  // 2) cliente esperando resposta no grupo
+  var esperas=((ISA&&ISA.esperas)||[]).filter(function(e){ return e.aberta && casa(e.cliente, e.contrato); });
+  if(esperas.length){
+    agir+=esperas.length;
+    h+='<div class="sec"><h3>Clientes esperando resposta — '+esperas.length+'</h3>'+esperas.map(isCard).join('')+'</div>';
+  }
+
+  // 3) indicação nova
+  var novas=((IND&&IND.lista)||[]).filter(function(i){ return i.status==='nova' && casa(i.indicador, i.indicador_contrato); });
+  if(novas.length){
+    agir+=novas.length;
+    h+='<div class="sec"><h3>Indicações novas — '+novas.length+'</h3>'
+      +'<div class="dica" style="margin:0 0 10px">A IA acha a indicação no grupo, quase sempre sem telefone. Ponha o número para ela andar no funil — '
+      +'ou, se não era indicação, diga por quê: a IA aprende com isso, e o recado deixa de contar como "já indicou" na régua.</div>'
+      +novas.map(hjIndCard).join('')+'</div>';
+  }
+
+  // 4) o mesmo que a Lívia recebe às 8h
+  var acomp='';
+  (P.usinas_paradas||[]).filter(function(u){ return casa(u.cliente, u.contrato); }).forEach(function(u){
+    var parou = u.nunca_gerou ? 'nunca gerou' : (u.dias==null ? 'sem medição' : 'sem gerar há '+u.dias+' dia'+(u.dias===1?'':'s'));
+    var aviso = u.avisado_ha==null ? 'cliente ainda não avisado' : 'cliente avisado há '+u.avisado_ha+' dia'+(u.avisado_ha===1?'':'s');
+    acomp+=hjLinha('⚡', '<b>'+esc(u.cliente||'')+'</b>'+(u.contrato?' #'+esc(u.contrato):'')
+      // o apelido da usina quase sempre já traz a potência ("Araçatuba 6,20 kWp")
+      +' <span>· '+esc(u.usina||'')+((u.kwp && !/kwp/i.test(u.usina||''))?' ('+String(u.kwp).replace('.',',')+' kWp)':'')+' · '+esc(parou)+' · '+esc(aviso)+'</span>',
+      '<button class="stb" onclick="irPara(\'usinas\',\'\',\''+jsArg(u.contrato||u.cliente)+'\')">Ver usina ›</button>');
+  });
+  (P.google_lista||[]).filter(function(g){ return casa(g.cliente, g.contrato); }).forEach(function(g){
+    acomp+=hjLinha('⭐', '<b>'+esc(g.cliente||'')+'</b>'+(g.contrato?' #'+esc(g.contrato):'')
+      +' <span>· nota '+esc(String(g.nota==null?'—':g.nota))+' · falta avaliar no Google'+(g.dias!=null?' há '+g.dias+' dia'+(g.dias===1?'':'s'):'')
+      +(g.ja_convidado?' · já convidado':' · ainda não convidado')+'</span>',
+      '<button class="stb" onclick="irPara(\'lista\',\'bg\')">Brinde e Google ›</button>');
+  });
+  (P.brindes_lista||[]).filter(function(x){ return casa(x.cliente, x.contrato); }).forEach(function(x){
+    acomp+=hjLinha('🎁', '<b>'+esc(x.cliente||'')+'</b>'+(x.contrato?' #'+esc(x.contrato):'')
+      +' <span>· '+esc(x.brinde||'brinde')+' a retirar'+(x.voucher?' · código '+esc(x.voucher):'')+(x.dias!=null?' · há '+x.dias+' dia'+(x.dias===1?'':'s'):'')+'</span>',
+      '<button class="stb" onclick="irPara(\'lista\',\'bg\')">Brinde e Google ›</button>');
+  });
+  (P.geracao_faltando||[]).filter(function(g){ return casa(g.cliente, ''); }).forEach(function(g){
+    acomp+=hjLinha('📉', '<b>'+esc(g.cliente||'')+'</b> <span>· ativo há '+n(g.dias)+' dias e nenhum mês de geração registrado</span>',
+      '<button class="stb" onclick="irPara(\'usinas\',\'\',\''+jsArg(g.cliente)+'\')">Ver usinas ›</button>');
+  });
+  (P.sem_nps_lista||[]).filter(function(x){ return casa(x.cliente, x.contrato); }).forEach(function(x){
+    acomp+=hjLinha('📝', '<b>'+esc(x.cliente||'')+'</b>'+(x.contrato?' #'+esc(x.contrato):'')
+      +' <span>· ativo'+(x.dias!=null?' há '+n(x.dias)+' dias':'')+', sem pesquisa respondida</span>',
+      '<button class="stb" onclick="irPara(\'lista\',\'sem_nps\',\''+jsArg(x.contrato||x.cliente)+'\')">Ver ›</button>');
+  });
+  if(!b){
+    var nr=(P.respostas||[]).length;
+    if(nr) acomp+=hjLinha('💬', '<b>'+nr+' mensage'+(nr>1?'ns':'m')+' de clientes sem tratar</b> <span>· nos grupos, ainda não marcadas como tratadas</span>',
+      '<button class="stb" onclick="irPara(\'lista\',\'pendentes\')">Ver clientes ›</button>');
+    if(n(P.sem_aniversario)) acomp+=hjLinha('🎂', '<b>'+n(P.sem_aniversario)+' cliente'+(n(P.sem_aniversario)>1?'s':'')+' sem data de aniversário</b>',
+      '<button class="stb" onclick="irPara(\'lista\',\'sem_aniv\')">Ver ›</button>');
+  }
+
+  // leitura que falhou não vira "nada esperando"
+  if(!agir && !HJ_ERROS.length) h+='<div class="hjok">✓ Nada esperando você agora'+(b?' com essa busca':'')+'.</div>';
+  if(acomp) h+='<div class="sec"><h3>Para acompanhar — o mesmo do aviso das 8h</h3>'+acomp+'</div>';
+  else if(!HJ_PEND && !HJ_PEND_ERRO) h+='<div class="sec"><h3>Para acompanhar — o mesmo do aviso das 8h</h3>'
+    +'<div class="vazio" style="padding:14px">Lendo usinas, Google, brinde e cadastro…</div></div>';
+  else if(HJ_PEND && !agir && !b) h+='<div class="vazio">Nenhuma usina parada, Google, brinde ou cadastro pendente. 👏</div>';
+  box.innerHTML=h;
+}
+/* Os botões da indicação, iguais na aba Hoje e em Clientes › Indicações.
+   Devolve true se gravou; quem chama decide o que fazer quando não gravou. */
+async function indAgir(acao, id){
+  if(HJ_OCUPADO) return false;
+  var r, msg;
+  if(acao==='telefone'){
+    var t=prompt('Telefone de quem foi indicado, com DDD:\n\nEx.: 18 99999-0000');
+    if(t===null) return false;
+    HJ_OCUPADO=true;
+    try{ r=await sb.rpc('indicacao_telefone',{p_id:id, p_telefone:t}); } finally { HJ_OCUPADO=false; }
+    msg='Telefone gravado ✓ — agora dá para chamar no WhatsApp';
+  } else if(acao==='contatada'){
+    HJ_OCUPADO=true;
+    try{ r=await sb.rpc('indicacao_status',{p_id:id, p_status:'contatada'}); } finally { HJ_OCUPADO=false; }
+    msg='Marcada como contatada ✓';
+  } else if(acao==='descartar'){
+    var m=prompt('Por que não era indicação? (é isso que ensina a IA)\n\nEx.: ia mandar a conta de luz para a nora');
+    if(m===null) return false;
+    if(!m.trim()){ toast('Escreva o motivo — é ele que ensina a IA'); return false; }
+    HJ_OCUPADO=true;
+    try{ r=await sb.rpc('indicacao_descartar',{p_id:id, p_motivo:m.trim(), p_reclassificar:true, p_simular:false}); } finally { HJ_OCUPADO=false; }
+    msg=(r.data&&r.data.copia_de)
+      ? 'Anotado ✓ — era cópia de outra indicação igual, que continua na lista'
+      : 'Anotado: não era indicação ✓';
+  } else return false;
+  if(r.error||(r.data&&r.data.erro)){ toast('Não gravou: '+((r.data&&r.data.erro)||r.error.message)); return false; }
+  toast(msg);
+  if(VISAO==='hoje'){ HJ_EM=0; carregarHoje(); }
+  else { if(document.getElementById('inbox')) carregarIndic(); atualizaSelo(); }
+  return true;
+}
+/* Fora da aba Hoje (que já relê o selo), quem resolve algo atualiza o número da aba. */
+function atualizaSelo(){
+  sb.rpc('posvenda_selo').then(function(s){ if(s && s.data){ guardaSelo(s.data); pintaNumeroHoje(); } });
 }
 
 /* ===== ISABELA: as esperas e as correções =====
    A escada da Isabela (edge function isabela-atendimento) avisa o vendedor com
-   2 h úteis sem resposta no grupo e o pós-venda com 4 h; cada espera é uma
+   1 h útil sem resposta no grupo e o pós-venda com 2 h (eram 2 h e 4 h até
+   15/10; o número vem da config); cada espera é uma
    linha em atendimento_espera. Aqui a equipe diz se ela acertou:
    "Não precisava" e "Precisava responder" viram exemplo que ela lê antes da
    próxima decisão (atendimento_exemplo); "Foi útil" só conta o acerto;
@@ -2510,8 +2763,9 @@ function renderIsabela(){
   var h='<div class="liga"><div class="txt">'
     +'<div class="tt">'+(ISA.ativo?'✅ Isabela ligada':'⏸️ Isabela desligada')+'</div>'
     +'<div class="sb">'+(ISA.ativo
-      ? 'Cliente sem resposta no grupo: ela avisa o vendedor com '+horas(ISA.vendedor_min||120)+' úteis e '
-        +esc(pv)+' com '+horas(ISA.posvenda_min||240)+'.'
+      ? 'Cliente sem resposta no grupo: ela avisa o vendedor com '+horas(ISA.vendedor_min||60)
+        +(Number(ISA.vendedor_min||60)===60?' útil':' úteis')+' e '
+        +esc(pv)+' com '+horas(ISA.posvenda_min||120)+'.'
         +(ISA.fds_ativo?' No fim de semana e feriado, avisa no grupo que o atendimento é de segunda a sexta.':'')
       : 'Nenhum aviso está saindo agora.')
     +'</div></div></div>';
@@ -2584,7 +2838,8 @@ async function isAgir(acao, id){
     toast((r.data&&r.data.ja_estava)?'Já estava marcado assim':msg);
   } finally {
     ISA_OCUPADO=false;
-    carregarIsabela();
+    // os mesmos cartões aparecem na aba Hoje e em Automações › Isabela
+    if(VISAO==='hoje'){ HJ_EM=0; carregarHoje(); } else { carregarIsabela(); atualizaSelo(); }
   }
 }
 
@@ -2952,17 +3207,18 @@ async function gravarPrevisao(mes, valor){
 /* ===== USINAS EM OPERACAO ===== */
 var USI=null, UFILTRO='';
 function hTxt(h){ if(h==null) return ''; h=Number(h); if(h<24) return 'há '+Math.round(h)+'h'; var d=Math.floor(h/24); return 'há '+d+(d>1?' dias':' dia'); }
-function setUfiltro(f){ UFILTRO=f; document.getElementById('usbox').innerHTML=renderUsinas(); }
+function setUfiltro(f){ UFILTRO=f; var box=document.getElementById('usbox'); if(box) box.innerHTML=renderUsinas(); }
 
 var SAUDE={};
 async function carregarUsinas(){
   var rr=await Promise.all([sb.rpc('get_posvenda_usinas'), sb.rpc('usinas_saude')]);
   var r=rr[0], rs=rr[1];
-  if(r.error||!r.data){ document.getElementById('usbox').innerHTML='<div class="vazio">Não consegui ler as usinas.</div>'; return; }
+  var box=document.getElementById('usbox');   // a pessoa pode ter trocado de aba enquanto carregava
+  if(r.error||!r.data){ if(box) box.innerHTML='<div class="vazio">Não consegui ler as usinas.</div>'; return; }
   /* a saude e um complemento: se falhar, o card cai no % antigo em vez de sumir */
   SAUDE={};
   if(!rs.error && rs.data) rs.data.forEach(function(x){ if(x&&x.usina_id) SAUDE[x.usina_id]=x; });
-  USI=r.data; document.getElementById('usbox').innerHTML=renderUsinas();
+  USI=r.data; if(box) box.innerHTML=renderUsinas();
 }
 
 function renderUsinasVelho(){
@@ -3222,19 +3478,25 @@ function renderMensagens(){
 // Antes, cada ação atualizava só um cache e o resto ficava velho.
 async function recarregarTudo(){
   try{
-    const [a,b,c]=await Promise.all([
+    const [a,b,c,d]=await Promise.all([
       sb.rpc('get_posvenda_lista'),
       sb.rpc('get_kanban_posvenda'),
-      sb.rpc('get_brinde_google')
+      sb.rpc('get_brinde_google'),
+      sb.rpc('posvenda_selo')
     ]);
     if(a && a.data) DADOS=a.data;
     if(b && b.data) KB=b.data;
     if(c && c.data) BG=c.data;
+    guardaSelo(d && d.data);
   }catch(e){}
   RG=null;   // força releitura das outras abas
+  HJ_EM=0; HJ_PEND_EM=0; ISA_EM=0;
   render();
 }
-function setVisao(v){VISAO=v;try{localStorage.setItem('polaris-pv-visao',v)}catch(e){}render();}
+function setVisao(v){
+  // a busca que um atalho pôs ("Ver usina ›") não segue para as outras abas
+  if(BUSCA_AUTO){ BUSCA=''; BUSCA_AUTO=false; }
+  VISAO=v;try{localStorage.setItem('polaris-pv-visao',v)}catch(e){}render();}
 function renderJornada(){
   if(!KB) return '<div class="vazio">Não foi possível carregar a jornada.</div>';
   const mom=KB.momentos||[], cl=(KB.clientes||[]);
@@ -3363,25 +3625,31 @@ const FILTRO_ROT={
   sem_aniv:'Sem data de aniversário',
   indicacao:'Indicações aguardando',
   usina:'Usina com problema',
-  bg:'Brinde e Google'
+  bg:'Brinde e Google',
+  fase:'Por fase — cada cliente no tempo desde a ativação',
+  indic:'Indicações — funil, ranking e pagamentos'
 };
 function faixaFiltro(qtd){
   if(!FILTRO) return '';
   return '<div class="fbar"><span class="ic">🔎</span>'+
     '<b>'+esc(FILTRO_ROT[FILTRO]||FILTRO)+'</b>'+
-    '<span class="qt">'+qtd+' cliente'+(qtd===1?'':'s')+'</span>'+
+    (qtd==null?'':'<span class="qt">'+qtd+' cliente'+(qtd===1?'':'s')+'</span>')+
     '<button onclick="setFiltro(\''+FILTRO+'\')">✕ limpar</button></div>';
 }
+function setAutosub(v){ AUTOSUB=v; render(); }
 function setFiltro(f){
-  const igual = (FILTRO===f);
+  // só desliga o filtro quem já está em Clientes olhando para ele: vindo de
+  // outra aba, o card do topo sempre abre o que promete
+  const igual = (VISAO==='lista' && FILTRO===f);
   FILTRO = igual ? '' : f;
-  // os cards do topo só fazem sentido na Lista — é lá que o filtro age
-  if(FILTRO) VISAO='lista';
+  // os cards do topo só fazem sentido em Clientes — é lá que o filtro age
+  // (inclusive "Clientes ativos", que limpa o filtro: na aba Hoje não faria nada)
+  VISAO='lista';
   render();
   const el=document.getElementById('app');
   if(el && FILTRO) el.scrollIntoView({behavior:'smooth',block:'start'});
 }
-function setBusca(v){BUSCA=v;const p=document.activeElement===document.getElementById('q');render();
+function setBusca(v){BUSCA=v;BUSCA_AUTO=false;const p=document.activeElement===document.getElementById('q');render();
   if(p){const q=document.getElementById('q');q.focus();q.setSelectionRange(q.value.length,q.value.length);}}
 
 async function abrirFicha(id){
@@ -4309,7 +4577,8 @@ var APROV=[];
 async function carregarRegua(){
   const r=await sb.rpc('get_regua_painel');
   if(r.error||!r.data){
-    document.getElementById('rgbox').innerHTML='<div class="vazio">Não foi possível carregar a régua.</div>';
+    const el=document.getElementById('rgbox');
+    if(el) el.innerHTML='<div class="vazio">Não foi possível carregar a régua.</div>';
     return;
   }
   RG=r.data;
@@ -4318,14 +4587,26 @@ async function carregarRegua(){
   renderRegua();
 }
 
-async function decidirRegua(id, acao){
+async function decidirRegua(id, acao, bt){
   const el=document.getElementById('rg-'+id);
   const txt=el?el.value:null;
   if(acao==='recusar' && !confirm('Recusar esta mensagem? Ela não será enviada.')) return;
+  // clique duplo não manda a decisão duas vezes
+  const bts=bt&&bt.parentNode?bt.parentNode.querySelectorAll('button'):[];
+  for(let i=0;i<bts.length;i++) bts[i].disabled=true;
   const r=await sb.rpc('regua_decidir',{p_id:id, p_acao:acao, p_texto:txt});
-  if(r.error||(r.data&&r.data.erro)){ toast((r.data&&r.data.erro)||'Não deu certo'); return; }
+  if(r.error||(r.data&&r.data.erro)){
+    for(let i=0;i<bts.length;i++) bts[i].disabled=false;
+    toast('Não gravou: '+((r.data&&r.data.erro)||r.error.message)); return;
+  }
+  delete RASCUNHO[id];
+  // o cartão sai na hora (a releitura vem logo depois); assim o texto dele não
+  // volta como rascunho no próximo redesenho
+  const card=bt&&bt.closest?bt.closest('.apv'):null; if(card) card.remove();
   toast(acao==='aprovar'?'Aprovada — entra na fila ✓':'Recusada');
-  carregarRegua();
+  // o bloco mora na aba Hoje; a Régua só aponta para lá
+  if(VISAO==='hoje'){ HJ_EM=0; carregarHoje(); }
+  else { if(document.getElementById('rgbox')) carregarRegua(); atualizaSelo(); }
 }
 
 /* Número com vírgula, e nada quando o banco não tem o dado —
@@ -4366,12 +4647,15 @@ function ctxAprovacao(c){
   return h+'</div>';
 }
 
-function blocoAprovacao(){
-  if(!APROV.length) return '';
+/* Desde 15/10 o bloco mora na aba Hoje (com a busca já aplicada na lista);
+   a Régua só aponta para lá. */
+function blocoAprovacao(lista){
+  lista=lista||APROV||[];
+  if(!lista.length) return '';
   var h='<div class="sec" style="border-color:var(--gold)">'
-    +'<h3>Escritas pela IA — esperando você <span class="thead">'+APROV.length+'</span></h3>'
+    +'<h3>Escritas pela IA — esperando você <span class="thead">'+lista.length+'</span></h3>'
     +'<div class="dica">Estas foram geradas a partir do que aconteceu na usina. Leia, ajuste se quiser e aprove.</div>';
-  APROV.forEach(function(a){
+  lista.forEach(function(a){
     var alerta = a.motivo && a.motivo.indexOf('conferir numeros')===0;
     h+='<div class="apv">'
       +'<div class="apvtop"><b>'+esc(a.cliente||'')+'</b>'
@@ -4379,11 +4663,12 @@ function blocoAprovacao(){
       +'<span class="apvsit">'+esc(a.nome_modelo||a.modelo)+'</span></div>'
       +(a.motivo?'<div class="apvmot'+(alerta?' erro':'')+'">'+esc(a.motivo)+'</div>':'')
       +ctxAprovacao(a.contexto)
-      +'<textarea class="apvtxt" id="rg-'+a.id+'">'+esc(a.texto)+'</textarea>'
+      +'<textarea class="apvtxt" id="rg-'+a.id+'">'+esc(RASCUNHO[a.id]!=null?RASCUNHO[a.id]:a.texto)+'</textarea>'
+      +(RASCUNHO[a.id]!=null?'<div class="isfb">✏️ Texto ajustado aqui e ainda não aprovado.</div>':'')
       +(a.bloqueio?'<div class="apvmot erro">'+esc(a.bloqueio)+'</div>':'')
       +'<div class="apvacts">'
-      +'<button class="stb" onclick="decidirRegua('+a.id+',\'aprovar\')">Aprovar</button>'
-      +'<button class="stb" onclick="decidirRegua('+a.id+',\'recusar\')">Recusar</button>'
+      +'<button class="stb" onclick="decidirRegua('+a.id+',\'aprovar\',this)">Aprovar</button>'
+      +'<button class="stb" onclick="decidirRegua('+a.id+',\'recusar\',this)">Recusar</button>'
       +'</div></div>';
   });
   return h+'</div>';
@@ -4437,18 +4722,24 @@ function listaRgf(){
   return h+'</div>';
 }
 function renderRegua(){
+  const box=document.getElementById('rgbox'); if(!box||!RG) return;
   const R=RG.resumo||{}, fila=RG.fila||[], ult=RG.ultimos||[];
-  const _aprov = blocoAprovacao();
   const hoje=fila.filter(f=>f.quando<=new Date().toISOString().slice(0,10));
   const prox=fila.filter(f=>f.quando>new Date().toISOString().slice(0,10));
 
-  let h=_aprov;
+  let h='';
+  // aprovar é trabalho do dia: desde 15/10 fica na aba Hoje
+  if((APROV||[]).length){
+    h+='<button class="pcard alerta hjponte" onclick="setVisao(\'hoje\')">'
+      +'<div class="n">'+APROV.length+'</div><div class="l">'+(APROV.length>1?'mensagens escritas pela IA esperam':'mensagem escrita pela IA espera')
+      +' aprovação — estão na aba <b>Hoje</b> ›</div></button>';
+  }
   if(RG.pode_agir){
     h+=`<div class="liga">
       <div class="txt">
         <div class="tt">${RG.ativa?'✅ Régua ativa':'⏸️ Régua pausada'}</div>
         <div class="sb">${RG.ativa
-          ? `Envia até ${RG.por_dia} contatos por dia útil, às 11h. Cada envio respeita 6 segundos de intervalo.`
+          ? `Envia até ${RG.por_dia} contatos por dia útil, às 17h. Cada envio respeita 6 segundos de intervalo.`
           : 'Nenhum contato está sendo enviado automaticamente. Você ainda pode disparar manualmente abaixo.'}</div>
       </div>
       <label class="sw"><input type="checkbox" ${RG.ativa?'checked':''} onchange="ligarRegua(this.checked)"><span class="tr"></span></label>
@@ -4485,7 +4776,7 @@ function renderRegua(){
     }).join('')+`</div>`;
   }
 
-  document.getElementById('rgbox').innerHTML=h;
+  box.innerHTML=h;
   carregarOptin();
 }
 
@@ -4603,20 +4894,26 @@ async function cancelarRegua(id){
 
 /* ===== INDICAÇÕES ===== */
 let IND=null, IFILTRO='';
+/* "Não era indicação" (descartada, 15/10) fica fora do funil e da taxa de
+   conversão — perdida é venda que não fechou; descartada nunca foi venda. */
 const ST={
   nova:{n:'Nova',i:'🆕'}, contatada:{n:'Contatada',i:'📞'},
   visita_agendada:{n:'Visita agendada',i:'📅'}, visita_feita:{n:'Visita feita',i:'✅'},
-  proposta:{n:'Proposta enviada',i:'📄'}, fechada:{n:'Fechada',i:'🎉'}, perdida:{n:'Perdida',i:'✕'}
+  proposta:{n:'Proposta enviada',i:'📄'}, fechada:{n:'Fechada',i:'🎉'}, perdida:{n:'Perdida',i:'✕'},
+  descartada:{n:'Não era indicação',i:'🚫'}
 };
 async function carregarIndic(){
   const r=await sb.rpc('get_indicacoes');
+  const box=document.getElementById('inbox');
   if(r.error||!r.data){
-    document.getElementById('inbox').innerHTML='<div class="vazio">Não foi possível carregar.</div>';
+    if(box) box.innerHTML='<div class="vazio">Não foi possível carregar as indicações agora. Tente de novo em instantes.</div>';
     return;
   }
-  IND=r.data; renderIndic();
+  IND=r.data;
+  if(box) renderIndic();
 }
 function renderIndic(){
+  const box=document.getElementById('inbox'); if(!box||!IND) return;
   const R=IND.resumo||{}, L=IND.lista||[], RK=IND.ranking||[];
   let h='';
 
@@ -4626,6 +4923,7 @@ function renderIndic(){
     <button class="fcol ${IFILTRO==='andamento'?'on':''}" onclick="setIF('andamento')"><div class="n">${R.em_andamento||0}</div><div class="l">Em andamento</div></button>
     <button class="fcol ${IFILTRO==='fechada'?'on':''}" onclick="setIF('fechada')"><div class="n" style="color:var(--green-l)">${R.fechadas||0}</div><div class="l">Fechadas</div></button>
     <button class="fcol ${IFILTRO==='perdida'?'on':''}" onclick="setIF('perdida')"><div class="n" style="color:#e07070">${R.perdidas||0}</div><div class="l">Perdidas</div></button>
+    ${R.descartadas?`<button class="fcol ${IFILTRO==='descartada'?'on':''}" onclick="setIF('descartada')"><div class="n" style="color:var(--muted)">${R.descartadas}</div><div class="l">Não eram indicação</div></button>`:''}
   </div>`;
 
   h+=`<div class="rgstat">
@@ -4641,12 +4939,17 @@ function renderIndic(){
   let arr=L.slice();
   if(IFILTRO==='andamento') arr=arr.filter(i=>['contatada','visita_agendada','visita_feita','proposta'].includes(i.status));
   else if(IFILTRO) arr=arr.filter(i=>i.status===IFILTRO);
+  else arr=arr.filter(i=>i.status!=='descartada');   // "Todas" = as que contam
+  if(BUSCA){ const b=BUSCA.toLowerCase();
+    arr=arr.filter(i=>String(i.indicador||'').toLowerCase().includes(b)||String(i.indicador_contrato||'').includes(b)
+      ||String(i.nome_indicado||'').toLowerCase().includes(b)||String(i.codigo||'').toLowerCase().includes(b)); }
 
   if(!arr.length){
-    h+=`<div class="vazio">Nenhuma indicação ${IFILTRO?'neste status':'registrada ainda'}.<br>
+    h+=`<div class="vazio">Nenhuma indicação ${BUSCA?'com essa busca':(IFILTRO?'neste status':'registrada ainda')}.<br>
       <span style="font-size:11.5px;opacity:.8">Quando um cliente indicar alguém no grupo, ela aparece aqui automaticamente.</span></div>`;
   } else {
-    h+='<div class="sec"><h3>Indicações</h3>'+arr.map(i=>cardIndic(i)).join('')+'</div>';
+    h+='<div class="sec"><h3>'+(IFILTRO==='descartada'?'Não eram indicação — fora do funil e da conversão':'Indicações')+'</h3>'
+      +arr.map(i=>cardIndic(i)).join('')+'</div>';
   }
 
   if(RK.length){
@@ -4658,47 +4961,63 @@ function renderIndic(){
       </div>`).join('')+'</div>';
   }
 
-  document.getElementById('inbox').innerHTML=h;
+  box.innerHTML=h;
 }
 function cardIndic(i){
   const s=ST[i.status]||{n:i.status,i:'•'};
-  const cls=i.status==='fechada'?'fech':(i.status==='perdida'?'perd':'');
+  const desc=i.status==='descartada';
+  const cls=i.status==='fechada'?'fech':(i.status==='perdida'?'perd':(desc?'desc':''));
   const d=new Date(i.criado_em);
+  // na lista, "Fechada" abre o formulário de potência e valor e "Não era
+  // indicação" pede o motivo (mudarStatus); as outras gravam direto
   let opts='';
   Object.keys(ST).forEach(k=>{ opts+=`<option value="${k}" ${k===i.status?'selected':''}>${ST[k].i} ${ST[k].n}</option>`; });
+  const fone=String(i.telefone_indicado||'').replace(/\D/g,'');
+  const origem=i.mensagem||i.observacao||'';
   return `<div class="icard ${cls}" id="ic${i.id}">
-    <div class="t1"><span class="nm">${esc(i.nome_indicado)}</span><span class="cod">${esc(i.codigo)}</span></div>
+    <div class="t1"><span class="nm">${esc(i.nome_indicado||'(sem nome)')}</span><span class="cod">${esc(i.codigo)}</span></div>
     <div class="via">indicado por <b>${esc(i.indicador)}</b>${i.cidade?' · '+esc(i.cidade):''}</div>
-    ${i.telefone_indicado?`<div class="via">📱 ${esc(i.telefone_indicado)}</div>`:''}
+    ${fone?`<div class="via">📱 ${esc(i.telefone_indicado)}</div>`:''}
     ${i.vendedor?`<div class="via">👔 ${esc(i.vendedor)}</div>`:''}
     <div class="via" style="font-size:11px;opacity:.75">${d.toLocaleDateString('pt-BR')} · ${quando(i.criado_em)}${i.origem==='whatsapp'?' · detectada pela IA':''}</div>
+    ${origem?`<div class="via" style="font-style:italic">“${esc(origem)}”</div>`:''}
     ${i.valor_previsto?`<div class="vl">R$ ${Number(i.valor_previsto).toFixed(2).replace('.',',')}
       ${i.bonus_clube_pct>0?`<small>(inclui +${i.bonus_clube_pct}% do Clube)</small>`:''}</div>`:''}
-    ${i.motivo_perda?`<div class="via" style="color:#e07070">✕ ${esc(i.motivo_perda)}</div>`:''}
-    ${IND.pode_agir?`<div class="st">
+    ${i.motivo_perda?`<div class="via" style="color:${desc?'var(--muted)':'#e07070'}">${desc?'🚫 Não era indicação':'✕'} ${esc(i.motivo_perda)}</div>`:''}
+    ${(IND.pode_agir && desc)?`<div class="via" style="font-size:11px;opacity:.75">Marcada em ${esc(i.descartada_em?new Date(i.descartada_em).toLocaleDateString('pt-BR'):'—')}. Se era indicação de verdade, registre de novo.</div>`:''}
+    ${(IND.pode_agir && !desc)?`<div class="st">
       <select onchange="mudarStatus(${i.id}, this.value)">${opts}</select>
-      ${(i.telefone_indicado)?`<a class="bt" href="https://wa.me/55${String(i.telefone_indicado).replace(/\D/g,'')}" target="_blank" style="text-decoration:none">💬 WhatsApp</a>`:''}
-      ${i.visita_em?`<button class="bt ${i.pago1?'pago':'pg'}" ${i.pago1?'':'onclick="pagarIndic('+i.id+',1)"'}>
-        ${i.pago1?'✓ etapa 1 paga':'💰 pagar R$ 50'}</button>`:''}
-      ${(i.status==='fechada'&&i.valor_etapa2)?`<button class="bt ${i.pago2?'pago':'pg'}" ${i.pago2?'':'onclick="pagarIndic('+i.id+',2)"'}>
-        ${i.pago2?'✓ etapa 2 paga':'💰 pagar R$ '+Math.round(i.valor_etapa2)}</button>`:''}
+      ${fone?`<a class="bt" href="https://wa.me/${fone.length<=11?'55'+fone:fone}" target="_blank" rel="noopener" style="text-decoration:none">💬 WhatsApp</a>`
+            :(i.status!=='fechada'&&i.status!=='perdida'?`<button class="bt" onclick="indAgir('telefone',${i.id})">📞 pôr telefone</button>`:'')}
+      ${i.visita_em?`<button class="bt ${i.pago_etapa1_em?'pago':'pg'}" ${i.pago_etapa1_em?'':'onclick="pagarIndic('+i.id+',1)"'}>
+        ${i.pago_etapa1_em?'✓ etapa 1 paga':'💰 pagar R$ 50'}</button>`:''}
+      ${(i.status==='fechada'&&i.valor_etapa2)?`<button class="bt ${i.pago_etapa2_em?'pago':'pg'}" ${i.pago_etapa2_em?'':'onclick="pagarIndic('+i.id+',2)"'}>
+        ${i.pago_etapa2_em?'✓ etapa 2 paga':'💰 pagar R$ '+Math.round(i.valor_etapa2)}</button>`:''}
     </div>`:''}
     <div id="fc${i.id}"></div>
   </div>`;
 }
 function setIF(f){ IFILTRO=(IFILTRO===f)?'':f; renderIndic(); }
 
+/* O erro vem do banco já em português (o gatilho trava_indicacao diz, por
+   exemplo, que indicação sem telefone não avança): mostra ele, não "Erro". */
+function erroIndic(r){ return (r.data&&r.data.erro)||(r.error&&r.error.message)||'não deu certo'; }
 async function mudarStatus(id, st){
   if(st==='fechada'){ formFechar(id); return; }
+  if(st==='descartada'){
+    // não gravou (cancelou ou deu erro): a lista volta a mostrar o status de antes
+    if(!(await indAgir('descartar', id))) renderIndic();
+    return;
+  }
   if(st==='perdida'){
     const m=prompt('Por que a indicação foi perdida?\n(preço, escolheu outra empresa, desistiu...)');
     if(m===null) { renderIndic(); return; }
     const r=await sb.rpc('indicacao_status',{p_id:id,p_status:'perdida',p_motivo:m||null});
-    if(r.error){ toast('Erro'); return; }
+    if(r.error||(r.data&&r.data.erro)){ toast('Não gravou: '+erroIndic(r)); renderIndic(); return; }
     toast('Registrado'); carregarIndic(); return;
   }
   const r=await sb.rpc('indicacao_status',{p_id:id,p_status:st});
-  if(r.error||(r.data&&r.data.erro)){ toast('Erro ao atualizar'); return; }
+  if(r.error||(r.data&&r.data.erro)){ toast('Não gravou: '+erroIndic(r)); renderIndic(); return; }
   toast('Status atualizado ✓'); carregarIndic();
 }
 function formFechar(id){
@@ -4718,7 +5037,7 @@ async function confirmarFechar(id){
   const v=document.getElementById('fv'+id).value;
   const r=await sb.rpc('indicacao_status',{p_id:id,p_status:'fechada',
     p_kwp:parseFloat(k), p_contrato:v?parseFloat(v):null});
-  if(r.error||(r.data&&r.data.erro)){ toast('Erro'); return; }
+  if(r.error||(r.data&&r.data.erro)){ toast('Não gravou: '+erroIndic(r)); return; }
   const c=r.data&&r.data.calculo;
   toast(c?`Fechada! Recompensa: R$ ${c.valor_total}`:'Fechada ✓');
   carregarIndic();
@@ -4726,7 +5045,7 @@ async function confirmarFechar(id){
 async function pagarIndic(id, etapa){
   if(!confirm('Confirmar que o PIX da etapa '+etapa+' foi enviado?')) return;
   const r=await sb.rpc('indicacao_pagar',{p_id:id,p_etapa:etapa});
-  if(r.error){ toast('Erro'); return; }
+  if(r.error||(r.data&&r.data.erro)){ toast('Não gravou: '+erroIndic(r)); return; }
   toast('Pagamento registrado ✓'); carregarIndic();
 }
 function formIndic(){
