@@ -898,6 +898,16 @@ vez — a simulação daquela manhã avisaria de conversas de 09/10);
 Lívia) passaria na frente do vendedor. O job `alerta-espera` continua
 agendado e para pela chave; para voltar, é só a chave em 1.
 
+⚠️ **O corte do `atendimento_desde` valia pelo começo do bloco, não pela
+mensagem** (corrigido em 16/10, `migrations/2026-10-16_isabela_corte_por_mensagem.sql`).
+Quem tinha um recado antigo sem resposta da equipe ficava invisível para a
+escada mesmo escrevendo de novo depois do corte: a MARIA APARECIDA (4767)
+mandou às 7h24 de 16/10 a foto da conta de luz e, ao meio-dia, eram 242
+minutos úteis sem resposta e nenhum aviso — o bloco dela começava num recado
+de 12/10. Hoje só conta o que chegou depois do corte, e a espera começa na
+primeira mensagem nova. Simulado antes de gravar: de 13 grupos com mensagem
+pendente, só o 4767 mudava.
+
 ### A tela do Pós-venda: Hoje · Clientes · Usinas · Planos · Automações
 Até 15/10 eram **8 abas** (Jornada, Lista, Régua, Isabela, Indicações, Planos,
 Usinas, Automações). Medido pelos logs de 08 a 15/10: só o **Vitor** abriu o
@@ -2213,8 +2223,11 @@ Conferido no banco em **22/09/2026**.
       'TESTE-DEDUP-1510'`, em `mensagens_recebidas` e `webhook_vistos`): o
       delete pelo MCP não passa (armadilha 34). Apagar pelo painel do Supabase.
 - [ ] **Provar com tráfego real** o webhook v5 (nenhuma cópia gravada) e a v4
-      (mensagens da Tays e do Júnior entrando). Até 16/10 06h45 não tinha
-      chegado mensagem de cliente desde a publicação (15/10 20h03).
+      (mensagens da Tays e do Júnior entrando). **Até 16/10 12h:** 22
+      mensagens reais desde a v4, 18 depois da v5, **nenhuma cópia gravada** e
+      uma trava por mensagem; o grupo do Júnior gravou na obra certa (4674, três
+      mensagens do Vitor às 7h50). Falta a Tays escrever — e uma cópia de verdade
+      chegar e ser barrada: a trava não deixa rastro do que barrou.
 - [x] ~~**Grupo ligado a duas obras some para a Isabela.**~~ **Corrigido em
       15/10 às 18:49** (webhook v4 + `obra_do_grupo`, ver §4). Os da Tays (a
       obra dela + a da visita) e do Júnior (posto + eletroposto 4674) caíam no
