@@ -2280,33 +2280,66 @@ Conferido no banco em **22/09/2026**.
 - [ ] **Duas linhas de teste na obra 4147** (`zapi_message_id =
       'TESTE-DEDUP-1510'` — são **2 em cada** tabela, `mensagens_recebidas` e
       `webhook_vistos`): o delete pelo MCP não passa (armadilha 34; tentado de
-      novo em 16/10 com o OK do Vitor, expirou e nada foi aplicado). Apagar pelo
-      painel do Supabase:
+      novo em 16/10 e 17/10 com o OK do Vitor, expirou e nada foi aplicado — a
+      confirmação não chega a quem está no chat). Apagar pelo painel do Supabase:
       `delete from mensagens_recebidas where zapi_message_id = 'TESTE-DEDUP-1510';`
       `delete from webhook_vistos where zapi_message_id = 'TESTE-DEDUP-1510';`
-- [ ] **Seis obras da etapa 6 em diante sem data de instalação** (armadilha 37).
-      Nenhuma tem a venda no DRE — **R$ 275.700** fora de todo mês. A data é de
-      quem acompanhou a obra; aqui fica o que o banco e os grupos mostram:
+- [ ] **Cinco obras da etapa 6 em diante sem data de instalação** (armadilha 37;
+      eram seis em 16/10). Nenhuma tem a venda no DRE. A data é de quem
+      acompanhou a obra; aqui fica o que o banco e os grupos mostram:
 
       | obra | etapa | venda | o que se sabe |
       |---|---|---|---|
-      | **TANAKA (4745)** | 8 desde 16/10 | R$ 49.500 | obra em 08–09/10 pelo grupo; **0 fotos**; o instalador nunca recebeu o link |
       | RODRIGO JUNCAL (4402) | 8 desde 01/10 | R$ 14.300 | 27 fotos do instalador em 28/09 |
       | JORGE NAKAZA (4846) | 7 | R$ 13.900 | 20 fotos do instalador em 06/10 |
       | IGREJA BATISTA (4810) | 6 | R$ 30.000 | a quadra foi combinada para 07/10 no grupo; o espaço Comunhão, para 19/10 |
       | Bassetto, eletroposto (4674) | 7 | R$ 150.000 | também sem instalador |
       | BARBARA (4756) | 6 | R$ 18.000 | a cliente pediu o cancelamento em 07/10 |
 
-      Para a TANAKA: marcar a data no card (com a página recarregada) **não**
-      manda "agendada" a ninguém e pergunta se manda o link do checklist à CJP;
-      e a cobrança das 8h passa a cobrar as fotos dela no dia seguinte.
+      ✅ **TANAKA (4745)**: data de instalação **15/10** preenchida pelo Vitor em
+      19/10 — a venda de R$ 49.500 entrou no DRE de outubro. Nada foi mandado ao
+      grupo do cliente ("resolvido internamente", Vitor). Com a data, a cobrança
+      das fotos das 8h passa a cobrar a CJP (0 de 11). **Usina ligada em 19/10**
+      (`migrations/2026-10-19_tanaka_usina_solarview.sql`): no SolarView ela é
+      *"Posto Araçatuba 4745 | 4829"* — o **4829 é o contrato das 10 placas a mais
+      do mesmo posto**, sem obra no sistema — e a potência que vale é a da obra,
+      **22,32 kWp** (Vitor), não os 25 kWp do SolarView.
+- [ ] **LUCIANA CORDEIRO (4750) está no SolarView e não liga sozinha.** A usina
+      *"Luciana Cordeiro de  Andrade"* (981891, instalada 09/10) está em
+      **Araçatuba** no SolarView, e a obra em **Lins**: a trava de cidade do
+      vinculador (armadilha 27) segura. Se for ela, é pôr "4750" no nome da usina
+      no SolarView que o vinculador liga na rodada das 10h40.
+- [ ] **RENATO WATANABE (4582) saiu das mensagens automáticas por engano.** Em
+      18/09 ele escreveu *"Hoje vou sair"* / *"Tenho compromisso"* (avisando que
+      não estaria em casa), a IA do webhook leu como `sair` e o
+      `registrar_optout` rodou sozinho, sem ninguém confirmar. Desde então a régua
+      dele foi cancelada (6 mensagens) e a escada da Isabela o ignora —
+      `atendimento_candidatos` corta `optout_em` —, então nem o aviso de fim de
+      semana nem o aviso à equipe saem para ele (em 17/10 ele perguntou da luz
+      amarela do inversor). É cliente ativo: nota 10, avaliou no Google,
+      autorizou as mensagens em 10/08, 101 mensagens no grupo em 30 dias.
+      **Esperando o OK do Vitor** (é consentimento) para: desfazer o opt-out e
+      refazer a régua; ensinar a IA que "vou sair" não é pedido de saída; e não
+      deixar opt-out valer sozinho por classificação da IA — exigir pedido
+      explícito ou passar pela Lívia.
+- [ ] **O NPS sai no fim de semana.** O cron `nps-envio-v2` roda todo dia às 10h:
+      a TANAKA recebeu a pesquisa no sábado 17/10. Contra "fim de semana,
+      mensagem para cliente não" (§6). Decisão do Vitor.
 - [ ] **O termo de aceite pedido na ativação nunca é cobrado.**
       `trg_marcar_aceite_pedido` carimba `aceite_pedido_em` quando a obra chega
       na 8, e `obras_para_cobrar_aceite()` diz quem cobrar em 3 e 7 dias — mas
       **nada chama essa função** (nenhum cron, nenhuma edge function). Em 16/10:
       **33 obras** esperando o aceite desde 27/08 e `aceite_cobranca_qtd = 0` em
-      todas as 91. Cobrar o cliente é decisão do Vitor; e cobrar o aceite de
-      relatório que não existe repetiria a armadilha 21 (a TANAKA entraria).
+      todas as 91. ⚠️ E o carimbo da etapa 8 abre a janela do "OK" mesmo **sem
+      relatório** (a TANAKA está assim): um "ok" qualquer no grupo viraria aceite
+      de relatório que não existe (armadilha 21).
+      **Decidido pelo Vitor em 17/10:** o pedido sai **uma vez, junto do
+      relatório** — quando o instalador envia (`foto-obra`, ação `enviar`) e o
+      cliente não assinou o termo na obra, uma mensagem logo abaixo pede um *OK*
+      por escrito no grupo (o `processar_aceite_whatsapp` já grava o OK como
+      aceite; 7 clientes aceitaram assim). Sem lembrete depois. A janela do OK
+      passa a abrir no envio do relatório, não na etapa 8. Texto proposto em
+      17/10, **esperando o OK do Vitor** antes de publicar.
 - [ ] **Provar com tráfego real** o webhook v5 (nenhuma cópia gravada) e a v4
       (mensagens da Tays e do Júnior entrando). **Até 16/10 12h:** 22
       mensagens reais desde a v4, 18 depois da v5, **nenhuma cópia gravada** e
