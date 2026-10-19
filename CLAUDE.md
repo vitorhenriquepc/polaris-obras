@@ -1774,6 +1774,19 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     produção precisa de jeito de sair antes de entrar** — de preferência,
     rode dentro de `begin … rollback`.
 
+    ⚠️ **E não é só `delete`: a trava julga o efeito.** Em 19/10, desfazer o
+    opt-out do Renato (4582) ficou preso **seis vezes**: reativar mensagens da
+    régua, anotar o motivo de mensagens canceladas, reclassificar recado de
+    cliente e gravar em `consentimentos` — mesmo dentro de um `do $x$` que
+    terminava em `raise` (simulação, que não gravaria nada). O `update` só da
+    `obras` passou, e o mesmo `update` com `and false` na `regua_contatos`
+    também: não é o nome da tabela nem o comando, é o que ele muda. Não
+    reescreva o comando até ele passar: vira script em `migrations/` para
+    rodar no painel. Para testar antes, o container tem **Postgres 16**
+    (`/usr/lib/postgresql/16/bin`): `initdb` como usuário `postgres` numa
+    pasta dele, porta própria, as tabelas e as linhas reais do caso, e apagar
+    no fim — foi assim que o script do Renato foi testado, com as travas.
+
 35. **O supabase-js só dispara a consulta quando alguém espera por ela.**
     `sb.rpc(...)` devolve um construtor "preguiçoso": guardar numa variável e
     dar `await` depois **não** roda em paralelo — a consulta só sai no
@@ -2309,19 +2322,30 @@ Conferido no banco em **22/09/2026**.
       **Araçatuba** no SolarView, e a obra em **Lins**: a trava de cidade do
       vinculador (armadilha 27) segura. Se for ela, é pôr "4750" no nome da usina
       no SolarView que o vinculador liga na rodada das 10h40.
-- [ ] **RENATO WATANABE (4582) saiu das mensagens automáticas por engano.** Em
-      18/09 ele escreveu *"Hoje vou sair"* / *"Tenho compromisso"* (avisando que
-      não estaria em casa), a IA do webhook leu como `sair` e o
-      `registrar_optout` rodou sozinho, sem ninguém confirmar. Desde então a régua
-      dele foi cancelada (6 mensagens) e a escada da Isabela o ignora —
+- [ ] **RENATO WATANABE (4582) saiu das mensagens automáticas por engano —
+      duas vezes.** Em 14/08 ele escreveu *"Vou sair daqui a pouco"* e em 18/09
+      *"Hoje vou sair"* / *"Tenho compromisso"* (avisando que não estaria em casa
+      quando a equipe fosse), a IA do webhook leu as duas como `sair` e o
+      `registrar_optout` rodou sozinho, sem ninguém confirmar. É o **único**
+      opt-out da base. Desde 14/08 a régua dele estava parada (as 7 mensagens
+      foram canceladas na limpeza de 12/09) e a escada da Isabela o ignora —
       `atendimento_candidatos` corta `optout_em` —, então nem o aviso de fim de
-      semana nem o aviso à equipe saem para ele (em 17/10 ele perguntou da luz
-      amarela do inversor). É cliente ativo: nota 10, avaliou no Google,
-      autorizou as mensagens em 10/08, 101 mensagens no grupo em 30 dias.
-      **Esperando o OK do Vitor** (é consentimento) para: desfazer o opt-out e
-      refazer a régua; ensinar a IA que "vou sair" não é pedido de saída; e não
-      deixar opt-out valer sozinho por classificação da IA — exigir pedido
-      explícito ou passar pela Lívia.
+      semana nem o aviso à equipe saíam para ele (em 17/10 ele perguntou da luz
+      amarela do inversor; o Vitor respondeu em 19/10). É cliente ativo: nota
+      10, avaliou no Google, autorizou as mensagens em 10/08.
+      **OK do Vitor para desfazer em 19/10.** O script está pronto e testado em
+      `migrations/2026-10-19_renato_optout_desfeito.sql`, mas **falta rodar no
+      painel do Supabase**: a ferramenta do chat segurou (armadilha 34). Ele tira
+      o opt-out (o termo de 10/08 fica), registra em `consentimentos`, passa as
+      duas mensagens para `agendamento`, ensina a IA (2 exemplos) e devolve a
+      régua do d75 (26/10) em diante; o d30 (vencido) e o d45 (pediria indicação
+      três semanas antes do d90) ficam cancelados, com o motivo escrito. Tem
+      trava: se ele pedir para sair de novo antes de alguém rodar, o script para
+      sem mexer em nada.
+      **Falta decidir (Vitor):** não deixar opt-out valer sozinho por
+      classificação da IA — exigir pedido explícito ou passar pela Lívia. Os
+      dois exemplos ensinam só essas frases; outro jeito de dizer que vai sair
+      de casa ainda pode tirar alguém das mensagens.
 - [ ] **O NPS sai no fim de semana.** O cron `nps-envio-v2` roda todo dia às 10h:
       a TANAKA recebeu a pesquisa no sábado 17/10. Contra "fim de semana,
       mensagem para cliente não" (§6). Decisão do Vitor.
