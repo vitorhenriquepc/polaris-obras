@@ -2342,6 +2342,16 @@ Conferido no banco em **22/09/2026**.
       três semanas antes do d90) ficam cancelados, com o motivo escrito. Tem
       trava: se ele pedir para sair de novo antes de alguém rodar, o script para
       sem mexer em nada.
+      ⚠️ **O Vitor rodou o script duas vezes (19/10 e 21/10) e nada gravou
+      neste banco**, embora a tela dele tenha mostrado `pendente` na segunda.
+      Conferido às 12:37 de 21/10: nenhum erro no log do Postgres, nenhum
+      registro do comando nem do `select` final em `pg_stat_statements` (onde
+      os `do` da TANAKA e das indicações aparecem), nenhuma transação aberta, e
+      só existe um projeto, sem branch. Onde rodou ainda não se sabe.
+      ⚠️ **Terceiro opt-out falso em 21/10 12:10: JOAO RILLO (4220)** escreveu
+      *"Por favor, mantenha-me informado"* e a IA leu como `sair` (confiança 7).
+      Ficou fora da régua (o d365 de 22/04/2027) e da escada da Isabela. **Os 3
+      opt-outs automáticos da história são falsos.**
       **Falta decidir (Vitor):** não deixar opt-out valer sozinho por
       classificação da IA — exigir pedido explícito ou passar pela Lívia. Os
       dois exemplos ensinam só essas frases; outro jeito de dizer que vai sair
