@@ -4019,7 +4019,8 @@ function renderFicha(D){
         :(o.optin_em?'<span class="tag green">✓ Autorizou comunicações</span>'
         :'<span class="tag">⚠️ Sem autorização</span>')}
       ${(D.pode_agir && !o.optin_em && !o.optout_em)?`<button class="tag gold" style="cursor:pointer;background:none" onclick="marcarOptin('${o.id}',true)">+ registrar autorização</button>`:''}
-      ${(D.pode_agir && o.optin_em && !o.optout_em)?`<button class="tag" style="cursor:pointer;background:none" onclick="marcarOptin('${o.id}',false)">registrar saída</button>`:''}
+      ${(D.pode_agir && !o.optout_em)?`<button class="tag" style="cursor:pointer;background:none" onclick="marcarOptin('${o.id}',false)">registrar saída</button>`:''}
+      ${(D.pode_agir && o.optout_em)?`<button class="tag gold" style="cursor:pointer;background:none" onclick="desfazerSaida('${o.id}')">desfazer saída</button>`:''}
     </div>
   </div><div class="fbody">`;
 
@@ -4566,8 +4567,21 @@ async function marcarOptin(id, valor){
     ? 'Confirmar que este cliente autorizou receber comunicações?\n\nRegistre apenas se ele realmente concordou.'
     : 'Marcar que este cliente NÃO quer mais receber comunicações?')) return;
   const r=await sb.rpc(fn,args);
-  if(r.error||(r.data&&r.data.erro)){ toast('Erro'); return; }
+  if(r.error||(r.data&&r.data.erro)){ toast('Não deu para registrar: '+((r.data&&r.data.erro)||r.error.message)); return; }
   toast(valor?'Autorização registrada ✓':'Opt-out registrado');
+  await abrirFicha(id);
+}
+
+/* "Pediu para sair" que não era: até 23/10 a IA tirava o cliente sozinha, e os 3
+   casos da história eram engano ("vou sair" de casa, "mantenha-me informado").
+   registrar_optin_manual tira o opt-out, mantém a autorização de antes e devolve
+   a régua cancelada que ainda está no prazo. */
+async function desfazerSaida(id){
+  if(!confirm('Desfazer a saída deste cliente?\n\nUse quando o "pediu para sair" foi engano: por exemplo, a IA leu "vou sair" de casa como pedido para sair das mensagens.\n\nEle volta a receber a régua (o que ainda estiver no prazo), e a autorização que ele deu antes continua valendo.')) return;
+  const r=await sb.rpc('registrar_optin_manual',{p_obra:id, p_origem:'manual'});
+  if(r.error||(r.data&&r.data.erro)){ toast('Não deu para desfazer: '+((r.data&&r.data.erro)||r.error.message)); return; }
+  const n=(r.data&&r.data.regua_reativada)||0;
+  toast('Saída desfeita ✓'+(n?` · ${n} mensage${n>1?'ns':'m'} da régua ${n>1?'voltaram':'voltou'}`:''));
   await abrirFicha(id);
 }
 

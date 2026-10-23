@@ -1,3 +1,11 @@
+-- NÃO RODAR — SUBSTITUÍDA EM 23/10 pelo botão "desfazer saída" da ficha
+-- (registrar_optin_manual, migrations/2026-10-23_optout_so_com_a_equipe.sql).
+-- O Vitor rodou este script no painel em 19/10 e em 21/10 e nada gravou neste
+-- banco: nenhum erro no log, nenhum registro em pg_stat_statements, nenhuma
+-- transação aberta (onde rodou não se sabe). Fica aqui pelo histórico. Se alguém
+-- rodar mesmo assim depois do botão, ele para no "já foi desfeito".
+--
+-- (texto original)
 -- AINDA NÃO APLICADA. Rodar no painel do Supabase (SQL Editor), uma vez.
 -- A ferramenta do chat segura este comando esperando uma confirmação que não
 -- chega (armadilha 34) — quem roda é quem tem o painel.

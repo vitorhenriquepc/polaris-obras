@@ -287,6 +287,38 @@ quando a IA escreveu — e o card pinta em vermelho quando é `false`. Não
 bloqueia o envio (regra 3.5, quem decide é a pessoa); garante que ela decida
 vendo.
 
+### Opt-out: a IA só marca, a equipe confirma
+⚠️ **Até 23/10 a IA do webhook tirava o cliente das mensagens sozinha** — leu
+`sair`, rodou `registrar_optout`, sem ninguém ver. Os **3** opt-outs automáticos da
+história eram falsos: RENATO WATANABE (4582) com *"Vou sair daqui a pouco"* e
+*"Hoje vou sair"* (avisava que não estaria em casa) e JOAO RILLO (4220) com
+*"Por favor, mantenha-me informado"*. Os dois ficaram fora da régua **e** da escada
+da Isabela (armadilha 39). Decisão do Vitor em 23/10: quem confirma é a equipe.
+
+Desde então (webhook **v6** + `migrations/2026-10-23_optout_so_com_a_equipe.sql`):
+- a IA continua marcando o recado como `sair`, com o prompt dizendo o que **não** é
+  sair; o webhook **não** chama mais `registrar_optout`;
+- a pós-venda (`resp_posvenda`) recebe no privado, na hora, *"🚪 Pediu para sair das
+  mensagens?"* com o recado (senha e e-mail mascarados) e o que fazer — **um aviso
+  por cliente a cada 24 h**, carimbado em `mensagens_recebidas.alerta_enviado_em`;
+- a régua **espera** `optout_ia_segura_dias` (3) depois de um recado `sair`
+  (`regua_bloqueio`: *"pediu para sair? a equipe ainda não confirmou"*): se o
+  cliente pediu mesmo, nada sai por cima enquanto a Lívia decide; se não pediu, a
+  régua volta sozinha. Qualquer registro em `consentimentos` depois do recado
+  encerra a espera. A espera vale **só para a régua** — resumo do cliente modelo,
+  fim de cortesia e autoleitura olham só o `optout_em`;
+- na ficha do cliente: **registrar saída** aparece para todo cliente que não saiu
+  (antes só para quem tinha autorizado — quem nunca autorizou não tinha como sair
+  pela tela) e **desfazer saída** para quem saiu. O desfazer é o
+  `registrar_optin_manual`, que agora **mantém a autorização original** (data e
+  origem do termo) em vez de trocá-la por "agora, manual", **devolve a régua
+  cancelada pelo opt-out que ainda está no prazo** e escreve em `consentimentos` de
+  quando era o opt-out que caiu.
+
+O caminho do pedido de autorização (`processar_resposta_optin`: resposta exata
+"não", "sair"… até 7 dias depois do pedido) **continua automático** — é resposta
+direta a uma pergunta direta, e está parado: nenhum pedido aberto desde 02/09.
+
 ### Régua: calendário × evento
 ⚠️ **São duas famílias de modelo, e até 22/09 o índice único tratava as duas
 igual.** `regua_contatos` tinha `UNIQUE (obra_id, modelo)` — uma mensagem de
@@ -1049,6 +1081,8 @@ cartão da indicação.
 | `posvenda_selo()` · `posvenda_hoje()` | o número do selo do Painel e da aba Hoje (aprovações + clientes esperando + indicações novas) · o selo + a lista das 8h, atrás de `is_autorizado()` |
 | `indicacao_descartar(id, motivo, reclassificar, simular)` | "não era indicação": guarda o status de antes, reclassifica o recado e ensina a IA — menos quando é cópia de uma indicação viva |
 | `indicacao_telefone(id, telefone)` | põe o telefone na indicação que a IA achou sem número; sem ele ela não anda no funil |
+| `registrar_optin_manual(obra, origem)` | autorização pela equipe **e** o "desfazer saída" da ficha: tira o opt-out, mantém a autorização original, devolve a régua cancelada pelo opt-out que ainda está no prazo e conta em `consentimentos` o que caiu |
+| `regua_bloqueio(obra, modelo)` | por que uma mensagem da régua não sai hoje — sem grupo, opt-out, **"pediu para sair?" esperando a equipe** (3 dias), sem autorização, já indicou, sem geração. O disparo das 17h pula toda linha com bloqueio |
 | `webhook_ja_visto(id, texto)` · `webhook_esquecer(id, texto)` | a trava do webhook contra a mesma mensagem entregue de novo pela Z-API · solta a trava quando a gravação falha (só service_role) |
 | `definir_responsavel(equipe, funcao)` | troca a pessoa de um dos dois papéis; só admin |
 | `get_kpis_financeiro(ini, fim)` | R$/Wp e execução × faturamento, **com a cobertura junto** — quantas obras sustentam cada número e o que falta para as outras |
@@ -1149,6 +1183,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `atendimento_fds_texto` | texto fixo | o que a Isabela diz no grupo; `{quando}` vira "na segunda-feira (DD/MM)" |
 | `atendimento_desde` | 2026-10-15T20:17:01Z | ao ligar, só olha mensagem depois disto |
 | `alerta_espera_ativo` | **0** (desde 15/10 17:17) | o "cliente esperando" antigo, substituído pela escada da Isabela |
+| `optout_ia_segura_dias` | 3 | quantos dias a régua espera depois de um recado que a IA leu como `sair`, enquanto a equipe não confirma (23/10) |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -1843,6 +1878,18 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     antigo não pode travar outro salvamento. As datas das **usinas** (posvenda)
     não passam por essa trava.
 
+39. **Classificação da IA não pode desligar nada sozinha.** O webhook chamava
+    `registrar_optout` sempre que a IA lia `sair`, e **3 de 3** foram engano: *"vou
+    sair daqui a pouco"* e *"hoje vou sair"* (RENATO, 4582) e *"por favor,
+    mantenha-me informado"* (JOAO RILLO, 4220, com confiança 7 — a frase pedia o
+    contrário). O estrago não aparece: o opt-out cala a régua **e** a escada da
+    Isabela (`atendimento_candidatos` corta quem saiu), então o cliente que
+    pergunta da luz amarela do inversor no sábado não gera aviso a ninguém. E a
+    tela não tinha como voltar atrás — o botão só existia para quem nunca tinha
+    respondido. Desde 23/10 a IA só **marca** e **avisa**, e a equipe decide (§4,
+    "Opt-out"). **A IA pode sugerir; o que tira cliente de algo, ou fala com ele
+    em nome da empresa, passa por gente** — é a regra 3.5 do outro lado.
+
 ---
 
 ## 10. Estado e pendências
@@ -2333,32 +2380,32 @@ Conferido no banco em **22/09/2026**.
       semana nem o aviso à equipe saíam para ele (em 17/10 ele perguntou da luz
       amarela do inversor; o Vitor respondeu em 19/10). É cliente ativo: nota
       10, avaliou no Google, autorizou as mensagens em 10/08.
-      **OK do Vitor para desfazer em 19/10.** O script está pronto e testado em
-      `migrations/2026-10-19_renato_optout_desfeito.sql`, mas **falta rodar no
-      painel do Supabase**: a ferramenta do chat segurou (armadilha 34). Ele tira
-      o opt-out (o termo de 10/08 fica), registra em `consentimentos`, passa as
-      duas mensagens para `agendamento`, ensina a IA (2 exemplos) e devolve a
-      régua do d75 (26/10) em diante; o d30 (vencido) e o d45 (pediria indicação
-      três semanas antes do d90) ficam cancelados, com o motivo escrito. Tem
-      trava: se ele pedir para sair de novo antes de alguém rodar, o script para
-      sem mexer em nada.
-      ⚠️ **O Vitor rodou o script duas vezes (19/10 e 21/10) e nada gravou
-      neste banco**, embora a tela dele tenha mostrado `pendente` na segunda.
-      Conferido às 12:37 de 21/10: nenhum erro no log do Postgres, nenhum
-      registro do comando nem do `select` final em `pg_stat_statements` (onde
-      os `do` da TANAKA e das indicações aparecem), nenhuma transação aberta, e
-      só existe um projeto, sem branch. Onde rodou ainda não se sabe.
+      O script de 19/10 (`migrations/2026-10-19_renato_optout_desfeito.sql`) foi
+      rodado pelo Vitor no painel em 19/10 e 21/10 e **nada gravou neste banco**
+      — nenhum erro no log, nada em `pg_stat_statements`, nenhuma transação
+      aberta, um projeto só. Onde rodou não se sabe; ficou marcado "não rodar".
       ⚠️ **Terceiro opt-out falso em 21/10 12:10: JOAO RILLO (4220)** escreveu
       *"Por favor, mantenha-me informado"* e a IA leu como `sair` (confiança 7).
-      Ficou fora da régua (o d365 de 22/04/2027) e da escada da Isabela. **Os 3
-      opt-outs automáticos da história são falsos.**
-      **Falta decidir (Vitor):** não deixar opt-out valer sozinho por
-      classificação da IA — exigir pedido explícito ou passar pela Lívia. Os
-      dois exemplos ensinam só essas frases; outro jeito de dizer que vai sair
-      de casa ainda pode tirar alguém das mensagens.
+      **Os 3 opt-outs automáticos da história são falsos.**
+      **Decidido e feito em 23/10** (Vitor: "pode fazer a sua recomendação"): a
+      IA não tira mais ninguém, a Lívia é avisada e confirma (§4, "Opt-out";
+      armadilha 39). **Falta só clicar:** Pós-venda › ficha do RENATO e do JOAO
+      RILLO › **desfazer saída**. O Renato volta com 5 mensagens da régua (d75 de
+      26/10 em diante — o d30 e o d45 venceram); o JOAO RILLO volta sem mexer na
+      régua (o d365 dele nunca foi cancelado). Os dois mantêm a autorização
+      original. Ensaiado no Postgres descartável com as linhas reais (24 casos).
 - [ ] **O NPS sai no fim de semana.** O cron `nps-envio-v2` roda todo dia às 10h:
       a TANAKA recebeu a pesquisa no sábado 17/10. Contra "fim de semana,
-      mensagem para cliente não" (§6). Decisão do Vitor.
+      mensagem para cliente não" (§6). Decisão do Vitor. ⚠️ Em 23/10 o THALES
+      (4695) e o Alessandro Taparo (4865) foram ativados às 8h28 — pela regra de
+      um dia depois da ativação, a pesquisa deles sai no **sábado 24/10 às 10h**.
+      Mudar é trocar o horário do cron para seg–sex (`0 13 * * 1-5`).
+- [ ] **Três obras entregues sem monitoramento** (levantado em 23/10): JORGE
+      NAKAZA (4846, **sem cidade** no cadastro), Patrick Weslley e Bruna (4872) e
+      THALES MARIANO (4695). A simulação do vinculador não acha nenhuma no
+      SolarView — as sugestões eram outras pessoas ("Jorge Luiz da Silva", "Bruna
+      Lisa da Silva") e o THALES não tem nada parecido. É cadastrar a usina lá com
+      o **número do contrato no nome** (como a TANAKA) que a rodada das 10h40 liga.
 - [ ] **O termo de aceite pedido na ativação nunca é cobrado.**
       `trg_marcar_aceite_pedido` carimba `aceite_pedido_em` quando a obra chega
       na 8, e `obras_para_cobrar_aceite()` diz quem cobrar em 3 e 7 dias — mas
