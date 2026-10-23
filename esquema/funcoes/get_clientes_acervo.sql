@@ -22,7 +22,7 @@ begin
       'nota', (select max(n.nota) from nps n join obras o on o.id=n.obra_id where o.cliente_id=c.id),
       'relatorios', (select count(*) from obra_relatorios r join obras o on o.id=r.obra_id where o.cliente_id=c.id),
       'detalhe', (select coalesce(json_agg(json_build_object(
-            'obra_id', o.id, 'contrato', o.contrato, 'status', o.status,
+            'obra_id', o.id, 'contrato', o.contrato, 'status', case when o.cancelada_em is not null then 'Cancelada' else o.status end,
             'concluida', o.data_conclusao, 'slug', o.slug,
             'usinas', (select coalesce(json_agg(json_build_object(
                  'apelido', u.apelido, 'kwp', u.potencia_kwp, 'papel', ou.papel,

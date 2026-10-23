@@ -140,6 +140,44 @@ equipe só o link do checklist (se o relatório ainda não foi enviado). Data fo
 de 2020 a 3 anos à frente é recusada na tela e no banco (`trava_datas_obra`,
 armadilha 38).
 
+### Obra cancelada: sai de tudo, não se apaga
+Cliente que desistiu **se cancela, não se exclui** (23/10, BARBARA EDEN BINE 4756 —
+o Vitor pediu "excluir do sistema"). Excluir não dava e não devia: a obra tinha
+dois movimentos do extrato ligados (**R$ 2.615,05** que entraram da BMP em 14/09 e
+**R$ 108,39** da ART), e `extrato_rateio.obra_id` não deixa apagar a obra; forçando,
+iriam as 82 mensagens do grupo — com a negociação do cancelamento ainda aberta — e
+o vínculo do dinheiro que pode ter de voltar para a financeira (armadilha 40).
+
+`obras.cancelada_em` / `cancelada_motivo` / `cancelada_por` guardam o estado de
+hoje; **`obra_cancelamentos`** guarda cada cancelamento e cada "desfazer" e não se
+apaga (é ele que a `linha_do_tempo` mostra). Quem grava é **`obra_cancelar(obra,
+motivo, simular)`** e **`obra_cancelar_desfazer(obra, motivo, simular)`** — só admin
+(o mesmo de excluir), simular por padrão, motivo obrigatório. Obra **entregue**
+(última etapa da trilha) é recusada. A tela é o botão **"Cliente desistiu — cancelar
+esta obra"** no card (linha de admin); ela simula, mostra o que sai e o que fica, e
+só então grava.
+
+O que a obra cancelada **deixa**: o quadro e a TV (no painel ela vai para o chip
+**"✖ Canceladas"**, e o card abre **só para ler**, com a faixa de quando e por quê),
+as métricas de venda e o DRE da venda (`sincroniza_dre_obra` apaga o lançamento de
+origem `obra`; desfazer devolve), o alerta de prazo, a fila e as conferências do
+financeiro, o Início, os relatórios pendentes, a agenda, o lembrete da véspera, a
+cobrança das fotos, as travas e o **link do instalador** (passa a dizer "link
+inválido"). O painel também **recusa mensagem para o grupo de obra cancelada**
+(última porta, no `sb.functions.invoke`).
+
+O que **fica de propósito**: o grupo e a escada da Isabela (se a cliente escrever no
+meio da negociação, alguém é avisado), o dinheiro do extrato e a conciliação (a
+**devolução tem de ser classificada na mesma obra** — o financeiro continua listando
+a obra cancelada), o histórico de etapas e a ficha. `obras.status` continua o da
+etapa (o `fn_status_auto` o reescreve); quem quer saber se está cancelada lê
+`cancelada_em` — a lista de clientes (`get_clientes_acervo`) já devolve "Cancelada".
+
+⚠️ **Função nova que lista obra para trabalho, contagem ou mensagem tem de pular
+`cancelada_em`.** São 19 hoje (ver a migração `2026-10-23_obra_cancelada.sql`); o
+`status <> 'Cancelado'` que três delas tinham **nunca funcionou** — o check de
+`obras.status` não aceita esse valor.
+
 ### Financeiro
 `obra_financeiro` (preco_negociado, custos, dispensado) · `obra_parcelas`
 (previsão de recebimento) · `extrato_movimentos` (OFX) · `extrato_rateio`
@@ -1081,6 +1119,7 @@ cartão da indicação.
 | `posvenda_selo()` · `posvenda_hoje()` | o número do selo do Painel e da aba Hoje (aprovações + clientes esperando + indicações novas) · o selo + a lista das 8h, atrás de `is_autorizado()` |
 | `indicacao_descartar(id, motivo, reclassificar, simular)` | "não era indicação": guarda o status de antes, reclassifica o recado e ensina a IA — menos quando é cópia de uma indicação viva |
 | `indicacao_telefone(id, telefone)` | põe o telefone na indicação que a IA achou sem número; sem ele ela não anda no funil |
+| `obra_cancelar(obra, motivo, simular)` · `obra_cancelar_desfazer(obra, motivo, simular)` | **cliente desistiu**: a obra sai do quadro, das métricas, do DRE da venda, dos alertas e do financeiro, e o histórico, o grupo e o dinheiro do extrato ficam. Só admin, simula por padrão e devolve o que sai, o que fica e os avisos. Recusa obra entregue e motivo vazio |
 | `registrar_optin_manual(obra, origem)` | autorização pela equipe **e** o "desfazer saída" da ficha: tira o opt-out, mantém a autorização original, devolve a régua cancelada pelo opt-out que ainda está no prazo e conta em `consentimentos` o que caiu |
 | `regua_bloqueio(obra, modelo)` | por que uma mensagem da régua não sai hoje — sem grupo, opt-out, **"pediu para sair?" esperando a equipe** (3 dias), sem autorização, já indicou, sem geração. O disparo das 17h pula toda linha com bloqueio |
 | `webhook_ja_visto(id, texto)` · `webhook_esquecer(id, texto)` | a trava do webhook contra a mesma mensagem entregue de novo pela Z-API · solta a trava quando a gravação falha (só service_role) |
@@ -1890,6 +1929,21 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     "Opt-out"). **A IA pode sugerir; o que tira cliente de algo, ou fala com ele
     em nome da empresa, passa por gente** — é a regra 3.5 do outro lado.
 
+40. **"Excluir" não é o que se faz com cliente que desistiu — e o botão de excluir
+    apagava as fotos antes de saber se ia conseguir.** BARBARA EDEN BINE (4756),
+    23/10: o Vitor pediu para excluir. O `deletar-obra` (v4) listava e apagava os
+    arquivos do storage e **só depois** tentava `delete from obras`; com dinheiro
+    do extrato ligado (`extrato_rateio.obra_id` não tem cascade — nem
+    `cartao_compras`, `plano_visita` e `extrato_regras`), o banco recusava, a obra
+    ficava, e as fotos já tinham ido embora. A tela ainda mostrava o erro do
+    Postgres em inglês. Desde a **v5** a obra sai primeiro e os arquivos depois, e
+    a tela traduz a recusa e aponta para o cancelamento (§4, "Obra cancelada").
+    E havia um cancelamento esperado que nunca existiu: três funções filtravam
+    `status <> 'Cancelado'`, valor que o check de `obras.status` recusa e que o
+    `fn_status_auto` reescreveria pela etapa. **Filtro que nunca filtra nada parece
+    proteção** — antes de confiar num, confira se o valor que ele espera pode
+    existir.
+
 ---
 
 ## 10. Estado e pendências
@@ -2344,7 +2398,7 @@ Conferido no banco em **22/09/2026**.
       confirmação não chega a quem está no chat). Apagar pelo painel do Supabase:
       `delete from mensagens_recebidas where zapi_message_id = 'TESTE-DEDUP-1510';`
       `delete from webhook_vistos where zapi_message_id = 'TESTE-DEDUP-1510';`
-- [ ] **Cinco obras da etapa 6 em diante sem data de instalação** (armadilha 37;
+- [ ] **Quatro obras da etapa 6 em diante sem data de instalação** (armadilha 37;
       eram seis em 16/10). Nenhuma tem a venda no DRE. A data é de quem
       acompanhou a obra; aqui fica o que o banco e os grupos mostram:
 
@@ -2354,7 +2408,23 @@ Conferido no banco em **22/09/2026**.
       | JORGE NAKAZA (4846) | 7 | R$ 13.900 | 20 fotos do instalador em 06/10 |
       | IGREJA BATISTA (4810) | 6 | R$ 30.000 | a quadra foi combinada para 07/10 no grupo; o espaço Comunhão, para 19/10 |
       | Bassetto, eletroposto (4674) | 7 | R$ 150.000 | também sem instalador |
-      | BARBARA (4756) | 6 | R$ 18.000 | a cliente pediu o cancelamento em 07/10 |
+
+      ✅ **BARBARA (4756)** saiu da lista: **cancelada em 23/10 13:53** (abaixo).
+- [ ] **BARBARA EDEN BINE (4756) cancelada — falta o dinheiro fechar.** O Vitor
+      pediu para excluir; virou o primeiro cancelamento do sistema (§4, "Obra
+      cancelada"). Ela saiu do quadro, das métricas (agosto: 8 → 7 vendas, faturado
+      R$ 197.050 → R$ 179.050), do alerta de prazo, da fila e das conferências do
+      financeiro (23 → 22 fichas que não fecham) e o link do instalador fechou. O que
+      ficou ligado a ela: **R$ 2.615,05 recebidos da BMP em 14/09** (a financeira —
+      conciliados como 1ª parcela em 06/10) e **R$ 108,39 da ART** (14/08). No grupo,
+      em 21/10, a negociação seguia aberta: a taxa da distribuidora (R$ 1.259,64 —
+      ela aceita o frete e questiona os 10%), o Vitor não cobra o projeto, e a
+      financeira (Solagora; o dinheiro veio pela BMP) ia falar com ela; a 1ª parcela
+      do financiamento vence no fim de outubro (29 ou 30/10 — as mensagens
+      divergem). **Se o dinheiro voltar
+      para a financeira, a saída se classifica no extrato nesta mesma obra.** A página
+      do cliente (`cliente.html`) ainda mostra "Execução da Obra": dizer que foi
+      cancelada é texto para o cliente — decisão do Vitor.
 
       ✅ **TANAKA (4745)**: data de instalação **15/10** preenchida pelo Vitor em
       19/10 — a venda de R$ 49.500 entrou no DRE de outubro. Nada foi mandado ao
