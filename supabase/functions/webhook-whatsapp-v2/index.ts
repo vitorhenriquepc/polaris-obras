@@ -32,6 +32,15 @@ function achaNum(o: any, chaves: string[]): number | null {
   }
   return null;
 }
+function com55(tel?: string | null) {
+  const d = String(tel || '').replace(/\D/g, '');
+  if (d.length < 10) return '';
+  return d.length <= 11 && !d.startsWith('55') ? '55' + d : d;
+}
+// senha e e-mail não vão para o aviso da equipe (o mesmo cuidado da Isabela)
+const mascara = (t: string) => String(t || '')
+  .replace(/(senha\s*[:=]?\s*)\S+/gi, '$1***')
+  .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[e-mail]');
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -57,7 +66,7 @@ Deno.serve(async (req: Request) => {
     const { data: donaId } = await admin.rpc('obra_do_grupo', { p_grupo: grupo });
     const { data: obra } = donaId
       ? await admin.from('obras')
-        .select('id, cliente, vendedor_id, iptu_avisado_em, iptu_respondido_em, optin_pedido_em, optin_em, optout_em, aceite_em, aceite_pedido_em, nps_enviado_em')
+        .select('id, cliente, contrato, vendedor_id, iptu_avisado_em, iptu_respondido_em, optin_pedido_em, optin_em, optout_em, aceite_em, aceite_pedido_em, nps_enviado_em')
         .eq('id', donaId).maybeSingle()
       : { data: null };
     if (!obra) return json({ ok: true, ignorado: 'grupo interno' });
@@ -249,7 +258,7 @@ Contextos: indicacao, iptu, tecnico, conta, reclamacao, elogio, sair, agendament
 - conta: dúvida sobre conta de luz, compensação, fatura
 - reclamacao: insatisfação, cobrança de retorno, ameaça de cancelamento
 - elogio: agradecimento ou elogio relevante
-- sair: pedido para parar de receber mensagens
+- sair: pedido EXPLÍCITO para parar de receber mensagens ou sair do grupo. Avisar que vai sair de casa ("vou sair daqui a pouco", "hoje vou sair") ou pedir para continuar informado ("mantenha-me informado") NÃO é sair
 - agendamento: remarcar, confirmar ou perguntar sobre data
 - geral: sem ação necessária
 
@@ -279,10 +288,6 @@ Responda APENAS com JSON:
       }
     }
 
-    if (contexto === 'sair') {
-      await admin.rpc('registrar_optout', { p_obra: obra.id, p_origem: 'whatsapp' });
-    }
-
     let deixaPendente = false;
     if (tipo === 'texto') deixaPendente = true;
     if (tipo === 'audio' && midiaUrl) deixaPendente = true;
@@ -294,7 +299,7 @@ Responda APENAS com JSON:
       da_equipe: false,
       nps_checada_em: deixaPendente ? null : new Date().toISOString(),
       ...midia,
-    }).select('id').single();
+    }).select('id, texto').single();
     if (error) {
       if (soltarTrava) await soltarTrava().catch(() => {});
       return json({ error: error.message }, 500);
@@ -303,6 +308,40 @@ Responda APENAS com JSON:
     const upd: Record<string, unknown> = { ultima_resposta_em: new Date().toISOString() };
     if (contexto === 'iptu' && !obra.iptu_respondido_em) upd.iptu_respondido_em = new Date().toISOString();
     await admin.from('obras').update(upd).eq('id', obra.id);
+
+    // A IA leu "quer sair das mensagens". Até 23/10 isso virava opt-out na hora, sem
+    // ninguém confirmar — e os 3 casos da história eram falsos ("vou sair daqui a
+    // pouco", "hoje vou sair", "por favor, mantenha-me informado"). Agora a IA só
+    // marca: a régua espera uns dias (regua_bloqueio) e a pós-venda é avisada no
+    // privado para confirmar na ficha. Um aviso por cliente a cada 24 h.
+    if (contexto === 'sair') {
+      try {
+        const desde = new Date(Date.now() - 86400000).toISOString();
+        const { data: jaAvisou } = await admin.from('mensagens_recebidas').select('id')
+          .eq('obra_id', obra.id).eq('contexto', 'sair').gte('alerta_enviado_em', desde).limit(1);
+        const { data: pv } = await admin.from('equipe').select('telefone')
+          .eq('resp_posvenda', true).eq('ativo', true).not('telefone', 'is', null).limit(1).maybeSingle();
+        const ZI = (Deno.env.get('ZAPI_INSTANCE_ID') || '').trim();
+        const ZT = (Deno.env.get('ZAPI_TOKEN') || Deno.env.get('ZAPI_INSTANCE_TOKEN') || '').trim();
+        const ZC = (Deno.env.get('ZAPI_CLIENT_TOKEN') || '').trim();
+        const fone = com55(pv?.telefone);
+        if (!jaAvisou?.length && fone && ZI && ZT && ZC) {
+          const dias = await cfg('optout_ia_segura_dias', '3');
+          const aviso = `🚪 *Pediu para sair das mensagens?*\n\n` +
+            `*${obra.cliente}*${obra.contrato ? ' (#' + obra.contrato + ')' : ''} escreveu no grupo:\n` +
+            `_"${mascara(msg.texto || limpo).slice(0, 300)}"_\n\n` +
+            `A IA entendeu como pedido para parar de receber mensagens. *Nada foi desligado:* ` +
+            `a régua dele espera ${dias} dias.\n\n` +
+            `• Se for isso: Pós-venda › ficha do cliente › *registrar saída*.\n` +
+            `• Se não for: não precisa fazer nada.`;
+          const r = await fetch(`https://api.z-api.io/instances/${ZI}/token/${ZT}/send-text`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Client-Token': ZC },
+            body: JSON.stringify({ phone: fone, message: aviso }),
+          });
+          if (r.ok) await admin.from('mensagens_recebidas').update({ alerta_enviado_em: new Date().toISOString() }).eq('id', msg.id);
+        }
+      } catch (_) { /* o recado já está gravado, e o aviso das 8h também mostra */ }
+    }
 
     if (contexto === 'indicacao') {
       try {
