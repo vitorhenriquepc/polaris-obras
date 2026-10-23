@@ -393,6 +393,18 @@ font-size:12px;font-weight:700;color:#e07070}
 .chip.semorig .n{color:#F5A623}
 .chip.trava{border-color:rgba(224,112,112,.5)}
 .chip.trava .n{color:#e07070}
+.chip.canc{border-style:dashed}
+.chip.canc .n{color:var(--muted)}
+.chip.canc.on{border-style:solid}
+.list.cancl{max-width:980px}
+.cancAviso{grid-column:1/-1;font-size:12px;color:var(--muted);line-height:1.45;margin:2px 2px 4px}
+.obra.canc{opacity:.86}
+.obra.canc .meta + .meta{margin-top:3px}
+.cancFaixa{background:rgba(224,112,112,.08);border:1px solid rgba(224,112,112,.35);border-radius:11px;
+padding:10px 12px;margin:4px 0 12px;font-size:12.5px;line-height:1.45;color:var(--txt)}
+.cancFaixa b{color:#e07070}
+.cancFaixa .mut{color:var(--muted);margin-top:4px;font-size:11.5px}
+.modal.somenteLeitura :disabled{opacity:.6;cursor:not-allowed}
 .bloco{border:1px solid rgba(255,255,255,.10);border-radius:11px;margin:11px 0;overflow:hidden}
 .bloco>summary{list-style:none;cursor:pointer;padding:11px 13px;display:flex;align-items:center;
 gap:9px;font-size:13px;font-weight:800;color:#c9d6e2;background:rgba(255,255,255,.03)}
@@ -501,6 +513,13 @@ if(sb){
   const invokeOriginal = sb.functions.invoke.bind(sb.functions);
   sb.functions.invoke = async function(nome, opts){
     if(ENVIOS_CLIENTE.indexOf(nome)>=0){
+      // obra cancelada não recebe mensagem pelo painel (23/10): o card dela abre
+      // só para ler, e esta é a última porta antes do WhatsApp
+      const g = opts && opts.body && opts.body.grupo_id;
+      const canc = g && !OBRAS.some(o=>o.whatsapp_grupo_id===g) && CANCELADAS.find(o=>o.whatsapp_grupo_id===g);
+      if(canc){
+        return { data:null, error:{ message:'A obra de '+canc.cliente+' está cancelada — nada foi enviado. Se a venda voltou, desfaça o cancelamento no card.' } };
+      }
       VERSAO.conferida_em = 0;   // antes de falar com o cliente, confere agora
       if(await paginaVelha()){
         return { data:null, error:{ message:'Esta aba está com uma versão antiga do painel. Recarregue a página (Ctrl+F5) e mande de novo — nada foi enviado.' } };
@@ -515,7 +534,8 @@ if(sb){
 }
 
 let ET = {}; // catálogo de etapas {numero: {...}}
-let OBRAS = []; // obras carregadas
+let OBRAS = []; // obras carregadas (sem as canceladas)
+let CANCELADAS = []; // obras canceladas: fora do quadro e das contagens, mas o card abre
 let EQUIPE = []; // equipe (para vendedor e grupos)
 let filtroEtapa = null, busca = "";
 let rtChannel = null;
@@ -571,7 +591,7 @@ function avisoSemData(o){
     +'Marque a data no card (📅 Agenda e equipe). Avançar mesmo assim?';
 }
 function diasAtras(iso){const d=parseDate(iso);if(!d)return '';const n=diffDays(d,new Date());return n<=0?'hoje':(n===1?'ontem':'há '+n+'d');}
-function toast(m){let t=document.getElementById('tst');if(!t){t=document.createElement('div');t.id='tst';t.className='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2600);}
+function toast(m,ms){let t=document.getElementById('tst');if(!t){t=document.createElement('div');t.id='tst';t.className='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),ms||2600);}
 function temaAtual(){try{return localStorage.getItem('polaris-tema')||'dark'}catch(_){return 'dark'}}
 function aplicarTema(t){document.documentElement.setAttribute('data-theme',t);const b=document.getElementById('bTema');if(b)b.textContent=t==='dark'?'🌙':'☀️';document.querySelectorAll('.topbar img').forEach(function(i){i.src=(t==='light'?LOGO_CLARO:LOGO);});try{localStorage.setItem('polaris-tema',t)}catch(_){}}
 function toggleTema(){aplicarTema(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')}
@@ -779,7 +799,12 @@ function travaCritica(o){ const t=travaInfo(o.trava); const d=diasTravada(o);
 async function loadObras(){
 const { data, error } = await sb.from('obras').select('*');
 if(error){ document.getElementById('list').innerHTML=`<div class="empty"><span class="i">⚠️</span>Erro ao carregar: ${esc(error.message)}</div>`; return; }
-OBRAS = data||[];
+/* Obra cancelada (cliente desistiu — BARBARA 4756, 23/10) não entra no quadro,
+   nas contagens nem na busca: fica no chip "Canceladas". O card dela ainda abre
+   (getObra olha as duas listas) e o slug continua reservado (slugUnico). */
+OBRAS = (data||[]).filter(o=>!o.cancelada_em);
+CANCELADAS = (data||[]).filter(o=>o.cancelada_em);
+if(filtroCanc && !CANCELADAS.length) filtroCanc=false;
 renderStats(); renderDChips(); renderCChips(); renderList(); checarRespostas(); checarPosvenda();
 }
 
@@ -794,6 +819,7 @@ if(relP) h+=`<div class="chip relx ${filtroRel?'on':''}" onclick="setFiltroRel()
 const semO=OBRAS.filter(o=>!o.origem_lead).length;
 for(let n=8;n>=0;n--){ if(!cont[n]) continue; const e=ET[n]||{nome:'Etapa '+n,icone:''};
 h+=`<div class="chip ${filtroEtapa===n?'on':''}" onclick="setFiltro(${n})"><div class="n">${cont[n]}</div><div class="l">${e.icone||''} ${esc((e.nome||'').replace('!',''))}</div></div>`; }
+if(CANCELADAS.length) h+=`<div class="chip canc ${filtroCanc?'on':''}" onclick="setFiltroCanc()" title="Obras de quem desistiu: fora do quadro, das métricas e dos alertas"><div class="n">${CANCELADAS.length}</div><div class="l">✖ Canceladas</div></div>`;
 if(true){
   h+=`<div class="chip mais ${MAISF?'on':''}" onclick="toggleFiltros()"><div class="n">${MAISF?'✕':'⋯'}</div><div class="l">${MAISF?'Fechar':'Filtros'}</div></div>`;
 }
@@ -817,8 +843,13 @@ if(ex){
   }
 }
 }
-function setFiltro(n){ filtroEtapa=(filtroEtapa===n?null:n); filtroTrava=false; filtroOrigem=''; filtroRel=false; renderStats(); renderList(); }
-let filtroTrava=false, filtroOrigem='', filtroRel=false, MAISF=false;
+function setFiltro(n){ filtroEtapa=(filtroEtapa===n?null:n); filtroTrava=false; filtroOrigem=''; filtroRel=false; filtroCanc=false; renderStats(); renderList(); }
+let filtroTrava=false, filtroOrigem='', filtroRel=false, MAISF=false, filtroCanc=false;
+function setFiltroCanc(){
+  filtroCanc=!filtroCanc;
+  if(filtroCanc){ filtroEtapa=null; filtroTrava=false; filtroOrigem=''; filtroRel=false; }
+  renderStats(); renderList();
+}
 function toggleFiltros(){
   MAISF=!MAISF;
   if(!MAISF){ filtroOrigem=''; filtroCat=''; }
@@ -828,15 +859,15 @@ function toggleFiltros(){
 }
 function setFiltroRel(){
   filtroRel=!filtroRel;
-  if(filtroRel){ filtroEtapa=null; filtroTrava=false; filtroOrigem=''; }
+  if(filtroRel){ filtroEtapa=null; filtroTrava=false; filtroOrigem=''; filtroCanc=false; }
   renderStats(); renderList();
 }
 function setFiltroOrigem(k){
   filtroOrigem=(filtroOrigem===k?'':k);
-  if(filtroOrigem){ filtroEtapa=null; filtroTrava=false; filtroRel=false; }
+  if(filtroOrigem){ filtroEtapa=null; filtroTrava=false; filtroRel=false; filtroCanc=false; }
   renderStats(); renderList();
 }
-function setFiltroTrava(){ filtroTrava=!filtroTrava; if(filtroTrava){filtroEtapa=null;filtroOrigem='';filtroRel=false;} renderStats(); renderList(); }
+function setFiltroTrava(){ filtroTrava=!filtroTrava; if(filtroTrava){filtroEtapa=null;filtroOrigem='';filtroRel=false;filtroCanc=false;} renderStats(); renderList(); }
 let filtroDias=null;
 const DFILTROS=[{k:null,l:'Todos os prazos'},{k:7,l:'⏱️ Até 7 dias'},{k:30,l:'📅 +30 dias'},{k:60,l:'🚨 +60 dias'}];
 let filtroCat='';
@@ -893,6 +924,7 @@ renderKanban();
 }
 function diasObra(o){ if(!o.data_fechamento) return null; const d=parseDate(o.data_fechamento); if(!d) return null; return diffDays(d,new Date()); }
 function renderList(){
+if(filtroCanc) return renderCanceladas();
 if(VIEW==='kanban') return renderKanban();
 if(VIEW==='clientes') return renderClientes();
 if(VIEW==='relatorios') return renderRelatorios();
@@ -915,6 +947,35 @@ const el=document.getElementById('list');
 el.className='list'; el.style.display='';
 if(!arr.length){ el.innerHTML=`<div class="empty"><span class="i">📋</span>Nenhuma obra encontrada.</div>`; return; }
 el.innerHTML = arr.map(cardHtml).join('');
+}
+/* O chip "Canceladas": a lista de quem desistiu, com quando e por quê. Clicar
+   abre o card só para ler; é lá que fica o "Desfazer o cancelamento". */
+function renderCanceladas(){
+const el=document.getElementById('list');
+el.className='list cancl'; el.style.display='';
+let arr=CANCELADAS.slice();
+if(busca) arr=arr.filter(o=> (o.cliente||'').toLowerCase().includes(busca) || (o.contrato||'').includes(busca));
+arr.sort((a,b)=>String(b.cancelada_em).localeCompare(String(a.cancelada_em)));
+if(!arr.length){ el.innerHTML=`<div class="empty"><span class="i">✖</span>Nenhuma obra cancelada${busca?' com esse nome':''}.</div>`; return; }
+el.innerHTML='<div class="cancAviso">Obras de quem desistiu. Ficam fora do quadro, das métricas de venda, dos alertas e do financeiro; '
+  +'o histórico, a conversa do grupo e o dinheiro do extrato continuam ligados a elas. Abra para ver ou desfazer.</div>'
+  +arr.map(cardCancelada).join('');
+}
+function cardCancelada(o){
+const quando=new Date(o.cancelada_em).toLocaleDateString('pt-BR');
+const bits=[];
+if(o.contrato) bits.push('#'+esc(o.contrato));
+if(o.valor_projeto) bits.push('R$ '+Number(o.valor_projeto).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
+bits.push('cancelada em '+quando);
+return `<div class="obra canc" data-id="${o.id}" style="cursor:pointer" onclick="openForm('${o.id}')">
+<div class="top">
+<div>
+<div class="nm">${esc(o.cliente)}</div>
+<div class="meta">${bits.join('<span>•</span>')}</div>
+${o.cancelada_motivo?`<div class="meta">${esc(o.cancelada_motivo)}</div>`:''}
+</div>
+<span class="badge b-st b-out">✖ Cancelada</span>
+</div></div>`;
 }
 let KTR='padrao';
 try{KTR=localStorage.getItem('polaris-kb-trilha')||'padrao'}catch(_){}
@@ -1523,7 +1584,7 @@ function toggleAcoes(ev,id){
   document.querySelectorAll('.acoes').forEach(function(b){ b.style.display='none'; });
   box.style.display = abrir ? 'block' : 'none';
 }
-function getObra(id){ return OBRAS.find(o=>o.id===id); }
+function getObra(id){ return OBRAS.find(o=>o.id===id) || CANCELADAS.find(o=>o.id===id); }
 
 /* A vistoria na concessionaria e um evento do fim da obra. O numero da etapa
    estava chumbado em DOIS lugares aqui embaixo; agora e uma constante so.
@@ -1744,15 +1805,76 @@ toast(n?('📎 '+n+' campo(s) importados'+(valorProp?' · proposta R$ '+valorPro
 }catch(e){toast('Erro ao ler PDF: '+e.message);}
 }
 async function excluirObra(id,nome){
-if(!confirm('⚠️ EXCLUIR A OBRA DE '+nome+'?\n\nIsto apaga PERMANENTEMENTE:\n• a obra e seu histórico de etapas\n• todas as fotos e vídeos\n• o termo assinado e a pesquisa de satisfação\n\nEsta ação NÃO pode ser desfeita.'))return;
+if(!confirm('⚠️ EXCLUIR A OBRA DE '+nome+'?\n\nIsto apaga PERMANENTEMENTE:\n• a obra e seu histórico de etapas\n• as mensagens do grupo gravadas aqui\n• todas as fotos e vídeos\n• o termo assinado e a pesquisa de satisfação\n\nEsta ação NÃO pode ser desfeita.\n\nSe o cliente desistiu, use "Cliente desistiu — cancelar esta obra": ela sai do quadro e o histórico fica.'))return;
 const conf=prompt('Para confirmar, digite EXCLUIR (em maiúsculas):');
 if(conf!=='EXCLUIR'){ toast('Exclusão cancelada'); return; }
 toast('Excluindo obra...');
-const r=await sb.functions.invoke('deletar-obra',{body:{obra_id:id}});
-if(r.error||(r.data&&r.data.error)){ toast('Erro: '+((r.data&&r.data.error)||r.error.message)); return; }
+const r=await invokeFn('deletar-obra',{obra_id:id});
+if(r.error){
+  // o banco não deixa apagar obra com dinheiro ligado (extrato, cartão, visita
+  // de plano) — e não deve: é o caso de cancelar, não de excluir
+  if(/extrato_rateio|extrato_regras|cartao_compras|plano_visita|foreign key/i.test(r.error))
+    toast('Não dá para excluir: esta obra tem dinheiro do extrato ou do cartão (ou visita de plano) ligado a ela. Se o cliente desistiu, use "Cliente desistiu — cancelar esta obra" — ela sai do quadro e o histórico fica.', 9000);
+  else toast('Erro: '+r.error, 6000);
+  return;
+}
 fecharForm();
 toast('Obra excluída ✓');
 await loadObras();
+}
+/* Cliente desistiu (23/10, BARBARA 4756): a obra sai do quadro, das métricas,
+   dos alertas e do financeiro, e nada mais sai para o cliente pelo painel; o
+   histórico, as mensagens e o dinheiro do extrato continuam ligados a ela.
+   Simula primeiro e mostra o que sai e o que fica — só grava se confirmar. */
+async function cancelarObra(id){
+const o=getObra(id); if(!o) return;
+const motivo=prompt('Por que a obra de '+o.cliente+' foi cancelada?\n\nFica no histórico da obra. Ex.: "cliente desistiu em 07/10 — problema no imóvel".');
+if(motivo===null) return;
+const mt=motivo.trim();
+const s=await sb.rpc('obra_cancelar',{p_obra:id,p_motivo:mt,p_simular:true});
+if(s.error||!s.data||!s.data.ok){ toast('Não deu para cancelar: '+((s.data&&s.data.erro)||(s.error&&s.error.message)||'sem resposta do banco'), 6000); return; }
+const d=s.data;
+const lista=(t,a)=> (a&&a.length) ? '\n\n'+t+'\n• '+a.join('\n• ') : '';
+if(!confirm('✖ CANCELAR A OBRA DE '+o.cliente+'?'
+  +lista('Sai de:',d.sai_de)+lista('Fica:',d.fica)
+  +((d.avisos&&d.avisos.length)?'\n\n⚠️ '+d.avisos.join('\n⚠️ '):'')
+  +'\n\nNada é apagado e nada é mandado para o cliente. Dá para desfazer.')) return;
+const r=await sb.rpc('obra_cancelar',{p_obra:id,p_motivo:mt,p_simular:false});
+if(r.error||!r.data||!r.data.ok){ toast('Não cancelou: '+((r.data&&r.data.erro)||(r.error&&r.error.message)||'sem resposta do banco'), 6000); return; }
+fecharForm();
+toast('Obra cancelada ✓ — saiu do quadro. Ela fica no chip "Canceladas".', 5000);
+await loadObras();
+}
+async function desfazerCancelamento(id){
+const o=getObra(id); if(!o) return;
+const s=await sb.rpc('obra_cancelar_desfazer',{p_obra:id,p_simular:true});
+if(s.error||!s.data||!s.data.ok){ toast('Não deu para desfazer: '+((s.data&&s.data.erro)||(s.error&&s.error.message)||'sem resposta do banco'), 6000); return; }
+const motivo=prompt('Desfazer o cancelamento de '+o.cliente+'?\n\n'+s.data.volta+'\n\nPor quê? (fica no histórico; pode deixar em branco)');
+if(motivo===null) return;
+const r=await sb.rpc('obra_cancelar_desfazer',{p_obra:id,p_motivo:motivo.trim()||null,p_simular:false});
+if(r.error||!r.data||!r.data.ok){ toast('Não desfez: '+((r.data&&r.data.erro)||(r.error&&r.error.message)||'sem resposta do banco'), 6000); return; }
+fecharForm();
+toast('Cancelamento desfeito ✓ — a obra voltou para o quadro.', 5000);
+filtroCanc=false;   // mostra o quadro, onde ela reapareceu
+await loadObras();
+}
+/* O card da obra cancelada abre só para ler: mexer em quem desistiu não tem
+   motivo, e salvar com troca de etapa avisaria o cliente. Para voltar a
+   mexer, "Desfazer o cancelamento" (admin). */
+function travarCancelada(ov,o){
+const m=ov.querySelector('.modal'); if(!m) return;
+const f=document.createElement('div');
+f.className='cancFaixa';
+f.innerHTML='<b>✖ Obra cancelada em '+new Date(o.cancelada_em).toLocaleDateString('pt-BR')+'</b>'
+  +(o.cancelada_motivo?'<div>'+esc(o.cancelada_motivo)+'</div>':'')
+  +'<div class="mut">Fora do quadro, das métricas e dos alertas; nada sai para o cliente por aqui. '
+  +'O histórico, a conversa do grupo e o dinheiro do extrato continuam ligados à obra.'
+  +(o.cancelada_por?' Cancelada por '+esc(o.cancelada_por)+'.':'')+'</div>';
+m.insertBefore(f, m.children[1]||null);
+m.classList.add('somenteLeitura');
+m.querySelectorAll('input,select,textarea').forEach(el=>{ el.disabled=true; });
+m.querySelectorAll('.travasel button, button.act, button.tbtn').forEach(el=>{ el.disabled=true; });
+const sv=document.getElementById('f_save'); if(sv) sv.style.display='none';
 }
 async function avisarIPTU(id){
 const o=getObra(id);
@@ -2162,13 +2284,13 @@ function buscarCadastrado(){
   const termo=prompt('Nome ou contrato do cliente já cadastrado:');
   if(!termo) return;
   const t=termo.toLowerCase().trim();
-  const achados=OBRAS.filter(o=>(o.cliente||'').toLowerCase().includes(t)||(o.contrato||'').includes(t));
+  const achados=OBRAS.concat(CANCELADAS).filter(o=>(o.cliente||'').toLowerCase().includes(t)||(o.contrato||'').includes(t));
   if(!achados.length){ toast('Nenhum cadastro encontrado'); return; }
   let esc2=(x)=>String(x||'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
   const lista=achados.slice(0,8).map((o,i)=>
     (i+1)+'. '+o.cliente+(o.contrato?' · #'+o.contrato:'')+
     (o.potencia_kwp?' · '+String(o.potencia_kwp).replace('.',',')+' kWp':'')+
-    ' · '+trilhaNome(o.trilha||'padrao')).join('\n');
+    ' · '+trilhaNome(o.trilha||'padrao')+(o.cancelada_em?' · cancelada':'')).join('\n');
   const n=prompt('Qual deles?\n\n'+lista+'\n\nDigite o número:');
   const idx=parseInt(n,10)-1;
   if(isNaN(idx)||!achados[idx]) return;
@@ -2416,11 +2538,15 @@ ${ehMan?'':`
 <button class="cancel" onclick="fecharForm()">Cancelar</button>
 <button class="save" id="f_save">${novo?'Criar obra':'Salvar'}</button>
 </div>
-<div class="row" id="rowDel" style="display:none">
-<button class="cancel" style="width:100%;border-color:#e07070;color:#e07070" onclick="excluirObra('${o.id}',\`${esc(o.cliente||'')}\`)">🗑️ Excluir esta obra permanentemente</button>
+<div id="rowDel" style="display:none">
+<div class="row">${o.cancelada_em
+  ? `<button class="cancel" style="width:100%" onclick="desfazerCancelamento('${o.id}')">↩️ Desfazer o cancelamento</button>`
+  : `<button class="cancel" style="width:100%;border-color:#d99a3a;color:#d99a3a" onclick="cancelarObra('${o.id}')">✖ Cliente desistiu — cancelar esta obra</button>`}</div>
+<div class="row"><button class="cancel" style="width:100%;border-color:#e07070;color:#e07070" onclick="excluirObra('${o.id}',\`${esc(o.cliente||'')}\`)">🗑️ Excluir esta obra permanentemente</button></div>
 </div>
 </div>`;
 document.body.appendChild(ov);
+if(o.cancelada_em) travarCancelada(ov,o);
 limitaDatas(ov);
 ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
 if(focoFone) setTimeout(()=>document.getElementById('f_tel').focus(),50);
@@ -2611,7 +2737,7 @@ if(oAtual && dtiDepois){
 async function slugUnico(base){
 if(!base) base='cliente';
 let slug=base, i=1;
-while(OBRAS.some(o=>o.slug===slug)){ i++; slug=base+'-'+i; }
+while(OBRAS.some(o=>o.slug===slug) || CANCELADAS.some(o=>o.slug===slug)){ i++; slug=base+'-'+i; }
 return slug;
 }
 

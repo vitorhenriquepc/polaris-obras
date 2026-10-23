@@ -34,7 +34,7 @@ begin
         from obra_relatorios r where r.obra_id=o.id)
     ) as x
     from obras o
-    where o.status <> 'Cancelado'
+    where o.cancelada_em is null
       and ((coalesce(o.trilha,'padrao')='manutencao' and o.etapa_numero>=2)
         or (coalesce(o.trilha,'padrao')<>'manutencao' and o.etapa_numero>=6))
   ) t;

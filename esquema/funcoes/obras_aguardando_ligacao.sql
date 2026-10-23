@@ -21,7 +21,7 @@ begin
       'travada', (o.trava is not null)
     ) as x
     from obras o
-    where o.status <> 'Cancelado' and o.etapa_numero = 7
+    where o.cancelada_em is null and o.etapa_numero = 7
   ) t;
   return v;
 end $function$

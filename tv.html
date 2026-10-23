@@ -134,7 +134,8 @@ async function boot(){
 async function carregar(){
   var r=await sb.from('obras').select('*');
   if(r.error){document.getElementById('fstatus').textContent='erro ao atualizar';return;}
-  OBRAS=r.data||[];
+  // obra cancelada (cliente desistiu) não é obra em andamento
+  OBRAS=(r.data||[]).filter(function(o){return !o.cancelada_em});
   render();
   document.getElementById('fstatus').textContent='atualizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 }
