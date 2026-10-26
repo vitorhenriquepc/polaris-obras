@@ -15,7 +15,11 @@ create index if not exists idx_mon_usina ON public.usina_monitoramento USING btr
 
 alter table public.usina_monitoramento enable row level security;
 
-create policy usina_monitoramento_auth on public.usina_monitoramento for all to public
+create policy usina_monitoramento_auth_ins on public.usina_monitoramento for insert to public
+  with check (is_autorizado());
+create policy usina_monitoramento_auth_sel on public.usina_monitoramento for select to public
+  using (is_autorizado());
+create policy usina_monitoramento_auth_upd on public.usina_monitoramento for update to public
   using (is_autorizado())
   with check (is_autorizado());
 create policy usina_monitoramento_del on public.usina_monitoramento for delete to public

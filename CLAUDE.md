@@ -2551,7 +2551,10 @@ comercial (só depois do financeiro confiável).
 
 1. Leia este arquivo.
 2. Antes de criar, **procure se já existe**.
-3. Mudou banco? Vira arquivo em `migrations/`, numerado por data.
+3. Mudou banco? Vira arquivo em `migrations/`, numerado por data. Se o objeto
+   está em `esquema/` (função, tabela ou view sem migração de criação),
+   atualize o arquivo e o `MANIFESTO.md5` junto — `esquema/conferir.sql` diz
+   o que ficou para trás (em 26/10 eram 8 funções e 5 tabelas).
 4. Mudou tela? Valide a sintaxe do arquivo publicado.
 5. Vai alterar em lote? Simule, mostre, só então grave.
 6. Terminou? Diga o que testou e o que **não** testou.

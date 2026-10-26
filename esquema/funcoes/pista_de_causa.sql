@@ -14,6 +14,7 @@ AS $function$
     where m.obra_id = p_obra
       and m.recebida_em >= now() - make_interval(days => p_dias)
       and coalesce(m.transcricao, m.texto) is not null
+      and coalesce(m.contexto, '') <> 'automatica'  -- não ler os próprios avisos como pista (15/10)
   )
   select case
       when n ~ '(wi-?fi|wifi|internet|roteador|modem|senha da rede|trocou.*rede|sem sinal)' then 'wifi'

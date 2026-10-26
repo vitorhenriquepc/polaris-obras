@@ -26,7 +26,11 @@ CREATE UNIQUE INDEX uq_ou_principal ON public.obra_usina USING btree (obra_id) W
 
 alter table public.obra_usina enable row level security;
 
-create policy obra_usina_auth on public.obra_usina for all to public
+create policy obra_usina_auth_ins on public.obra_usina for insert to public
+  with check (is_autorizado());
+create policy obra_usina_auth_sel on public.obra_usina for select to public
+  using (is_autorizado());
+create policy obra_usina_auth_upd on public.obra_usina for update to public
   using (is_autorizado())
   with check (is_autorizado());
 create policy obra_usina_del on public.obra_usina for delete to public

@@ -13,6 +13,9 @@ begin
        'id', u.id, 'apelido', u.apelido, 'kwp', u.potencia_kwp,
        'instalada', u.data_instalacao, 'cidade', u.cidade,
        'status', u.status_atual, 'fator', u.fator_local,
+       'endereco', u.endereco,
+       'solarview_id', (select m.id_externo from usina_monitoramento m
+                          where m.usina_id=u.id and m.ativo limit 1),
        'fator_origem', u.fator_origem, 'nota', u.nota_geracao),
     'cliente', json_build_object('id', c.id, 'nome', c.nome, 'cidade', c.cidade),
     'estado', (select json_build_object('estado', e.estado, 'motivo', e.motivo, 'gravidade', e.gravidade)

@@ -1,4 +1,6 @@
--- Quem pode executar cada função desta pasta, como está no banco em 12/09/2026.
+-- Quem pode executar cada função desta pasta, como está no banco em 26/10/2026
+-- (conferido pelas ACLs: 48 só para a equipe logada, 5 só para o backend,
+-- 10 no padrão do Postgres; as assinaturas são as de hoje).
 -- O pg_get_functiondef não traz isso, então fica separado.
 --
 -- No Supabase o padrão do Postgres (execute para PUBLIC) alcança o anon —
@@ -110,6 +112,8 @@ revoke all on function public.conferir_saude_base() from public, anon, authentic
 revoke all on function public.get_marco_svc(p_usina uuid, p_marco integer) from public, anon, authenticated;
 revoke all on function public.get_usina_detalhe_svc(p_usina uuid, p_dias integer) from public, anon, authenticated;
 revoke all on function public.trg_marcar_aceite_pedido() from public, anon, authenticated;
+-- rls_auto_enable é chamada pelo event trigger ensure_rls (ver README), não pela API
+revoke all on function public.rls_auto_enable() from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------
 -- NO PADRÃO DO POSTGRES — execute liberado para PUBLIC, o que inclui o anon
@@ -117,18 +121,18 @@ revoke all on function public.trg_marcar_aceite_pedido() from public, anon, auth
 -- Sem statement aqui: é o estado que o banco tem hoje, e este arquivo
 -- registra o que existe, não o que deveria existir.
 --
--- Para a maioria não custa nada: auto_lida, espelha_preco_na_ficha,
--- mascara_credencial, trg_valida_lancamento e valida_obra_usina só rodam
--- por trigger; chave_nome, pontua_nome, tokens_iguais, mensagem_sem_acao e
--- fracao_polaris são cálculo puro; zz_lista e zz_brindes conferem permissão
--- por dentro.
+-- Não custa nada: auto_lida, espelha_preco_na_ficha, mascara_credencial,
+-- trg_valida_lancamento e valida_obra_usina só rodam por trigger;
+-- chave_nome, pontua_nome, tokens_iguais, mensagem_sem_acao e fracao_polaris
+-- são cálculo puro.
 --
 -- Três não conferiam nada e eram SECURITY DEFINER, ou seja, passavam por
 -- cima da RLS. Fechadas em 12/09/2026, com o Vitor de acordo — ver
--- ../../migrations/2026-09-12_revoga_anon_funcoes_expostas.sql.
+-- ../../migrations/2026-09-12_revoga_anon_funcoes_expostas.sql. Duas delas
+-- (_t_pend e zz_det) foram apagadas no mesmo dia, junto com zz_lista e
+-- zz_brindes (../../migrations/2026-09-12_limpeza_restos_e_indice.sql); o
+-- texto das quatro está no histórico do git, no commit e5a6232.
 
-revoke all on function public._t_pend(p_conta uuid)  from public, anon;
-revoke all on function public.zz_det(p_usina uuid)   from public, anon;
 revoke all on function public.manutencao_usinas()    from public, anon;
 
 -- manutencao_usinas continua sendo chamada pelo cron das 9h, que roda como

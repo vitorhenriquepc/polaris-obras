@@ -32,7 +32,7 @@ begin
     'obra_id', o.id,
     'exemplos', (select coalesce(string_agg(left(coalesce(m.transcricao,m.texto),200), E'\n---\n'),'')
                  from (select transcricao, texto from mensagens_recebidas mr
-                       where mr.obra_id=o.id and mr.da_equipe
+                       where mr.obra_id=o.id and mr.da_equipe and coalesce(mr.contexto, '') <> 'automatica'
                          and length(coalesce(mr.transcricao,mr.texto))>25
                        order by mr.recebida_em desc limit 4) m)
   ) into v
