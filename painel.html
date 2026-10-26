@@ -723,6 +723,14 @@ const ci = await sb.from('cidades_iptu').select('*'); CIDIPTU = {};
 (ci.data||[]).forEach(x => CIDIPTU[x.cidade] = x);
 }
 function etapasDe(tr){ return ETT[tr||'padrao'] || ETT['padrao'] || {}; }
+/* A última etapa da trilha da obra: 8 na padrão e no eletroposto, 4 na
+   manutenção ("Concluída"). Até 26/10 a tela usava 8 para todas, e manutenção
+   concluída contava como obra atrasada (Fatima Rino 3067 no alerta de prazos)
+   e ainda tinha o "Avançar ▶" ligado. É a obra_ativa() do banco. */
+function ultimaEtapa(o){
+  const ns=Object.keys(etapasDe(o&&o.trilha)).map(Number).filter(x=>!isNaN(x));
+  return ns.length ? Math.max.apply(null,ns) : 8;
+}
 function etOf(o,n){ const m=etapasDe(o&&o.trilha); return m[n!=null?n:o.etapa_numero] || {nome:'Etapa '+(n!=null?n:o.etapa_numero),icone:''}; }
 function catInfo(cod){ return CATS.find(x=>x.codigo===(cod||'residencial')) || {nome:'—',icone:''}; }
 function ramoNome(cod){ const r=RAMOS.find(x=>x.codigo===cod); return r?r.nome:''; }
@@ -890,7 +898,7 @@ return `<button class="dchip ${filtroDias===f.k?'on':''}" onclick="setFiltroDias
 }
 function passaDias(o,k){
 if(k===null) return true;
-if(o.etapa_numero>=8) return false;
+if(o.etapa_numero>=ultimaEtapa(o)) return false;
 const d=diasObra(o); if(d===null) return false;
 return k===7 ? d<=7 : d>k;
 }
@@ -1441,7 +1449,8 @@ if(o.cidade&&o.cidade!=='Araçatuba'){metaBits.push('📍 '+o.cidade);}
 metaBits.push('atualizado '+diasAtras(o.atualizado_em));
 if(o.observacoes) metaBits.push('📝 '+esc(o.observacoes));
 const _et=etapasDe(o.trilha);
-const opts=[0,1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===o.etapa_numero?'selected':''}>${(_et[n]?.icone||'')} ${n} - ${esc((_et[n]?.nome||'').replace('!',''))}</option>`).join('');
+const _ns=Object.keys(_et).map(Number).filter(x=>!isNaN(x)).sort((a,b)=>a-b);
+const opts=(_ns.length?_ns:[0,1,2,3,4,5,6,7,8]).map(n=>`<option value="${n}" ${n===o.etapa_numero?'selected':''}>${(_et[n]?.icone||'')} ${n} - ${esc((_et[n]?.nome||'').replace('!',''))}</option>`).join('');
 return `<div class="obra" data-id="${o.id}" style="cursor:pointer" onclick="if(!event.target.closest('.act,button,a'))openForm('${o.id}')">
 <div class="top">
 <div>
@@ -1453,7 +1462,7 @@ return `<div class="obra" data-id="${o.id}" style="cursor:pointer" onclick="if(!
 ${tarjaTrava(o)}
 <div class="ctrls">
 <select onchange="mudarEtapa('${o.id}',this.value)" title="Etapa">${opts}</select>
-<button class="act act-adv" ${o.etapa_numero>=8?'disabled':''} onclick="avancar('${o.id}')">Avançar ▶</button>
+<button class="act act-adv" ${o.etapa_numero>=ultimaEtapa(o)?'disabled':''} onclick="avancar('${o.id}')">Avançar ▶</button>
 <button class="act act-gh" onclick="toggleAcoes(event,'${o.id}')" title="Mais ações">⋯</button>
 </div>
 <div class="acoes" id="ac-${o.id}" style="display:none">
@@ -1664,7 +1673,7 @@ toast('Etapa atualizada ✓');
 await loadObras();
 }
 async function avancar(id){
-const o=getObra(id); if(o.etapa_numero>=8) return;
+const o=getObra(id); if(o.etapa_numero>=ultimaEtapa(o)) return;
 await mudarEtapa(id, o.etapa_numero+1);
 }
 function abrirRelatorio(id){const o=getObra(id);window.open('relatorio.html?id='+encodeURIComponent(o.slug),'_blank');}
