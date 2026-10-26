@@ -8,7 +8,7 @@ a8cbc0fdbd2eaf5bee0e6b9779a8891d  calibrar_tarifa.sql
 cc3bb3a01bf78c8df7b6e39a063070b8  classificar_lote.sql
 795154e8d39d4e4175b458fc6a543e88  classificar_movimento.sql
 52ce32d65c26d5ca6b80da9f070ab6e1  clientes_esperando.sql
-1dc6d133a816320dd1c50bc78057e7c4  conferir_saude_base.sql
+96146fa906cc09a3013d39352aaa1600  conferir_saude_base.sql
 68a31899cdc9b0b5ce98850078e84510  decidir_mensagem.sql
 44c9aea58c6ad1c9c3fe7425bdbe0cf6  descartar_movimento.sql
 c90d11619d69ff5da3d8eb7dfad85d7f  desfazer_lancamento.sql

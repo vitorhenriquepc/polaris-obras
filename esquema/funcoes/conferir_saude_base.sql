@@ -8,13 +8,22 @@ declare v json;
 begin
   select coalesce(json_agg(json_build_object('achado', achado, 'qtd', qtd)),'[]'::json) into v
   from (
-    select 'usina sem monitoramento' as achado, count(*) as qtd from usinas u where u.ativa
+    -- 23/09: as páginas que o cliente e o instalador abrem sem login dependem
+    -- destas funções. Sem EXECUTE para o anon o link devolve 401 — e quem testa
+    -- logado no escritório vê funcionando. Ficou assim de ~26/08 a 23/09.
+    select 'pagina publica sem acesso (link do cliente ou instalador quebrado)' as achado, count(*) as qtd
+      from unnest(array['get_acompanhamento(text)','get_relatorio_publico(text)',
+        'get_nps(text,text)','salvar_nps(text,text,smallint,text)','salvar_brinde(text,text,text)',
+        'declarar_avaliacao_google(text,text)','get_obra_instalador(text,text)','get_agenda(text)']) f
+      where not coalesce(has_function_privilege('anon', to_regprocedure('public.'||f), 'execute'), false)
+    union all
+    select 'usina sem monitoramento', count(*) from usinas u where u.ativa
       and not exists (select 1 from usina_monitoramento m where m.usina_id=u.id and m.ativo)
     union all
     select 'usina sem obra', count(*) from usinas u where u.ativa
       and not exists (select 1 from obra_usina x where x.usina_id=u.id)
     union all
-    select 'obra finalizada sem usina', count(*) from obras o where o.status='Finalizado'
+    select 'obra finalizada sem usina', count(*) from obras o where o.status='Finalizado' and coalesce(o.trilha,'padrao') = 'padrao'
       and not exists (select 1 from obra_usina x where x.obra_id=o.id)
     union all
     select 'monitoramento duplicado', count(*) from (
