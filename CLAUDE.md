@@ -1961,10 +1961,17 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     (`migrations/2026-10-26_em_andamento_pela_trilha.sql` + `ultimaEtapa()` no
     painel e na TV; o seletor de etapa do cartão mostra só as etapas da trilha).
     Ficou de fora de propósito: o `tempo_etapas` das métricas (mede outra coisa),
-    a Lista do pós-venda (`>= 8`, pendência do §10), o aniversário (só instalação)
-    e o **`obras.status`**: o `fn_status_auto` só põe "Finalizado" na etapa 8, então
-    manutenção concluída continua "Em andamento" no status — mexer ali muda a
-    conferência "obra finalizada sem usina", que hoje só vê instalação.
+    a Lista do pós-venda (`>= 8`, pendência do §10) e o aniversário (só instalação).
+    O **`obras.status`** veio no mesmo dia, a pedido do Vitor
+    (`migrations/2026-10-26_status_pela_trilha.sql`): o `fn_status_auto` tinha o
+    mesmo 8 e deixava manutenção concluída "Em andamento" para sempre. Hoje
+    "Finalizado" é a regra da `obra_ativa()` (o gatilho olha também a troca de
+    trilha), e a conferência "obra finalizada sem usina" ficou **só na trilha
+    padrão** — manutenção e eletroposto não ganham usina, e sem isso a Fatima e a
+    visita da Tays virariam alarme falso às 7h30. Antes de gravar foi conferido quem
+    lê o status (banco, telas e as 54 edge functions): nada que fala com cliente
+    decide por ele — só a `solarview-usinas`, ferramenta manual de diagnóstico,
+    escolhe obra por "Finalizado".
     **Antes de escrever um número de etapa, pergunte de qual trilha ele é.**
 
 ---
