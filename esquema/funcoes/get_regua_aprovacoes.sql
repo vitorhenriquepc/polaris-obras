@@ -13,6 +13,10 @@ begin
     'texto', coalesce(c.texto_custom, regua_texto(c.obra_id, c.modelo)),
     'motivo', c.bloqueio_motivo,
     'programada', c.data_programada,
+    -- o que sustenta o aviso, para quem aprova não decidir às cegas:
+    -- dias usados, dias de chuva descartados, o clima e o estado de agora
+    'contexto', case when c.usina_id is not null
+                     then public.geracao_contexto(c.usina_id) end,
     'bloqueio', case when o.whatsapp_grupo_id is null then 'esta obra não tem grupo no WhatsApp'
                      when o.optout_em is not null then 'este cliente pediu para sair'
                      else null end

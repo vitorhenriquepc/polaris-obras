@@ -77,6 +77,9 @@ A ordem que faz sentido:
    `esquema/tabelas/` e `esquema/views/`, geradas do catálogo e conferidas
    por md5. Não precisou de `pg_dump`: o gerador monta o DDL dentro do
    próprio banco. O que ele não cobre está listado no `esquema/README.md`.
+   **26/10:** faltava a `clientes` — criada fora de qualquer migração, ficou
+   fora da contagem das 18. Entrou na atualização do espelho, e o gerador
+   agora está guardado em `esquema/conferir.sql`.
 3. Só quando o repositório conseguir levantar o esquema, realinhar o
    histórico do Supabase — e aí pela CLI (`supabase migration repair`),
    não com INSERT na mão.
@@ -191,10 +194,13 @@ Tem 0 linhas, nenhuma função a menciona e nenhum cron a usa. Investiguei a
 edge function de nome parecido: `usina-status` escreve em `usina_leitura` e
 em `usinas`, nunca nela.
 
-Foi substituída por `usinas.status_atual` + `usina_leitura`. Está versionada
-em `esquema/tabelas/usina_status.sql` caso alguém precise dela de volta.
-Não apaguei: é decisão do Vitor, e depois do caso `manutencao_usinas` ficou
+Foi substituída por `usinas.status_atual` + `usina_leitura`. Não apaguei:
+é decisão do Vitor, e depois do caso `manutencao_usinas` ficou
 claro que nome parecido não é prova de nada.
+
+**Apagada no mesmo dia** (`remove_restos_de_prototipo`, tabela abaixo). O
+DDL dela saiu do espelho em 26/10 e continua no histórico do git:
+`git show e5a6232:esquema/tabelas/usina_status.sql`.
 
 ---
 

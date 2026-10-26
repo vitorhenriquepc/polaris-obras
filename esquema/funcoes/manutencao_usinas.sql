@@ -33,6 +33,7 @@ begin
       join usina_previsao p on p.usina_id = x.id and p.mes = extract(month from g.referencia)
       where g.kwh > 0 and x.data_instalacao is not null
         and x.data_instalacao <= date_trunc('month', g.referencia)::date
+        and (x.patamar_desde is null or g.referencia >= date_trunc('month', x.patamar_desde) + interval '1 month')
         and g.referencia < date_trunc('month', current_date)
       group by g.usina_id
       having count(*) >= coalesce((select valor::int from config where chave='ger_calibra_min_meses'),2)

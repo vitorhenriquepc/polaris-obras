@@ -18,7 +18,11 @@ create index if not exists idx_rel_obra ON public.obra_relatorios USING btree (o
 
 alter table public.obra_relatorios enable row level security;
 
-create policy obra_relatorios_auth on public.obra_relatorios for all to public
+create policy obra_relatorios_auth_ins on public.obra_relatorios for insert to public
+  with check (is_autorizado());
+create policy obra_relatorios_auth_sel on public.obra_relatorios for select to public
+  using (is_autorizado());
+create policy obra_relatorios_auth_upd on public.obra_relatorios for update to public
   using (is_autorizado())
   with check (is_autorizado());
 create policy obra_relatorios_del on public.obra_relatorios for delete to public

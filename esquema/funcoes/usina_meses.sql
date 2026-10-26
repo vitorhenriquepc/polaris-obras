@@ -15,7 +15,8 @@ AS $function$
          p.kwh_previsto,
          round(p.kwh_previsto * coalesce(u.fator_local,1), 0) as previsto_ajustado,
          (u.data_instalacao is not null
-           and u.data_instalacao <= date_trunc('month',g.referencia)::date) as completo,
+           and u.data_instalacao <= date_trunc('month',g.referencia)::date
+           and g.parcial_ate is null) as completo,
          case when coalesce(p.kwh_previsto,0) > 0
               then round((g.kwh / (p.kwh_previsto * coalesce(u.fator_local,1)) * 100)::numeric, 0) end as pct
   from usina_geracao g

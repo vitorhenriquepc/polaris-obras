@@ -15,6 +15,7 @@ begin
     join usina_previsao p on p.usina_id=u.id and p.mes=extract(month from g.referencia)
     where g.kwh > 0 and u.data_instalacao is not null
       and u.data_instalacao <= date_trunc('month', g.referencia)::date
+      and (u.patamar_desde is null or g.referencia >= date_trunc('month', u.patamar_desde) + interval '1 month')
       and g.referencia < date_trunc('month', current_date)
   ), agrupado as (
     select usina_id, count(*) as meses,
@@ -41,6 +42,7 @@ begin
       join usina_previsao p on p.usina_id=u2.id and p.mes=extract(month from g.referencia)
       where g.kwh>0 and u2.data_instalacao is not null
         and u2.data_instalacao <= date_trunc('month',g.referencia)::date
+        and (u2.patamar_desde is null or g.referencia >= date_trunc('month', u2.patamar_desde) + interval '1 month')
         and g.referencia < date_trunc('month', current_date)
       group by g.usina_id having count(*) >= p_min_meses
     ) a

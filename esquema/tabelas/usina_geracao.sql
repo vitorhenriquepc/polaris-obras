@@ -4,6 +4,8 @@ create table if not exists public.usina_geracao (
   kwh numeric,
   origem text default 'solarview'::text,
   lido_em timestamp with time zone default now(),
+  parcial_ate date,
+  nota text,
   constraint usina_geracao_pkey PRIMARY KEY (usina_id, referencia),
   constraint usina_geracao_usina_id_fkey FOREIGN KEY (usina_id) REFERENCES usinas(id) ON DELETE CASCADE
 );
