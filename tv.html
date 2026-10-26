@@ -92,6 +92,13 @@ var sb=supabase.createClient('https://dakubhcgohiwzyqiegqf.supabase.co','sb_publ
 var ET={}, OBRAS=[];
 
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+// última etapa da trilha da obra (manutenção termina na 4, não na 8): obra que
+// chegou nela não está "em obra" — era assim que a manutenção concluída contava
+function ultimaEtapa(o){
+  var m=ET[o.trilha||'padrao']||ET['padrao']||{};
+  var ns=Object.keys(m).map(Number).filter(function(x){return !isNaN(x)});
+  return ns.length?Math.max.apply(null,ns):8;
+}
 function dias(o){ if(!o.data_fechamento) return null; var d=new Date(o.data_fechamento+'T12:00:00'); if(isNaN(d)) return null;
 return Math.round((new Date()-d)/86400000); }
 
@@ -141,7 +148,7 @@ async function carregar(){
 }
 
 function render(){
-  var andamento=OBRAS.filter(function(o){return o.etapa_numero<8});
+  var andamento=OBRAS.filter(function(o){return o.etapa_numero<ultimaEtapa(o)});
   var d30=andamento.filter(function(o){var d=dias(o);return d!=null&&d>30&&d<=60}).length;
   var d60=andamento.filter(function(o){var d=dias(o);return d!=null&&d>60}).length;
   var kwp=andamento.reduce(function(a,o){return a+(parseFloat(o.potencia_kwp)||0)},0);

@@ -1944,6 +1944,29 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     proteção** — antes de confiar num, confira se o valor que ele espera pode
     existir.
 
+41. **O 8 escrito à mão chamava manutenção concluída de "em andamento".** FATIMA
+    RINO (3067), 26/10: o Vitor recebeu no alerta de prazos das 8h *"Fatima Rino e
+    Antonio Monteiro #3067 — 37 dias / ✅ Concluída"* — a limpeza estava feita
+    desde 17/09. A trilha `manutencao` vai de 0 a 4 (a 4 é "Concluída"), e o
+    `obras_para_alerta` chamava de em andamento toda obra com `etapa_numero < 8`.
+    É a regra do §6 (quem diz se a obra terminou é `obra_ativa()`) que não tinha
+    chegado ao alerta. O mesmo 8 estava em mais quatro lugares, e **cinco**
+    manutenções concluídas (Fatima, Tays ×2, Bassetto, UNI AUTO POSTO) contavam
+    errado em todos: nas métricas, "em andamento" marcava 26 em vez de 21 e "kWp
+    em andamento" 530,5 em vez de 193,2; na TV, como "em obra"; no painel, nos chips
+    "+30/+60 dias"; e no modo **Cartões** o "Avançar ▶" ficava ligado — clicar
+    numa manutenção concluída gravava a etapa 5 (o banco segurava na 4) e
+    **mandava ao grupo do cliente a mensagem de uma etapa que não existe**. Provado
+    no Chromium contra a versão antiga. Corrigido em 26/10
+    (`migrations/2026-10-26_em_andamento_pela_trilha.sql` + `ultimaEtapa()` no
+    painel e na TV; o seletor de etapa do cartão mostra só as etapas da trilha).
+    Ficou de fora de propósito: o `tempo_etapas` das métricas (mede outra coisa),
+    a Lista do pós-venda (`>= 8`, pendência do §10), o aniversário (só instalação)
+    e o **`obras.status`**: o `fn_status_auto` só põe "Finalizado" na etapa 8, então
+    manutenção concluída continua "Em andamento" no status — mexer ali muda a
+    conferência "obra finalizada sem usina", que hoje só vê instalação.
+    **Antes de escrever um número de etapa, pergunte de qual trilha ele é.**
+
 ---
 
 ## 10. Estado e pendências
