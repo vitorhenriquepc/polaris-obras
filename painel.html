@@ -510,8 +510,16 @@ function avisoPaginaVelha(){
   document.body.appendChild(d);
 }
 if(sb){
-  const invokeOriginal = sb.functions.invoke.bind(sb.functions);
-  sb.functions.invoke = async function(nome, opts){
+  /* sb.functions não é um objeto fixo: no supabase-js 2 é um getter que monta um
+     FunctionsClient NOVO a cada leitura. De 02/10 a 27/10 esta troca era feita no
+     objeto que o getter devolve — caía num objeto jogado fora, e nenhum envio passou
+     por ela: às 16:36 de 27/10 uma aba de 15:04, com a faixa vermelha na tela, mandou
+     a vistoria do 4916. Agora a troca vai no protótipo, que é o mesmo para todos eles
+     (num objeto simples, com o invoke nele mesmo, vai no próprio objeto). */
+  const fns = sb.functions;
+  const alvo = Object.prototype.hasOwnProperty.call(fns,'invoke') ? fns : Object.getPrototypeOf(fns);
+  const invokeOriginal = alvo.invoke;
+  alvo.invoke = async function(nome, opts){
     if(ENVIOS_CLIENTE.indexOf(nome)>=0){
       // obra cancelada não recebe mensagem pelo painel (23/10): o card dela abre
       // só para ler, e esta é a última porta antes do WhatsApp
@@ -525,8 +533,9 @@ if(sb){
         return { data:null, error:{ message:'Esta aba está com uma versão antiga do painel. Recarregue a página (Ctrl+F5) e mande de novo — nada foi enviado.' } };
       }
     }
-    return invokeOriginal(nome, opts);
+    return invokeOriginal.call(this, nome, opts);
   };
+  if(sb.functions.invoke!==alvo.invoke) console.error('A trava de envio NÃO está instalada: o supabase-js mudou o FunctionsClient');
   paginaVelha();
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ paginaVelha(); checarPosvenda(); } });
   setInterval(paginaVelha, 10*60000);

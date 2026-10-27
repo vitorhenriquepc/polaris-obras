@@ -164,7 +164,7 @@ origem `obra`; desfazer devolve), o alerta de prazo, a fila e as conferências d
 financeiro, o Início, os relatórios pendentes, a agenda, o lembrete da véspera, a
 cobrança das fotos, as travas e o **link do instalador** (passa a dizer "link
 inválido"). O painel também **recusa mensagem para o grupo de obra cancelada**
-(última porta, no `sb.functions.invoke`).
+(última porta, no `invoke` das funções — que só passou a valer em 27/10, armadilha 43).
 
 O que **fica de propósito**: o grupo e a escada da Isabela (se a cliente escrever no
 meio da negociação, alguém é avisado), o dinheiro do extrato e a conciliação (a
@@ -1813,6 +1813,9 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     de trocar. **Nos ~3 minutos do CDN depois de publicar (armadilha 4) a
     conferência pode oscilar** — recarregar resolve.
 
+    ⚠️ **A recusa só passou a valer em 27/10** (armadilha 43): até lá a faixa
+    aparecia, mas o envio saía mesmo assim.
+
 32. **`drop` pelo MCP do Supabase pede confirmação e expira calado.** Em 02/10
     a migração do Bassetto "deu timeout" três vezes: o banco nem recebia o
     comando (nenhuma sessão ativa, nada aplicado). O culpado era o
@@ -1986,8 +1989,35 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     no `painel.html`), e erro ao ler a equipe vira aviso, com a lista dizendo que
     não carregou. No mesmo dia a abertura passou a disparar as 11 consultas juntas
     (a base e as obras), e o quadro desenha quando a base chega: no teste com
-    300 ms por consulta, de 3,4 s para 0,4 s. **Tela que monta formulário com dado
+    300 ms por consulta, de 3,4 s para 0,4 s. Na primeira abertura de verdade
+    (16:47 de 27/10) as 11 consultas e o `is_admin` saíram em 8 ms, e o quadro foi
+    desenhado ~1,1 s depois do primeiro pedido; as aberturas do mesmo dia com o
+    código antigo levaram 7,2 s, 6,0 s e 3,9 s. **Tela que monta formulário com dado
     da abertura tem de esperar esse dado — ou dizer que ele faltou.**
+
+43. **Trocar o método do objeto que um getter devolve não troca nada — e o dublê
+    do teste escondeu isso por 25 dias.** A trava de aba velha (armadilha 31,
+    02/10) e a recusa para obra cancelada (§4, 23/10) eram feitas assim:
+    `sb.functions.invoke = function(…){…}`. No supabase-js 2, `sb.functions` é um
+    **getter que monta um `FunctionsClient` novo a cada leitura**: a troca caía num
+    objeto jogado fora, e toda chamada seguinte usava o `invoke` original. A faixa
+    vermelha aparecia (ela não depende da troca), mas **nenhum envio foi recusado**.
+    A prova, de 27/10: uma aba aberta às 15:04 mandou a vistoria do 4916 às 16:36 —
+    `notificar-grupo` 200, sem conferir o arquivo publicado antes, e o painel já era
+    outro desde 16:03. A mensagem estava certa (o texto vem do banco, e o que mudou
+    naquela tarde não passa por ali), mas foi sorte.
+
+    Os testes passavam porque o **dublê** do supabase-js tinha `functions` como
+    objeto fixo — justamente o que a biblioteca não é. Corrigido em 27/10: a troca
+    vai no **protótipo** do `FunctionsClient`, que é o mesmo para todos eles, e o
+    console acusa *"A trava de envio NÃO está instalada"* se um dia a biblioteca
+    mudar e a troca não pegar — o site carrega `supabase-js@2`, que se atualiza
+    sozinho (2.118.0 em 27/10). Testado com o **supabase-js de verdade** (o arquivo
+    do jsDelivr, não o dublê), logado e servido como o site: 20 conferências, e o
+    painel anterior reproduz o defeito nos quatro caminhos (envio direto,
+    `invokeFn`, "Avançar ▶" e obra cancelada). **Dublê de teste tem de se comportar como a biblioteca no ponto que
+    o código usa. E trava que nunca segurou nada não está provada por teste: procure
+    nos registros a vez em que ela devia ter segurado.**
 
 ---
 
