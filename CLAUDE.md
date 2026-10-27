@@ -1984,8 +1984,10 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     refaz depois; sem vendedor, a obra não salva. Hoje quem clica cedo vê
     "Carregando…" e o formulário abre sozinho quando a base chega (`quandoPronto`
     no `painel.html`), e erro ao ler a equipe vira aviso, com a lista dizendo que
-    não carregou. **Tela que monta formulário com dado da abertura tem de esperar
-    esse dado — ou dizer que ele faltou.**
+    não carregou. No mesmo dia a abertura passou a disparar as 11 consultas juntas
+    (a base e as obras), e o quadro desenha quando a base chega: no teste com
+    300 ms por consulta, de 3,4 s para 0,4 s. **Tela que monta formulário com dado
+    da abertura tem de esperar esse dado — ou dizer que ele faltou.**
 
 ---
 

@@ -538,9 +538,9 @@ let OBRAS = []; // obras carregadas (sem as canceladas)
 let CANCELADAS = []; // obras canceladas: fora do quadro e das contagens, mas o card abre
 let EQUIPE = []; // equipe (para vendedor e grupos)
 /* O "+ Nova obra", o 👥 e o 📅 aparecem antes de a base chegar (etapas, travas,
-   origens e equipe: ~7 s em consultas seguidas). O formulário aberto nesse
-   meio-tempo saía com a lista de vendedores vazia e não se refazia (27/10).
-   Quem clica cedo espera a base; vale o último clique. */
+   origens e equipe). O formulário aberto nesse meio-tempo saía com a lista de
+   vendedores vazia e não se refazia (27/10; a base levava ~7 s, uma consulta
+   depois da outra). Quem clica cedo espera a base; vale o último clique. */
 let BASE_OK = false, _baseSolta = null, _aposBase = null;
 const BASE_PRONTA = new Promise(r => { _baseSolta = r; });
 function quandoPronto(fn){
@@ -719,27 +719,36 @@ document.getElementById('bAgenda').onclick = ()=> quandoPronto(abrirAgendas);
 document.getElementById('busca').addEventListener('input', e=>{ busca=e.target.value.toLowerCase(); renderList(); });
 
 setView(VIEW);
+/* Tudo sai junto: a base (etapas, travas, origens, relatórios, equipe) e as obras.
+   Uma consulta depois da outra eram 11 e ~7 s até o quadro aparecer (27/10). O
+   quadro só desenha quando a base chegou, porque usa o nome das etapas, as travas
+   e a equipe. Promise.resolve dispara a consulta já (armadilha 35). */
+const pedidoObras = Promise.resolve(sb.from('obras').select('*'));
 try{
-  await loadEtapas(); await loadTravas(); await loadOrigens(); await loadRel();
-  await loadEquipe();
+  await Promise.all([loadEtapas(), loadTravas(), loadOrigens(), loadRel(), loadEquipe()]);
 }finally{ BASE_OK=true; _baseSolta(); }
-await loadObras();
+await loadObras(pedidoObras);
 subscribeRealtime();
 }
 
 let ETT={}, TRILHAS=[], CATS=[], RAMOS=[], CIDIPTU={}, IPTU_ATIVO=false;
 async function loadEtapas(){
-const { data, error } = await sb.from('etapas').select('*').order('numero');
-if(error){ toast('Erro ao carregar etapas'); return; }
-ETT={}; (data||[]).forEach(e=>{ (ETT[e.trilha]=ETT[e.trilha]||{})[e.numero]=e; });
+const [et, t, ct, rm, cf, ci] = await Promise.all([
+  sb.from('etapas').select('*').order('numero'),
+  sb.from('trilhas').select('*').order('ordem'),
+  sb.from('categorias').select('*').order('ordem'),
+  sb.from('ramos').select('*').order('ordem'),
+  sb.from('config').select('valor').eq('chave','iptu_envio_ativo').maybeSingle(),
+  sb.from('cidades_iptu').select('*')
+]);
+if(et.error){ toast('Erro ao carregar etapas'); return; }
+ETT={}; (et.data||[]).forEach(e=>{ (ETT[e.trilha]=ETT[e.trilha]||{})[e.numero]=e; });
 ET = ETT['padrao'] || {};
-const t = await sb.from('trilhas').select('*').order('ordem');
 TRILHAS = t.data || [{codigo:'padrao',nome:'Sistema Fotovoltaico',icone:'☀️'}];
-const ct = await sb.from('categorias').select('*').order('ordem'); CATS = ct.data || [];
-const rm = await sb.from('ramos').select('*').order('ordem'); RAMOS = rm.data || [];
-const cf = await sb.from('config').select('valor').eq('chave','iptu_envio_ativo').maybeSingle();
+CATS = ct.data || [];
+RAMOS = rm.data || [];
 IPTU_ATIVO = (cf.data?.valor === '1');
-const ci = await sb.from('cidades_iptu').select('*'); CIDIPTU = {};
+CIDIPTU = {};
 (ci.data||[]).forEach(x => CIDIPTU[x.cidade] = x);
 }
 function etapasDe(tr){ return ETT[tr||'padrao'] || ETT['padrao'] || {}; }
@@ -824,8 +833,9 @@ function diasTravada(o){ if(!o.trava||!o.trava_em) return null;
   const d=parseDate(o.trava_em); return d?diffDays(d,new Date()):null; }
 function travaCritica(o){ const t=travaInfo(o.trava); const d=diasTravada(o);
   return (t&&d!=null&&d>=t.alerta_dias); }
-async function loadObras(){
-const { data, error } = await sb.from('obras').select('*');
+async function loadObras(pedido){
+// pedido: a consulta já disparada na abertura do painel, junto com a base
+const { data, error } = await (pedido || sb.from('obras').select('*'));
 if(error){ document.getElementById('list').innerHTML=`<div class="empty"><span class="i">⚠️</span>Erro ao carregar: ${esc(error.message)}</div>`; return; }
 /* Obra cancelada (cliente desistiu — BARBARA 4756, 23/10) não entra no quadro,
    nas contagens nem na busca: fica no chip "Canceladas". O card dela ainda abre
