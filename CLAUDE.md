@@ -1974,6 +1974,19 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     escolhe obra por "Finalizado".
     **Antes de escrever um número de etapa, pergunte de qual trilha ele é.**
 
+42. **Botão que funciona antes dos dados abre o formulário pela metade.** 27/10: o
+    formulário de obra nova abriu com a lista de vendedores só com "— Vendedor —".
+    O banco estava certo (4 vendedores e o Vitor) e a leitura também — os registros
+    mostram a equipe chegando inteira nas três aberturas do painel do dia. O que
+    faltou foi esperar: o painel busca etapas, travas, origens e equipe em ~11
+    consultas seguidas (~7 s), e o "+ Nova obra", o 👥 e o 📅 funcionam desde o
+    primeiro segundo. O formulário monta as listas com o que já chegou e não se
+    refaz depois; sem vendedor, a obra não salva. Hoje quem clica cedo vê
+    "Carregando…" e o formulário abre sozinho quando a base chega (`quandoPronto`
+    no `painel.html`), e erro ao ler a equipe vira aviso, com a lista dizendo que
+    não carregou. **Tela que monta formulário com dado da abertura tem de esperar
+    esse dado — ou dizer que ele faltou.**
+
 ---
 
 ## 10. Estado e pendências

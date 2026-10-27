@@ -537,6 +537,24 @@ let ET = {}; // catálogo de etapas {numero: {...}}
 let OBRAS = []; // obras carregadas (sem as canceladas)
 let CANCELADAS = []; // obras canceladas: fora do quadro e das contagens, mas o card abre
 let EQUIPE = []; // equipe (para vendedor e grupos)
+/* O "+ Nova obra", o 👥 e o 📅 aparecem antes de a base chegar (etapas, travas,
+   origens e equipe: ~7 s em consultas seguidas). O formulário aberto nesse
+   meio-tempo saía com a lista de vendedores vazia e não se refazia (27/10).
+   Quem clica cedo espera a base; vale o último clique. */
+let BASE_OK = false, _baseSolta = null, _aposBase = null;
+const BASE_PRONTA = new Promise(r => { _baseSolta = r; });
+function quandoPronto(fn){
+  if(BASE_OK) return fn();
+  const jaEsperando = !!_aposBase;
+  _aposBase = fn;
+  if(jaEsperando) return;
+  toast('Carregando a equipe e as etapas… abre em seguida', 15000);
+  BASE_PRONTA.then(()=>{
+    const t=document.getElementById('tst');   // tira o aviso, mas não um erro que chegou depois
+    if(t && /^Carregando a equipe/.test(t.textContent)) t.classList.remove('on');
+    const f=_aposBase; _aposBase=null; if(f) f();
+  });
+}
 let filtroEtapa = null, busca = "";
 let rtChannel = null;
 
@@ -694,15 +712,17 @@ document.getElementById('bTema').onclick = toggleTema;
 aplicarTema(temaAtual());
 document.getElementById('bUsers').onclick = ()=> location.href='usuarios.html';
 sb.rpc('is_admin').then(r=>{ if(r.data){ document.getElementById('bUsers').style.display=''; const bm=document.getElementById('bMet'); bm.style.display=''; bm.onclick=()=>location.href='metricas.html'; } });
-document.getElementById('bNew').onclick = ()=> (VIEW==='kanban' && KTR==='manutencao') ? openFormManutencao() : openForm(null);
+document.getElementById('bNew').onclick = ()=> quandoPronto(()=> (VIEW==='kanban' && KTR==='manutencao') ? openFormManutencao() : openForm(null));
 
-document.getElementById('bEquipe').onclick = ()=> openEquipe();
-document.getElementById('bAgenda').onclick = ()=> abrirAgendas();
+document.getElementById('bEquipe').onclick = ()=> quandoPronto(openEquipe);
+document.getElementById('bAgenda').onclick = ()=> quandoPronto(abrirAgendas);
 document.getElementById('busca').addEventListener('input', e=>{ busca=e.target.value.toLowerCase(); renderList(); });
 
 setView(VIEW);
-await loadEtapas(); await loadTravas(); await loadOrigens(); await loadRel();
-await loadEquipe();
+try{
+  await loadEtapas(); await loadTravas(); await loadOrigens(); await loadRel();
+  await loadEquipe();
+}finally{ BASE_OK=true; _baseSolta(); }
 await loadObras();
 subscribeRealtime();
 }
@@ -2429,7 +2449,8 @@ const catOpts=CATS.map(x=>`<option value="${x.codigo}" ${x.codigo===(o.categoria
 const ramoOpts='<option value="">— selecione —</option>'+RAMOS.map(x=>`<option value="${x.codigo}" ${x.codigo===o.ramo?'selected':''}>${esc(x.nome)}</option>`).join('');
 const instOpts='<option value="">— Instalador —</option>'+EQUIPE.filter(p=>p.papel==='Instalador'&&p.ativo!==false).map(p=>`<option value="${p.id}" ${p.id===o.instalador_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 const origOpts='<option value="">— Como chegou? —</option>'+ORIGENS.map(x=>`<option value="${x.codigo}" ${x.codigo===o.origem_lead?'selected':''}>${esc(x.nome)}</option>`).join('');
-const vendOpts='<option value="">— Vendedor —</option>'+EQUIPE.filter(p=>(p.papel==='Vendedor'||p.vende)&&p.ativo!==false).map(p=>`<option value="${p.id}" ${p.id===o.vendedor_id?'selected':''}>${esc(p.nome)}</option>`).join('');
+const _vends=EQUIPE.filter(p=>(p.papel==='Vendedor'||p.vende)&&p.ativo!==false);
+const vendOpts='<option value="">'+(_vends.length?'— Vendedor —':EQUIPE.length?'— nenhum vendedor ativo na equipe —':'— a equipe não carregou: recarregue a página —')+'</option>'+_vends.map(p=>`<option value="${p.id}" ${p.id===o.vendedor_id?'selected':''}>${esc(p.nome)}</option>`).join('');
 ov.innerHTML=`<div class="modal">
 <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
 <button type="button" onclick="fecharForm()" title="Voltar (Esc)"
@@ -2752,7 +2773,9 @@ return slug;
 
 /* ---------- equipe ---------- */
 async function loadEquipe(){
-const { data } = await sb.from('equipe').select('*').order('papel').order('nome');
+const { data, error } = await sb.from('equipe').select('*').order('papel').order('nome');
+// sem a equipe a obra fica sem vendedor e não salva: avisa em vez de esvaziar a lista
+if(error){ toast('Não consegui carregar a equipe (vendedores e instaladores). Recarregue a página.', 6000); return; }
 EQUIPE = data||[];
 }
 function reabrirEquipe(){ const o=document.getElementById('ovEquipe'); if(o){ o.remove(); openEquipe(); } }
