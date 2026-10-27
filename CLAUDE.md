@@ -2012,10 +2012,10 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     vai no **protótipo** do `FunctionsClient`, que é o mesmo para todos eles, e o
     console acusa *"A trava de envio NÃO está instalada"* se um dia a biblioteca
     mudar e a troca não pegar — o site carrega `supabase-js@2`, que se atualiza
-    sozinho (2.118.0 em 27/10). O teste agora roda com o **supabase-js de verdade**,
-    logado e servido como o site: 20 conferências, e o painel anterior reproduz o
-    defeito nos quatro caminhos (envio direto, `invokeFn`, "Avançar ▶" e obra
-    cancelada). **Dublê de teste tem de se comportar como a biblioteca no ponto que
+    sozinho (2.118.0 em 27/10). Testado com o **supabase-js de verdade** (o arquivo
+    do jsDelivr, não o dublê), logado e servido como o site: 20 conferências, e o
+    painel anterior reproduz o defeito nos quatro caminhos (envio direto,
+    `invokeFn`, "Avançar ▶" e obra cancelada). **Dublê de teste tem de se comportar como a biblioteca no ponto que
     o código usa. E trava que nunca segurou nada não está provada por teste: procure
     nos registros a vez em que ela devia ter segurado.**
 
