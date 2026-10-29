@@ -615,7 +615,17 @@ async function bootAgenda(){
 }
 function d0(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate());}
 function iso(d){return d.toISOString().slice(0,10);}
-function obrasDo(dia){return AG.filter(function(o){return o.data_instalacao===iso(dia)});}
+/* Obra de mais de um dia (Término previsto no card) aparece em cada dia, da
+   instalação ao término. Até 29/10 a agenda nem recebia o término: a ROSANE
+   (4716), marcada para 04 e 05/11, aparecia só no dia 04. */
+function fimDa(o){return (o.data_fim&&o.data_fim>o.data_instalacao)?o.data_fim:o.data_instalacao;}
+function obrasDo(dia){var k=iso(dia);return AG.filter(function(o){return o.data_instalacao<=k&&k<=fimDa(o);});}
+function diaDe(o,dia){   // [qual dia, de quantos]; null se é de um dia só
+  if(fimDa(o)===o.data_instalacao) return null;
+  var meio=function(s){return new Date(s+'T12:00:00');};
+  return [Math.round((meio(iso(dia))-meio(o.data_instalacao))/864e5)+1, Math.round((meio(fimDa(o))-meio(o.data_instalacao))/864e5)+1];
+}
+function ddmm(s){return s.slice(8,10)+'/'+s.slice(5,7);}
 function linkObra(o){return 'instalador.html?id='+encodeURIComponent(o.slug)+'&t='+encodeURIComponent(o.token);}
 function renderAgenda(){
   var hoje=d0(new Date());
@@ -637,10 +647,12 @@ function renderAgenda(){
         +(iso(d)===iso(hoje)?' • HOJE':'')+'</div>';
       if(!obs.length) corpo+='<div class="ob" style="opacity:.4;pointer-events:none">— sem obras —</div>';
       obs.forEach(function(o){
+        var dd=diaDe(o,d);
         corpo+='<a class="ob" href="'+linkObra(o)+'"><b>'+esc(o.cliente)+'</b>'
           +'<div class="om">'+(o.contrato?'#'+esc(o.contrato)+' • ':'')
           +(o.potencia_kwp?String(o.potencia_kwp).replace('.',',')+' kWp • ':'')
           +(o.instalador?'👷 '+esc(o.instalador):'sem instalador definido')+'</div>'
+          +(dd?'<div class="om">📆 dia '+dd[0]+' de '+dd[1]+' ('+ddmm(o.data_instalacao)+' a '+ddmm(fimDa(o))+')</div>':'')
           +fichaHtml(o)+'</a>';
       });
       corpo+='</div>';
@@ -658,7 +670,11 @@ function renderAgenda(){
       var fora=d.getMonth()!==m;
       var obs=obrasDo(d);
       corpo+='<div class="cel '+(fora?'fora':'')+' '+(iso(d)===iso(hoje)?'hoje':'')+'"><div class="n">'+d.getDate()+'</div>';
-      obs.forEach(function(o){corpo+='<a class="ev" href="'+linkObra(o)+'">'+esc(o.cliente.split(' ')[0])+'</a>';});
+      obs.forEach(function(o){
+        var dd=diaDe(o,d);
+        corpo+='<a class="ev" href="'+linkObra(o)+'"'+(dd?' title="'+esc(o.cliente)+' · dia '+dd[0]+' de '+dd[1]+'"':'')+'>'
+          +esc(o.cliente.split(' ')[0])+(dd?' '+dd[0]+'/'+dd[1]:'')+'</a>';
+      });
       corpo+='</div>';
       d.setDate(d.getDate()+1);
       if(i>=34 && d.getMonth()!==m) break;
