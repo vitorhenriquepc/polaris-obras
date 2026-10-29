@@ -778,6 +778,7 @@ function trilhaNome(cod){ const t=TRILHAS.find(x=>x.codigo===cod); return t?(t.i
 let REL={};
 async function loadRel(){
   const r=await sb.rpc('get_status_relatorio');
+  if(r.error) return;   // falhou: fica a tarja que já estava na tela
   REL={};
   (r.data||[]).forEach(function(x){ REL[x.obra_id]=x; });
 }
@@ -843,8 +844,14 @@ function diasTravada(o){ if(!o.trava||!o.trava_em) return null;
 function travaCritica(o){ const t=travaInfo(o.trava); const d=diasTravada(o);
   return (t&&d!=null&&d>=t.alerta_dias); }
 async function loadObras(pedido){
-// pedido: a consulta já disparada na abertura do painel, junto com a base
+// pedido: a consulta já disparada na abertura do painel, junto com a base.
+// Depois da abertura, o estado do relatório é relido junto com as obras: ele
+// só era lido ao abrir, e obra que entrava na execução depois ficava sem a
+// tarja até um F5 (ROSANE 4716, 29/10: foi para a 6 às 12:00, e o painel na
+// tela tinha aberto às 11:50).
+const rel = pedido ? null : loadRel().catch(()=>{});
 const { data, error } = await (pedido || sb.from('obras').select('*'));
+if(rel) await rel;
 if(error){ document.getElementById('list').innerHTML=`<div class="empty"><span class="i">⚠️</span>Erro ao carregar: ${esc(error.message)}</div>`; return; }
 /* Obra cancelada (cliente desistiu — BARBARA 4756, 23/10) não entra no quadro,
    nas contagens nem na busca: fica no chip "Canceladas". O card dela ainda abre

@@ -106,7 +106,8 @@ Desde 05/10 (no ar só em 16/10: ficou no branch — armadilha 36) o cadastro
 rápido tem também **equipe de campo** e **data da
 execução**, opcionais (Vitor: "para ter no cronograma e avisar o cliente").
 Com data a obra nasce na etapa 1 (*Agendada*), entra na agenda (`get_agenda`
-lê `data_instalacao` + `instalador_id`) e avisa equipe e cliente como marcar
+lê `data_instalacao`, `data_fim` e `instalador_id`; obra de mais de um dia
+aparece em cada dia desde 29/10 — armadilha 45) e avisa equipe e cliente como marcar
 a data no card. **Grupo não é obrigatório:** sem grupo, o aviso de
 agendamento abre o WhatsApp pessoal do cliente com o texto pronto
 (`abrirWhatsPessoal`, o mesmo do botão de WhatsApp do card — quem manda é a
@@ -2019,6 +2020,38 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     o código usa. E trava que nunca segurou nada não está provada por teste: procure
     nos registros a vez em que ela devia ter segurado.**
 
+44. **Dado lido só na abertura envelhece com a aba** — a armadilha 31 do lado do
+    dado. ROSANE (4716), 29/10: o Vitor viu o card na Execução sem a tarja do
+    relatório ("0/11 itens · sem assinatura"), que as outras obras da coluna
+    tinham. O painel lia o estado do relatório (`get_status_relatorio`) **uma vez,
+    ao abrir**, e a função só devolve obra que já está na execução (6–7; 2–3 na
+    manutenção). A ROSANE foi para a 6 às 12:00, e a última abertura do painel
+    tinha sido às 11:50: o realtime redesenhava o card na coluna nova, mas sem a
+    tarja, até um F5. Desde 29/10 o estado é relido junto com as obras a cada
+    recarga, e se a releitura falha fica a tarja que já estava. ⚠️ **As fotos que
+    o instalador manda não mexem em `obras`**, então a contagem "x/11 itens" ainda
+    espera a próxima mudança de qualquer obra (ou o F5). **Lista que a tela
+    carrega uma vez e usa para sempre tem de ser relida quando o que ela descreve
+    muda.**
+
+45. **Campo gravado que ninguém lê não aparece em lugar nenhum.** ROSANE (4716),
+    29/10: o card tinha instalação 04/11 e **término previsto 05/11**, os dois
+    gravados (`data_instalacao`, `data_fim`), e a agenda das equipes
+    (`instalador.html?agenda=…`) mostrava só o dia 04. A `get_agenda` nunca
+    devolveu o `data_fim`, e a página comparava o dia só com a data de
+    instalação. Não era a ROSANE: 29 obras têm término, 5 de mais de um dia, e
+    todas apareciam só no primeiro. Desde 29/10
+    (`migrations/2026-10-29_agenda_varios_dias.sql`) a agenda põe a obra em
+    **cada dia do intervalo, inclusive fim de semana e feriado** (a do RINALDO,
+    4519, de 30/10 a 03/11, passa por sábado, domingo e Finados), com *"1/2"* no
+    mês e *"dia 1 de 2 (04/11 a 05/11)"* na semana; término vazio, igual ou
+    antes da instalação é um dia só. ⚠️ **As mensagens de agendamento também não
+    dizem o término**: às 12:03 a ROSANE leu no grupo *"Data: 04/11/2026"*, e a
+    equipe recebeu o mesmo. Só o caminho de data que já passou
+    (`dataQueJaPassou`) mostra o intervalo. Mexer no texto que vai ao cliente é
+    decisão do Vitor (§10). **Antes de dizer que um campo aparece numa tela, siga
+    ele do card até quem desenha — gravar não é mostrar.**
+
 ---
 
 ## 10. Estado e pendências
@@ -2579,6 +2612,12 @@ Conferido no banco em **22/09/2026**.
       como "grupo interno". ⚠️ **O que eles escreveram de 26/09 (Tays) e 02/10
       (Júnior) até 15/10 não foi gravado e não volta** — a Z-API não reenvia;
       para saber, só lendo os dois grupos.
+- [ ] **O aviso de agendamento diz só o primeiro dia** (armadilha 45). Obra de
+      mais de um dia (término previsto no card) sai para o cliente como *"Data:
+      04/11/2026"* e para a equipe como *"📅 Data: 04/11/2026"* — a ROSANE (4716),
+      de 04 a 05/11, recebeu assim em 29/10. A agenda já mostra os dois dias.
+      Pôr o intervalo nas duas mensagens (e no "remarcada") é mudar texto que vai
+      ao cliente: decisão do Vitor.
 - [ ] **Mensagem no privado da Isabela não é lida.** O webhook só grava grupo;
       cliente que escreve direto para o número da Isabela fica fora da escada.
 - [ ] **Senha de cliente gravada em texto puro.** Em 14/10, **20 mensagens em
