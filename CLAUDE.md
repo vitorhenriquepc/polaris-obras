@@ -2738,9 +2738,11 @@ Conferido no banco em **22/09/2026**.
       agendamento com *"04/11/2026"* às 12:03 de 29/10; o lembrete dela, em
       **03/11 às 9h**, é o primeiro com o período — conferir que saiu assim.
 - [x] ~~**JULIANO (4924) recebeu o aviso da vistoria duas vezes**~~ (armadilha 46).
-      Corrigido em 29/10 nas três camadas. **Falta ver com tráfego real** a
-      primeira linha de `envios_grupo` com `ok = true` — a prova de que a reserva
-      funciona no ar. O cliente já recebeu as duas; não há o que desfazer.
+      Corrigido em 29/10 nas três camadas. **Provado no ar às 16:01 de 29/10:** a
+      primeira reserva real (`envios_grupo` id 4, o aviso da vistoria do 4663) com
+      `ok = true`, a cópia de volta do grupo 6 s depois, e nenhum 503 ou 500 no
+      `notificar-grupo` desde a v17. Repetido em 24 h, só os dois casos conhecidos
+      (TANAKA e JULIANO). O cliente já recebeu as duas; não há o que desfazer.
 - [ ] **JOSÉ VICENTE (4875) e EDILSON (3344) sem o aviso de agendamento**
       (armadilhas 47 e 48). **José Vicente:** a Isabela entrou no grupo às 14:12 de
       29/10; o cliente ainda não recebeu a mensagem da etapa (28/10) nem o
