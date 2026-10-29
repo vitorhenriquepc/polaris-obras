@@ -1124,6 +1124,7 @@ cartão da indicação.
 | `registrar_optin_manual(obra, origem)` | autorização pela equipe **e** o "desfazer saída" da ficha: tira o opt-out, mantém a autorização original, devolve a régua cancelada pelo opt-out que ainda está no prazo e conta em `consentimentos` o que caiu |
 | `regua_bloqueio(obra, modelo)` | por que uma mensagem da régua não sai hoje — sem grupo, opt-out, **"pediu para sair?" esperando a equipe** (3 dias), sem autorização, já indicou, sem geração. O disparo das 17h pula toda linha com bloqueio |
 | `webhook_ja_visto(id, texto)` · `webhook_esquecer(id, texto)` | a trava do webhook contra a mesma mensagem entregue de novo pela Z-API · solta a trava quando a gravação falha (só service_role) |
+| `envio_grupo_reservar(grupo, texto)` · `envio_grupo_concluir(id, ok)` | a trava do `notificar-grupo` contra o **mesmo texto para o mesmo grupo em 24 h** (JULIANO 4924, 29/10): reserva atômica antes de mandar, marca se a Z-API aceitou (`envios_grupo`). Só service_role — armadilha 46 |
 | `definir_responsavel(equipe, funcao)` | troca a pessoa de um dos dois papéis; só admin |
 | `get_kpis_financeiro(ini, fim)` | R$/Wp e execução × faturamento, **com a cobertura junto** — quantas obras sustentam cada número e o que falta para as outras |
 | `obra_custos_realizados(obra)` | o realizado da obra vindo do extrato, campo a campo; diz também se o extrato cobre o período da obra |
@@ -2059,6 +2060,53 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     antes. **Antes de dizer que um campo aparece numa tela, siga ele do card até
     quem desenha — gravar não é mostrar.**
 
+46. **"Reenviar" que a pessoa confirma também repete — a pergunta não segura
+    ninguém.** JULIANO (4924), 29/10: o cliente recebeu duas vezes o aviso da
+    vistoria, às 11:02 e às 11:06. A primeira saiu ao salvar a data no card, como
+    devia. A segunda saiu pelo 📣 "Avisar no grupo": em obra na etapa 7 ele
+    chamava `avisarCpfl(id, true)`, e o `true` pulava a conferência de "o cliente
+    já leu esta data". A única barreira era a pergunta *"Reenviar o aviso da
+    vistoria no grupo do cliente?"*, e a Lívia disse sim. O registro dos pedidos
+    provou: aba aberta às 11:01:54 (não era aba velha), nenhum salvamento entre os
+    dois envios, e às 11:06:30–32 `cpfl_texto`, `notificar-grupo`,
+    `cpfl_marcar_avisado` e a releitura do quadro — exatamente o que o 📣 faz.
+    Medindo tudo o que sai pelo número da Isabela desde 15/10, era o **segundo**
+    texto repetido num grupo: a TANAKA (4745) recebeu em 20/10 o pacote inteiro do
+    relatório duas vezes, 23 s de diferença, pelo *"enviar novamente"* do
+    instalador (`foto-obra` com `force`, que pulava a trava do
+    `relatorio_enviado_em` — o carimbo regravado às 11:45:19 é a assinatura).
+
+    Desde 29/10 (`migrations/2026-10-29_mensagem_nao_repete.sql`), em três camadas:
+    - **`notificar-grupo` (v17)** reserva o envio antes de mandar
+      (`envio_grupo_reservar`): **o mesmo texto para o mesmo grupo em 24 h é
+      recusado**, com a hora do primeiro (*"Esta mesma mensagem já foi para o grupo
+      em 29/10 às 11:02. Não mandei de novo."*). A reserva é atômica (trava por
+      grupo + texto até o fim da transação): no Postgres, 20 chamadas ao mesmo
+      tempo → 1 reserva e 19 recusas; a mesma função sem a trava deixou passar as
+      20. Envio que a Z-API recusou não segura o próximo; reserva sem resposta
+      segura só 10 min. Sem conseguir conferir, **não manda** (503). A recusa volta
+      **200 com `error` e `repetida: true`**, que é o que toda tela já mostra; no
+      painel o aviso diz o motivo em vez de "falhou, use o 📣".
+    - **painel:** o 📣 da vistoria nunca repete o aviso que o cliente já leu (diz
+      quando foi); continua podendo mandar aviso de prazo vencido, perguntando
+      antes. Se o servidor recusa por repetição, a vistoria fica marcada como
+      avisada.
+    - **`foto-obra` (v16) e instalador:** o relatório vai uma vez — o "enviar
+      novamente" saiu da página e o `force` é ignorado. Se a **abertura** não sai
+      (Z-API recusou, rede caiu), a trava solta e dá para tentar de novo, porque
+      nada chegou ao cliente. O termo de aceite também é assinado uma vez: a
+      segunda assinatura leva 409, a primeira fica e nada sai de novo no grupo.
+
+    ⚠️ **Custo conhecido:** remarcar A→B→A→B em menos de 24 h recusa o último
+    "nova data B" (o texto é igual ao segundo). A tela mostra o motivo; se precisar,
+    escreve-se no grupo à mão. Ficou assim porque a regra "só recusa se for a
+    última mensagem do grupo" deixava passar dois salvamentos intercalados.
+    ⚠️ O que sai **direto pela Z-API** (régua, lembretes, autoleitura, resumo,
+    `foto-obra`) não passa pelo `notificar-grupo` e tem as próprias marcas. **Envio
+    novo que uma pessoa dispara pela tela vai pelo `notificar-grupo`.**
+    **Quem decide se uma mensagem já foi é o sistema, não o clique: botão de
+    reenviar com pergunta é lido como "pode mandar".**
+
 ---
 
 ## 10. Estado e pendências
@@ -2625,6 +2673,31 @@ Conferido no banco em **22/09/2026**.
       véspera dizem *"04/11 a 05/11/2026"*. A ROSANE (4716) já tinha recebido o
       agendamento com *"04/11/2026"* às 12:03 de 29/10; o lembrete dela, em
       **03/11 às 9h**, é o primeiro com o período — conferir que saiu assim.
+- [x] ~~**JULIANO (4924) recebeu o aviso da vistoria duas vezes**~~ (armadilha 46).
+      Corrigido em 29/10 nas três camadas. **Falta ver com tráfego real** a
+      primeira linha de `envios_grupo` com `ok = true` — a prova de que a reserva
+      funciona no ar. O cliente já recebeu as duas; não há o que desfazer.
+- [ ] **O aviso de "NPS com ressalva" à equipe pelo `notificar-grupo` nunca
+      funcionou.** O `nps-resposta` chama com `{obra_id, titulo, texto}`, a função
+      espera `{grupo_id, message}` (e confere `is_autorizado` com a service role):
+      volta erro e o `try` cala. Achado em 29/10, não mexido. Conferir se a equipe
+      fica sabendo por outro caminho antes de consertar.
+- [ ] **Proposta de agenda e prioridade no quadro** (pedido do Vitor, 29/10):
+      página privada com a pesquisa, os números e sete propostas —
+      https://claude.ai/artifact/M4aXiH7nzErA6WGYzmwBdL. Esperando a escolha
+      (sugestão: 1, 2 e 3 juntas), se a vistoria entra também na agenda das
+      equipes, e se obra de vários dias aparece no fim de semana e no feriado.
+      Achados do dia: a CJP tem obra em todo dia útil até 13/11 (o primeiro livre
+      é 16/11); a **#4875** está na Execução **sem data** com contrato até 23/11
+      (instalando em 16/11, com a mediana de 7 dias até ligar, liga no último dia);
+      a **#4301** foi instalada em 05–06/10 e está parada há 27 dias porque o
+      relatório do instalador não foi enviado.
+- [ ] **O site publica este arquivo.** `obras.polarisenergiasolar.com/CLAUDE.md`
+      (e um `CLAUDE.html` que o Jekyll monta), `migrations/` e o código das edge
+      functions abrem para qualquer um (conferido em 29/10) — com nome de cliente,
+      telefone e valor. É a armadilha 36 no arquivo que a descreve. Decisão do
+      Vitor: tirar do site (ex.: `exclude` no `_config.yml`) ou mudar o que se
+      escreve aqui.
 - [ ] **Mensagem no privado da Isabela não é lida.** O webhook só grava grupo;
       cliente que escreve direto para o número da Isabela fica fora da escada.
 - [ ] **Senha de cliente gravada em texto puro.** Em 14/10, **20 mensagens em
