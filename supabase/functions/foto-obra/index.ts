@@ -99,6 +99,10 @@ Deno.serve(async (req: Request) => {
     if (acao === 'aceite') {
       const { assinatura_base64, nome, documento, optin } = body;
       if (!assinatura_base64 || !nome) return json({ error: 'Assinatura e nome são obrigatórios.' }, 400);
+      // O termo é assinado UMA vez. Uma segunda assinatura (outro celular, ou a
+      // página aberta de antes) trocava a do cliente e mandava de novo o "Termo
+      // de conclusão assinado" no grupo (29/10, junto da trava do relatório).
+      if (obra.aceite_em) return json({ ja_assinado: true, aceite_em: obra.aceite_em, aceite_nome: obra.aceite_nome, error: 'O termo desta obra já foi assinado.' }, 409);
       const bytes = Uint8Array.from(atob(assinatura_base64), (c) => c.charCodeAt(0));
       const path = `${obra.id}/assinatura-${Date.now()}.png`;
       const { error: eUp } = await admin.storage.from('fotos-obras').upload(path, bytes, { contentType: 'image/png' });
@@ -113,21 +117,33 @@ Deno.serve(async (req: Request) => {
 
       // Consentimento LGPD — só registra se o cliente marcou
       let consentiu = false;
+      let txtOptin: string | null = null;
       if (optin === true) {
         const { data: txt } = await admin.from('config').select('valor').eq('chave', 'optin_texto').maybeSingle();
+        txtOptin = txt?.valor || null;
         upd.optin_em = agora;
-        upd.optin_texto = txt?.valor || null;
+        upd.optin_texto = txtOptin;
         upd.optin_origem = 'termo';
         upd.optout_em = null;
         upd.optout_origem = null;
         consentiu = true;
+      }
+
+      // só grava se ninguém assinou entre a leitura lá de cima e aqui
+      const { data: gravou, error: eGrav } = await admin.from('obras').update(upd)
+        .eq('id', obra.id).is('aceite_em', null).select('id');
+      if (eGrav || !gravou || !gravou.length) {
+        await admin.storage.from('fotos-obras').remove([path]);
+        if (eGrav) return json({ error: 'Erro ao registrar o aceite: ' + eGrav.message }, 500);
+        const { data: atual } = await admin.from('obras').select('aceite_em, aceite_nome').eq('id', obra.id).maybeSingle();
+        return json({ ja_assinado: true, aceite_em: atual?.aceite_em, aceite_nome: atual?.aceite_nome, error: 'O termo desta obra já foi assinado.' }, 409);
+      }
+      if (consentiu) {
         await admin.from('consentimentos').insert({
-          obra_id: obra.id, acao: 'optin', texto: txt?.valor || null,
+          obra_id: obra.id, acao: 'optin', texto: txtOptin,
           origem: 'termo', nome, documento: documento || null,
         });
       }
-
-      await admin.from('obras').update(upd).eq('id', obra.id);
 
       if (obra.whatsapp_grupo_id) {
         const ZI = (Deno.env.get('ZAPI_INSTANCE_ID') || '').trim();
@@ -152,30 +168,31 @@ Deno.serve(async (req: Request) => {
     // ---------- ENVIAR RELATÓRIO ----------
     if (acao === 'enviar') {
       if (!obra.whatsapp_grupo_id) return json({ error: 'Esta obra ainda não tem grupo de WhatsApp. Peça ao escritório para criar pelo painel.' }, 400);
-      const force = body.force === true;
 
-      if (!force) {
-        const { data: lock } = await admin.from('obras')
-          .update({ relatorio_enviado_em: new Date().toISOString() })
-          .eq('id', obra.id).is('relatorio_enviado_em', null).select('id');
-        if (!lock || !lock.length) {
-          return json({ ja_enviado: true, enviado_em: obra.relatorio_enviado_em, error: 'O relatório desta obra já foi enviado no grupo.' }, 409);
-        }
-      } else {
-        await admin.from('obras').update({ relatorio_enviado_em: new Date().toISOString() }).eq('id', obra.id);
+      // O relatório vai ao cliente UMA vez. Até 29/10 havia o "enviar novamente"
+      // (force), que pulava esta trava: a TANAKA (4745) recebeu o pacote inteiro
+      // duas vezes em 20/10, com 23 s de diferença. Foto nova entra sozinha no
+      // relatório, e o link que o cliente recebeu é o mesmo. `force` é ignorado.
+      const { data: lock } = await admin.from('obras')
+        .update({ relatorio_enviado_em: new Date().toISOString() })
+        .eq('id', obra.id).is('relatorio_enviado_em', null).select('id');
+      if (!lock || !lock.length) {
+        return json({ ja_enviado: true, enviado_em: obra.relatorio_enviado_em, error: 'O relatório desta obra já foi enviado no grupo.' }, 409);
       }
+      // nada chegou ao cliente: solta a trava para poder tentar de novo
+      const soltar = () => admin.from('obras').update({ relatorio_enviado_em: null }).eq('id', obra.id);
 
       const ZI = (Deno.env.get('ZAPI_INSTANCE_ID') || '').trim();
       const ZT = (Deno.env.get('ZAPI_TOKEN') || Deno.env.get('ZAPI_INSTANCE_TOKEN') || '').trim();
       const ZC = (Deno.env.get('ZAPI_CLIENT_TOKEN') || '').trim();
       if (!ZI || !ZT || !ZC) {
-        if (!force) await admin.from('obras').update({ relatorio_enviado_em: null }).eq('id', obra.id);
+        await soltar();
         return json({ error: 'Z-API não configurada.' }, 500);
       }
 
       const { data: fotos } = await admin.from('fotos').select('*, checklist_itens(titulo)').eq('obra_id', obra.id).order('item_id').order('criado_em');
       if (!fotos || !fotos.length) {
-        if (!force) await admin.from('obras').update({ relatorio_enviado_em: null }).eq('id', obra.id);
+        await soltar();
         return json({ error: 'Nenhuma foto enviada ainda.' }, 400);
       }
 
@@ -207,10 +224,15 @@ Deno.serve(async (req: Request) => {
       const linkRel = `https://obras.polarisenergiasolar.com/relatorio.html?id=${obra.slug}`;
       const linkCli = `https://obras.polarisenergiasolar.com/cliente.html?id=${obra.slug}`;
 
-      await fetch(`${base}/send-text`, { method: 'POST', headers: zH, body: JSON.stringify({
+      // a abertura é a primeira coisa que o cliente vê: se ela não sair, nada saiu
+      const r0 = await fetch(`${base}/send-text`, { method: 'POST', headers: zH, body: JSON.stringify({
         phone: gid,
         message: `${abriu} *${Servico} concluída — ${obra.cliente}*${obra.contrato ? ' #' + obra.contrato : ''}\n\n${fezOQue}`,
-      })});
+      })}).catch(() => null);
+      if (!r0 || !r0.ok) {
+        await soltar();
+        return json({ error: 'O WhatsApp não aceitou a mensagem agora. Nada chegou ao cliente: tente enviar de novo em alguns minutos.' }, 502);
+      }
 
       let enviadas = 0;
       for (const f of destaque) {

@@ -1422,9 +1422,16 @@ function cpflVenceu(o){
    Ate 30/09 havia dois textos (este e o buildWA da etapa 7) e dois caminhos
    que mandavam sem saber um do outro; e o daqui estava QUEBRADO desde 27/08
    (cpfl_texto usava uma variavel que nao existia).
-   forcar = o 📣, reenvio pedido por uma pessoa. */
+   manual = o 📣, uma pessoa pediu. Ele pode mandar o aviso de um prazo que ja
+   passou (pergunta antes), mas NUNCA repete o aviso que o cliente ja leu. Ate
+   29/10 o 📣 pulava essa conferencia, e a unica barreira era a pergunta
+   "Reenviar?": o JULIANO (4924) recebeu o mesmo aviso as 11:02 e as 11:06. O
+   notificar-grupo tambem recusa o mesmo texto no mesmo grupo em 24 h. */
 function temVistoria(o){ return ((o&&o.trilha)||'padrao')==='padrao'; }
-async function avisarCpfl(id, forcar){
+function quandoBR(ts){ const x=new Date(ts); if(isNaN(x)) return '';
+  return x.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',timeZone:'America/Sao_Paulo'})+' às '
+    +x.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'}); }
+async function avisarCpfl(id, manual){
   const t=await sb.rpc('cpfl_texto',{p_obra:id});
   if(t.error||!t.data||t.data.erro){
     toast('Vistoria: '+((t.data&&t.data.erro)||'não foi possível montar o aviso'));
@@ -1432,20 +1439,27 @@ async function avisarCpfl(id, forcar){
   }
   const d=t.data;
   if(!d.grupo){ toast('Vistoria salva, mas o cliente não foi avisado: esta obra não tem grupo'); return false; }
-  if(!forcar){
-    if(d.ja_avisado){ toast('O cliente já foi avisado desta vistoria em '+fmtD(d.ja_avisado)+' — nada novo a mandar'); return 'ja'; }
-    if(d.mesmo_prazo){
-      await sb.rpc('cpfl_marcar_avisado',{p_obra:id});
-      toast('O prazo continua '+fmtD(d.prazo)+' — o cliente já tinha essa data, nada foi enviado');
-      return 'ja';
-    }
-    // data antiga esquecida no card: prazo que ja passou nao vira mensagem sozinho
-    if(d.prazo && d.prazo < hojeLocal()){
-      toast('O prazo desta vistoria ('+fmtD(d.prazo)+') já passou. Confira a data da solicitação; para mandar assim mesmo, use o 📣');
-      return false;
-    }
+  if(d.ja_avisado){ toast('O cliente já recebeu o aviso desta vistoria em '+quandoBR(d.ja_avisado)+'. Nada foi enviado de novo'); return 'ja'; }
+  if(d.mesmo_prazo){
+    await sb.rpc('cpfl_marcar_avisado',{p_obra:id});
+    toast('O prazo continua '+fmtD(d.prazo)+' — o cliente já tinha essa data, nada foi enviado');
+    return 'ja';
   }
+  // data antiga esquecida no card: prazo que ja passou nao vira mensagem sozinho
+  const venceu = !!(d.prazo && d.prazo < hojeLocal());
+  if(venceu && !manual){
+    toast('O prazo desta vistoria ('+fmtD(d.prazo)+') já passou. Confira a data da solicitação; para mandar assim mesmo, use o 📣');
+    return false;
+  }
+  if(manual && !confirm(venceu
+      ? 'O prazo desta vistoria ('+fmtD(d.prazo)+') já passou.\n\nMandar o aviso no grupo do cliente assim mesmo?'
+      : 'Mandar no grupo do cliente o aviso da vistoria, com prazo até '+fmtD(d.prazo)+'?')) return false;
   const r=await invokeFn('notificar-grupo',{grupo_id:d.grupo, message:d.texto});
+  if(r.repetida){
+    // o mesmo texto ja foi para o grupo: o cliente tem esta data
+    await sb.rpc('cpfl_marcar_avisado',{p_obra:id});
+    toast(r.error); return 'ja';
+  }
   if(r.error){ toast('Vistoria: o aviso no grupo falhou ('+r.error+'). Use o 📣 para reenviar'); return false; }
   const m=await sb.rpc('cpfl_marcar_avisado',{p_obra:id});
   if(m.error) toast('Aviso enviado, mas não consegui registrar: '+m.error.message);
@@ -1708,9 +1722,10 @@ if(ehVistoria){
 if(mudou && o.whatsapp_grupo_id){
 toast('Etapa atualizada ✓ Avisando o grupo... 📣');
 const oNovo=Object.assign({},o,patch);
-sb.functions.invoke('notificar-grupo',{body:{grupo_id:o.whatsapp_grupo_id,message:buildWA(oNovo)}})
+invokeFn('notificar-grupo',{grupo_id:o.whatsapp_grupo_id,message:buildWA(oNovo)})
 .then(r=>{
-if(r.error||(r.data&&r.data.error)) toast('⚠️ Etapa salva, mas o aviso no grupo falhou — use o 📣 pra reenviar');
+if(r.repetida) toast('Etapa atualizada. '+r.error);
+else if(r.error) toast('⚠️ Etapa salva, mas o aviso no grupo falhou ('+r.error+') — use o 📣 pra reenviar');
 else toast('✓ Cliente avisado no grupo automaticamente 📣');
 });
 } else {
@@ -2042,8 +2057,8 @@ async function avisarInstalador(o, antes, depois){
       +'\n\n📋 Checklist de fotos'+(ehMan?'':' da obra')+':\n'+linkChk
       +'\n\nQualquer dúvida, é só chamar. 💪\n\n*Polaris Energia Solar* ☀️';
   }
-  const r=await sb.functions.invoke('notificar-grupo',{body:{grupo_id:eq.whatsapp_grupo_id,message:msg}});
-  if(r.error||(r.data&&r.data.error)) toast('⚠️ Não consegui avisar a equipe '+eq.nome);
+  const r=await invokeFn('notificar-grupo',{grupo_id:eq.whatsapp_grupo_id,message:msg});
+  if(r.error) toast(r.repetida ? r.error : '⚠️ Não consegui avisar a equipe '+eq.nome+' ('+r.error+')');
   else toast('✓ '+eq.nome+' avisada no grupo 🔧');
 }
 /* Data que ja passou e REGISTRO, nao agendamento (TANAKA 4745, 16/10). Marcar no
@@ -2111,8 +2126,8 @@ msg='📅 *'+primeiro+', '+OQs+' está agendad'+(ehMan?'o':'a')+'!*\n\n'
 }
 if(semGrupo){ abrirWhatsPessoal(o.telefone, msg); return; }
 toast('Avisando o cliente... 📅');
-const r=await sb.functions.invoke('notificar-grupo',{body:{grupo_id:o.whatsapp_grupo_id,message:msg}});
-if(r.error||(r.data&&r.data.error)) toast('⚠️ Não consegui avisar no grupo — use o 📣 para reenviar');
+const r=await invokeFn('notificar-grupo',{grupo_id:o.whatsapp_grupo_id,message:msg});
+if(r.error) toast(r.repetida ? r.error : '⚠️ Não consegui avisar no grupo ('+r.error+') — use o 📣 para reenviar');
 else toast('✓ Cliente avisado no grupo 📅');
 }
 async function checarRespostas(){
@@ -2777,7 +2792,7 @@ if(ehVistoria){
     toast('Etapa atualizada. Avisando o grupo...');
     const rEt = await invokeFn('notificar-grupo',
       { grupo_id:oAtual.whatsapp_grupo_id, message:buildWA(oAtual) });
-    if(rEt.error) toast('Etapa salva, mas o aviso no grupo falhou - use o botao de megafone pra reenviar');
+    if(rEt.error) toast(rEt.repetida ? 'Etapa salva. '+rEt.error : 'Etapa salva, mas o aviso no grupo falhou ('+rEt.error+') - use o botao de megafone pra reenviar');
     else toast('Cliente avisado da nova etapa no grupo');
   }
 }
@@ -2895,7 +2910,9 @@ await loadEquipe(); reabrirEquipe(); toast('Removido ✓');
 async function invokeFn(name, body){
 const { data, error } = await sb.functions.invoke(name, { body });
 if(error){ let m=error.message; try{ const j=await error.context.json(); if(j&&j.error) m=j.error; }catch(_){} return { error:m }; }
-if(data&&data.error) return { error:data.error };
+// repetida: o notificar-grupo recusou o mesmo texto para o mesmo grupo em 24 h
+// (nada saiu, e o erro diz quando foi o primeiro)
+if(data&&data.error) return { error:data.error, repetida:!!data.repetida };
 return { data };
 }
 async function criarGrupo(id){
@@ -2912,7 +2929,7 @@ async function notificarGrupo(id){
 const o=getObra(id);
 if(!o.whatsapp_grupo_id){ toast('Esta obra ainda não tem grupo'); return; }
 if(temVistoria(o) && o.etapa_numero===ETAPA_VISTORIA){
-  if(!confirm('Reenviar o aviso da vistoria no grupo do cliente?')) return;
+  // a pergunta vem depois de conferir: aviso que o cliente ja leu nao e oferecido
   await avisarCpfl(id, true);
   await loadObras();
   return;
@@ -2920,7 +2937,7 @@ if(temVistoria(o) && o.etapa_numero===ETAPA_VISTORIA){
 if(!confirm('Enviar a mensagem da etapa atual no grupo do cliente?')) return;
 toast('Enviando...');
 const r = await invokeFn('notificar-grupo', { grupo_id:o.whatsapp_grupo_id, message:buildWA(o) });
-if(r.error){ toast('Erro: '+r.error); return; }
+if(r.error){ toast(r.repetida ? r.error : 'Erro: '+r.error); return; }
 toast('Mensagem enviada no grupo ✓');
 }
 

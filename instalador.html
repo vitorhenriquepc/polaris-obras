@@ -110,8 +110,7 @@ border-radius:12px;padding:13px;font-size:13px;font-weight:800;text-align:center
 .optin .tx{font-size:12.5px;line-height:1.55;color:var(--txt);font-weight:600}
 .optin .nota{font-size:10.5px;color:var(--muted);margin-top:8px;padding-left:32px;line-height:1.45}
 .termo.assinado .oksel{font-size:11.5px;color:var(--green-l,#58B868);font-weight:700;margin-top:6px;display:block}
-.btn-reenv{width:100%;background:none;border:none;color:var(--muted);font-family:inherit;font-size:11.5px;
-font-weight:700;cursor:pointer;padding:9px 0 2px;text-decoration:underline}
+.jaenv-obs{font-size:11.5px;color:var(--muted);font-weight:600;text-align:center;line-height:1.45;padding:9px 4px 2px}
 /* Apontamentos */
 .apbox{background:var(--card);border:1px solid rgba(245,166,35,.45);border-radius:16px;padding:15px;margin-bottom:11px}
 .apbox h2{font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px}
@@ -270,7 +269,9 @@ function renderChecklist(){
     var dt=new Date(OBRA.relatorio_enviado_em);
     foot='<div class="footer"><div class="inner">'
       +'<div class="jaenv">✅ Relatório enviado no grupo em '+dt.toLocaleDateString('pt-BR')+' às '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</div>'
-      +'<button class="btn-reenv" onclick="reenviar()">enviar novamente</button>'
+      // sem "enviar novamente": o cliente recebia o pacote inteiro outra vez
+      // (TANAKA 4745, 20/10). Foto nova entra sozinha no relatório.
+      +'<div class="jaenv-obs">Foto nova entra sozinha no relatório. O link que o cliente recebeu é o mesmo.</div>'
       +'</div></div>';
   } else {
     foot='<div class="footer"><div class="inner">'
@@ -362,15 +363,11 @@ function verificarConclusao(){
   }
 }
 var ENVIANDO=false;
-async function reenviar(){
-  if(!confirm('⚠️ O relatório desta obra JÁ FOI enviado no grupo.\n\nEnviar novamente? O cliente vai receber as mensagens outra vez.'))return;
-  enviar(false,true);
-}
-async function enviar(auto,force){
+async function enviar(auto){
   if(ENVIANDO) return;
   if(!OBRA.tem_grupo){toast('O grupo do cliente ainda não foi criado. Avise o escritório!');return;}
-  if(OBRA.relatorio_enviado_em && !force){toast('Este relatório já foi enviado no grupo ✅');return;}
-  if(!auto && !force){
+  if(OBRA.relatorio_enviado_em){toast('Este relatório já foi enviado no grupo ✅');return;}
+  if(!auto){
     var obrig=ITENS.filter(function(i){return i.obrigatorio});
     var faltam=obrig.filter(function(i){return !fotosDoItem(i.id).length});
     var msg='Enviar o relatório no grupo do cliente?\n\nO grupo recebe as fotos dos módulos e do inversor + o link do relatório completo com todas as '+FOTOS.length+' fotos.';
@@ -380,9 +377,18 @@ async function enviar(auto,force){
   ENVIANDO=true;
   var btn=document.getElementById('btnSend');
   if(btn){btn.disabled=true;btn.textContent='📤 Enviando relatório no grupo...';}
-  var r=await fetch(FN_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
-    body:JSON.stringify({acao:'enviar',slug:SLUG,token:TOKEN,force:!!force})});
-  var j=await r.json();
+  var r,j;
+  try{
+    r=await fetch(FN_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
+      body:JSON.stringify({acao:'enviar',slug:SLUG,token:TOKEN})});
+    j=await r.json();
+  }catch(e){
+    // sinal caiu no meio: tentar de novo é seguro, o sistema não manda duas vezes
+    ENVIANDO=false;
+    toast('A conexão caiu antes da resposta. Toque de novo: se o relatório já tiver saído, o sistema avisa e não repete.');
+    if(btn){btn.disabled=false;btn.textContent='📤 Enviar relatório no grupo';}
+    return;
+  }
   ENVIANDO=false;
   if(j.ja_enviado){
     toast('Este relatório já foi enviado no grupo ✅');
@@ -452,9 +458,21 @@ async function salvarAceite(){
   var chk=document.getElementById('a_optin');
   var optin=chk?chk.checked:false;
   var btn=document.getElementById('btnAceite');btn.disabled=true;btn.textContent='Registrando...';
-  var r=await fetch(FN_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
-    body:JSON.stringify({acao:'aceite',slug:SLUG,token:TOKEN,assinatura_base64:b64,nome:nome,documento:doc,optin:optin})});
-  var j=await r.json();
+  var r,j;
+  try{
+    r=await fetch(FN_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
+      body:JSON.stringify({acao:'aceite',slug:SLUG,token:TOKEN,assinatura_base64:b64,nome:nome,documento:doc,optin:optin})});
+    j=await r.json();
+  }catch(e){
+    toast('A conexão caiu antes da resposta. Toque de novo: se o aceite já tiver sido registrado, o sistema avisa.');
+    btn.disabled=false;btn.textContent='Registrar aceite do cliente';return;
+  }
+  // o termo é assinado uma vez: outro celular (ou esta página aberta de antes) já registrou
+  if(j.ja_assinado){
+    OBRA.aceite_em=j.aceite_em||new Date().toISOString(); OBRA.aceite_nome=j.aceite_nome||OBRA.aceite_nome;
+    toast('O termo desta obra já tinha sido assinado ✅');
+    renderChecklist(); return;
+  }
   if(!r.ok||j.error){toast('Erro: '+(j.error||r.status));btn.disabled=false;btn.textContent='Registrar aceite do cliente';return;}
   OBRA.aceite_em=new Date().toISOString(); OBRA.aceite_nome=nome;
   if(optin) OBRA.optin_em=OBRA.aceite_em;
