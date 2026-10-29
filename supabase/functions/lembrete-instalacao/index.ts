@@ -55,9 +55,22 @@ Deno.serve(async (req: Request) => {
     const { data: obras } = await admin.rpc('obras_para_lembrete');
     if (!obras || !obras.length) return json({ ok: true, clientes: 0, equipes: 0 });
 
+    // O término previsto (o "Término previsto" do card) não vem na
+    // obras_para_lembrete -- mudar o retorno dela pede drop. Lido aqui, para
+    // obra de mais de um dia dizer "04/11 a 05/11/2026" (ROSANE 4716, 29/10).
+    // Se a leitura falhar, sai a data de sempre.
+    const { data: fins } = await admin.from('obras').select('id, data_fim').in('id', obras.map((o: any) => o.id));
+    const fimDe = new Map<string, string | null>((fins || []).map((x: any) => [x.id, x.data_fim]));
+
     const base = `https://api.z-api.io/instances/${ZI}/token/${ZT}`;
     const zH = { 'Content-Type': 'application/json', 'Client-Token': ZC };
     const fmt = (d: string) => String(d).split('-').reverse().join('/');
+    // "04/11/2026" ou "04/11 a 05/11/2026" -- o ano só se repete quando muda (igual ao painel)
+    const periodo = (ini: string, fim?: string | null) => {
+      if (!fim || fim <= ini) return fmt(ini);
+      const [a, m, d] = String(ini).split('-');
+      return (String(fim).slice(0, 4) === a ? `${d}/${m}` : fmt(ini)) + ' a ' + fmt(fim);
+    };
 
     const TIPO: Record<string, string> = {
       preventiva: 'manutenção preventiva',
@@ -74,11 +87,12 @@ Deno.serve(async (req: Request) => {
       const equipe = o.instalador || 'Polaris Energia Solar';
       const local = localLegivel(o.endereco);
       const maps = linkMaps(o.endereco);
+      const quando = periodo(o.data_instalacao, fimDe.get(o.id));
       let msg = '';
 
       if (manut && o.tipo_manutencao === 'corretiva') {
         msg = `🔧 *${primeiro}, nossa visita técnica é amanhã!*\n\n` +
-          `📅 Data: *${fmt(o.data_instalacao)}*\n👷 Equipe: ${equipe}\n`;
+          `📅 Data: *${quando}*\n👷 Equipe: ${equipe}\n`;
         if (local) msg += `📍 Local: ${local}\n`;
         msg += `\nSó precisamos que alguém esteja no local para *liberar o acesso* — telhado, inversor e quadro de energia.\n\n` +
           `✅ *Uma ajuda:* se o problema mudou ou parou de acontecer, avise por aqui antes da visita. ` +
@@ -90,7 +104,7 @@ Deno.serve(async (req: Request) => {
 
       } else if (manut && o.tipo_manutencao === 'diagnostico') {
         msg = `🔎 *${primeiro}, sua avaliação técnica é amanhã!*\n\n` +
-          `📅 Data: *${fmt(o.data_instalacao)}*\n👷 Equipe: ${equipe}\n`;
+          `📅 Data: *${quando}*\n👷 Equipe: ${equipe}\n`;
         if (local) msg += `📍 Local: ${local}\n`;
         msg += `\nSó precisamos que alguém esteja no local para *liberar o acesso* — telhado, inversor e quadro de energia.\n\n` +
           `📄 Se tiver em mãos, separe uma *conta de luz recente*. Ela ajuda a comparar o que o sistema deveria estar gerando.\n\n` +
@@ -100,7 +114,7 @@ Deno.serve(async (req: Request) => {
       } else if (manut) {
         const nomeServ = TIPO[o.tipo_manutencao] || 'visita técnica';
         msg = `🧽 *${primeiro}, sua ${nomeServ} é amanhã!*\n\n` +
-          `📅 Data: *${fmt(o.data_instalacao)}*\n👷 Equipe: ${equipe}\n`;
+          `📅 Data: *${quando}*\n👷 Equipe: ${equipe}\n`;
         if (local) msg += `📍 Local: ${local}\n`;
         msg += `\n*Para agilizar, deixe liberado:*\n` +
           `• Acesso ao telhado, inversor e quadro de energia\n` +
@@ -110,7 +124,7 @@ Deno.serve(async (req: Request) => {
 
       } else {
         msg = `🔧 *${primeiro}, sua instalação é amanhã!*\n\n` +
-          `📅 Data: *${fmt(o.data_instalacao)}*\n👷 Equipe: ${equipe}\n`;
+          `📅 Data: *${quando}*\n👷 Equipe: ${equipe}\n`;
         if (local) msg += `📍 Local: ${local}\n`;
         msg += `\n*Para agilizar, deixe liberado:*\n` +
           `• Acesso ao telhado e ao quadro de energia\n` +
@@ -146,6 +160,8 @@ Deno.serve(async (req: Request) => {
         const local = localLegivel(o.endereco);
         const tag = o.trilha === 'manutencao' ? ` — _${(TIPO[o.tipo_manutencao] || 'visita técnica').toUpperCase()}_` : '';
         msg += `\n*${i + 1}. ${o.cliente}*${o.contrato ? ` · #${o.contrato}` : ''}${tag}\n`;
+        const fim = fimDe.get(o.id);
+        if (fim && fim > o.data_instalacao) msg += `📅 ${periodo(o.data_instalacao, fim)}\n`;
         if (o.potencia_kwp) msg += `⚡ ${String(o.potencia_kwp).replace('.', ',')} kWp\n`;
         if (local) msg += `📍 ${local}\n`;
         if (maps) msg += `🗺️ ${maps}\n`;

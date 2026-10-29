@@ -1983,6 +1983,15 @@ if(lista.indexOf(atual)<0) atual=lista.reduce((a,b)=>Math.abs(b-atual)<Math.abs(
 sel.innerHTML=lista.map(n=>`<option value="${n}" ${n===atual?'selected':''}>${n} - ${((m[n]||{}).nome||'').replace('!','')}</option>`).join('');
 }
 function dataBRs(iso){ if(!iso) return ''; const p=String(iso).split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+/* O período da obra nas mensagens: "04/11/2026" ou, com término previsto,
+   "04/11 a 05/11/2026" (o ano só se repete quando muda). Até 29/10 o aviso de
+   agendamento dizia só o 1º dia: a ROSANE (4716), de 04 a 05/11, leu "Data: 04/11/2026". */
+function periodoBR(ini, fim){
+  if(!ini) return '';
+  if(!fim || fim<=ini) return dataBRs(ini);
+  const p=String(ini).split('-');
+  return (String(fim).slice(0,4)===p[0] ? p[2]+'/'+p[1] : dataBRs(ini))+' a '+dataBRs(fim);
+}
 function fichaTexto(o){
   const L=[];
   if(o.potencia_kwp) L.push('⚡ '+String(o.potencia_kwp).replace('.',',')+' kWp');
@@ -2010,7 +2019,7 @@ async function avisarInstalador(o, antes, depois){
   let msg;
   if(reag){
     msg='🔄 *Obra remarcada — '+o.cliente+'*\n\n'
-      +'📅 Nova data: *'+dataBRs(depois)+'*\n'
+      +'📅 Nova data: *'+periodoBR(depois,o.data_fim)+'*\n'
       +'(anterior: '+dataBRs(antes)+')\n\n'
       +(o.endereco?'📍 '+o.endereco+'\n'+(maps?maps+'\n':''):'')
       +'\n📋 Checklist de fotos:\n'+linkChk
@@ -2026,7 +2035,7 @@ async function avisarInstalador(o, antes, depois){
     msg='🔧 *'+serv+' para vocês!*\n\n'
       +'👤 Cliente: *'+o.cliente+'*'+(o.contrato?' · #'+o.contrato:'')+'\n'
       +(ehMan&&o.telefone?'📞 '+o.telefone+'\n':'')
-      +'📅 Data: *'+dataBRs(depois)+'*\n'
+      +'📅 Data: *'+periodoBR(depois,o.data_fim)+'*\n'
       +(o.endereco?'📍 '+o.endereco+'\n'+(maps?'🗺️ '+maps+'\n':''):'')
       +(ehMan&&o.motivo_manutencao?'\n📝 *Relatado pelo cliente:* '+o.motivo_manutencao+'\n':'')
       +(ficha?'\n*Ficha técnica*\n'+ficha:'')
@@ -2043,7 +2052,7 @@ async function avisarInstalador(o, antes, depois){
    nesse caso e o link do checklist, e so se o instalador ainda nao enviou o
    relatorio. Quem decide mandar e a pessoa; o cliente nao recebe nada. */
 async function dataQueJaPassou(o){
-  const quando=dataBRs(o.data_instalacao)+(o.data_fim&&o.data_fim!==o.data_instalacao?' a '+dataBRs(o.data_fim):'');
+  const quando=periodoBR(o.data_instalacao,o.data_fim);
   if(o.relatorio_enviado_em || !o.instalador_id){
     toast('Data registrada ('+quando+'). Como já passou, ninguém foi avisado de agendamento.'); return;
   }
@@ -2083,19 +2092,19 @@ const onde = semGrupo ? 'no WhatsApp pessoal' : 'no grupo';
 let msg;
 if(reag){
 const motivo = prompt(
-'📅 Reagendamento detectado ('+dataBRs(antes)+' → '+dataBRs(depois)+')\n\n'
+'📅 Reagendamento detectado ('+dataBRs(antes)+' → '+periodoBR(depois,o.data_fim)+')\n\n'
 +'Escreva o motivo que será enviado ao cliente (opcional).\nDeixe vazio para uma mensagem padrão, ou cancele para não avisar agora.',
 '');
 if(motivo===null) return;
 msg='📅 *'+primeiro+', precisamos remanejar a data d'+(ehMan?'o seu atendimento':'a sua instalação')+'*\n\n'
-+'A nova data ficou para *'+dataBRs(depois)+'*.\n'
++'A nova data ficou para *'+periodoBR(depois,o.data_fim)+'*.\n'
 +(motivo.trim()?'\nMotivo: '+motivo.trim()+'\n':'')
 +'\nPedimos desculpas pelo transtorno e agradecemos a compreensão. Nossa equipe já está organizada para essa nova data. 🙏\n\n'
 +'Qualquer coisa, é só falar por aqui.\n\n*Equipe Polaris Energia Solar* ☀️';
 } else {
-if(!confirm('Avisar o cliente '+onde+' que '+(ehMan?'o atendimento':'a instalação')+' foi agendad'+(ehMan?'o':'a')+' para '+dataBRs(depois)+'?')) return;
+if(!confirm('Avisar o cliente '+onde+' que '+(ehMan?'o atendimento':'a instalação')+' foi agendad'+(ehMan?'o':'a')+' para '+periodoBR(depois,o.data_fim)+'?')) return;
 msg='📅 *'+primeiro+', '+OQs+' está agendad'+(ehMan?'o':'a')+'!*\n\n'
-+'Data: *'+dataBRs(depois)+'*\n'
++'Data: *'+periodoBR(depois,o.data_fim)+'*\n'
 +(o.endereco?'📍 Local: '+o.endereco+'\n':'')
 +'\nUm dia antes enviamos um lembrete com tudo que precisa ficar liberado no local. 😉\n\n'
 +'Se essa data não for boa para você, é só nos avisar por aqui.\n\n*Equipe Polaris Energia Solar* ☀️';
