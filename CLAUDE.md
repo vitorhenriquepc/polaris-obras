@@ -2045,12 +2045,19 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     **cada dia do intervalo, inclusive fim de semana e feriado** (a do RINALDO,
     4519, de 30/10 a 03/11, passa por sábado, domingo e Finados), com *"1/2"* no
     mês e *"dia 1 de 2 (04/11 a 05/11)"* na semana; término vazio, igual ou
-    antes da instalação é um dia só. ⚠️ **As mensagens de agendamento também não
-    dizem o término**: às 12:03 a ROSANE leu no grupo *"Data: 04/11/2026"*, e a
-    equipe recebeu o mesmo. Só o caminho de data que já passou
-    (`dataQueJaPassou`) mostra o intervalo. Mexer no texto que vai ao cliente é
-    decisão do Vitor (§10). **Antes de dizer que um campo aparece numa tela, siga
-    ele do card até quem desenha — gravar não é mostrar.**
+    antes da instalação é um dia só. ⚠️ **As mensagens também não diziam o
+    término**: às 12:03 a ROSANE leu no grupo *"Data: 04/11/2026"*, e a equipe
+    recebeu o mesmo. Com o OK do Vitor (29/10), o período entrou em todas as que
+    dizem a data: o aviso de agendamento e o de remarcação (cliente e equipe), o
+    de data que já passou e o **lembrete da véspera** (`lembrete-instalacao` v10,
+    cliente e "Agenda de amanhã" da equipe) — *"04/11 a 05/11/2026"*, com o ano só
+    quando muda (`periodoBR` no painel, `periodo` na função). A
+    `obras_para_lembrete` não devolve o término (mudar o retorno pede `drop`,
+    armadilha 32): a função o lê de `obras` e, se a leitura falhar, sai a data de
+    sempre. Obra de um dia lê o texto de antes. ⚠️ **Mudar só o término não avisa
+    ninguém** — o aviso sai quando muda a data de instalação ou a equipe, como
+    antes. **Antes de dizer que um campo aparece numa tela, siga ele do card até
+    quem desenha — gravar não é mostrar.**
 
 ---
 
@@ -2612,12 +2619,12 @@ Conferido no banco em **22/09/2026**.
       como "grupo interno". ⚠️ **O que eles escreveram de 26/09 (Tays) e 02/10
       (Júnior) até 15/10 não foi gravado e não volta** — a Z-API não reenvia;
       para saber, só lendo os dois grupos.
-- [ ] **O aviso de agendamento diz só o primeiro dia** (armadilha 45). Obra de
-      mais de um dia (término previsto no card) sai para o cliente como *"Data:
-      04/11/2026"* e para a equipe como *"📅 Data: 04/11/2026"* — a ROSANE (4716),
-      de 04 a 05/11, recebeu assim em 29/10. A agenda já mostra os dois dias.
-      Pôr o intervalo nas duas mensagens (e no "remarcada") é mudar texto que vai
-      ao cliente: decisão do Vitor.
+- [x] ~~**O aviso de agendamento diz só o primeiro dia**~~ (armadilha 45).
+      **Decidido e feito em 29/10** (Vitor: "pode pôr o intervalo nas
+      mensagens"): agendamento, remarcação, data que já passou e lembrete da
+      véspera dizem *"04/11 a 05/11/2026"*. A ROSANE (4716) já tinha recebido o
+      agendamento com *"04/11/2026"* às 12:03 de 29/10; o lembrete dela, em
+      **03/11 às 9h**, é o primeiro com o período — conferir que saiu assim.
 - [ ] **Mensagem no privado da Isabela não é lida.** O webhook só grava grupo;
       cliente que escreve direto para o número da Isabela fica fora da escada.
 - [ ] **Senha de cliente gravada em texto puro.** Em 14/10, **20 mensagens em
