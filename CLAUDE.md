@@ -1125,6 +1125,7 @@ cartão da indicação.
 | `regua_bloqueio(obra, modelo)` | por que uma mensagem da régua não sai hoje — sem grupo, opt-out, **"pediu para sair?" esperando a equipe** (3 dias), sem autorização, já indicou, sem geração. O disparo das 17h pula toda linha com bloqueio |
 | `webhook_ja_visto(id, texto)` · `webhook_esquecer(id, texto)` | a trava do webhook contra a mesma mensagem entregue de novo pela Z-API · solta a trava quando a gravação falha (só service_role) |
 | `envio_grupo_reservar(grupo, texto)` · `envio_grupo_concluir(id, ok)` | a trava do `notificar-grupo` contra o **mesmo texto para o mesmo grupo em 24 h** (JULIANO 4924, 29/10): reserva atômica antes de mandar, marca se a Z-API aceitou (`envios_grupo`). Só service_role — armadilha 46 |
+| `entrega_conferir(simular)` · `entrega_avisada(ids)` | **a mensagem chegou ao grupo?** Confere o que saiu nas últimas 24 h para grupo de cliente (painel, régua, relatório, pesquisa) contra a cópia que volta pelo webhook (`Sistema/Polaris`); o que não voltou em 10 min vira aviso à pós-venda, um por grupo a cada 6 h (`entrega_conferida`). Só service_role — armadilha 47 |
 | `definir_responsavel(equipe, funcao)` | troca a pessoa de um dos dois papéis; só admin |
 | `get_kpis_financeiro(ini, fim)` | R$/Wp e execução × faturamento, **com a cobertura junto** — quantas obras sustentam cada número e o que falta para as outras |
 | `obra_custos_realizados(obra)` | o realizado da obra vindo do extrato, campo a campo; diz também se o extrato cobre o período da obra |
@@ -1155,6 +1156,7 @@ cartão da indicação.
 **09h resumo do mês do cliente modelo** (`resumo-mensal`, seg–sex: enfileira a partir do dia 2, envia o aprovado no dia 5 ou no próximo dia útil) ·
 **9h aviso de autoleitura no dia · 18h aviso da véspera** (seg–sex) ·
 9h aviso de vencimento de plano, D-30 e D-7 (seg–sex) ·
+**a cada 10 min, das 8h às 20h50: a mensagem chegou ao grupo?** (`entrega-conferir` → `resp_posvenda`, todo dia; armadilha 47) ·
 dia 2 fechamento · dia 5 resumo mensal · dia 6 marcos · dia 10 lembrete de
 tarifa · domingo 11h30 limpa órfãos
 
@@ -1225,6 +1227,9 @@ Prefira criar parâmetro a chumbar número no código.
 | `atendimento_desde` | 2026-10-15T20:17:01Z | ao ligar, só olha mensagem depois disto |
 | `alerta_espera_ativo` | **0** (desde 15/10 17:17) | o "cliente esperando" antigo, substituído pela escada da Isabela |
 | `optout_ia_segura_dias` | 3 | quantos dias a régua espera depois de um recado que a IA leu como `sair`, enquanto a equipe não confirma (23/10) |
+| `entrega_conferir_ativo` | 1 | o aviso de mensagem que não voltou do grupo do cliente (`entrega-conferir`, armadilha 47) |
+| `entrega_espera_min` · `entrega_intervalo_h` | 10 · 6 | minutos até contar como "não voltou" (a cópia volta em 4 a 75 s) · horas entre dois avisos do mesmo grupo |
+| `entrega_desde` | 29/10, na migração | o que saiu antes disto não é conferido |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -2107,6 +2112,65 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     **Quem decide se uma mensagem já foi é o sistema, não o clique: botão de
     reenviar com pergunta é lido como "pode mandar".**
 
+47. **A Z-API aceita mensagem para grupo em que a Isabela não está — e não avisa
+    ninguém.** JOSÉ VICENTE DOS SANTOS PINTO (4875), 28 e 29/10: o Vitor marcou a
+    obra e viu que só o instalador tinha sido avisado. O painel mandou as duas
+    mensagens ao grupo do cliente (a da etapa "Execução da Obra" às 17:51 de 28/10
+    e o agendamento de 17/11 às 13:31 de 29/10), o `notificar-grupo` respondeu 200
+    nas duas, e nenhuma chegou: **a Isabela não estava no grupo**. A prova é a
+    cópia: desde 15/10 tudo o que sai pelo número dela volta pelo webhook e é
+    gravado como `Sistema/Polaris` segundos depois. Às 17:51 de 28/10 as obras
+    vizinhas (4889, 4914, 4903) gravaram a delas e a 4875 não, e o grupo dela nunca
+    tinha gravado mensagem nenhuma. Quando o Vitor pôs a Isabela (14:12 de 29/10),
+    chegou o primeiro evento do grupo, com o mesmo código salvo no card: o grupo
+    estava certo, só faltava ela. Medido no mesmo dia: desde 15/10, as 45
+    mensagens da régua e todas as do painel para grupo de cliente voltaram, menos
+    as do José Vicente; em 59 envios com hora gravada, a cópia voltou de 4 a 75 s
+    depois.
+
+    Desde 29/10 (`migrations/2026-10-29_entrega_nos_grupos.sql` + edge function
+    `entrega-conferir`, cron a cada 10 min das 8h às 20h50) o sistema confere: o
+    que saiu para grupo de cliente nas últimas 24 h — painel (`envios_grupo`),
+    régua, relatório do instalador, pesquisa de satisfação — e não voltou em 10
+    minutos vira aviso no privado da pós-venda (`resp_posvenda`): *"⚠️ Mensagem
+    que não chegou ao grupo do cliente"*, com o cliente, a hora e o começo do
+    texto. Um aviso por grupo a cada 6 h. Se 3 ou mais grupos ficam sem cópia e
+    nada volta de grupo nenhum, o aviso diz que o problema é o número da Isabela
+    ou a Z-API, não o grupo. Ensaiado no Postgres (23 casos) e a edge function no
+    Node (15); em produção, só lendo, as mensagens do dia voltaram todas.
+    ⚠️ Fica de fora o que não grava a hora do envio: o lembrete da véspera
+    (`instalacao_lembrete_em` guarda a data da obra), a autoleitura e o aviso de
+    fim de semana. ⚠️ A conferência depende da opção *"Notificar as enviadas por
+    mim também"* da Z-API: desligada, nada volta, e o aviso diz isso.
+    **Aceito pela Z-API não quer dizer entregue. Quem prova que chegou é a cópia
+    que volta.**
+
+48. **Aviso segurado pela trava de aba velha não tinha como sair de novo.**
+    EDILSON CAVASSANA (3344), 29/10: a obra foi criada às 08:40 sem data, e às
+    12:23:16 a data 12/11 foi gravada numa aba aberta antes das 12:20 — e às 12:20
+    eu tinha publicado o painel (a agenda da ROSANE). A trava (armadilha 31) fez o
+    que devia: recusou o aviso ao cliente e o aviso à CJP, e o painel foi
+    recarregado 7 s depois. Só que recarregar não manda nada: a data já estava
+    salva, salvar de novo não dispara aviso, e o 📣 só mandava a mensagem da etapa.
+    O toast pedia *"recarregue e mande de novo"*, e não havia como. A venda entrou
+    no DRE no mesmo segundo (12:23:16) e nenhuma chamada de envio saiu.
+
+    Desde 29/10 (no ar depois das 18h): o 📣 de obra com data de hoje em diante
+    abre uma escolha com cada aviso no seu botão — a mensagem da etapa,
+    *"Instalação agendada para …"* (cliente) e *"CJP Solar: data e link do
+    checklist"* (equipe); com a data já passada e o relatório por mandar (até 30
+    dias), o link do checklist. O clique no botão é a confirmação, e o
+    `notificar-grupo` recusa o que já foi igual em 24 h (armadilha 46). Obra sem
+    nada disso continua com o 📣 de sempre. E o que a trava segura fica anotado
+    no navegador e aparece no topo do painel depois de recarregar — *"📣 Ficou sem
+    sair"*, com "Mandar agora" e "Dispensar"; vale 2 dias e some sozinho quando o
+    aviso sai por qualquer caminho ou deixa de fazer sentido (data que passou não
+    é mais agendamento). Testado no Chromium com o supabase-js de verdade (40
+    conferências); a versão anterior reproduz o caso do Edilson.
+    **Decisão do Vitor (29/10): mudança em tela vai ao ar depois das 18h** (§11).
+    **Trava que recusa tem de dizer como fazer de novo — e o "de novo" tem de
+    existir.**
+
 ---
 
 ## 10. Estado e pendências
@@ -2677,6 +2741,17 @@ Conferido no banco em **22/09/2026**.
       Corrigido em 29/10 nas três camadas. **Falta ver com tráfego real** a
       primeira linha de `envios_grupo` com `ok = true` — a prova de que a reserva
       funciona no ar. O cliente já recebeu as duas; não há o que desfazer.
+- [ ] **JOSÉ VICENTE (4875) e EDILSON (3344) sem o aviso de agendamento**
+      (armadilhas 47 e 48). **José Vicente:** a Isabela entrou no grupo às 14:12 de
+      29/10; o cliente ainda não recebeu a mensagem da etapa (28/10) nem o
+      agendamento de 17/11 — os dois saem pelo 📣 do card. **Edilson:** nem o
+      cliente nem a CJP souberam do dia 12/11 pelo sistema; o grupo dele nunca
+      gravou mensagem, então **confira se a Isabela está nele** antes de mandar
+      (📣 → agendamento e CJP). Depois de mandar, a cópia tem de aparecer em
+      `mensagens_recebidas` em segundos; se não aparecer, o `entrega-conferir`
+      avisa a Lívia.
+- [ ] **Primeira rodada de verdade do `entrega-conferir`** (armadilha 47): ver
+      `entrega_conferida` enchendo e nenhum aviso falso nos primeiros dias.
 - [ ] **O aviso de "NPS com ressalva" à equipe pelo `notificar-grupo` nunca
       funcionou.** O `nps-resposta` chama com `{obra_id, titulo, texto}`, a função
       espera `{grupo_id, message}` (e confere `is_autorizado` com a service role):
@@ -2688,8 +2763,9 @@ Conferido no banco em **22/09/2026**.
       (sugestão: 1, 2 e 3 juntas), se a vistoria entra também na agenda das
       equipes, e se obra de vários dias aparece no fim de semana e no feriado.
       Achados do dia: a CJP tem obra em todo dia útil até 13/11 (o primeiro livre
-      é 16/11); a **#4875** está na Execução **sem data** com contrato até 23/11
-      (instalando em 16/11, com a mediana de 7 dias até ligar, liga no último dia);
+      é 16/11); a **#4875** estava na Execução **sem data** com contrato até 23/11
+      (ganhou a data 17/11 no mesmo dia; com a mediana de 7 dias até ligar, liga
+      no último dia do prazo);
       a **#4301** foi instalada em 05–06/10 e está parada há 27 dias porque o
       relatório do instalador não foi enviado.
 - [ ] **O site publica este arquivo.** `obras.polarisenergiasolar.com/CLAUDE.md`
@@ -2722,6 +2798,9 @@ comercial (só depois do financeiro confiável).
 4. Mudou tela? Valide a sintaxe do arquivo publicado.
 5. Vai alterar em lote? Simule, mostre, só então grave.
 6. Terminou? Diga o que testou e o que **não** testou.
+7. Mudança em tela vai ao ar **depois das 18h** (Vitor, 29/10). Publicar no meio
+   do expediente deixa velha a aba de quem está trabalhando, e a trava segura os
+   avisos dela (armadilha 48).
 
 Quando algo der errado, diga o que aconteceu de fato. O Vitor prefere saber do
 erro do que receber um "está tudo certo" que não se sustenta.

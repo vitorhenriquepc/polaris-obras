@@ -175,6 +175,20 @@ padding:4px 9px;border-radius:20px;white-space:nowrap}
 .relin{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--txt);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:14px;margin-bottom:2px}
 .mact{display:block;width:100%;text-align:left;background:var(--card2);border:1px solid var(--border);color:var(--txt);border-radius:10px;padding:11px 13px;margin-bottom:6px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
 .mact:hover{border-color:var(--gold)}
+/* 📣 com escolha e o "ficou sem sair" (29/10) */
+.mact .mst{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-top:4px}
+.mact .mst:empty{display:none}
+.mact.feito{border-color:var(--green)}
+.mact.feito .mst{color:#58b868}
+.mpend{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:20px;font-size:10.5px;font-weight:800;
+background:rgba(245,166,35,.15);color:var(--gold);border:1px solid rgba(245,166,35,.45)}
+.pendav{background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.5);border-radius:12px;padding:10px 12px;
+margin-bottom:12px;font-size:13px;line-height:1.45;color:var(--txt)}
+.pendav b{color:var(--gold)}
+.pendav .pl{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:6px}
+.pendav .pl span{font-weight:700;margin-right:4px}
+.pendav button{background:var(--card2);border:1px solid var(--border);color:var(--txt);border-radius:8px;
+padding:5px 10px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
 .acoes{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px}
 .acoes .act{width:100%;justify-content:flex-start;text-align:left}
 .acgrupo{font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--mut);margin:4px 0 2px}
@@ -530,7 +544,8 @@ if(sb){
       }
       VERSAO.conferida_em = 0;   // antes de falar com o cliente, confere agora
       if(await paginaVelha()){
-        return { data:null, error:{ message:'Esta aba está com uma versão antiga do painel. Recarregue a página (Ctrl+F5) e mande de novo — nada foi enviado.' } };
+        // velha: quem chamou anota o aviso, que aparece de novo depois de recarregar
+        return { data:null, error:{ message:'Esta aba está com uma versão antiga do painel. Recarregue a página (Ctrl+F5) e mande de novo — nada foi enviado.', velha:true } };
       }
     }
     return invokeOriginal.call(this, nome, opts);
@@ -700,6 +715,7 @@ root.innerHTML = `
 </div>
 </div>
 <div class="wrap">
+<div id="pendAvisos"></div>
 <div class="stats" id="stats"></div>
 <div class="stats" id="statsExtra" style="display:none"></div>
 <div class="dchips" id="dchips"></div>
@@ -737,6 +753,7 @@ try{
   await Promise.all([loadEtapas(), loadTravas(), loadOrigens(), loadRel(), loadEquipe()]);
 }finally{ BASE_OK=true; _baseSolta(); }
 await loadObras(pedidoObras);
+mostrarPendentes();
 subscribeRealtime();
 }
 
@@ -1439,9 +1456,10 @@ async function avisarCpfl(id, manual){
   }
   const d=t.data;
   if(!d.grupo){ toast('Vistoria salva, mas o cliente não foi avisado: esta obra não tem grupo'); return false; }
-  if(d.ja_avisado){ toast('O cliente já recebeu o aviso desta vistoria em '+quandoBR(d.ja_avisado)+'. Nada foi enviado de novo'); return 'ja'; }
+  if(d.ja_avisado){ pendTirar(id,'vistoria'); toast('O cliente já recebeu o aviso desta vistoria em '+quandoBR(d.ja_avisado)+'. Nada foi enviado de novo'); return 'ja'; }
   if(d.mesmo_prazo){
     await sb.rpc('cpfl_marcar_avisado',{p_obra:id});
+    pendTirar(id,'vistoria');
     toast('O prazo continua '+fmtD(d.prazo)+' — o cliente já tinha essa data, nada foi enviado');
     return 'ja';
   }
@@ -1455,6 +1473,7 @@ async function avisarCpfl(id, manual){
       ? 'O prazo desta vistoria ('+fmtD(d.prazo)+') já passou.\n\nMandar o aviso no grupo do cliente assim mesmo?'
       : 'Mandar no grupo do cliente o aviso da vistoria, com prazo até '+fmtD(d.prazo)+'?')) return false;
   const r=await invokeFn('notificar-grupo',{grupo_id:d.grupo, message:d.texto});
+  anotaAviso(r, getObra(id), 'vistoria');
   if(r.repetida){
     // o mesmo texto ja foi para o grupo: o cliente tem esta data
     await sb.rpc('cpfl_marcar_avisado',{p_obra:id});
@@ -1724,6 +1743,7 @@ toast('Etapa atualizada ✓ Avisando o grupo... 📣');
 const oNovo=Object.assign({},o,patch);
 invokeFn('notificar-grupo',{grupo_id:o.whatsapp_grupo_id,message:buildWA(oNovo)})
 .then(r=>{
+anotaAviso(r, oNovo, 'etapa');
 if(r.repetida) toast('Etapa atualizada. '+r.error);
 else if(r.error) toast('⚠️ Etapa salva, mas o aviso no grupo falhou ('+r.error+') — use o 📣 pra reenviar');
 else toast('✓ Cliente avisado no grupo automaticamente 📣');
@@ -2023,11 +2043,13 @@ function fichaTexto(o){
   if(inc.length) L.push(inc.join(' · '));
   return L.join('\n');
 }
+// Os três avisos daqui para baixo devolvem o que aconteceu ({ok} | {error,
+// repetida, velha} | {nada}): o 📣 com escolha mostra o resultado em cada botão.
 async function avisarInstalador(o, antes, depois){
-  if(!o.instalador_id){ toast('ℹ️ Equipe não avisada: nenhum instalador definido nesta obra'); return; }
+  if(!o.instalador_id){ toast('ℹ️ Equipe não avisada: nenhum instalador definido nesta obra'); return {nada:true}; }
   const eq=EQUIPE.find(x=>x.id===o.instalador_id);
-  if(!eq){ toast('ℹ️ Instalador não encontrado na equipe'); return; }
-  if(!eq.whatsapp_grupo_id){ toast('ℹ️ '+eq.nome+' não avisada: cadastre o grupo em 👥 Equipe'); return; }
+  if(!eq){ toast('ℹ️ Instalador não encontrado na equipe'); return {nada:true}; }
+  if(!eq.whatsapp_grupo_id){ toast('ℹ️ '+eq.nome+' não avisada: cadastre o grupo em 👥 Equipe'); return {nada:true}; }
   const reag=!!antes;
   const linkChk=`${location.origin}/instalador.html?id=${encodeURIComponent(o.slug)}&t=${o.instalador_token}`;
   const maps=o.endereco?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.endereco)}`:'';
@@ -2058,27 +2080,30 @@ async function avisarInstalador(o, antes, depois){
       +'\n\nQualquer dúvida, é só chamar. 💪\n\n*Polaris Energia Solar* ☀️';
   }
   const r=await invokeFn('notificar-grupo',{grupo_id:eq.whatsapp_grupo_id,message:msg});
-  if(r.error) toast(r.repetida ? r.error : '⚠️ Não consegui avisar a equipe '+eq.nome+' ('+r.error+')');
+  anotaAviso(r, o, 'equipe');
+  if(r.error) toast(r.repetida ? r.error : '⚠️ Não consegui avisar a equipe '+eq.nome+' ('+r.error+') — use o 📣 para reenviar');
   else toast('✓ '+eq.nome+' avisada no grupo 🔧');
+  return r.error ? r : {ok:true};
 }
 /* Data que ja passou e REGISTRO, nao agendamento (TANAKA 4745, 16/10). Marcar no
    card a data de uma obra ja feita mandava ao cliente "sua instalacao esta
    agendada" e a equipe "Nova obra agendada" -- de um dia que ja foi. O que falta
    nesse caso e o link do checklist, e so se o instalador ainda nao enviou o
    relatorio. Quem decide mandar e a pessoa; o cliente nao recebe nada. */
-async function dataQueJaPassou(o){
+async function dataQueJaPassou(o, direto){
   const quando=periodoBR(o.data_instalacao,o.data_fim);
   if(o.relatorio_enviado_em || !o.instalador_id){
-    toast('Data registrada ('+quando+'). Como já passou, ninguém foi avisado de agendamento.'); return;
+    toast('Data registrada ('+quando+'). Como já passou, ninguém foi avisado de agendamento.'); return {nada:true};
   }
   const eq=EQUIPE.find(x=>x.id===o.instalador_id);
   if(!eq || !eq.whatsapp_grupo_id){
-    toast('Data registrada ('+quando+'). Ninguém foi avisado: a equipe não tem grupo em 👥 Equipe.'); return;
+    toast('Data registrada ('+quando+'). Ninguém foi avisado: a equipe não tem grupo em 👥 Equipe.'); return {nada:true};
   }
-  if(!confirm('A data ('+quando+') já passou: ninguém vai receber aviso de agendamento.\n\n'
+  // direto: a pessoa escolheu no 📣 o botão do link do checklist
+  if(!direto && !confirm('A data ('+quando+') já passou: ninguém vai receber aviso de agendamento.\n\n'
       +'O instalador ainda não enviou o relatório desta obra. Mandar agora para '+eq.nome
       +' o link do checklist de fotos?')){
-    toast('Data registrada. Ninguém foi avisado.'); return;
+    toast('Data registrada. Ninguém foi avisado.'); return {nada:true};
   }
   const ehMan=(o.trilha==='manutencao');
   const linkChk=`${location.origin}/instalador.html?id=${encodeURIComponent(o.slug)}&t=${o.instalador_token}`;
@@ -2087,10 +2112,14 @@ async function dataQueJaPassou(o){
     +'O relatório ainda não foi enviado. Checklist de fotos'+(ehMan?'':' da obra')+':\n'+linkChk
     +'\n\nAssim que as fotos estiverem lá, é só enviar pelo link. 🙏\n\n*Polaris Energia Solar* ☀️';
   const r=await invokeFn('notificar-grupo',{grupo_id:eq.whatsapp_grupo_id,message:msg});
-  if(r.error) toast('⚠️ Não consegui mandar o link para '+eq.nome+': '+r.error);
+  anotaAviso(r, o, 'checklist');
+  if(r.error) toast(r.repetida ? r.error : '⚠️ Não consegui mandar o link para '+eq.nome+': '+r.error);
   else toast('✓ Link do checklist enviado para '+eq.nome+' 🔧');
+  return r.error ? r : {ok:true};
 }
-async function avisarAgendamento(o, antes, depois){
+// direto: veio do 📣 com escolha -- o clique no botão "agendada para ..." já é a
+// confirmação, e sai sempre o "está agendada" (a data de antes não é conhecida ali)
+async function avisarAgendamento(o, antes, depois, direto){
 const primeiro=(o.cliente||'').split(' ')[0];
 const reag = !!antes;
 // manutencao nao e instalacao: quem recebe uma visita tecnica nao entende
@@ -2102,7 +2131,7 @@ const OQs = ehMan ? 'seu atendimento' : 'sua instalação';
 // manutencao muitas vezes nao tem grupo). Abre o WhatsApp com o texto pronto;
 // quem manda e a pessoa, como no botao de WhatsApp do card.
 const semGrupo = !o.whatsapp_grupo_id;
-if(semGrupo && !waPhone(o.telefone)){ toast('ℹ️ Cliente não avisado: esta obra não tem grupo nem telefone'); return; }
+if(semGrupo && !waPhone(o.telefone)){ toast('ℹ️ Cliente não avisado: esta obra não tem grupo nem telefone'); return {nada:true}; }
 const onde = semGrupo ? 'no WhatsApp pessoal' : 'no grupo';
 let msg;
 if(reag){
@@ -2110,25 +2139,27 @@ const motivo = prompt(
 '📅 Reagendamento detectado ('+dataBRs(antes)+' → '+periodoBR(depois,o.data_fim)+')\n\n'
 +'Escreva o motivo que será enviado ao cliente (opcional).\nDeixe vazio para uma mensagem padrão, ou cancele para não avisar agora.',
 '');
-if(motivo===null) return;
+if(motivo===null) return {nada:true};
 msg='📅 *'+primeiro+', precisamos remanejar a data d'+(ehMan?'o seu atendimento':'a sua instalação')+'*\n\n'
 +'A nova data ficou para *'+periodoBR(depois,o.data_fim)+'*.\n'
 +(motivo.trim()?'\nMotivo: '+motivo.trim()+'\n':'')
 +'\nPedimos desculpas pelo transtorno e agradecemos a compreensão. Nossa equipe já está organizada para essa nova data. 🙏\n\n'
 +'Qualquer coisa, é só falar por aqui.\n\n*Equipe Polaris Energia Solar* ☀️';
 } else {
-if(!confirm('Avisar o cliente '+onde+' que '+(ehMan?'o atendimento':'a instalação')+' foi agendad'+(ehMan?'o':'a')+' para '+periodoBR(depois,o.data_fim)+'?')) return;
+if(!direto && !confirm('Avisar o cliente '+onde+' que '+(ehMan?'o atendimento':'a instalação')+' foi agendad'+(ehMan?'o':'a')+' para '+periodoBR(depois,o.data_fim)+'?')) return {nada:true};
 msg='📅 *'+primeiro+', '+OQs+' está agendad'+(ehMan?'o':'a')+'!*\n\n'
 +'Data: *'+periodoBR(depois,o.data_fim)+'*\n'
 +(o.endereco?'📍 Local: '+o.endereco+'\n':'')
 +'\nUm dia antes enviamos um lembrete com tudo que precisa ficar liberado no local. 😉\n\n'
 +'Se essa data não for boa para você, é só nos avisar por aqui.\n\n*Equipe Polaris Energia Solar* ☀️';
 }
-if(semGrupo){ abrirWhatsPessoal(o.telefone, msg); return; }
+if(semGrupo){ abrirWhatsPessoal(o.telefone, msg); return {ok:true, pessoal:true}; }
 toast('Avisando o cliente... 📅');
 const r=await invokeFn('notificar-grupo',{grupo_id:o.whatsapp_grupo_id,message:msg});
+anotaAviso(r, o, 'agendamento');
 if(r.error) toast(r.repetida ? r.error : '⚠️ Não consegui avisar no grupo ('+r.error+') — use o 📣 para reenviar');
 else toast('✓ Cliente avisado no grupo 📅');
+return r.error ? r : {ok:true};
 }
 async function checarRespostas(){
 try{
@@ -2792,6 +2823,7 @@ if(ehVistoria){
     toast('Etapa atualizada. Avisando o grupo...');
     const rEt = await invokeFn('notificar-grupo',
       { grupo_id:oAtual.whatsapp_grupo_id, message:buildWA(oAtual) });
+    anotaAviso(rEt, oAtual, 'etapa');
     if(rEt.error) toast(rEt.repetida ? 'Etapa salva. '+rEt.error : 'Etapa salva, mas o aviso no grupo falhou ('+rEt.error+') - use o botao de megafone pra reenviar');
     else toast('Cliente avisado da nova etapa no grupo');
   }
@@ -2909,7 +2941,8 @@ await loadEquipe(); reabrirEquipe(); toast('Removido ✓');
 /* ---------- grupos de WhatsApp (Z-API) ---------- */
 async function invokeFn(name, body){
 const { data, error } = await sb.functions.invoke(name, { body });
-if(error){ let m=error.message; try{ const j=await error.context.json(); if(j&&j.error) m=j.error; }catch(_){} return { error:m }; }
+// velha: a trava de aba velha segurou o envio antes de sair (ver anotaAviso)
+if(error){ let m=error.message; try{ const j=await error.context.json(); if(j&&j.error) m=j.error; }catch(_){} return { error:m, velha:!!error.velha }; }
 // repetida: o notificar-grupo recusou o mesmo texto para o mesmo grupo em 24 h
 // (nada saiu, e o erro diz quando foi o primeiro)
 if(data&&data.error) return { error:data.error, repetida:!!data.repetida };
@@ -2928,6 +2961,8 @@ await loadObras();
 async function notificarGrupo(id){
 const o=getObra(id);
 if(!o.whatsapp_grupo_id){ toast('Esta obra ainda não tem grupo'); return; }
+// com agenda de hoje em diante (ou link do checklist por mandar), os avisos um a um
+if(opcoesAviso(o).length>1){ escolherAvisos(id); return; }
 if(temVistoria(o) && o.etapa_numero===ETAPA_VISTORIA){
   // a pergunta vem depois de conferir: aviso que o cliente ja leu nao e oferecido
   await avisarCpfl(id, true);
@@ -2935,10 +2970,126 @@ if(temVistoria(o) && o.etapa_numero===ETAPA_VISTORIA){
   return;
 }
 if(!confirm('Enviar a mensagem da etapa atual no grupo do cliente?')) return;
+await avisoEtapa(o);
+}
+async function avisoEtapa(o){
 toast('Enviando...');
 const r = await invokeFn('notificar-grupo', { grupo_id:o.whatsapp_grupo_id, message:buildWA(o) });
-if(r.error){ toast(r.repetida ? r.error : 'Erro: '+r.error); return; }
+anotaAviso(r, o, 'etapa');
+if(r.error){ toast(r.repetida ? r.error : 'Erro: '+r.error); return r; }
 toast('Mensagem enviada no grupo ✓');
+return {ok:true};
+}
+
+/* ---------- 📣 com escolha e o que ficou sem sair (29/10) ----------
+   Até aqui o 📣 só mandava a mensagem da etapa. O aviso de agendamento ao
+   cliente e o aviso à equipe só saíam ao salvar a data no card, e não havia como
+   mandar de novo. No mesmo dia dois clientes ficaram sem saber da data:
+   JOSÉ VICENTE (4875) porque a Isabela não estava no grupo (a Z-API aceita e não
+   entrega), e EDILSON (3344) porque a data foi salva numa aba aberta antes de uma
+   publicação: a trava de aba velha recusou os dois avisos, como devia, a aba foi
+   recarregada 7 s depois, e recarregar não manda nada -- a data já estava salva.
+   Agora, com data de hoje em diante, o 📣 oferece cada aviso no seu botão (o
+   notificar-grupo recusa o texto que já foi igual ao mesmo grupo em 24 h). E o
+   aviso que a trava segurou fica anotado neste navegador e aparece no topo
+   depois de recarregar, com o botão para mandar. */
+const NOME_AVISO={etapa:'mensagem da etapa', agendamento:'aviso de agendamento', equipe:'aviso à equipe',
+  checklist:'link do checklist à equipe', vistoria:'aviso da vistoria'};
+const PEND_CHAVE='polaris-avisos-pendentes';
+function pendLer(){ try{ const a=JSON.parse(localStorage.getItem(PEND_CHAVE)||'[]'); return Array.isArray(a)?a:[]; }catch(_){ return []; } }
+function pendGravar(a){ try{ if(a.length) localStorage.setItem(PEND_CHAVE, JSON.stringify(a)); else localStorage.removeItem(PEND_CHAVE); }catch(_){} }
+function pendTirar(obra, oque){
+  const a=pendLer(), b=a.filter(p=>!(p.obra===obra && (!oque || p.oque===oque)));
+  if(b.length!==a.length){ pendGravar(b); mostrarPendentes(); }
+}
+// depois de cada envio: o que saiu (ou já tinha saído) sai da lista; o que a
+// trava de aba velha segurou entra. Outro erro (Z-API fora) a pessoa vê no toast.
+function anotaAviso(r, o, oque){
+  if(!o || !r) return;
+  if(r.velha){
+    const a=pendLer().filter(p=>!(p.obra===o.id && p.oque===oque));
+    a.push({ obra:o.id, oque:oque, em:Date.now() });
+    pendGravar(a); mostrarPendentes();
+  } else if(!r.error || r.repetida) pendTirar(o.id, oque);
+}
+function mostrarPendentes(){
+  const box=document.getElementById('pendAvisos'); if(!box) return;
+  if(!OBRAS.length) return;   // antes de as obras chegarem não dá para saber o que ainda vale
+  // vale 2 dias, e só enquanto o 📣 ainda oferece aquele aviso (data que passou não é mais agendamento)
+  const a=pendLer().filter(p=>p && Date.now()-p.em < 2*86400000
+    && opcoesAviso(getObra(p.obra)).some(op=>op.k===p.oque));
+  if(a.length!==pendLer().length) pendGravar(a);
+  if(!a.length){ box.innerHTML=''; return; }
+  const por={}; a.forEach(p=>{ (por[p.obra]=por[p.obra]||[]).push(NOME_AVISO[p.oque]||p.oque); });
+  box.innerHTML='<div class="pendav"><b>📣 Ficou sem sair</b> — a aba estava com uma versão antiga do painel e segurou estes avisos. Nada foi enviado:'
+    +Object.keys(por).map(id=>{ const o=getObra(id);
+      return '<div class="pl"><span>'+esc(o.cliente||'')+(o.contrato?' #'+esc(o.contrato):'')+': '+por[id].join(', ')+'</span>'
+        +'<button onclick="escolherAvisos(\''+id+'\')">Mandar agora</button>'
+        +'<button onclick="pendTirar(\''+id+'\')">Dispensar</button></div>'; }).join('')
+    +'</div>';
+}
+// o que dá para mandar desta obra agora, na ordem: grupo do cliente, depois a equipe
+function opcoesAviso(o){
+  if(!o || o.cancelada_em) return [];
+  const L=[], hoje=hojeLocal(), dti=o.data_instalacao||null, futura=!!(dti && dti>=hoje);
+  const ehMan=(o.trilha==='manutencao');
+  const eq=o.instalador_id ? EQUIPE.find(x=>x.id===o.instalador_id) : null;
+  if(o.whatsapp_grupo_id){
+    if(temVistoria(o) && o.etapa_numero===ETAPA_VISTORIA) L.push({g:'cliente', k:'vistoria', txt:'📣 Aviso da vistoria'});
+    else L.push({g:'cliente', k:'etapa', txt:'📍 Mensagem da etapa: '+(etOf(o).nome||'').replace('!','')});
+    if(futura) L.push({g:'cliente', k:'agendamento',
+      txt:'📅 '+(ehMan?'Atendimento agendado':'Instalação agendada')+' para '+periodoBR(dti,o.data_fim)});
+  }
+  if(eq && eq.whatsapp_grupo_id && dti){
+    if(futura) L.push({g:'equipe', k:'equipe', txt:'🔧 '+eq.nome+': data e link do checklist'});
+    // data que já passou: só o link, enquanto o relatório não saiu e a cobrança das fotos ainda vale (30 dias)
+    else if(!o.relatorio_enviado_em && diffDays(parseDate(dti), parseDate(hoje))<=30)
+      L.push({g:'equipe', k:'checklist', txt:'🔗 '+eq.nome+': link do checklist (a data já passou)'});
+  }
+  return L;
+}
+function escolherAvisos(id){
+  const o=getObra(id); if(!o) return;
+  const ops=opcoesAviso(o);
+  if(!ops.length){ toast('Não há aviso para mandar desta obra agora'); pendTirar(id); return; }
+  const pend=pendLer().filter(p=>p.obra===id).map(p=>p.oque);
+  const GR={cliente:'Grupo do cliente', equipe:'Equipe de campo'};
+  let h='', g0='';
+  ops.forEach(op=>{
+    if(op.g!==g0){ h+='<div class="mgrupo">'+GR[op.g]+'</div>'; g0=op.g; }
+    h+='<button class="mact" onclick="mandarAviso(\''+id+'\',\''+op.k+'\',this)">'+esc(op.txt)
+      +(pend.indexOf(op.k)>=0?'<span class="mpend">ficou sem sair</span>':'')+'<span class="mst"></span></button>';
+  });
+  let w=document.getElementById('avisosModal');
+  if(!w){ w=document.createElement('div'); w.id='avisosModal'; document.body.appendChild(w); }
+  w.className='mwrap'; w.onclick=fecharAvisos;
+  w.innerHTML='<div class="mbox" onclick="event.stopPropagation()">'
+    +'<div class="mtit">Avisar <span>'+esc(o.cliente||'')+(o.contrato?' #'+esc(o.contrato):'')+'</span></div>'
+    +'<div class="rsub" style="margin:-4px 0 2px">Cada aviso sai pelo botão dele. A mesma mensagem não sai duas vezes para o mesmo grupo em 24 h.</div>'
+    +h+'<button class="mact" style="text-align:center;margin-top:10px" onclick="fecharAvisos()">Fechar</button></div>';
+}
+function fecharAvisos(){ const w=document.getElementById('avisosModal'); if(w) w.className='mwrap off'; }
+async function mandarAviso(id, k, btn){
+  const o=getObra(id); if(!o || !btn || btn.disabled) return;
+  const st=btn.querySelector('.mst');
+  btn.disabled=true; if(st) st.textContent='mandando…';
+  let r;
+  try{
+    if(k==='etapa') r=await avisoEtapa(o);
+    else if(k==='agendamento') r=await avisarAgendamento(o, null, o.data_instalacao, true);
+    else if(k==='equipe') r=await avisarInstalador(o, null, o.data_instalacao);
+    else if(k==='checklist') r=await dataQueJaPassou(o, true);
+    else if(k==='vistoria'){
+      const v=await avisarCpfl(id, true);
+      r = v===true ? {ok:true} : (v==='ja' ? {repetida:true, error:'o cliente já tinha este aviso'} : {nada:true});
+      if(v) await loadObras();
+    }
+  }catch(e){ r={ error:(e&&e.message)||'falhou' }; }
+  r=r||{nada:true};
+  if(r.ok){ btn.classList.add('feito'); if(st) st.textContent='✓ enviado'; }
+  else if(r.repetida){ btn.classList.add('feito'); if(st) st.textContent='✓ já tinha ido — '+r.error; }
+  else if(r.error){ btn.disabled=false; if(st) st.textContent='não saiu: '+r.error; }
+  else { btn.disabled=false; if(st) st.textContent=''; }
 }
 
 /* ---------- realtime ---------- */
