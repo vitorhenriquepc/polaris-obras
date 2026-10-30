@@ -450,6 +450,17 @@ border-radius:6px;padding:3px 7px;display:inline-block}
 background:rgba(88,184,104,.12);border:1px solid rgba(88,184,104,.3);
 border-radius:6px;padding:3px 7px;display:inline-block}
 .kcpfl.venceu{color:#e07070;background:rgba(224,112,112,.12);border-color:rgba(224,112,112,.35)}
+/* o selo da data que ordena a coluna (quadroSelo) */
+.kcol .kh .nm small{display:block;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:0;margin-top:1px}
+.kprazo{margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;gap:3px 7px;font-size:10.5px;color:var(--muted);line-height:1.35}
+.kprazo .ks{font-weight:800;color:var(--txt);background:rgba(143,166,184,.13);border:1px solid rgba(143,166,184,.3);
+border-radius:6px;padding:2px 7px}
+.kprazo .ks.agora{color:var(--gold);background:rgba(245,166,35,.12);border-color:rgba(245,166,35,.38)}
+.kprazo .ks.aviso{color:#d99a3a;background:rgba(245,166,35,.10);border-color:rgba(245,166,35,.30)}
+.kprazo .ks.cpfl{color:#F0904F;background:rgba(240,144,79,.12);border-color:rgba(240,144,79,.38)}
+html[data-theme="light"] .kprazo .ks.cpfl{color:#B4501A}
+.kprazo .ks.ruim{color:#e07070;background:rgba(224,112,112,.14);border-color:rgba(224,112,112,.45)}
+.kcard.parado{border-left:3px solid #e07070;background:rgba(224,112,112,.06)}
 .kacts .bvist{color:#F5A623!important;border-color:rgba(245,166,35,.4)!important}
 .cpflbox{display:flex;align-items:center;font-size:12.5px;font-weight:700;color:#58b868;
 padding:0 4px;line-height:1.35}
@@ -750,7 +761,7 @@ setView(VIEW);
    e a equipe. Promise.resolve dispara a consulta já (armadilha 35). */
 const pedidoObras = Promise.resolve(sb.from('obras').select('*'));
 try{
-  await Promise.all([loadEtapas(), loadTravas(), loadOrigens(), loadRel(), loadEquipe()]);
+  await Promise.all([loadEtapas(), loadTravas(), loadOrigens(), loadRel(), loadEquipe(), loadTempos()]);
 }finally{ BASE_OK=true; _baseSolta(); }
 await loadObras(pedidoObras);
 mostrarPendentes();
@@ -865,8 +876,9 @@ async function loadObras(pedido){
 // Depois da abertura, o estado do relatório é relido junto com as obras: ele
 // só era lido ao abrir, e obra que entrava na execução depois ficava sem a
 // tarja até um F5 (ROSANE 4716, 29/10: foi para a 6 às 12:00, e o painel na
-// tela tinha aberto às 11:50).
-const rel = pedido ? null : loadRel().catch(()=>{});
+// tela tinha aberto às 11:50). O "desde quando está na etapa" do quadro também:
+// a obra que mudou de coluna começa a contar de novo.
+const rel = pedido ? null : Promise.all([loadRel().catch(()=>{}), loadTempos()]);
 const { data, error } = await (pedido || sb.from('obras').select('*'));
 if(rel) await rel;
 if(error){ document.getElementById('list').innerHTML=`<div class="empty"><span class="i">⚠️</span>Erro ao carregar: ${esc(error.message)}</div>`; return; }
@@ -1293,6 +1305,130 @@ async function enviarRelatorio(obraId){
   if(VIEW==='relatorios') renderRelatorios(true); else if(VIEW==='clientes') renderClientes();
 }
 
+/* O quadro na ordem da data (Vitor, 29/10 -- propostas 1 e 3 da página "Agenda
+   e prioridade das obras"). Até aqui toda coluna seguia os dias desde o
+   fechamento: na Execução, a obra que começava amanhã ficava em 1º e a de hoje
+   em 6º. Agora, na trilha padrão, cada coluna segue a data da sua etapa:
+   - até a Entrega do Material, o prazo do contrato (PRAZO_CONTRATUAL do fechamento);
+   - na Execução, a data de instalação; sem data, ou instalada e parada, em cima;
+   - na Vistoria, o prazo da concessionária; vencido em cima.
+   O selo diz a distância em palavras: hoje, amanhã, em 6 dias, venceu há 2 dias.
+   Vermelho é o cartão parado, e ele vai para cima: na Execução, sem data ou com
+   a instalação acabada há mais de `folga_execucao` dia (o dia seguinte é do
+   relatório) sem ir para a vistoria; na Vistoria, o prazo vencido; nas outras,
+   quem está na coluna há mais tempo do que 85% das obras levaram para sair dela
+   (quadro_tempos(), do etapas_historico). Manutenção e eletroposto, como eram. */
+let TEMPOS={desde:{}, limite:{}, folga:1, pct:85, janela:180};
+async function loadTempos(){
+  try{
+    const r=await sb.rpc('quadro_tempos');
+    if(r.error||!r.data) return;   // falhou: ficam os tempos que já estavam
+    const d={}, l={};
+    (r.data.desde||[]).forEach(function(x){ d[x.obra_id]={etapa:x.etapa, em:x.entrou_em}; });
+    (r.data.limites||[]).forEach(function(x){ l[x.trilha+':'+x.etapa]={dias:Number(x.dias), n:x.n}; });
+    TEMPOS={desde:d, limite:l, folga:(r.data.folga_execucao!=null?Number(r.data.folga_execucao):1),
+            pct:r.data.pct||85, janela:r.data.janela_dias||180};
+  }catch(e){}
+}
+const QUADRO_ROTULO={contrato:'por prazo do contrato', execucao:'por data de instalação', vistoria:'por prazo da vistoria'};
+function papelColuna(tr, n){
+  if((tr||'padrao')!=='padrao') return null;
+  if(n<=5) return 'contrato';            // Boas-vindas a Entrega do Material
+  if(n===ETAPA_VISTORIA-1) return 'execucao';
+  if(n===ETAPA_VISTORIA) return 'vistoria';
+  return null;                           // Sistema Ativo
+}
+function isoLocal(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function prazoContrato(o){
+  const f=parseDate(o.data_fechamento); if(!f) return null;
+  return new Date(f.getFullYear(), f.getMonth(), f.getDate()+PRAZO_CONTRATUAL);
+}
+// desde quando está na etapa de agora: dias de calendário e dias corridos
+function aquiDesde(o){
+  const x=TEMPOS.desde[o.id];
+  if(!x || x.etapa!==o.etapa_numero || !x.em) return null;
+  const em=new Date(x.em); if(isNaN(em)) return null;
+  return { dias: diffDays(new Date(em.getFullYear(),em.getMonth(),em.getDate()), parseDate(hojeLocal())),
+           frac: (Date.now()-em.getTime())/86400000 };
+}
+function nDias(n){ return n===1 ? '1 dia' : n+' dias'; }
+function periodoCurto(ini, fim){
+  return (!fim || fim<=ini) ? diaMesAno(ini) : diaMesAno(ini)+' a '+diaMesAno(fim);
+}
+function quadroSelo(o, papel){
+  const hoje=parseDate(hojeLocal());
+  const parado=function(aq){
+    const lim=TEMPOS.limite['padrao:'+o.etapa_numero];
+    return (aq && lim && aq.frac>lim.dias) ? lim : null;
+  };
+  const dicaParado=function(aq, lim){
+    return 'Parado: '+nDias(aq.dias)+' nesta coluna. '+TEMPOS.pct+'% das obras saíram dela em até '
+      +String(lim.dias).replace('.',',')+' dias (últimos '+TEMPOS.janela+' dias, '+lim.n+' obras).';
+  };
+  const aquiTxt=function(aq){ return aq ? (aq.dias<=0 ? 'entrou hoje' : nDias(aq.dias)+' aqui') : ''; };
+  if(papel==='contrato'){
+    const p=prazoContrato(o), aq=aquiDesde(o), lim=parado(aq);
+    const d=p?diffDays(hoje,p):null, venceu=(d!=null&&d<0);
+    const sub=[];
+    if(p) sub.push('vence '+diaMesAno(isoLocal(p)));
+    if(aq) sub.push(aquiTxt(aq));
+    return { txt: p==null ? 'sem data de fechamento' : venceu ? 'contrato venceu há '+nDias(-d)
+                 : d===0 ? 'contrato vence hoje' : d===1 ? 'contrato vence amanhã' : 'contrato em '+nDias(d),
+             sub: sub.join(' · '), cls: (lim||venceu)?'ruim':'', alerta: !!(lim||venceu),
+             grupo: p?1:2, chave: p?p.getTime():0,
+             dica: lim ? dicaParado(aq,lim) : (venceu ? 'O prazo de '+PRAZO_CONTRATUAL+' dias do contrato já passou.' : '') };
+  }
+  if(papel==='execucao'){
+    const ini=o.data_instalacao;
+    if(!ini){
+      const p=prazoContrato(o);
+      return { txt:'sem data', sub: p?'contrato até '+diaMesAno(isoLocal(p)):'', cls:'ruim', alerta:true,
+               grupo:0, chave: p?p.getTime():0,
+               dica:'Sem a data de instalação a equipe não recebe o link do checklist, a cobrança das fotos não vê a obra e a venda não entra no DRE.' };
+    }
+    const fim=(o.data_fim&&o.data_fim>ini)?o.data_fim:ini;
+    const dI=diffDays(hoje,parseDate(ini)), dF=diffDays(hoje,parseDate(fim)), per=periodoCurto(ini,fim);
+    if(dF<0){   // a instalação acabou e a obra continua aqui
+      const ha=-dF, vermelho=ha>TEMPOS.folga;
+      return { txt: ha===1?'instalada ontem':'instalada há '+nDias(ha),
+               sub: per+' · '+(o.relatorio_enviado_em?'relatório enviado':'relatório não enviado'),
+               cls: vermelho?'ruim':'aviso', alerta: vermelho, grupo:1, chave: parseDate(fim).getTime(),
+               dica:'A instalação acabou e a obra não foi para a vistoria. É o relatório do instalador que leva a obra para a Vistoria.' };
+    }
+    if(dI<=0){  // em andamento
+      const tot=diffDays(parseDate(ini),parseDate(fim))+1;
+      return { txt:'hoje', sub: tot>1 ? 'dia '+(1-dI)+' de '+tot+' · '+per : per, cls:'agora', alerta:false,
+               grupo:2, chave: parseDate(ini).getTime() };
+    }
+    return { txt: dI===1?'amanhã':'em '+nDias(dI), sub: per, cls: dI===1?'agora':'', alerta:false,
+             grupo:3, chave: parseDate(ini).getTime() };
+  }
+  if(papel==='vistoria'){
+    const conc=o.concessionaria||'CPFL';
+    if(!o.cpfl_prazo_em){
+      const aq=aquiDesde(o), lim=parado(aq);
+      return { txt:'vistoria sem data', sub: aquiTxt(aq), cls: lim?'ruim':'aviso', alerta: !!lim,
+               grupo:0, chave: aq ? -aq.frac : 0,
+               dica: (lim ? dicaParado(aq,lim)+' ' : '')+'Sem a data em que a vistoria foi pedida não há prazo da '+conc
+                 +', a vistoria não entra na agenda e o cliente não recebe o aviso do prazo.' };
+    }
+    const d=diffDays(hoje,parseDate(o.cpfl_prazo_em));
+    return { txt: conc+' até '+fmtD(o.cpfl_prazo_em),
+             sub: (o.cpfl_solicitado_em?'pedida '+fmtD(o.cpfl_solicitado_em)+' · ':'')
+                  +(d<0 ? 'venceu há '+nDias(-d) : d===0 ? 'vence hoje' : d===1 ? 'falta 1 dia' : 'faltam '+d+' dias'),
+             cls: d<0?'ruim':'cpfl', alerta: d<0, grupo:1, chave: parseDate(o.cpfl_prazo_em).getTime(),
+             dica: d<0 ? 'O prazo da '+conc+' venceu e a obra não foi ligada: cobre a '+conc+' ou mova o cartão.' : '' };
+  }
+  return null;
+}
+// vermelho em cima; depois a data que manda na coluna; empate, o nome
+function quadroOrdem(a, xa, b, xb){
+  if(!xa || !xb) return xa ? -1 : (xb ? 1 : 0);
+  if(xa.alerta!==xb.alerta) return xa.alerta ? -1 : 1;
+  if(xa.grupo!==xb.grupo) return xa.grupo-xb.grupo;
+  if(xa.chave!==xb.chave) return xa.chave-xb.chave;
+  return (a.cliente||'').localeCompare(b.cliente||'');
+}
 function renderKanban(){
 const sel=document.getElementById('selTrilha');
 if(sel){
@@ -1320,26 +1456,35 @@ const nEt=nums.length?Math.max.apply(null,nums):8;
 for(let n=0;n<=nEt;n++){
 if(filtroEtapa!==null && filtroEtapa!==n) continue;
 const e=etapasDe(KTR)[n]||{nome:'Etapa '+n,icone:''};
-const obs=arr.filter(o=>o.etapa_numero===n).sort((a,b)=>{const da=diasObra(a),db=diasObra(b);return (db==null?-1:db)-(da==null?-1:da);});
+const papel=papelColuna(KTR,n), SEL={};
+const obs=arr.filter(o=>o.etapa_numero===n);
+if(papel){
+  obs.forEach(function(o){ SEL[o.id]=quadroSelo(o,papel); });
+  obs.sort(function(a,b){ return quadroOrdem(a,SEL[a.id],b,SEL[b.id]); });
+} else obs.sort((a,b)=>{const da=diasObra(a),db=diasObra(b);return (db==null?-1:db)-(da==null?-1:da);});
 if(KHIDE && !obs.length) continue;
 h+='<div class="kcol '+(n===8?'fim':'')+'" data-etapa="'+n+'" ondragover="kOver(event,this)" ondragleave="kLeave(this)" ondrop="kDrop(event,this)">'
- +'<div class="kh"><span>'+(e.icone||'')+'</span><span class="nm">'+esc((e.nome||'').replace('!',''))+'</span><span class="ct">'+obs.length+'</span></div>';
+ +'<div class="kh"><span>'+(e.icone||'')+'</span><span class="nm">'+esc((e.nome||'').replace('!',''))
+ +(papel?'<small>'+QUADRO_ROTULO[papel]+'</small>':'')+'</span><span class="ct">'+obs.length+'</span></div>';
 if(!obs.length) h+='<div class="kempty">—</div>';
 obs.forEach(function(o){
-const d=diasObra(o);
+const d=diasObra(o), s=SEL[o.id]||null;
 const late=(d!=null&&d>60&&n<nEt), warn=(d!=null&&d>30&&d<=60&&n<nEt);
-h+='<div class="kcard '+(n===nEt?'fim':(late?'late':''))+(o.trava?(travaCritica(o)?' trvcrit':' trv'):'')+(relPendente(o)?' relpend':'')+'" draggable="true" style="cursor:pointer" onclick="if(!window.__arr&&!event.target.closest(\'button,a\'))openForm(\''+o.id+'\')" data-id="'+o.id+'" ondragstart="kStart(event,this)" ondragend="kEnd(this)">'
+h+='<div class="kcard '+(n===nEt?'fim':(late?'late':''))+(s&&s.alerta?' parado':'')+(o.trava?(travaCritica(o)?' trvcrit':' trv'):'')+(relPendente(o)?' relpend':'')+'" draggable="true" style="cursor:pointer" onclick="if(!window.__arr&&!event.target.closest(\'button,a\'))openForm(\''+o.id+'\')" data-id="'+o.id+'" ondragstart="kStart(event,this)" ondragend="kEnd(this)">'
  +'<div class="kn">'+esc(o.cliente)+'</div>'
  +'<div class="km">'+(o.contrato?'<span>#'+esc(o.contrato)+'</span>':'')
  +(o.potencia_kwp?'<span>'+esc(String(o.potencia_kwp).replace('.',','))+' kWp</span>':'')
- +(d!=null&&n<nEt?'<span class="kdias '+(late?'late':(warn?'warn':''))+'">'+d+'d</span>':'')
- +(o.data_instalacao?'<span>📅 '+diaMesAno(o.data_instalacao)+'</span>':'')
+ // o selo já diz o prazo do contrato, a data da instalação e o prazo da vistoria
+ +(d!=null&&n<nEt&&papel!=='contrato'?'<span class="kdias '+(late?'late':(warn?'warn':''))+'">'+d+'d</span>':'')
+ +(o.data_instalacao&&papel!=='execucao'?'<span>📅 '+diaMesAno(o.data_instalacao)+'</span>':'')
  +(o.aceite_em?'<span>✍️</span>':'')+'</div>'
- +(semDataInstalacao(o)?'<div class="ksemdata" title="Sem a data a equipe não recebe o link do checklist, a cobrança das fotos não vê a obra e a venda não entra no DRE">📅 Sem data de instalação</div>':'')
+ +(s?'<div class="kprazo"'+(s.dica?' title="'+esc(s.dica)+'"':'')+'><span class="ks '+s.cls+'">'+esc(s.txt)+'</span>'
+     +(s.sub?'<span>'+esc(s.sub)+'</span>':'')+'</div>':'')
+ +(semDataInstalacao(o)&&papel!=='execucao'?'<div class="ksemdata" title="Sem a data a equipe não recebe o link do checklist, a cobrança das fotos não vê a obra e a venda não entra no DRE">📅 Sem data de instalação</div>':'')
  +tarjaTravaK(o)
  +tarjaRel(o)
  +(o.trilha==='manutencao'?tarjaMan(o):'')
- +((o.cpfl_prazo_em&&o.etapa_numero<8)?'<div class="kcpfl'+(cpflVenceu(o)?' venceu':'')+'">⚡ Vistoria até '+fmtD(o.cpfl_prazo_em)+(cpflVenceu(o)?' · venceu':'')+'</div>':'')
+ +((o.cpfl_prazo_em&&o.etapa_numero<8&&papel!=='vistoria')?'<div class="kcpfl'+(cpflVenceu(o)?' venceu':'')+'">⚡ Vistoria até '+fmtD(o.cpfl_prazo_em)+(cpflVenceu(o)?' · venceu':'')+'</div>':'')
  +'<div class="kacts">'
  +'<button class="kmais" onclick="event.stopPropagation();abrirAcoes(\''+o.id+'\')" title="Ações" aria-label="Ações">···</button>'
  +'</div></div>';

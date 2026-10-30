@@ -16,12 +16,14 @@ img,video,table{max-width:100%}
 --green:#3B8B3B; --green-l:#58B868; --gold:#F5A623;
 --bg:#0a1622; --card:#0f2233; --card2:#13293c;
 --border:#1d3850; --txt:#eaf2f8; --muted:#8fa6b8;
+--vist:#F0904F; --manut:#6FA8DC;
 --bg-grad:radial-gradient(1000px 500px at 80% -10%, #0c2740 0%, transparent 60%);
 }
 html[data-theme="light"]{
 --green:#2f7a2f; --green-l:#3B8B3B; --gold:#B8790A;
 --bg:#EEF1EC; --card:#FFFFFF; --card2:#F4F6F2;
 --border:#D5DDE3; --txt:#08243A; --muted:#5B7285;
+--vist:#B4501A; --manut:#2F6DB0;
 --bg-grad:radial-gradient(1000px 500px at 80% -10%, #dbe7df 0%, transparent 60%);
 }
 body{font-family:'Manrope',system-ui,sans-serif;background:var(--bg-grad),var(--bg);
@@ -164,6 +166,21 @@ margin-bottom:8px;text-decoration:none;color:var(--txt);box-shadow:0 3px 14px rg
 .mes .n{font-weight:800;color:var(--muted);font-size:9.5px}
 .mes .ev{background:rgba(59,139,59,.25);border:1px solid rgba(59,139,59,.5);border-radius:5px;
 padding:1px 3px;margin-top:2px;font-weight:700;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:block;color:var(--txt);text-decoration:none}
+/* tipo de compromisso: obra (verde), manutenção (azul), vistoria da
+   concessionária no dia do prazo (laranja tracejado, só na agenda geral) */
+.ob .tipo{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--green-l);margin-bottom:2px}
+.ob.manut{border-left-color:var(--manut)}
+.ob.manut .tipo{color:var(--manut)}
+.ob.vist{background:var(--card2);border:1.5px dashed var(--vist);border-left:4px solid var(--vist)}
+.ob.vist .tipo{color:var(--vist)}
+.mes .ev.manut{background:rgba(111,168,220,.22);border-color:rgba(111,168,220,.6)}
+.mes .ev.vist{background:transparent;border:1px dashed var(--vist);color:var(--vist)}
+.leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11.5px;color:var(--muted);margin:-4px 0 12px}
+.leg span{display:inline-flex;align-items:center;gap:6px}
+.leg i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.leg .sw-obra{background:rgba(59,139,59,.3);border:2px solid var(--green)}
+.leg .sw-manut{background:rgba(111,168,220,.25);border:2px solid var(--manut)}
+.leg .sw-vist{border:2px dashed var(--vist)}
 
 @media(max-width:640px){
   .thumbs{gap:7px}
@@ -621,13 +638,16 @@ async function uploadAp(apId,inp){
 }
 
 /* ===== AGENDA ===== */
-var AG=[], vMode='semana', vRef=new Date();
+var AG=[], VIST=[], GERAL=false, vMode='semana', vRef=new Date();
 async function bootAgenda(){
   document.getElementById('topTit').textContent='Agenda';
   var r=await sb.rpc('get_agenda',{p_token:AGENDA});
   if(r.error||!r.data){document.getElementById('app').innerHTML='<div class="center"><span class="i">🔒</span><b>Link de agenda inválido.</b><br>Peça um link novo ao escritório.</div>';return;}
   var d=r.data;
   AG = Array.isArray(d) ? d : (d.obras||[]);
+  // a vistoria da concessionária vem só na agenda geral, a do escritório (Vitor, 29/10)
+  VIST = (!Array.isArray(d) && d.vistorias) || [];
+  GERAL = !Array.isArray(d) && d.escopo==='geral';
   if(d && d.titulo) document.getElementById('topTit').textContent=d.titulo;
   renderAgenda();
 }
@@ -645,12 +665,21 @@ function diaDe(o,dia){   // [qual dia, de quantos]; null se é de um dia só
 }
 function ddmm(s){return s.slice(8,10)+'/'+s.slice(5,7);}
 function linkObra(o){return 'instalador.html?id='+encodeURIComponent(o.slug)+'&t='+encodeURIComponent(o.token);}
+/* A vistoria aparece no dia do prazo da concessionária: é nesse dia que, se ela
+   não veio, alguém tem de cobrar. Não tem link: não há o que a equipe preencher. */
+function vistoriasDo(dia){var k=iso(dia);return VIST.filter(function(v){return v.cpfl_prazo_em===k;});}
+function ehManut(o){return o.trilha==='manutencao';}
+function legendaHtml(){
+  return '<div class="leg"><span><i class="sw-obra"></i>Obra</span><span><i class="sw-manut"></i>Manutenção</span>'
+    +(GERAL?'<span><i class="sw-vist"></i>Vistoria da CPFL, no dia do prazo</span>':'')+'</div>';
+}
 function renderAgenda(){
   var hoje=d0(new Date());
   var h='<div class="agnav">'
     +'<button onclick="nav(-1)">‹</button><div class="tit" id="agTit"></div><button onclick="nav(1)">›</button>'
     +'<button class="'+(vMode==='semana'?'on':'')+'" onclick="setMode(\'semana\')">Semana</button>'
-    +'<button class="'+(vMode==='mes'?'on':'')+'" onclick="setMode(\'mes\')">Mês</button></div>';
+    +'<button class="'+(vMode==='mes'?'on':'')+'" onclick="setMode(\'mes\')">Mês</button></div>'
+    +legendaHtml();
   if(vMode==='semana'){
     var ini=d0(vRef); ini.setDate(ini.getDate()-((ini.getDay()+6)%7));
     var tit=ini.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
@@ -659,19 +688,26 @@ function renderAgenda(){
     var corpo='';
     for(var i=0;i<7;i++){
       var d=new Date(ini); d.setDate(d.getDate()+i);
-      var obs=obrasDo(d);
+      var obs=obrasDo(d), vs=vistoriasDo(d);
       corpo+='<div class="dia"><div class="dh '+(iso(d)===iso(hoje)?'hoje':'')+'">'
         +d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})
         +(iso(d)===iso(hoje)?' • HOJE':'')+'</div>';
-      if(!obs.length) corpo+='<div class="ob" style="opacity:.4;pointer-events:none">— sem obras —</div>';
+      if(!obs.length && !vs.length) corpo+='<div class="ob" style="opacity:.4;pointer-events:none">— sem obras —</div>';
       obs.forEach(function(o){
         var dd=diaDe(o,d);
-        corpo+='<a class="ob" href="'+linkObra(o)+'"><b>'+esc(o.cliente)+'</b>'
+        corpo+='<a class="ob'+(ehManut(o)?' manut':'')+'" href="'+linkObra(o)+'"><div class="tipo">'+(ehManut(o)?'Manutenção':'Obra')+'</div>'
+          +'<b>'+esc(o.cliente)+'</b>'
           +'<div class="om">'+(o.contrato?'#'+esc(o.contrato)+' • ':'')
           +(o.potencia_kwp?String(o.potencia_kwp).replace('.',',')+' kWp • ':'')
           +(o.instalador?'👷 '+esc(o.instalador):'sem instalador definido')+'</div>'
           +(dd?'<div class="om">📆 dia '+dd[0]+' de '+dd[1]+' ('+ddmm(o.data_instalacao)+' a '+ddmm(fimDa(o))+')</div>':'')
           +fichaHtml(o)+'</a>';
+      });
+      vs.forEach(function(v){
+        corpo+='<div class="ob vist"><div class="tipo">Vistoria '+esc(v.concessionaria||'CPFL')+'</div>'
+          +'<b>'+(v.contrato?'#'+esc(v.contrato)+' ':'')+esc(v.cliente)+'</b>'
+          +'<div class="om">'+(v.cpfl_prazo_em<iso(hoje)?'prazo • venceu e a obra ainda não foi ligada':'prazo')
+          +(v.cpfl_solicitado_em?' • pedida em '+ddmm(v.cpfl_solicitado_em):'')+'</div></div>';
       });
       corpo+='</div>';
     }
@@ -686,12 +722,16 @@ function renderAgenda(){
     var d=new Date(inicio);
     for(var i=0;i<42;i++){
       var fora=d.getMonth()!==m;
-      var obs=obrasDo(d);
+      var obs=obrasDo(d), vs=vistoriasDo(d);
       corpo+='<div class="cel '+(fora?'fora':'')+' '+(iso(d)===iso(hoje)?'hoje':'')+'"><div class="n">'+d.getDate()+'</div>';
       obs.forEach(function(o){
         var dd=diaDe(o,d);
-        corpo+='<a class="ev" href="'+linkObra(o)+'"'+(dd?' title="'+esc(o.cliente)+' · dia '+dd[0]+' de '+dd[1]+'"':'')+'>'
+        corpo+='<a class="ev'+(ehManut(o)?' manut':'')+'" href="'+linkObra(o)+'"'+(dd?' title="'+esc(o.cliente)+' · dia '+dd[0]+' de '+dd[1]+'"':'')+'>'
           +esc(o.cliente.split(' ')[0])+(dd?' '+dd[0]+'/'+dd[1]:'')+'</a>';
+      });
+      vs.forEach(function(v){
+        corpo+='<span class="ev vist" title="Vistoria '+esc(v.concessionaria||'CPFL')+' · prazo · '+esc(v.cliente)+'">⚡ '
+          +esc(String(v.cliente||'').split(' ')[0])+'</span>';
       });
       corpo+='</div>';
       d.setDate(d.getDate()+1);

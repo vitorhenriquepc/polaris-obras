@@ -141,6 +141,45 @@ equipe só o link do checklist (se o relatório ainda não foi enviado). Data fo
 de 2020 a 3 anos à frente é recusada na tela e no banco (`trava_datas_obra`,
 armadilha 38).
 
+### O quadro na ordem da data e a vistoria na agenda do escritório
+Decisão do Vitor em 29/10 (propostas 1, 2 e 3 da página "Agenda e prioridade
+das obras"). Até então toda coluna do kanban seguia os dias desde o fechamento,
+e na Execução a obra que começava amanhã ficava em 1º e a de hoje em 6º. Hoje,
+**na trilha padrão**, cada coluna segue a data da sua etapa, e o cartão ganha um
+selo com a distância em palavras (*hoje*, *amanhã*, *em 6 dias*, *venceu há 2
+dias*):
+
+| colunas | ordem | selo |
+|---|---|---|
+| Boas-vindas a Entrega do Material (0–5) | prazo do contrato (`PRAZO_CONTRATUAL` do fechamento), o mais apertado em cima | *contrato em 31 dias* · *vence 29/11 · 16 dias aqui* |
+| Execução da Obra (6) | data de instalação; **sem data** e **instalada e parada** em cima | *sem data* · *instalada há 23 dias* · *hoje* (*dia 2 de 5*) · *amanhã* |
+| Vistoria e Conexão (7) | prazo da concessionária; vencido em cima | *CPFL até 04/11* · *pedida 27/10 · faltam 6 dias*; sem a data do pedido, *vistoria sem data* |
+
+**Vermelho é cartão parado, e vai para cima** (proposta 3): na Execução, sem
+data ou com a instalação acabada há mais de `quadro_execucao_folga_dias` (1) —
+o dia seguinte é do relatório, e *instalada ontem* fica amarelo; na Vistoria, o
+prazo vencido; nas outras, quem está na coluna há mais tempo do que 85% das
+obras levaram para sair dela. Esse limite sai de **`quadro_tempos()`**, que lê o
+`etapas_historico` (últimos 180 dias, só passagem que avançou, sem a de menos de
+1 hora e **sem as entradas cadastradas depois** — meia-noite UTC, do `sistema`,
+de 17/03 a 03/06 — que puxavam o Contrato Fechado para 50 dias; sem elas, 5).
+Coluna com menos de 8 medidas não ganha limite. Medido em 29/10: Contrato
+Fechado 4,8 dias · Documentação 7,4 · Aprovação 11,8 · Compra 6,4 · Entrega
+23,7 · Execução 11,0 · Vistoria 8,1. O título do selo explica o vermelho. O
+"desde quando está na etapa" é a última entrada no `etapas_historico`, relida
+com as obras a cada recarga; se a função falha, o quadro segue pelas datas, sem
+o *N dias aqui* e sem o parado por tempo. **Sistema Ativo, manutenção e
+eletroposto ficaram como eram.**
+
+**A agenda geral** (o link do escritório, `config.agenda_token`) mostra, além
+das obras (verde) e das manutenções (azul), **a vistoria da concessionária no dia
+do prazo**, em laranja tracejado e sem link — é nesse dia que, se ela não veio,
+alguém cobra. Só vistoria **aberta**: obra da trilha padrão na etapa 7, com prazo
+(`get_agenda` → `vistorias`). Prazo que passou com a obra ainda na 7 aparece no
+dia dele dizendo que venceu. **A agenda de cada equipe não mostra vistoria**
+(Vitor, 29/10); a lista sai vazia. Obra de vários dias continua aparecendo no
+fim de semana e no feriado.
+
 ### Obra cancelada: sai de tudo, não se apaga
 Cliente que desistiu **se cancela, não se exclui** (23/10, BARBARA EDEN BINE 4756 —
 o Vitor pediu "excluir do sistema"). Excluir não dava e não devia: a obra tinha
@@ -1125,6 +1164,8 @@ cartão da indicação.
 | `regua_bloqueio(obra, modelo)` | por que uma mensagem da régua não sai hoje — sem grupo, opt-out, **"pediu para sair?" esperando a equipe** (3 dias), sem autorização, já indicou, sem geração. O disparo das 17h pula toda linha com bloqueio |
 | `webhook_ja_visto(id, texto)` · `webhook_esquecer(id, texto)` | a trava do webhook contra a mesma mensagem entregue de novo pela Z-API · solta a trava quando a gravação falha (só service_role) |
 | `envio_grupo_reservar(grupo, texto)` · `envio_grupo_concluir(id, ok)` | a trava do `notificar-grupo` contra o **mesmo texto para o mesmo grupo em 24 h** (JULIANO 4924, 29/10): reserva atômica antes de mandar, marca se a Z-API aceitou (`envios_grupo`). Só service_role — armadilha 46 |
+| `quadro_tempos()` | **o quadro na ordem da data**: desde quando cada obra está na etapa de agora (a última entrada no `etapas_historico`) e, por trilha e etapa, o tempo em que 85% das obras saíram da coluna nos últimos 180 dias — é o limite do cartão parado (vermelho). Sem as entradas cadastradas depois (meia-noite UTC) e sem passagem de menos de 1 hora; coluna com menos de 8 medidas não tem limite. Só leitura, `is_autorizado()` |
+| `get_agenda(token)` | a agenda das equipes (`instalador.html?agenda=…`, **sem login** — o anon tem de alcançar, armadilha 26): obras da equipe, ou de todas no link geral. **Só o link geral** devolve também `vistorias` — as abertas da trilha padrão, para aparecerem no dia do prazo (29/10) |
 | `entrega_conferir(simular)` · `entrega_avisada(ids)` | **a mensagem chegou ao grupo?** Confere o que saiu nas últimas 24 h para grupo de cliente (painel, régua, relatório, pesquisa) contra a cópia que volta pelo webhook (`Sistema/Polaris`); o que não voltou em 10 min vira aviso à pós-venda, um por grupo a cada 6 h (`entrega_conferida`). Só service_role — armadilha 47 |
 | `definir_responsavel(equipe, funcao)` | troca a pessoa de um dos dois papéis; só admin |
 | `get_kpis_financeiro(ini, fim)` | R$/Wp e execução × faturamento, **com a cobertura junto** — quantas obras sustentam cada número e o que falta para as outras |
@@ -1230,6 +1271,8 @@ Prefira criar parâmetro a chumbar número no código.
 | `entrega_conferir_ativo` | 1 | o aviso de mensagem que não voltou do grupo do cliente (`entrega-conferir`, armadilha 47) |
 | `entrega_espera_min` · `entrega_intervalo_h` | 10 · 6 | minutos até contar como "não voltou" (a cópia volta em 4 a 75 s) · horas entre dois avisos do mesmo grupo |
 | `entrega_desde` | 29/10, na migração | o que saiu antes disto não é conferido |
+| `quadro_parado_pct` · `quadro_parado_janela_dias` · `quadro_parado_min_obras` | 85 · 180 · 8 | o cartão parado do quadro: passou do tempo em que esse tanto das obras saiu da coluna, medido nesses dias, em coluna com pelo menos essas medidas (`quadro_tempos`) |
+| `quadro_execucao_folga_dias` | 1 | dias depois do fim da instalação até o cartão da Execução ficar vermelho (o dia seguinte é do relatório) |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -2761,9 +2804,12 @@ Conferido no banco em **22/09/2026**.
       fica sabendo por outro caminho antes de consertar.
 - [ ] **Proposta de agenda e prioridade no quadro** (pedido do Vitor, 29/10):
       página privada com a pesquisa, os números e sete propostas —
-      https://claude.ai/artifact/M4aXiH7nzErA6WGYzmwBdL. Esperando a escolha
-      (sugestão: 1, 2 e 3 juntas), se a vistoria entra também na agenda das
-      equipes, e se obra de vários dias aparece no fim de semana e no feriado.
+      https://claude.ai/artifact/M4aXiH7nzErA6WGYzmwBdL. **O Vitor escolheu a 1, a 2
+      e a 3, com a vistoria só na agenda do escritório** (29/10; §4, "O quadro na
+      ordem da data"). Ficam para decidir a 4 (anotar o dia em que a CPFL veio), a 5
+      (lista "Para agendar"), a 6 (rotina de 15 minutos, que pede guardar cada
+      remarcação) e a 7 (agenda assinada no celular). Obra de vários dias continua
+      aparecendo no fim de semana e no feriado (ninguém pediu para mudar).
       Achados do dia: a CJP tem obra em todo dia útil até 13/11 (o primeiro livre
       é 16/11); a **#4875** estava na Execução **sem data** com contrato até 23/11
       (ganhou a data 17/11 no mesmo dia; com a mediana de 7 dias até ligar, liga
