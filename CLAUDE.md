@@ -143,7 +143,7 @@ armadilha 38).
 
 ### O quadro na ordem da data e a vistoria na agenda do escritório
 Decisão do Vitor em 29/10 (propostas 1, 2 e 3 da página "Agenda e prioridade
-das obras"). Até então toda coluna do kanban seguia os dias desde o fechamento,
+das obras"); no ar em 30/10 às 18h20 (#60). Até então toda coluna do kanban seguia os dias desde o fechamento,
 e na Execução a obra que começava amanhã ficava em 1º e a de hoje em 6º. Hoje,
 **na trilha padrão**, cada coluna segue a data da sua etapa, e o cartão ganha um
 selo com a distância em palavras (*hoje*, *amanhã*, *em 6 dias*, *venceu há 2
@@ -1270,7 +1270,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `optout_ia_segura_dias` | 3 | quantos dias a régua espera depois de um recado que a IA leu como `sair`, enquanto a equipe não confirma (23/10) |
 | `entrega_conferir_ativo` | 1 | o aviso de mensagem que não voltou do grupo do cliente (`entrega-conferir`, armadilha 47) |
 | `entrega_espera_min` · `entrega_intervalo_h` | 10 · 6 | minutos até contar como "não voltou" (a cópia volta em 4 a 75 s) · horas entre dois avisos do mesmo grupo |
-| `entrega_desde` | 29/10, na migração | o que saiu antes disto não é conferido |
+| `entrega_desde` | 2026-10-30T21:06:19Z, na migração | o que saiu antes disto não é conferido |
 | `quadro_parado_pct` · `quadro_parado_janela_dias` · `quadro_parado_min_obras` | 85 · 180 · 8 | o cartão parado do quadro: passou do tempo em que esse tanto das obras saiu da coluna, medido nesses dias, em coluna com pelo menos essas medidas (`quadro_tempos`) |
 | `quadro_execucao_folga_dias` | 1 | dias depois do fim da instalação até o cartão da Execução ficar vermelho (o dia seguinte é do relatório) |
 
@@ -2171,7 +2171,7 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     as do José Vicente; em 59 envios com hora gravada, a cópia voltou de 4 a 75 s
     depois.
 
-    Desde 29/10 (`migrations/2026-10-29_entrega_nos_grupos.sql` + edge function
+    Desde 30/10 às 18h06 (`migrations/2026-10-29_entrega_nos_grupos.sql` + edge function
     `entrega-conferir`, cron a cada 10 min das 8h às 20h50) o sistema confere: o
     que saiu para grupo de cliente nas últimas 24 h — painel (`envios_grupo`),
     régua, relatório do instalador, pesquisa de satisfação — e não voltou em 10
@@ -2198,7 +2198,8 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     O toast pedia *"recarregue e mande de novo"*, e não havia como. A venda entrou
     no DRE no mesmo segundo (12:23:16) e nenhuma chamada de envio saiu.
 
-    Desde 29/10 (no ar depois das 18h): o 📣 de obra com data de hoje em diante
+    Desde 30/10 (no ar às 18h07; a publicação marcada para 29/10 não saiu, a sessão
+    caiu): o 📣 de obra com data de hoje em diante
     abre uma escolha com cada aviso no seu botão — a mensagem da etapa,
     *"Instalação agendada para …"* (cliente) e *"CJP Solar: data e link do
     checklist"* (equipe); com a data já passada e o relatório por mandar (até 30
