@@ -2780,7 +2780,15 @@ Conferido no banco em **22/09/2026**.
       mensagens"): agendamento, remarcação, data que já passou e lembrete da
       véspera dizem *"04/11 a 05/11/2026"*. A ROSANE (4716) já tinha recebido o
       agendamento com *"04/11/2026"* às 12:03 de 29/10; o lembrete dela, em
-      **03/11 às 9h**, é o primeiro com o período — conferir que saiu assim.
+      03/11 às 9h, foi o primeiro com o período. **Conferido em 03/11:** saiu no
+      grupo às 09:00:17 com *"📅 Data: 04/11 a 05/11/2026"*, e o
+      `instalacao_lembrete_em` ficou 04/11. A *"Agenda de amanhã"* da CJP não é
+      gravada (o grupo da equipe não tem obra), mas 6 s depois voltou ao webhook
+      a cópia de uma mensagem para grupo sem obra, que é ela. ⚠️ O cron
+      `lembrete-instalacao-d1` chama sem `timeout_milliseconds` (5 s) e a função
+      leva ~10 s: o `net._http_response` fica com timeout, e em 03/11 a chamada
+      nem apareceu nos registros de edge function (em 02/11, sim: 200). Quem
+      prova o envio é a cópia no grupo e o carimbo, não o log.
 - [x] ~~**JULIANO (4924) recebeu o aviso da vistoria duas vezes**~~ (armadilha 46).
       Corrigido em 29/10 nas três camadas. **Provado no ar às 16:01 de 29/10:** a
       primeira reserva real (`envios_grupo` id 4, o aviso da vistoria do 4663) com
