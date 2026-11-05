@@ -180,6 +180,44 @@ dia dele dizendo que venceu. **A agenda de cada equipe não mostra vistoria**
 (Vitor, 29/10); a lista sai vazia. Obra de vários dias continua aparecendo no
 fim de semana e no feriado.
 
+### Vistoria pedida antes da instalação
+Decisão do Vitor em 05/11 (`migrations/2026-11-05_vistoria_antes_da_instalacao.sql`
+e `..._etapa.sql`). O Vitor passou a pedir a vistoria da CPFL **antes** de a obra
+começar, para os 5 dias úteis da concessionária correrem junto com a instalação.
+Preencher a data da vistoria no card levava a obra para a Vistoria (`trg_cpfl`) e o
+cliente lia *"Sua instalação foi concluída"*: em 05/11, das 10:44 às 10:48, **quatro**
+clientes leram isso com a instalação marcada para dali a 4 a 6 dias — DOLORES (4914),
+Gledson (4903), Renan (4889) e Marcelo (4966). As quatro voltaram para a Execução no
+mesmo dia, sem mensagem (na linha do tempo: *"claude, a pedido do Vitor (05/11)"*). Hoje:
+
+- **"instalação por fazer"** é `instalacao_pendente(relatório, instalação, término)`:
+  o relatório do instalador não saiu e o último dia marcado é hoje ou depois
+  (Brasília). **Sem data de instalação não dá para saber** (`false`): o painel
+  pergunta *"A instalação já foi feita?"* antes de salvar a data da vistoria, porque
+  aí o texto diz que a instalação foi concluída;
+- a **`cpfl_texto`** escolhe o texto que o Vitor aprovou: *"📋 Dolores, já pedimos a
+  vistoria da CPFL! Para ganhar tempo, fizemos o pedido antes da instalação... 🔧
+  Instalação: 09/11 (segunda) · 🔌 Vistoria e troca do medidor: até 12/11 (quinta)"*.
+  Devolve `instalacao_pendente` e `prazo_antes_da_instalacao` (o prazo vence antes de
+  a instalação acabar: o painel pergunta antes de mandar). As outras 20 obras com
+  vistoria leram o texto de antes, byte a byte;
+- o **`trg_cpfl`** não leva mais a obra para a 7 com a instalação por fazer: ela fica
+  na Execução até o **relatório do instalador**, que a leva para a Vistoria (o
+  `foto-obra` v17 lembra o prazo: *"⏱️ A vistoria da CPFL já foi pedida: a troca do
+  medidor deve acontecer até 12/11 (quinta)"*). Arrastar para a Vistoria antes do
+  relatório pergunta antes; quem confirma leva, e o cliente lê o texto de antes da
+  instalação;
+- o **painel** manda o aviso com a obra ainda na Execução (o mesmo `avisarCpfl`), e o
+  📣 oferece *"📋 Vistoria pedida antes da instalação"* enquanto o cliente não leu;
+- a **agenda do escritório** mostra a vistoria no dia do prazo também com a obra na
+  Execução (*"antes da instalação (09/11)"*).
+
+⚠️ O gatilho e o painel sobem **juntos** (painel primeiro): com o gatilho novo e o
+painel velho, a obra que fica na 6 não recebe aviso nenhum e a tela diz "Obra salva ✓"
+(provado no Chromium contra o painel de antes). ⚠️ A CPFL pode vir em qualquer dos 5
+dias úteis, inclusive antes da instalação — é o risco que o Vitor escolheu; o texto
+diz as duas datas.
+
 ### Obra cancelada: sai de tudo, não se apaga
 Cliente que desistiu **se cancela, não se exclui** (23/10, BARBARA EDEN BINE 4756 —
 o Vitor pediu "excluir do sistema"). Excluir não dava e não devia: a obra tinha
@@ -1224,7 +1262,8 @@ cartão da indicação.
 | `usina_adicionar(json, simular)` | acrescenta uma usina a um cliente que já existe. **Só soma no total da obra se ela for cliente de plano** — em obra de venda a potência é o projeto vendido, e mexer ali muda o tamanho de uma venda que já aconteceu |
 | `get_brinde_google()` | **quem avaliou no Google e quem recebeu o brinde**, lido direto de `nps` — inclui obra de manutenção, que a Lista não vê. Devolve `entregue_no_cadastro` para separar retirada de verdade de marcação em lote |
 | `usina_editar(json, simular)` | **corrige** uma usina que já existe — nome, potência, cidade, endereço, data de instalação e o vínculo com o SolarView, num caminho só. Chave ausente no json não sobrescreve nada. Devolve `mudancas` e `avisos` em português (potência mexe no kWh/kWp que o cliente lê; endereço mexe em visita e cobrança do Completo), e recusa roubar o id do SolarView de outra usina |
-| `cpfl_texto(obra)` | **o texto único da vistoria da concessionária**: conta a partir do próximo dia útil, prazo com dia da semana, link do cliente; vira *"Atualização da vistoria"* quando o prazo que o cliente leu mudou. Devolve `ja_avisado` e `mesmo_prazo` para a tela não mandar duas vezes. Só trilha padrão. **Desde 05/10, se o relatório do instalador saiu nas últimas 48 h, vai a versão curta** (prazo + acesso ao padrão, sem repetir "instalação concluída", link e assinatura) e devolve `curta: true` — o MURILO (4804) recebeu as duas mensagens longas com 2 minutos de diferença |
+| `cpfl_texto(obra)` | **o texto único da vistoria da concessionária**: conta a partir do próximo dia útil, prazo com dia da semana, link do cliente; vira *"Atualização da vistoria"* quando o prazo que o cliente leu mudou. Devolve `ja_avisado` e `mesmo_prazo` para a tela não mandar duas vezes. Só trilha padrão. **Desde 05/10, se o relatório do instalador saiu nas últimas 48 h, vai a versão curta** (prazo + acesso ao padrão, sem repetir "instalação concluída", link e assinatura) e devolve `curta: true` — o MURILO (4804) recebeu as duas mensagens longas com 2 minutos de diferença. **Desde 05/11, com a instalação por fazer, vai o texto da vistoria pedida antes da instalação** (as duas datas) e devolve `instalacao_pendente` |
+| `instalacao_pendente(relatorio_em, inicio, fim)` | **a instalação ainda vai acontecer?** Relatório do instalador não enviado e o último dia marcado (instalação ou término) é hoje ou depois, no dia de Brasília; sem data, `false`. Escolhe o texto da `cpfl_texto` e segura a obra na Execução no `trg_cpfl` (05/11) |
 | `resumo_mensal_obra(obra, mes)` | **o resumo do mês de um cliente**, todas as usinas juntas, com o texto pronto para o grupo e os números em json — geração, economia, tempo, dias sem geração com o previsto, retorno do investimento, bandeira. Sem IA, não grava. Recusa mês aberto e mês da instalação |
 | `usina_geracao_manual(usina, mes, kwh, parcial_ate, nota, simular)` | lança o mês de uma usina **sem API**, lido no app do fabricante. Recusa sobrescrever mês da plataforma e "até o dia" fora do mês |
 | `usina_historico_definir(usina, kwh, ate, fonte, simular)` | grava o que a usina gerou **antes** do monitoramento daqui (o passado que a plataforma não devolve). Exige dizer a fonte |
@@ -1883,7 +1922,8 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     um do outro. Desde 30/09 o texto é **um só**, no banco, e sai por
     `avisarCpfl()` — o card, o kanban, o 📣 e o WhatsApp pessoal passam por
     ele. **Preencher a data leva a obra para a etapa 7** (`trg_cpfl`, na trilha
-    padrão), `cpfl_avisado_em` zera quando a data muda e `cpfl_avisado_prazo`
+    padrão — menos com a instalação por fazer, desde 05/11: §4, "Vistoria pedida
+    antes da instalação"), `cpfl_avisado_em` zera quando a data muda e `cpfl_avisado_prazo`
     guarda o prazo que o cliente leu: data nova com o mesmo prazo não manda
     nada, prazo novo manda **"Atualização da vistoria"**, e prazo já vencido
     não sai sozinho (só pelo 📣). O `foto-obra` parou de prometer *"Prazo: 1 a
@@ -2862,15 +2902,13 @@ Conferido no banco em **22/09/2026**.
       aprovação: ATA, Gilberto e Tanaka voltaram; a Igreja (4810) está na vistoria;
       JOAO JOSE, LUCINEI, Vitor Gianelli e Solange já tiveram aviso na mesma queda.
       **Falta:** a aba Hoje mostrar a "conexão instável" (tela, depois das 18h).
-- [ ] **Vistoria pedida antes da instalação** (DOLORES 4914, 05/11). O Vitor pede a
-      vistoria da CPFL antes da obra, para os 5 dias úteis correrem junto. Preencher
-      a data no card levou a obra da Execução para a Vistoria (`trg_cpfl`) e mandou
-      a `cpfl_texto` de sempre — *"Sua instalação foi concluída"* — às 10:44, com a
-      instalação marcada para 09/11 (o Vitor explicou por áudio às 10:45). Proposta
-      mandada ao Vitor, **esperando o OK**: texto próprio quando a vistoria é pedida
-      antes da instalação (instalação em DD/MM, vistoria até DD/MM), a obra fica na
-      Execução até o relatório do instalador, e o `foto-obra` lembra o prazo da
-      vistoria já pedida.
+- [ ] **Vistoria pedida antes da instalação** (DOLORES 4914, 05/11; §4). Aprovado
+      pelo Vitor (*"pode fazer a vistoria assim e volta a Dolores pra execução"*). No
+      banco desde 05/11 às 11:27 (texto, agenda, as quatro obras de volta à Execução)
+      e o `foto-obra` v17 às 11:30; **o gatilho e o painel vão ao ar depois das 18h**.
+      Os quatro clientes (4914, 4903, 4889, 4966) já leram o "instalação concluída"
+      às 10:44–10:48; nada foi mandado de novo (o Vitor explicou à Dolores por áudio;
+      os outros três, se for o caso, é à mão no grupo).
 - [ ] **JOSÉ VICENTE (4875) e EDILSON (3344) sem o aviso de agendamento**
       (armadilhas 47 e 48). **José Vicente:** a Isabela entrou no grupo às 14:12 de
       29/10; o cliente ainda não recebeu a mensagem da etapa (28/10) nem o

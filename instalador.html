@@ -707,7 +707,9 @@ function renderAgenda(){
         corpo+='<div class="ob vist"><div class="tipo">Vistoria '+esc(v.concessionaria||'CPFL')+'</div>'
           +'<b>'+(v.contrato?'#'+esc(v.contrato)+' ':'')+esc(v.cliente)+'</b>'
           +'<div class="om">'+(v.cpfl_prazo_em<iso(hoje)?'prazo • venceu e a obra ainda não foi ligada':'prazo')
-          +(v.cpfl_solicitado_em?' • pedida em '+ddmm(v.cpfl_solicitado_em):'')+'</div></div>';
+          +(v.cpfl_solicitado_em?' • pedida em '+ddmm(v.cpfl_solicitado_em):'')
+          // pedida antes da instalação (05/11): a obra ainda está na Execução
+          +(v.antes_da_instalacao&&v.data_instalacao?' • antes da instalação ('+ddmm(v.data_instalacao)+')':'')+'</div></div>';
       });
       corpo+='</div>';
     }
