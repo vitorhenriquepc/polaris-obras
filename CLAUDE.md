@@ -182,7 +182,9 @@ fim de semana e no feriado.
 
 ### Vistoria pedida antes da instalação
 Decisão do Vitor em 05/11 (`migrations/2026-11-05_vistoria_antes_da_instalacao.sql`
-e `..._etapa.sql`). O Vitor passou a pedir a vistoria da CPFL **antes** de a obra
+e `..._etapa.sql`); no ar em 05/11: o texto, a agenda e as quatro obras de volta à
+Execução às 11h27, o `foto-obra` v17 às 11h30, o painel e a agenda às 18h07 (#63) e o
+gatilho às 18h08. O Vitor passou a pedir a vistoria da CPFL **antes** de a obra
 começar, para os 5 dias úteis da concessionária correrem junto com a instalação.
 Preencher a data da vistoria no card levava a obra para a Vistoria (`trg_cpfl`) e o
 cliente lia *"Sua instalação foi concluída"*: em 05/11, das 10:44 às 10:48, **quatro**
@@ -2902,10 +2904,13 @@ Conferido no banco em **22/09/2026**.
       aprovação: ATA, Gilberto e Tanaka voltaram; a Igreja (4810) está na vistoria;
       JOAO JOSE, LUCINEI, Vitor Gianelli e Solange já tiveram aviso na mesma queda.
       **Falta:** a aba Hoje mostrar a "conexão instável" (tela, depois das 18h).
-- [ ] **Vistoria pedida antes da instalação** (DOLORES 4914, 05/11; §4). Aprovado
-      pelo Vitor (*"pode fazer a vistoria assim e volta a Dolores pra execução"*). No
-      banco desde 05/11 às 11:27 (texto, agenda, as quatro obras de volta à Execução)
-      e o `foto-obra` v17 às 11:30; **o gatilho e o painel vão ao ar depois das 18h**.
+- [x] ~~**Vistoria pedida antes da instalação**~~ (DOLORES 4914, 05/11; §4). Aprovado
+      pelo Vitor (*"pode fazer a vistoria assim e volta a Dolores pra execução"*). **No
+      ar em 05/11:** banco às 11:27 (texto, agenda, as quatro obras de volta à Execução),
+      `foto-obra` v17 às 11:30, painel e agenda às 18:07 (#63; o site serviu a versão
+      nova na hora, sintaxe validada no arquivo publicado e o teste do Chromium repetido
+      contra ele: 29 de 29) e o gatilho às 18:08 (conferido com rollback: instalação por
+      fazer fica na 6, instalação passada vai para a 7).
       Os quatro clientes (4914, 4903, 4889, 4966) já leram o "instalação concluída"
       às 10:44–10:48; nada foi mandado de novo (o Vitor explicou à Dolores por áudio;
       os outros três, se for o caso, é à mão no grupo).
