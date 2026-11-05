@@ -16,6 +16,25 @@ function json(body: unknown, status = 200) {
 // Aconteceu com a Fatima Rino (3067) em 17/09. Agora o destino sai da trilha.
 const ETAPA_POS_EXECUCAO = 7;
 
+// "12/11 (quinta)" a partir da data pura do banco, sem passar por fuso: lida
+// como instante, '2026-11-12' vira 21h do dia 11 em Brasília (armadilha 30)
+const SEM = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+function diaBR(iso: string): string {
+  const [a, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+  return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')} (${SEM[new Date(Date.UTC(a, m - 1, d)).getUTCDay()]})`;
+}
+function hojeBR(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+}
+// a vistoria foi pedida antes da instalação (05/11): o relatório lembra o prazo
+// que o cliente já leu; prazo que passou não vira promessa
+function lembreteVistoria(conc: string, solicitado: string, prazo: string | null): string {
+  if (prazo && String(prazo).slice(0, 10) >= hojeBR()) {
+    return `A vistoria da ${conc} já foi pedida: a troca do medidor deve acontecer até *${diaBR(prazo)}*.`;
+  }
+  return `A vistoria da ${conc} já foi pedida, em ${diaBR(solicitado).slice(0, 5)}.`;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
@@ -276,6 +295,10 @@ Deno.serve(async (req: Request) => {
           const conc = String(obra.concessionaria || '').trim() || 'concessionária de energia';
           if (!obra.cpfl_solicitado_em) {
             msgFinal += `\n⏱️ Assim que solicitarmos a vistoria da ${conc}, avisamos aqui com a data prevista.`;
+          } else {
+            // vistoria pedida ANTES da instalação (Vitor, 05/11): a obra ficou na
+            // Execução e o cliente leu o prazo no aviso da vistoria. Aqui só lembra.
+            msgFinal += `\n⏱️ ${lembreteVistoria(conc, obra.cpfl_solicitado_em, obra.cpfl_prazo_em)}`;
           }
         } else if (proxPrazo) msgFinal += `\n⏱️ ${proxPrazo}`;
         msgFinal += `\n\nAcompanhe em tempo real:\n${linkCli}`;

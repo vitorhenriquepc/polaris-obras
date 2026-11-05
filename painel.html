@@ -643,6 +643,25 @@ function avisoSemData(o){
     +'não enxerga a obra e a venda não entra no DRE.\n\n'
     +'Marque a data no card (📅 Agenda e equipe). Avançar mesmo assim?';
 }
+/* A instalação ainda vai acontecer (Vitor, 05/11): o relatório do instalador não
+   saiu e o último dia marcado é hoje ou depois. É a regra do banco
+   (instalacao_pendente): com ela, a vistoria pedida antes da instalação deixa a
+   obra na Execução (trg_cpfl) e o cliente lê "já pedimos a vistoria", não "sua
+   instalação foi concluída" -- que quatro clientes leram em 05/11 (DOLORES 4914,
+   Gledson 4903, Renan 4889 e Marcelo 4966), com a instalação dali a 4 a 6 dias.
+   Sem data de instalação não dá para dizer: false. */
+function instalacaoPendente(o){
+  if(!o || o.relatorio_enviado_em || !o.data_instalacao) return false;
+  const fim = (o.data_fim && o.data_fim > o.data_instalacao) ? o.data_fim : o.data_instalacao;
+  return fim >= hojeLocal();
+}
+function avisoAntesDoRelatorio(o){
+  return '📋 A instalação de '+o.cliente+' é '+periodoBR(o.data_instalacao, o.data_fim)
+    +' e o relatório do instalador ainda não chegou.\n\n'
+    +'A obra fica na Execução até o relatório: é ele que leva para a Vistoria. '
+    +'Para avisar o cliente de que a vistoria já foi pedida, preencha a data dela no card, sem mudar a etapa.\n\n'
+    +'Levar para a Vistoria mesmo assim?';
+}
 function diasAtras(iso){const d=parseDate(iso);if(!d)return '';const n=diffDays(d,new Date());return n<=0?'hoje':(n===1?'ontem':'há '+n+'d');}
 function toast(m,ms){let t=document.getElementById('tst');if(!t){t=document.createElement('div');t.id='tst';t.className='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),ms||2600);}
 function temaAtual(){try{return localStorage.getItem('polaris-tema')||'dark'}catch(_){return 'dark'}}
@@ -1558,9 +1577,20 @@ async function previaCpfl(){
   const r1=await sb.rpc('soma_dias_uteis',{p_inicio:v,p_dias:1});
   if(!r1.error && r1.data) box.innerHTML+='<span class="mut" style="margin-left:6px">· conta a partir de '+fmtD(r1.data)+'</span>';
   const et=parseInt((document.getElementById('f_et')||{}).value,10)||0;
+  // a data de instalação que está no card agora (pode ter acabado de mudar)
+  const ag={ relatorio_enviado_em: window._relatorioAntes||null,
+             data_instalacao:(document.getElementById('f_dti')||{}).value||null,
+             data_fim:(document.getElementById('f_dfim')||{}).value||null };
+  const antes = et<ETAPA_VISTORIA && instalacaoPendente(ag);
+  const semData = et<ETAPA_VISTORIA && !ag.data_instalacao && !ag.relatorio_enviado_em;
   if(acao) acao.innerHTML='<div class="okAviso" style="color:#F5A623">📣 Ao salvar, '
-    +(et<ETAPA_VISTORIA?'a obra vai para <b>Vistoria e Conexão</b> e ':'')
-    +'o cliente recebe <b>uma</b> mensagem no grupo com o prazo.</div>';
+    +(antes ? 'a obra continua na <b>Execução</b> até o relatório do instalador e o cliente recebe <b>uma</b> mensagem no grupo: '
+              +'a vistoria foi pedida antes da instalação, com as duas datas.'
+            : (et<ETAPA_VISTORIA?'a obra vai para <b>Vistoria e Conexão</b> e ':'')
+              +'o cliente recebe <b>uma</b> mensagem no grupo com o prazo.'
+              +(semData?'<br>⚠️ Sem data de instalação, a mensagem diz que a instalação foi concluída. '
+                +'Se ela ainda não aconteceu, marque a data de instalação antes de salvar.':''))
+    +'</div>';
 }
 function tarjaTravaK(o){
   if(!o.trava) return '';
@@ -1614,9 +1644,18 @@ async function avisarCpfl(id, manual){
     toast('O prazo desta vistoria ('+fmtD(d.prazo)+') já passou. Confira a data da solicitação; para mandar assim mesmo, use o 📣');
     return false;
   }
-  if(manual && !confirm(venceu
-      ? 'O prazo desta vistoria ('+fmtD(d.prazo)+') já passou.\n\nMandar o aviso no grupo do cliente assim mesmo?'
-      : 'Mandar no grupo do cliente o aviso da vistoria, com prazo até '+fmtD(d.prazo)+'?')) return false;
+  // (só o 📣 chega aqui com o prazo vencido)
+  let pergunta=null;
+  if(venceu) pergunta='O prazo desta vistoria ('+fmtD(d.prazo)+') já passou.\n\nMandar o aviso no grupo do cliente assim mesmo?';
+  // pedida antes da instalação, com o prazo da concessionária vencendo antes de a
+  // instalação acabar: o cliente leria duas datas que não fecham (05/11)
+  else if(d.prazo_antes_da_instalacao) pergunta='O prazo da vistoria ('+fmtD(d.prazo)+') vence antes do fim da instalação ('
+    +fmtD(d.instalacao_ate)+'), e o cliente vai ler as duas datas.\n\nMandar o aviso no grupo assim mesmo?';
+  else if(manual) pergunta = d.instalacao_pendente
+    ? 'Mandar no grupo do cliente o aviso da vistoria pedida antes da instalação (instalação '+fmtD(d.instalacao)
+      +', vistoria até '+fmtD(d.prazo)+')?'
+    : 'Mandar no grupo do cliente o aviso da vistoria, com prazo até '+fmtD(d.prazo)+'?';
+  if(pergunta && !confirm(pergunta)) return false;
   const r=await invokeFn('notificar-grupo',{grupo_id:d.grupo, message:d.texto});
   anotaAviso(r, getObra(id), 'vistoria');
   if(r.repetida){
@@ -1627,7 +1666,8 @@ async function avisarCpfl(id, manual){
   if(r.error){ toast('Vistoria: o aviso no grupo falhou ('+r.error+'). Use o 📣 para reenviar'); return false; }
   const m=await sb.rpc('cpfl_marcar_avisado',{p_obra:id});
   if(m.error) toast('Aviso enviado, mas não consegui registrar: '+m.error.message);
-  else toast('📣 '+d.cliente+' avisado no grupo — vistoria até '+fmtD(d.prazo)+(d.correcao?' (data corrigida)':''));
+  else toast('📣 '+d.cliente+' avisado no grupo — vistoria até '+fmtD(d.prazo)+(d.correcao?' (data corrigida)':'')
+    +(d.instalacao_pendente?' · pedida antes da instalação'+(d.etapa<ETAPA_VISTORIA?', a obra segue na Execução':''):''), 4500);
   return true;
 }
 function travaBotoes(o){
@@ -1861,6 +1901,11 @@ const dConc=dataDeConclusao(n,o); if(dConc) patch.data_conclusao=dConc;
 if(mudou && n>=ETAPA_VISTORIA && n>(o.etapa_numero||0)
    && semDataInstalacao(Object.assign({},o,{etapa_numero:n}))){
   if(!confirm(avisoSemData(o))) return;
+}
+// A instalação ainda vai acontecer: a obra fica na Execução até o relatório do
+// instalador (Vitor, 05/11). A vistoria pedida antes vai pela data no card.
+else if(mudou && n===ETAPA_VISTORIA && temVistoria(o) && instalacaoPendente(o)){
+  if(!confirm(avisoAntesDoRelatorio(o))) return;
 }
 // Avisa quando o cliente ainda não confirmou o relatório
 else if(mudou && n===ETAPA_VISTORIA && (o.trilha||'padrao')!=='manutencao' && !o.aceite_em){
@@ -2810,6 +2855,7 @@ if(focoFone) setTimeout(()=>document.getElementById('f_tel').focus(),50);
 window._dtiAntes = o.data_instalacao || null;
 window._instAntes = o.instalador_id || null;
 window._etapaAntes = id ? o.etapa_numero : null;   // obra nova nao tem etapa de antes
+window._relatorioAntes = id ? (o.relatorio_enviado_em||null) : null;
 CPFL_ANTES = id ? (o.cpfl_solicitado_em||null) : null;
 if(id) sb.rpc('is_admin').then(r=>{ const rd=document.getElementById('rowDel'); if(r.data&&rd) rd.style.display=''; });
 document.getElementById('f_save').onclick = ()=> salvarForm(id);
@@ -2928,6 +2974,28 @@ if(rec.etapa_numero>=ETAPA_VISTORIA && rec.etapa_numero>((_oA&&_oA.etapa_numero)
           if(fd.scrollIntoView) fd.scrollIntoView({block:'center',behavior:'smooth'}); fd.focus(); }
   return;
 }
+// Vistoria pedida antes da instalação (Vitor, 05/11): a obra fica na Execução até
+// o relatório do instalador (trg_cpfl), e o cliente lê "já pedimos a vistoria".
+const recAg = _oA ? Object.assign({}, _oA, rec) : rec;   // o rec não traz o relatório
+if(id && _oA && temVistoria(rec) && rec.etapa_numero===ETAPA_VISTORIA
+   && (_oA.etapa_numero||0)<ETAPA_VISTORIA && instalacaoPendente(recAg)
+   && !confirm(avisoAntesDoRelatorio(recAg))) return;
+// Data da vistoria nova numa obra antes da 7 e SEM data de instalação: o banco não
+// tem como saber se a instalação já aconteceu, leva a obra para a Vistoria e o
+// texto diz que a instalação foi concluída. Se não foi, a data de instalação vem antes.
+if(id && _oA && temVistoria(rec) && rec.cpfl_solicitado_em
+   && (rec.cpfl_solicitado_em||null)!==(CPFL_ANTES||null)
+   && rec.etapa_numero<ETAPA_VISTORIA && !rec.data_instalacao && !_oA.relatorio_enviado_em
+   && !confirm('⚠️ '+rec.cliente+' está sem data de instalação.\n\n'
+     +'Ao salvar a data da vistoria, a obra vai para a Vistoria e o cliente lê que a instalação foi concluída.\n\n'
+     +'Se a instalação ainda não aconteceu, cancele e marque a data de instalação: a obra fica na Execução '
+     +'e o cliente lê que a vistoria foi pedida antes da instalação.\n\n'
+     +'A instalação já foi feita?')){
+  const fd=document.getElementById('f_dti');
+  if(fd){ fd.classList.add('faltando'); const bd=fd.closest('details'); if(bd) bd.open=true;
+          if(fd.scrollIntoView) fd.scrollIntoView({block:'center',behavior:'smooth'}); fd.focus(); }
+  return;
+}
 document.getElementById('f_save').textContent='Salvando...';
 let error;
 if(id){ ({ error } = await sb.from('obras').update(rec).eq('id',id)); }
@@ -2958,20 +3026,29 @@ const etapaMudou = !!(id && oAtual && window._etapaAntes != null && oAtual.etapa
 const dataVistMudou = !!(id && (rec.cpfl_solicitado_em||null) !== (CPFL_ANTES||null));
 const ehVistoria = !!(id && oAtual && temVistoria(oAtual) && oAtual.etapa_numero===ETAPA_VISTORIA
                       && oAtual.cpfl_solicitado_em && (dataVistMudou || etapaMudou));
+// Vistoria pedida antes da instalação (05/11): a data foi salva e a obra ficou
+// antes da 7, porque o trg_cpfl não leva para a Vistoria com a instalação por
+// fazer. O aviso é o mesmo de sempre (avisarCpfl); o texto, o banco escolhe.
+const vistAntes = !!(id && oAtual && temVistoria(oAtual) && (oAtual.etapa_numero||0)<ETAPA_VISTORIA
+                     && oAtual.cpfl_solicitado_em && dataVistMudou);
 if(ehVistoria){
   // UMA mensagem: a da vistoria, com o prazo. A da etapa 7 seria a mesma noticia.
   await avisarCpfl(id);
-} else if(etapaMudou){
-  if(!oAtual.whatsapp_grupo_id){
-    toast('Etapa salva, mas o cliente nao foi avisado: esta obra nao tem grupo');
-  } else {
-    toast('Etapa atualizada. Avisando o grupo...');
-    const rEt = await invokeFn('notificar-grupo',
-      { grupo_id:oAtual.whatsapp_grupo_id, message:buildWA(oAtual) });
-    anotaAviso(rEt, oAtual, 'etapa');
-    if(rEt.error) toast(rEt.repetida ? 'Etapa salva. '+rEt.error : 'Etapa salva, mas o aviso no grupo falhou ('+rEt.error+') - use o botao de megafone pra reenviar');
-    else toast('Cliente avisado da nova etapa no grupo');
+} else {
+  if(etapaMudou){
+    if(!oAtual.whatsapp_grupo_id){
+      toast('Etapa salva, mas o cliente nao foi avisado: esta obra nao tem grupo');
+    } else {
+      toast('Etapa atualizada. Avisando o grupo...');
+      const rEt = await invokeFn('notificar-grupo',
+        { grupo_id:oAtual.whatsapp_grupo_id, message:buildWA(oAtual) });
+      anotaAviso(rEt, oAtual, 'etapa');
+      if(rEt.error) toast(rEt.repetida ? 'Etapa salva. '+rEt.error : 'Etapa salva, mas o aviso no grupo falhou ('+rEt.error+') - use o botao de megafone pra reenviar');
+      else toast('Cliente avisado da nova etapa no grupo');
+    }
   }
+  // relê as obras: o 📣 olha o "avisado" da tela para oferecer este aviso
+  if(vistAntes && await avisarCpfl(id)) await loadObras();
 }
 
 if(oAtual && dtiDepois){
@@ -3181,7 +3258,12 @@ function opcoesAviso(o){
   const eq=o.instalador_id ? EQUIPE.find(x=>x.id===o.instalador_id) : null;
   if(o.whatsapp_grupo_id){
     if(temVistoria(o) && o.etapa_numero===ETAPA_VISTORIA) L.push({g:'cliente', k:'vistoria', txt:'📣 Aviso da vistoria'});
-    else L.push({g:'cliente', k:'etapa', txt:'📍 Mensagem da etapa: '+(etOf(o).nome||'').replace('!','')});
+    else {
+      L.push({g:'cliente', k:'etapa', txt:'📍 Mensagem da etapa: '+(etOf(o).nome||'').replace('!','')});
+      // vistoria pedida antes da instalação que o cliente ainda não leu (05/11)
+      if(temVistoria(o) && o.cpfl_solicitado_em && !o.cpfl_avisado_em && (o.etapa_numero||0)<ETAPA_VISTORIA)
+        L.push({g:'cliente', k:'vistoria', txt:'📋 Vistoria pedida antes da instalação'+(o.cpfl_prazo_em?': até '+fmtD(o.cpfl_prazo_em):'')});
+    }
     if(futura) L.push({g:'cliente', k:'agendamento',
       txt:'📅 '+(ehMan?'Atendimento agendado':'Instalação agendada')+' para '+periodoBR(dti,o.data_fim)});
   }

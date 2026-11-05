@@ -49,9 +49,15 @@ Deno.serve(async (req: Request) => {
     const brindes = p.brindes_lista || [];
     const google = p.google_lista || [];
     const paradas = p.usinas_paradas || [];
+    // Usina que cai e volta sozinha (05/11): o cliente não é avisado a cada queda
+    // (usina_aviso_cliente); a equipe vê a lista uma vez por semana, na segunda.
+    const instavel = p.conexao_instavel || [];
+    const segunda = body.mostrar_instavel === true || new Date(Date.now() - 3 * 3600000).getUTCDay() === 1;
+    const mostraInstavel = segunda && instavel.length > 0;
 
     const total = resp.length + ger.length + (p.sem_nps || 0)
-      + (p.brindes_pendentes || 0) + (p.google_pendente || 0) + paradas.length;
+      + (p.brindes_pendentes || 0) + (p.google_pendente || 0) + paradas.length
+      + (mostraInstavel ? instavel.length : 0);
 
     if (total === 0 && (p.sem_aniversario || 0) === 0) {
       return json({ ok: true, enviado: false, motivo: 'nada pendente' });
@@ -75,6 +81,16 @@ Deno.serve(async (req: Request) => {
       }
       if (paradas.length > 6) msg += `• ...e mais ${paradas.length - 6}\n`;
       msg += `_Avisado e sem desfecho há dias é o que mais custa caro._\n`;
+    }
+
+    if (mostraInstavel) {
+      msg += `\n📶 *${instavel.length} usina${instavel.length > 1 ? 's' : ''} com conexão instável*\n`;
+      for (const u of instavel.slice(0, 6)) {
+        msg += `• ${u.cliente}${tag(u.contrato)} — ${u.usina} · ${u.quedas} quedas em 14 dias`;
+        msg += u.sem_comunicar_agora ? ` · sem comunicar agora\n` : ` · voltou sozinha\n`;
+      }
+      if (instavel.length > 6) msg += `• ...e mais ${instavel.length - 6}\n`;
+      msg += `_Caem e voltam sozinhas, e o cliente não é avisado a cada queda. Vale olhar a internet de lá._\n`;
     }
 
     if (ind.length) {
