@@ -365,6 +365,40 @@ quando a IA escreveu — e o card pinta em vermelho quando é `false`. Não
 bloqueia o envio (regra 3.5, quem decide é a pessoa); garante que ela decida
 vendo.
 
+### Usina sem internet: aviso ao cliente só com 48 h seguidas
+Pedido do Vitor (04/11: "não compensa mandar um alerta" para a usina que cai e
+volta); no ar em 05/11 (`migrations/2026-11-05_usina_aviso_so_com_48h.sql`,
+`mensagens-usina-auto` v8, `alerta-pendencias` v10). Medido de 06/09 a 04/11 no
+`usina_leitura`: **180 quedas em 53 usinas, 92% voltaram sozinhas em até 48 h**
+(105 já na leitura seguinte, ~4 h; 46% começam na leitura das 9h15, e a rodada
+de problemas escreve às 10h20). Dos **49 avisos de internet** escritos pela IA,
+**31 eram de usina que voltou sozinha em até 2 dias**; 29 foram recusados na mão
+e 3 saíram com a usina já de volta. Quando a queda passa de um dia, em 82% o
+inversor guardou a geração e mandou depois. Hoje:
+
+- quem decide o aviso de usina é **`usina_aviso_cliente(usina, obra)`**: obra que
+  **não está ligada** (`obra_ativa`) não recebe aviso de usina; "internet" só com
+  o SolarView **sem falar com o inversor** (`datalogger offline`) há
+  `usina_aviso_horas_sem_comunicar` (48) horas seguidas — *"operando" e sem gerar
+  não é internet* (é parada ou desligada); **um aviso por queda** e por parada (a
+  LUCINEI tinha 7 escritos na mesma queda);
+- **`regua_usina_resolvidos()`** tira da régua (`pulado`, com o motivo, regra 3.6)
+  o aviso de internet ou de parada que já não vale — a usina voltou, a obra não
+  está ligada, ou a mesma queda já teve aviso (enviado **ou recusado**) —,
+  aguardando ou já aprovado. Roda às 09h20, 13h20 e 16h20 (cron
+  `regua-usina-voltou`, depois de cada leitura do `usina-status`) e no começo do
+  disparo das 17h (`regua_expirar`);
+- usina com `usina_instavel_quedas_14d` (3) quedas ou mais em 14 dias vira a
+  seção **"📶 conexão instável"** do aviso das 8h, **só às segundas**
+  (`pendencias_posvenda` → `conexao_instavel`): para a equipe olhar a internet de
+  lá, sem mensagem ao cliente. A tela (aba Hoje) ainda não mostra essa lista.
+
+⚠️ **Queda cujo aviso foi recusado não ganha outro.** Recusar é a decisão daquela
+queda: o JOAO JOSE (4321, desde 20/10) e o Vitor Gianelli (4077, desde 27/10)
+tiveram o aviso recusado em 23/10 e 28/10, e a regra não escreve outro enquanto a
+queda durar. Eles seguem no aviso das 8h, em *"usinas sem gerar"*; avisar o
+cliente agora é à mão, no grupo.
+
 ### Opt-out: a IA só marca, a equipe confirma
 ⚠️ **Até 23/10 a IA do webhook tirava o cliente das mensagens sozinha** — leu
 `sair`, rodou `registrar_optout`, sem ninguém ver. Os **3** opt-outs automáticos da
@@ -1180,6 +1214,8 @@ cartão da indicação.
 | `envio_grupo_reservar(grupo, texto)` · `envio_grupo_concluir(id, ok)` | a trava do `notificar-grupo` contra o **mesmo texto para o mesmo grupo em 24 h** (JULIANO 4924, 29/10): reserva atômica antes de mandar, marca se a Z-API aceitou (`envios_grupo`). Só service_role — armadilha 46 |
 | `quadro_tempos()` | **o quadro na ordem da data**: desde quando cada obra está na etapa de agora (a última entrada no `etapas_historico`) e, por trilha e etapa, o tempo em que 85% das obras saíram da coluna nos últimos 180 dias — é o limite do cartão parado (vermelho). Sem as entradas cadastradas depois (meia-noite UTC) e sem passagem de menos de 1 hora; coluna com menos de 8 medidas não tem limite. Só leitura, `is_autorizado()` |
 | `get_agenda(token)` | a agenda das equipes (`instalador.html?agenda=…`, **sem login** — o anon tem de alcançar, armadilha 26): obras da equipe, ou de todas no link geral. **Só o link geral** devolve também `vistorias` — as abertas da trilha padrão, para aparecerem no dia do prazo (29/10) |
+| `usina_aviso_cliente(usina, obra)` · `usina_queda_atual(usina)` | **o aviso de usina para o cliente** (05/11): obra não ligada não recebe; internet só com 48 h seguidas sem o SolarView falar com o inversor; um por queda/parada. Devolve `tipo` (wifi/parada) ou `pula` com o motivo · a queda em curso (desde, horas) e as quedas em 14 dias. Só leitura |
+| `regua_usina_resolvidos(simular)` | tira da régua o aviso de internet/parada que já não vale (usina voltou, obra não ligada, queda que já teve aviso) — `pulado` com o motivo. Cron `regua-usina-voltou` e `regua_expirar`. Só service_role |
 | `entrega_conferir(simular)` · `entrega_avisada(ids)` | **a mensagem chegou ao grupo?** Confere o que saiu nas últimas 24 h para grupo de cliente (painel, régua, relatório, pesquisa) contra a cópia que volta pelo webhook (`Sistema/Polaris`); o que não voltou em 10 min vira aviso à pós-venda, um por grupo a cada 6 h (`entrega_conferida`). Só service_role — armadilha 47 |
 | `definir_responsavel(equipe, funcao)` | troca a pessoa de um dos dois papéis; só admin |
 | `get_kpis_financeiro(ini, fim)` | R$/Wp e execução × faturamento, **com a cobertura junto** — quantas obras sustentam cada número e o que falta para as outras |
@@ -1212,6 +1248,7 @@ cartão da indicação.
 **9h aviso de autoleitura no dia · 18h aviso da véspera** (seg–sex) ·
 9h aviso de vencimento de plano, D-30 e D-7 (seg–sex) ·
 **a cada 10 min, das 8h às 20h50: a mensagem chegou ao grupo?** (`entrega-conferir` → `resp_posvenda`, todo dia; armadilha 47) ·
+**09h20/13h20/16h20 tira da régua o aviso de usina que voltou** (`regua-usina-voltou`, todo dia; §4, "Usina sem internet") ·
 dia 2 fechamento · dia 5 resumo mensal · dia 6 marcos · dia 10 lembrete de
 tarifa · domingo 11h30 limpa órfãos
 
@@ -1287,6 +1324,8 @@ Prefira criar parâmetro a chumbar número no código.
 | `entrega_desde` | 2026-10-30T21:06:19Z, na migração | o que saiu antes disto não é conferido |
 | `quadro_parado_pct` · `quadro_parado_janela_dias` · `quadro_parado_min_obras` | 85 · 180 · 8 | o cartão parado do quadro: passou do tempo em que esse tanto das obras saiu da coluna, medido nesses dias, em coluna com pelo menos essas medidas (`quadro_tempos`) |
 | `quadro_execucao_folga_dias` | 1 | dias depois do fim da instalação até o cartão da Execução ficar vermelho (o dia seguinte é do relatório) |
+| `usina_aviso_horas_sem_comunicar` | 48 | horas seguidas sem o SolarView falar com o inversor até a IA escrever o aviso de internet ao cliente (`usina_aviso_cliente`, 05/11) |
+| `usina_instavel_quedas_14d` | 3 | quedas em 14 dias para a usina entrar em "📶 conexão instável" no aviso das 8h de segunda |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -2816,21 +2855,22 @@ Conferido no banco em **22/09/2026**.
       o print do app (Vitor); depois de lançar, refazer o texto do 777. E a função
       devia parar e avisar quando falta o mês de uma usina, em vez de escrever 0
       (armadilha 16) — não mexido.
-- [ ] **Usina que cai e volta: aviso de internet só depois de 48 h** (pedido do
-      Vitor, 04/11 — proposta esperando o OK). Medido de 06/09 a 04/11 no
-      `usina_leitura`: **180 quedas em 53 usinas, 92% voltaram sozinhas em até
-      48 h**, 105 na leitura seguinte (~4 h); 46% começam na leitura das 9h15 — e a
-      rodada de problemas escreve às 10h20. Dos **49 avisos de internet** que a IA
-      escreveu, **31 eram de usina que voltou sozinha em até 2 dias** (19 em 3 h); 29
-      foram recusados na mão e **3 saíram com a usina já de volta** (João Vitor,
-      Ines, Valdecir). Quando a queda passa de um dia, em 82% o inversor guardou a
-      geração e mandou depois. 12 usinas fazem 55% das quedas; a LUCINEI teve 7
-      avisos escritos. Proposta: escrever só com 48 h seguidas sem comunicar;
-      conferir de novo antes de sair (voltou → cancela sozinho); "operando" sem
-      gerar não é internet e obra que não está ativa não recebe aviso (a Igreja
-      4810, na vistoria, ganhou um em 04/11); queda longa = um aviso só; usina que
-      cai muito vira aviso interno de "conexão instável". Seriam ~15 avisos em vez
-      de 49.
+- [x] ~~**Usina que cai e volta: aviso de internet só depois de 48 h**~~ **No ar em
+      05/11** (Vitor: "pode fazer a regra das 48h"; §4, "Usina sem internet"). No
+      teste com os dados do dia, a rodada de problemas escreveria **0** avisos (a
+      regra antiga, 7), e a régua perde os 8 avisos de internet que esperavam
+      aprovação: ATA, Gilberto e Tanaka voltaram; a Igreja (4810) está na vistoria;
+      JOAO JOSE, LUCINEI, Vitor Gianelli e Solange já tiveram aviso na mesma queda.
+      **Falta:** a aba Hoje mostrar a "conexão instável" (tela, depois das 18h).
+- [ ] **Vistoria pedida antes da instalação** (DOLORES 4914, 05/11). O Vitor pede a
+      vistoria da CPFL antes da obra, para os 5 dias úteis correrem junto. Preencher
+      a data no card levou a obra da Execução para a Vistoria (`trg_cpfl`) e mandou
+      a `cpfl_texto` de sempre — *"Sua instalação foi concluída"* — às 10:44, com a
+      instalação marcada para 09/11 (o Vitor explicou por áudio às 10:45). Proposta
+      mandada ao Vitor, **esperando o OK**: texto próprio quando a vistoria é pedida
+      antes da instalação (instalação em DD/MM, vistoria até DD/MM), a obra fica na
+      Execução até o relatório do instalador, e o `foto-obra` lembra o prazo da
+      vistoria já pedida.
 - [ ] **JOSÉ VICENTE (4875) e EDILSON (3344) sem o aviso de agendamento**
       (armadilhas 47 e 48). **José Vicente:** a Isabela entrou no grupo às 14:12 de
       29/10; o cliente ainda não recebeu a mensagem da etapa (28/10) nem o

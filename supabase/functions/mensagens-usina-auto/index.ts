@@ -15,9 +15,8 @@ const URGENTES = ['usina_wifi', 'usina_parada', 'geracao_baixa'];
 // `resumo_mensal` e o resumo do cliente modelo (edge function resumo-mensal):
 // conta como cortesia para o descanso entre mensagens
 const CORTESIA = ['geracao_recorde', 'geracao_resumo', 'retorno_marco', 'resumo_mensal'];
-// estados que pedem contato com o cliente sobre comunicacao.
-// "recém-ligada" NAO entra: a usina acabou de ser energizada e pode nao ter reportado ainda.
-const PEDE_WIFI = ['sem comunicação', 'alerta', 'nunca gerou', 'sem dado'];
+// Quais estados pedem aviso ao cliente (internet, parada) e quando: o banco decide
+// em usina_aviso_cliente (05/11) -- 48 h seguidas sem comunicar, um aviso por queda.
 
 Deno.serve(async (req) => {
   try {
@@ -45,7 +44,6 @@ Deno.serve(async (req) => {
     const intervaloUrgente = parseInt(C.msg_ia_intervalo_urgente || '7', 10);
     const maxDia = parseInt(
       rodada === 'mensal' ? (C.pilula_max_por_rodada || '25') : (C.msg_ia_max_por_dia || '5'), 10);
-    const minDiasParada = parseInt(C.msg_ia_min_dias_parada || '3', 10);
 
     // obras do cliente modelo recebem o resumo proprio (resumo-mensal, 9h do dia 5),
     // entao ficam fora do resumo mensal escrito pela IA — senao seriam dois resumos
@@ -72,20 +70,26 @@ Deno.serve(async (req) => {
         tipo = 'resumo_mensal';
         motivo = 'resumo do mes fechado';
       } else {
-        const { data: est } = await admin.rpc('usina_estado', { p_usina: u.usina_id });
-        const e = Array.isArray(est) ? est[0] : est;
-
-        // usina recem-ligada fica so no acompanhamento, sem mensagem
-        if (e?.estado === 'recém-ligada') {
-          pulados.push({ cliente: u.cliente, motivo: 'recem-ligada, em carencia' });
+        // Usina parada ou sem comunicar: quem decide é o banco (usina_aviso_cliente,
+        // 05/11). Aviso de internet só com 48 h seguidas sem o SolarView falar com
+        // o inversor, um por queda; "operando" e sem gerar não é internet; obra que
+        // ainda não foi ligada não recebe aviso de usina. Medido de 06/09 a 04/11:
+        // 92% das quedas voltam sozinhas em até 48 h, e 31 dos 49 avisos de
+        // internet escritos até então eram dessas.
+        const { data: av, error: eAv } = await admin.rpc('usina_aviso_cliente',
+          { p_usina: u.usina_id, p_obra: u.obra_id });
+        if (eAv || !av) {
+          pulados.push({ cliente: u.cliente, motivo: 'usina_aviso_cliente: ' + (eAv?.message || 'sem resposta') });
           continue;
         }
-
-        if (ligadoProblema || body.forcar) {
-          if (e) {
-            if (e.estado === 'parada' && (e.dias_sem_gerar || 0) >= minDiasParada) { tipo = 'parada'; motivo = e.motivo; }
-            else if (PEDE_WIFI.includes(e.estado)) { tipo = 'wifi'; motivo = e.motivo; }
-          }
+        if (av.tipo === 'wifi' || av.tipo === 'parada') {
+          if (!(ligadoProblema || body.forcar)) continue;
+          tipo = av.tipo; motivo = av.motivo;
+        } else if (!av.segue) {
+          // usina com problema que ainda não pede aviso, ou obra não ligada:
+          // não olha queda de geração nem recorde
+          if (av.pula) pulados.push({ cliente: u.cliente, motivo: av.pula });
+          continue;
         }
         if (!tipo && (ligadoQueda || body.forcar)) {
           const { data: qd } = await admin.rpc('queda_geracao', { p_usina: u.usina_id });
