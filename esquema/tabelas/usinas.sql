@@ -32,6 +32,7 @@ create table if not exists public.usinas (
   historico_kwh numeric,
   historico_ate date,
   historico_fonte text,
+  apelido_cliente text,
   constraint usinas_pkey PRIMARY KEY (id),
   constraint causa_valida CHECK (((causa IS NULL) OR (causa = ANY (ARRAY['wifi'::text, 'sem_energia'::text, 'desligado_pelo_cliente'::text, 'obra_no_local'::text, 'aguardando_concessionaria'::text, 'defeito_inversor'::text, 'cadastro_errado'::text, 'outro'::text])))),
   constraint usinas_compensa_em_ok CHECK (((compensa_em IS NULL) OR (compensa_em <> id))),

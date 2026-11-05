@@ -543,8 +543,9 @@ período. E só conta a partir da **primeira geração** da usina (zero antes
 disso é "não medi", armadilha 5) — sem essa regra, 10 das 15 "interrupções"
 de agosto eram usina recém-ligada.
 
-**Clientes modelo: o GILBERTO (desde 29/09) e o JÚNIOR BASSETTO (desde 02/10)**
-(decisões do Vitor). A lista é `config.resumo_mensal_obras`. O caminho:
+**Clientes modelo: o GILBERTO (desde 29/09), o JÚNIOR BASSETTO (desde 02/10) e o
+RENATO, da academia ATA (4563, desde 04/11)** (decisões do Vitor). A lista é
+`config.resumo_mensal_obras`. O caminho:
 
 1. **dia 2 em diante, 9h** (depois do fechamento do SolarView, 8h30 do dia 2) — a edge function `resumo-mensal` chama
    `resumo_mensal_enfileirar()`, que põe o resumo na régua como `aguardando`
@@ -633,7 +634,20 @@ chuva no mês — 62 mm só no dia 14/09"*. O dia mais chuvoso só aparece quand
 explica o total (≥ 20 mm e ≥ 30% do mês). Dia de chuva continua sendo ≥ 1 mm.
 
 `clientes.chamar_de` é o nome do *"Olá, ...!"* — sem ele, o primeiro nome do
-cadastro, que para o Jose Antonio Bassetto Junior dava "Jose".
+cadastro, que para o Jose Antonio Bassetto Junior dava "Jose" e para a academia
+dava "Ata" (é "Renato").
+
+⚠️ **Usina que outra empresa instalou não entra no retorno do investimento**
+(04/11, `migrations/2026-11-04_renato_no_resumo_do_mes.sql`). A academia tem três
+usinas: a nossa (julho/2026, `obra_usina.papel = 'propria'`) e duas de 2021 de outra
+empresa (`'herdada'`). Gerado como estava, o resumo dizia *"Desde a instalação
+(julho/2025) ... 74,1% do investimento de R$ 59.872"* — somava as herdadas. Com
+usina herdada, o acumulado vira *"Desde julho/2025 (desde quando temos o registro
+das 3 usinas)"* e uma linha à parte diz o que **o sistema que instalamos** gerou e
+quanto do investimento já voltou (9,6% em outubro) — o formato do piloto de
+setembro que o Vitor aprovou. Sem usina herdada, o texto é o de antes, byte a byte.
+E `usinas.apelido_cliente` é o nome que **o cliente** lê quando o da equipe é
+interno: a *"Casa do dono (Renato Tozin)"* sai como *"Sua casa"*.
 
 `usinas`, `usina_dia`, `usina_geracao` · `clima_dia` · `v_indice_dia` ·
 `v_indice_regiao` (cidade com 5+ usinas ganha grupo próprio) ·
@@ -1256,7 +1270,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `saude_atencao_pct` · `saude_muito_abaixo_pct` | 85 · 70 | "geração abaixo do esperado" · "geração muito abaixo do esperado" |
 | `saude_critico_dias` | 2 | dias de sol comunicando e sem gerar para virar crítico |
 | `resumo_mensal_ativo` | 1 | liga o `resumo-mensal` (9h) |
-| `resumo_mensal_obras` | obras do Gilberto e do UNI AUTO POSTO (Júnior Bassetto) | **quem é cliente modelo** — ids de obra separados por vírgula. Quem está aqui sai do resumo da IA |
+| `resumo_mensal_obras` | obras do Gilberto, do UNI AUTO POSTO (Júnior Bassetto) e da academia ATA (Renato, 4563, desde 04/11) | **quem é cliente modelo** — ids de obra separados por vírgula. Quem está aqui sai do resumo da IA |
 | `resumo_sem_acumulado_obras` | obra do UNI AUTO POSTO | obras cujo resumo **não** traz o "Desde a instalação" nem o retorno do investimento — o Júnior viu o acumulado só no primeiro (setembro) |
 | `resumo_mensal_dia` · `resumo_mensal_preparo_dia` | 5 · 2 | dia do envio (ou o próximo dia útil) · a partir de quando o resumo entra na régua para aprovar |
 | `resumo_sol_pct` | 75 | no resumo mensal, "dia de sol" é radiação ≥ 75% do melhor dia do mês no lugar; abaixo de `saude_rad_min` é nublado; o resto, parcialmente nublado |
@@ -2795,6 +2809,28 @@ Conferido no banco em **22/09/2026**.
       `ok = true`, a cópia de volta do grupo 6 s depois, e nenhum 503 ou 500 no
       `notificar-grupo` desde a v17. Repetido em 24 h, só os dois casos conhecidos
       (TANAKA e JULIANO). O cliente já recebeu as duas; não há o que desfazer.
+- [ ] **Resumo de outubro do JÚNIOR (contato 777) diz 0 kWh nas duas usinas da
+      fazenda.** São as SolarEdge sem API: outubro do app não foi lançado
+      (`usina_geracao_manual`), e a função escreve **0 kWh · R$ 0** para usina sem o
+      mês — o total de 4.410 kWh é só a Fundadores. **Não aprovar como está.** Falta
+      o print do app (Vitor); depois de lançar, refazer o texto do 777. E a função
+      devia parar e avisar quando falta o mês de uma usina, em vez de escrever 0
+      (armadilha 16) — não mexido.
+- [ ] **Usina que cai e volta: aviso de internet só depois de 48 h** (pedido do
+      Vitor, 04/11 — proposta esperando o OK). Medido de 06/09 a 04/11 no
+      `usina_leitura`: **180 quedas em 53 usinas, 92% voltaram sozinhas em até
+      48 h**, 105 na leitura seguinte (~4 h); 46% começam na leitura das 9h15 — e a
+      rodada de problemas escreve às 10h20. Dos **49 avisos de internet** que a IA
+      escreveu, **31 eram de usina que voltou sozinha em até 2 dias** (19 em 3 h); 29
+      foram recusados na mão e **3 saíram com a usina já de volta** (João Vitor,
+      Ines, Valdecir). Quando a queda passa de um dia, em 82% o inversor guardou a
+      geração e mandou depois. 12 usinas fazem 55% das quedas; a LUCINEI teve 7
+      avisos escritos. Proposta: escrever só com 48 h seguidas sem comunicar;
+      conferir de novo antes de sair (voltou → cancela sozinho); "operando" sem
+      gerar não é internet e obra que não está ativa não recebe aviso (a Igreja
+      4810, na vistoria, ganhou um em 04/11); queda longa = um aviso só; usina que
+      cai muito vira aviso interno de "conexão instável". Seriam ~15 avisos em vez
+      de 49.
 - [ ] **JOSÉ VICENTE (4875) e EDILSON (3344) sem o aviso de agendamento**
       (armadilhas 47 e 48). **José Vicente:** a Isabela entrou no grupo às 14:12 de
       29/10; o cliente ainda não recebeu a mensagem da etapa (28/10) nem o
