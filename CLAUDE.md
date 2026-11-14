@@ -2011,8 +2011,9 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
 
     Em 14/11 um `delete` de uma linha de `obras` passou na hora pelo
     `execute_sql`: era o cartão duplicado da #4956, apagado a pedido do Vitor.
-    Então a trava não segura todo `delete`. Tente uma vez e, se expirar, não
-    contorne.
+    No mesmo dia passou também o `delete` das linhas de teste da 4147, o mesmo
+    que tinha expirado em 15/10, 16/10 e 17/10. Então a trava não segura todo
+    `delete`. Tente uma vez e, se expirar, não contorne.
 
 35. **O supabase-js só dispara a consulta quando alguém espera por ela.**
     `sb.rpc(...)` devolve um construtor "preguiçoso": guardar numa variável e
@@ -2771,13 +2772,27 @@ Conferido no banco em **22/09/2026**.
       régua, o 4324 e o 4620 ficaram livres para o `d90_indica2` (04/11 e
       10/11); 4425, 4618 e 4791 seguem "cliente já indicou". **Falta:** pôr o
       telefone da irmã do 4618 ("📞 Pôr telefone" na aba Hoje).
-- [ ] **Duas linhas de teste na obra 4147** (`zapi_message_id =
-      'TESTE-DEDUP-1510'` — são **2 em cada** tabela, `mensagens_recebidas` e
-      `webhook_vistos`): o delete pelo MCP não passa (armadilha 34; tentado de
-      novo em 16/10 e 17/10 com o OK do Vitor, expirou e nada foi aplicado — a
-      confirmação não chega a quem está no chat). Apagar pelo painel do Supabase:
-      `delete from mensagens_recebidas where zapi_message_id = 'TESTE-DEDUP-1510';`
-      `delete from webhook_vistos where zapi_message_id = 'TESTE-DEDUP-1510';`
+- [x] ~~**Duas linhas de teste na obra 4147**~~ (`zapi_message_id =
+      'TESTE-DEDUP-1510'`, 2 em `mensagens_recebidas` e 2 em `webhook_vistos`).
+      **Apagadas em 14/11** a pedido do Vitor, pelo `execute_sql`, na primeira
+      tentativa (em 15/10, 16/10 e 17/10 o mesmo `delete` tinha expirado,
+      armadilha 34). Nada apontava para elas: nenhuma indicação ligada e nenhum
+      gatilho de `delete` nas duas tabelas.
+- [x] ~~**A transcrição dos áudios parou de 09/11 a 14/11.**~~ O crédito
+      pré-pago da OpenAI acabou: a última transcrição foi às 14:48 de 09/11, e
+      depois a `transcrever` levou 429 em toda chamada. O Vitor recarregou, e a
+      primeira voltou às 13:54 de 14/11; das 13:56 em diante, 5 por rodada, a
+      cada 2 minutos, sem erro. Nenhum áudio se perdeu: a fila
+      (`transcrever-fila`) só olha **7 dias** para trás, e a parada coube
+      dentro disso. ⚠️ Crédito parado por mais de 7 dias deixa áudio sem
+      transcrição para sempre. O aviso de crédito vai aos números de
+      `config.alerta_credito_destinos`, no máximo um a cada 12 h (é uma das
+      três chaves de número da pendência acima: não segue o papel). ⚠️ A
+      transcrição não passa o áudio pela IA de classificação de novo, mas o
+      áudio de cliente que chega até 10 dias depois da pesquisa vira resposta
+      do NPS (`nps-resposta`, que agradece no grupo). Na fila de 14/11, um
+      sábado, não havia nenhum. As duas funções não estão versionadas no
+      repositório.
 - [ ] **Quatro obras da etapa 6 em diante sem data de instalação** (armadilha 37;
       eram seis em 16/10). Nenhuma tem a venda no DRE. A data é de quem
       acompanhou a obra; aqui fica o que o banco e os grupos mostram:
