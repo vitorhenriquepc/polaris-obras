@@ -2009,6 +2009,11 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     pasta dele, porta própria, as tabelas e as linhas reais do caso, e apagar
     no fim — foi assim que o script do Renato foi testado, com as travas.
 
+    Em 14/11 um `delete` de uma linha de `obras` passou na hora pelo
+    `execute_sql`: era o cartão duplicado da #4956, apagado a pedido do Vitor.
+    Então a trava não segura todo `delete`. Tente uma vez e, se expirar, não
+    contorne.
+
 35. **O supabase-js só dispara a consulta quando alguém espera por ela.**
     `sb.rpc(...)` devolve um construtor "preguiçoso": guardar numa variável e
     dar `await` depois **não** roda em paralelo — a consulta só sai no
@@ -2953,18 +2958,19 @@ Conferido no banco em **22/09/2026**.
       no último dia do prazo);
       a **#4301** foi instalada em 05–06/10 e está parada há 27 dias porque o
       relatório do instalador não foi enviado.
-- [ ] **#4956 (ANTONIO CARLOS BREGALANTE) estava em dois cartões; juntados em
-      14/11** (`migrations/2026-11-14_4956_cartoes_juntados.sql`). O de 10/11 era
+- [x] **#4956 (ANTONIO CARLOS BREGALANTE) estava em dois cartões; juntados em
+      14/11** (`migrations/2026-11-14_4956_cartoes_juntados.sql`). **Resolvido no
+      mesmo dia:** o duplicado foi apagado a pedido do Vitor, sem deixar nada para
+      trás (ficha, histórico e DRE conferidos), e o link novo para a CJP ficou com
+      o Vitor, direto com eles. O de 10/11 era
       duplicado do de 14/10: mesmo contrato, valor e grupo. Ficou o de 14/10, que
       tem as mensagens do grupo, o histórico e o link que o cliente recebeu por
       último. Dele vieram a data 16/11 e a CJP, e o endereço ficou o que o
       cliente confirmou no grupo ("Castilho, Área Rural"); o duplicado dizia
       Zacarias. Inversor (GOODWE 6 kW + 5 kW de bateria) e telhado (cerâmico)
-      confirmados pelo Vitor no mesmo dia; o fechamento ficou 13/10. **Falta o
-      Vitor:**
-      - mandar à CJP o link novo pelo 📣, porque o de 10/11 deixou de valer;
-      - excluir o cartão "DUPLICADO, apagar". Até lá ele ainda conta como venda
-        nas métricas de outubro; o DRE já está certo.
+      confirmados pelo Vitor no mesmo dia; o fechamento ficou 13/10. O link do
+      checklist que a CJP recebeu em 10/11 era do duplicado e deixou de valer;
+      o novo sai do cartão que ficou.
 - [ ] **A anotação do card não aparece em lugar nenhum.** O "Anotar" da linha do
       tempo grava em `obra_nota`, e a `linha_do_tempo()` não lê essa tabela. Até
       14/11 havia uma anotação só, a da #4956.
