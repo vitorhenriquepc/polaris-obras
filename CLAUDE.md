@@ -2953,6 +2953,20 @@ Conferido no banco em **22/09/2026**.
       no último dia do prazo);
       a **#4301** foi instalada em 05–06/10 e está parada há 27 dias porque o
       relatório do instalador não foi enviado.
+- [ ] **#4956 (ANTONIO CARLOS BREGALANTE) estava em dois cartões; juntados em
+      14/11** (`migrations/2026-11-14_4956_cartoes_juntados.sql`). O de 10/11 era
+      duplicado do de 14/10: mesmo contrato, valor e grupo. Ficou o de 14/10, que
+      tem as mensagens do grupo, o histórico e o link que o cliente recebeu por
+      último. Dele vieram a data 16/11 e a CJP, e o endereço ficou o que o
+      cliente confirmou no grupo ("Castilho, Área Rural"); o duplicado dizia
+      Zacarias. **Falta o Vitor:**
+      - confirmar inversor (3,5 ou 6 kW) e telhado (metálico ou cerâmico);
+      - mandar à CJP o link novo pelo 📣, porque o de 10/11 deixou de valer;
+      - excluir o cartão "DUPLICADO, apagar". Até lá ele ainda conta como venda
+        nas métricas de outubro; o DRE já está certo.
+- [ ] **A anotação do card não aparece em lugar nenhum.** O "Anotar" da linha do
+      tempo grava em `obra_nota`, e a `linha_do_tempo()` não lê essa tabela. Até
+      14/11 havia uma anotação só, a da #4956.
 - [ ] **O repositório é público.** Desde 14/11 o site não publica mais este
       arquivo, as migrações, o esquema nem o código das funções (`_config.yml`,
       armadilha 36). Mas o repositório `vitorhenriquepc/polaris-obras` é
