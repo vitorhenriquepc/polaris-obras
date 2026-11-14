@@ -3093,15 +3093,18 @@ Conferido no banco em **22/09/2026**.
       repositório privado nos planos pagos (GitHub Pro). Decisão do Vitor.
 - [ ] **Usina "offline depois de online": conferir a primeira semana** (14/11; §4, "A
       causa é da queda"). Banco, `usina-status` v5 e o cron `usina-status-volta` no ar
-      em 14/11 à tarde; a tela da aba Usinas depois das 18h. Ver o cron rodando de hora
-      em hora (200, `modo: so_voltou`), as voltas gravadas em `usina_leitura` entre as
-      leituras completas e nenhum aviso de internet saindo para usina que já tinha
-      voltado. **Ficam para o Vitor decidir**, da pesquisa de 14/11: (1) mostrar ao
-      cliente a "última atualização" na página dele; (2) um botão "conferir agora" na
-      ficha da usina; (3) guardar cada queda como ocorrência (início, fim, causa,
-      avisado), que daria o tempo médio para resolver e a lista de quem cai mais; (4)
-      ler a geração do dia das usinas sem comunicar, para ver dado chegando antes do
-      status mudar.
+      em 14/11 à tarde; a tela das abas Usinas e Hoje depois das 18h. **As primeiras
+      rodadas do "voltou?"** (15h45, 16h45 e 17h45 de 14/11) responderam 200, com as
+      71 usinas vistas e nenhuma volta: as cinco sem comunicar continuaram assim.
+      **Ainda não se viu no ar uma volta sendo gravada**, e é isso que falta conferir.
+      Ver o cron rodando de hora em hora (200, `modo: so_voltou`), as voltas gravadas
+      em `usina_leitura` entre as leituras completas e nenhum aviso de internet saindo
+      para usina que já tinha voltado. **Ficam para o Vitor decidir**, da pesquisa
+      de 14/11: (1) mostrar ao cliente a "última atualização" na página dele; (2) um
+      botão "conferir agora" na ficha da usina; (3) guardar cada queda como
+      ocorrência (início, fim, causa, avisado), que daria o tempo médio para resolver
+      e a lista de quem cai mais; (4) ler a geração do dia das usinas sem comunicar,
+      para ver dado chegando antes do status mudar.
 - [ ] **Mensagem no privado da Isabela não é lida.** O webhook só grava grupo;
       cliente que escreve direto para o número da Isabela fica fora da escada.
 - [ ] **Senha de cliente gravada em texto puro.** Em 14/10, **20 mensagens em
