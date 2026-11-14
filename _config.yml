@@ -1,0 +1,14 @@
+# Site obras.polarisenergiasolar.com (GitHub Pages, publicado da branch main).
+# Vão para o ar só as páginas (*.html), os logos e o CNAME. Documentação,
+# migrações, esquema e código das funções ficam só no repositório: eles trazem
+# nome, telefone e valor de cliente (armadilha 36 do CLAUDE.md).
+# Os dois padrões do fim seguram também arquivo novo de documentação ou de SQL
+# que um dia caia na raiz ou em outra pasta.
+exclude:
+  - CLAUDE.md
+  - COMECAR-AQUI.md
+  - esquema
+  - migrations
+  - supabase
+  - "*.md"
+  - "*.sql"

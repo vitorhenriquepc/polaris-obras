@@ -2028,6 +2028,15 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     de manutenção com equipe e data, que este documento já dava como no ar.
     Antes de dizer "está publicado", compare o arquivo do site com o do branch.
 
+    Desde 14/11 o `_config.yml` deixa no site só as páginas, os logos e o
+    `CNAME`. Ficam de fora o `CLAUDE.md`, o `COMECAR-AQUI.md`, `migrations/`,
+    `esquema/`, `supabase/` e qualquer `.md` ou `.sql`. No teste com o Jekyll
+    3.10, o site passou de 265 arquivos publicados para 17, com as páginas
+    iguais byte a byte. Arquivo novo que precise ir para o ar e não seja
+    página nem imagem tem de ser conferido no site. ⚠️ **O repositório continua
+    público** no GitHub, com o histórico inteiro: tirar do site não tira de lá
+    (§10).
+
 37. **Sem data de instalação, a obra some de três lugares — e nada acusa.**
     TANAKA (4745), 16/10: o Vitor perguntou por que o instalador não tinha sido
     cobrado do relatório nem recebido o link. A obra ficou na etapa 6 de 05/10 a
@@ -2944,12 +2953,13 @@ Conferido no banco em **22/09/2026**.
       no último dia do prazo);
       a **#4301** foi instalada em 05–06/10 e está parada há 27 dias porque o
       relatório do instalador não foi enviado.
-- [ ] **O site publica este arquivo.** `obras.polarisenergiasolar.com/CLAUDE.md`
-      (e um `CLAUDE.html` que o Jekyll monta), `migrations/` e o código das edge
-      functions abrem para qualquer um (conferido em 29/10) — com nome de cliente,
-      telefone e valor. É a armadilha 36 no arquivo que a descreve. Decisão do
-      Vitor: tirar do site (ex.: `exclude` no `_config.yml`) ou mudar o que se
-      escreve aqui.
+- [ ] **O repositório é público.** Desde 14/11 o site não publica mais este
+      arquivo, as migrações, o esquema nem o código das funções (`_config.yml`,
+      armadilha 36). Mas o repositório `vitorhenriquepc/polaris-obras` é
+      **público** no GitHub, e o mesmo conteúdo (nome de cliente, telefone e
+      valor) abre lá, com o histórico inteiro. No plano gratuito do GitHub,
+      fechar o repositório tira o site do ar, porque o GitHub Pages só publica
+      repositório privado nos planos pagos (GitHub Pro). Decisão do Vitor.
 - [ ] **Mensagem no privado da Isabela não é lida.** O webhook só grava grupo;
       cliente que escreve direto para o número da Isabela fica fora da escada.
 - [ ] **Senha de cliente gravada em texto puro.** Em 14/10, **20 mensagens em
