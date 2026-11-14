@@ -431,7 +431,13 @@ inversor guardou a geração e mandou depois. Hoje:
 - usina com `usina_instavel_quedas_14d` (3) quedas ou mais em 14 dias vira a
   seção **"📶 conexão instável"** do aviso das 8h, **só às segundas**
   (`pendencias_posvenda` → `conexao_instavel`): para a equipe olhar a internet de
-  lá, sem mensagem ao cliente. A tela (aba Hoje) ainda não mostra essa lista.
+  lá, sem mensagem ao cliente. Desde 14/11 a **aba Hoje** mostra a lista todo dia, e
+  a queda que começa num dia em que o cliente desliga a usina de propósito
+  (`desliga_dias_semana`) não conta: a Rua São Bernardo do Gilberto aparecia com 4
+  quedas, todas de sábado ou domingo
+  (`migrations/2026-11-14_instavel_sem_dia_desligado.sql`; só ela mudou). Com o
+  "voltou?" de hora em hora (abaixo), a usina que volta e cai de novo no mesmo dia
+  conta duas quedas, e antes isso passava como uma só.
 
 ⚠️ **Queda cujo aviso foi recusado não ganha outro.** Recusar é a decisão daquela
 queda: o JOAO JOSE (4321, desde 20/10) e o Vitor Gianelli (4077, desde 27/10)
@@ -1426,7 +1432,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `quadro_parado_pct` · `quadro_parado_janela_dias` · `quadro_parado_min_obras` | 85 · 180 · 8 | o cartão parado do quadro: passou do tempo em que esse tanto das obras saiu da coluna, medido nesses dias, em coluna com pelo menos essas medidas (`quadro_tempos`) |
 | `quadro_execucao_folga_dias` | 1 | dias depois do fim da instalação até o cartão da Execução ficar vermelho (o dia seguinte é do relatório) |
 | `usina_aviso_horas_sem_comunicar` | 48 | horas seguidas sem o SolarView falar com o inversor até a IA escrever o aviso de internet ao cliente (`usina_aviso_cliente`, 05/11) |
-| `usina_instavel_quedas_14d` | 3 | quedas em 14 dias para a usina entrar em "📶 conexão instável" no aviso das 8h de segunda |
+| `usina_instavel_quedas_14d` | 3 | quedas em 14 dias para a usina entrar em "📶 conexão instável" no aviso das 8h de segunda e na aba Hoje (a que começa num dia de `desliga_dias_semana` não conta) |
 | `usina_volta_hora_ini` · `usina_volta_hora_fim` | 8 · 19 | a janela do "voltou?" do `usina-status` (cron `usina-status-volta`, às :45). Fora dela ele não faz nada |
 | `usina_status_conferido_em` | carimbo | a última vez que o status do SolarView foi conferido (leitura completa ou "voltou?"); a aba Usinas mostra e fica laranja depois de 3 h no meio do dia |
 
@@ -3021,7 +3027,7 @@ Conferido no banco em **22/09/2026**.
       regra antiga, 7), e a régua perde os 8 avisos de internet que esperavam
       aprovação: ATA, Gilberto e Tanaka voltaram; a Igreja (4810) está na vistoria;
       JOAO JOSE, LUCINEI, Vitor Gianelli e Solange já tiveram aviso na mesma queda.
-      **Falta:** a aba Hoje mostrar a "conexão instável" (tela, depois das 18h).
+      A aba Hoje passou a mostrar a "conexão instável" em 14/11 (§4).
 - [x] ~~**Vistoria pedida antes da instalação**~~ (DOLORES 4914, 05/11; §4). Aprovado
       pelo Vitor (*"pode fazer a vistoria assim e volta a Dolores pra execução"*). **No
       ar em 05/11:** banco às 11:27 (texto, agenda, as quatro obras de volta à Execução),
@@ -3087,15 +3093,18 @@ Conferido no banco em **22/09/2026**.
       repositório privado nos planos pagos (GitHub Pro). Decisão do Vitor.
 - [ ] **Usina "offline depois de online": conferir a primeira semana** (14/11; §4, "A
       causa é da queda"). Banco, `usina-status` v5 e o cron `usina-status-volta` no ar
-      em 14/11 à tarde; a tela da aba Usinas depois das 18h. Ver o cron rodando de hora
-      em hora (200, `modo: so_voltou`), as voltas gravadas em `usina_leitura` entre as
-      leituras completas e nenhum aviso de internet saindo para usina que já tinha
-      voltado. **Ficam para o Vitor decidir**, da pesquisa de 14/11: (1) mostrar ao
-      cliente a "última atualização" na página dele; (2) um botão "conferir agora" na
-      ficha da usina; (3) guardar cada queda como ocorrência (início, fim, causa,
-      avisado), que daria o tempo médio para resolver e a lista de quem cai mais; (4)
-      ler a geração do dia das usinas sem comunicar, para ver dado chegando antes do
-      status mudar.
+      em 14/11 à tarde; a tela das abas Usinas e Hoje depois das 18h. **As primeiras
+      rodadas do "voltou?"** (15h45, 16h45 e 17h45 de 14/11) responderam 200, com as
+      71 usinas vistas e nenhuma volta: as cinco sem comunicar continuaram assim.
+      **Ainda não se viu no ar uma volta sendo gravada**, e é isso que falta conferir.
+      Ver o cron rodando de hora em hora (200, `modo: so_voltou`), as voltas gravadas
+      em `usina_leitura` entre as leituras completas e nenhum aviso de internet saindo
+      para usina que já tinha voltado. **Ficam para o Vitor decidir**, da pesquisa
+      de 14/11: (1) mostrar ao cliente a "última atualização" na página dele; (2) um
+      botão "conferir agora" na ficha da usina; (3) guardar cada queda como
+      ocorrência (início, fim, causa, avisado), que daria o tempo médio para resolver
+      e a lista de quem cai mais; (4) ler a geração do dia das usinas sem comunicar,
+      para ver dado chegando antes do status mudar.
 - [ ] **Mensagem no privado da Isabela não é lida.** O webhook só grava grupo;
       cliente que escreve direto para o número da Isabela fica fora da escada.
 - [ ] **Senha de cliente gravada em texto puro.** Em 14/10, **20 mensagens em

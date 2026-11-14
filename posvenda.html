@@ -598,6 +598,14 @@ white-space:normal;padding:0 2px}
 .ucrod b{color:var(--txt);font-weight:800}
 .ucobs{color:var(--gold)}
 .ucnota{font-size:12px;color:var(--mut);margin-top:8px;font-style:italic}
+/* status do SolarView: quando foi conferido e desde quando a usina esta assim (14/11) */
+.uconf{font-size:12px;color:var(--mut);margin:-4px 0 14px}
+.uconf.velho{color:#e0a33e;font-weight:700}
+.ucdesde{font-size:12px;color:var(--mut);margin:-6px 0 12px}
+.ucdesde.ok{color:#5aa469}
+.cxant{font-size:12px;color:var(--mut);margin:0 0 12px;padding:8px 10px;border-radius:8px;background:var(--card2);line-height:1.45}
+.cxhist{font-size:12px;color:var(--mut);margin:0 0 12px;line-height:1.5}
+.cxhist div{padding:2px 0}
 /* saude da usina (usinas_saude): so equipe. "sem_sinal" tem cor propria, nunca a de atencao */
 .ucsaude{font-size:12.5px;line-height:1.4;margin-top:9px;padding:8px 10px;border-radius:8px;background:var(--card2);border-left:3px solid var(--mut)}
 .ucsaude .sest{font-weight:800}
@@ -2563,6 +2571,15 @@ function renderHoje(){
       +' <span>· '+esc(u.usina||'')+((u.kwp && !/kwp/i.test(u.usina||''))?' ('+String(u.kwp).replace('.',',')+' kWp)':'')+' · '+esc(parou)+' · '+esc(aviso)+'</span>',
       '<button class="stb" onclick="irPara(\'usinas\',\'\',\''+jsArg(u.contrato||u.cliente)+'\')">Ver usina ›</button>');
   });
+  // usina que cai e volta (05/11): o cliente não é avisado de cada queda, e a equipe
+  // olha a internet de lá. No aviso das 8h vai só às segundas; aqui, todo dia (14/11).
+  (P.conexao_instavel||[]).filter(function(u){ return casa(u.cliente, u.contrato); }).forEach(function(u){
+    var q=n(u.quedas);
+    acomp+=hjLinha('📶', '<b>'+esc(u.cliente||'')+'</b>'+(u.contrato?' #'+esc(u.contrato):'')
+      +' <span>· '+esc(u.usina||'')+' · conexão instável: caiu '+q+' vez'+(q===1?'':'es')+' em 14 dias'
+      +(u.sem_comunicar_agora?' · sem comunicar agora':' · comunicando agora')+'</span>',
+      '<button class="stb" onclick="irPara(\'usinas\',\'\',\''+jsArg(u.contrato||u.cliente)+'\')">Ver usina ›</button>');
+  });
   (P.google_lista||[]).filter(function(g){ return casa(g.cliente, g.contrato); }).forEach(function(g){
     acomp+=hjLinha('⭐', '<b>'+esc(g.cliente||'')+'</b>'+(g.contrato?' #'+esc(g.contrato):'')
       +' <span>· nota '+esc(String(g.nota==null?'—':g.nota))+' · falta avaliar no Google'+(g.dias!=null?' há '+g.dias+' dia'+(g.dias===1?'':'s'):'')
@@ -3040,6 +3057,29 @@ function desenhaUsina(){
       +(CA.por?' por '+esc(CA.por):'')
       +(CA.avisado_em?' · cliente avisado':'')+'</div>';
   } else { h+='<div style="height:8px"></div>'; }
+  /* a anotacao de uma queda que ja acabou fica a vista, mas nao vale mais (14/11):
+     a causa e da queda, nao da usina (usina_causa_vigente) */
+  var nomeCausa=function(k){ return (CAUSAS.filter(function(c){return c[0]===k;})[0]||['',k||'—'])[1]; };
+  var dCurta=function(t){ var d=new Date(t); return isNaN(d.getTime())?'':('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2); };
+  if(CA.anterior){
+    var an=CA.anterior;
+    h+='<div class="cxant">Anotado na queda anterior: <b>'+esc(nomeCausa(an.causa))+'</b>'
+      +(an.em?' em '+dCurta(an.em):'')+(an.por?' por '+esc(an.por):'')
+      +(an.avisado_em?' · cliente avisado':'')
+      +(an.nota?' — “'+esc(an.nota)+'”':'')
+      +'<br>Não vale mais: '+esc(an.como||'a usina voltou')
+      +(an.resolvida_em?' em '+dataBR(an.resolvida_em).slice(0,5):'')
+      +'. Se ela cair de novo, anote a causa da queda nova.</div>';
+  }
+  if(CA.historico && CA.historico.length){
+    h+='<div class="cxhist"><span class="mut">Anotações antigas</span>'
+      +CA.historico.map(function(x){
+        return '<div>'+(x.em?dCurta(x.em)+' · ':'')+esc(nomeCausa(x.causa))
+          +(x.nota?' — “'+esc(x.nota)+'”':'')
+          +(x.resolvida_em?' · '+esc(x.como||'resolvida')+' em '+dataBR(x.resolvida_em).slice(0,5):'')
+          +'</div>';
+      }).join('')+'</div>';
+  }
 
   h+='<div class="usec">Ajuste desta usina</div>'
     +'<div class="mut" style="font-size:12.5px;margin-bottom:8px">'
@@ -3209,6 +3249,42 @@ var USI=null, UFILTRO='';
 function hTxt(h){ if(h==null) return ''; h=Number(h); if(h<24) return 'há '+Math.round(h)+'h'; var d=Math.floor(h/24); return 'há '+d+(d>1?' dias':' dia'); }
 function setUfiltro(f){ UFILTRO=f; var box=document.getElementById('usbox'); if(box) box.innerHTML=renderUsinas(); }
 
+/* status do SolarView (14/11): quando foi conferido e desde quando a usina esta
+   assim. A leitura completa e as 9h15, 13h15 e 16h15; o "voltou?" confere de hora
+   em hora quem estava com problema. Instante (timestamptz) passa por new Date;
+   data pura nao (armadilha 30). */
+var STNOME={'datalogger offline':'sem comunicar','datalogger sem coletar':'sem coletar dados',
+  'nao injetando':'sem injetar na rede','nao injetando com evento':'sem injetar na rede',
+  'inversores inativos':'inversores inativos','medidores inativos':'medidores inativos',
+  'sem status':'sem status','nao monitorada':'não monitorada'};
+function quandoCurto(t){
+  if(!t) return ''; var d=new Date(t); if(isNaN(d.getTime())) return '';
+  var hm=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+  var hoje=new Date(), ontem=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()-1);
+  if(d.toDateString()===hoje.toDateString()) return 'hoje às '+hm;
+  if(d.toDateString()===ontem.toDateString()) return 'ontem às '+hm;
+  return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+' às '+hm;
+}
+function linhaConferido(t){
+  if(!t) return '';
+  var d=new Date(t); if(isNaN(d.getTime())) return '';
+  var hora=new Date().getHours(), horas=(Date.now()-d.getTime())/3600000;
+  /* de dia a conferencia e de hora em hora: mais de 3 h sem ela e sinal de falha */
+  var velho = horas>3 && hora>=10 && hora<20;
+  return '<div class="uconf'+(velho?' velho':'')+'">Status do SolarView conferido '+quandoCurto(t)
+    +(velho?' — faz mais de 3 horas: a conferência pode ter falhado'
+           :' · o sistema confere de novo de hora em hora, das 8h45 às 18h45')+'</div>';
+}
+function linhaDesde(u){
+  if(!u.status_desde) return '';
+  if(u.status && u.status!=='operando')
+    return '<div class="ucdesde">SolarView: '+esc(STNOME[u.status]||u.status)+' desde '+quandoCurto(u.status_desde)+'</div>';
+  if(u.status==='operando' && u.estado==='normal'
+     && (Date.now()-new Date(u.status_desde).getTime()) < 24*3600000)
+    return '<div class="ucdesde ok">✓ comunicando de novo desde '+quandoCurto(u.status_desde)+'</div>';
+  return '';
+}
+
 var SAUDE={};
 async function carregarUsinas(){
   var rr=await Promise.all([sb.rpc('get_posvenda_usinas'), sb.rpc('usinas_saude')]);
@@ -3290,6 +3366,7 @@ function renderUsinas(){
       +'<i style="background:'+f[2]+'"></i><b>'+f[3]+'</b> '+f[1]+'</button>';
   });
   h+='</div></div>';
+  h+=linhaConferido(USI&&USI.conferido_em);
 
   if(UFILTRO) arr=arr.filter(function(u){return u.estado===UFILTRO;});
   if(BUSCA){ var b=BUSCA.toLowerCase();
@@ -3326,6 +3403,7 @@ function renderUsinas(){
              +(u.avisado?' · avisado':'')+'</span>') : '')
       +  '</div>'
       +  '<div class="ucmotivo">'+esc(u.motivo||'')+'</div>'
+      +  linhaDesde(u)
       +  '<div class="ucrod">'
       +    '<span>'+(sa && sa.desempenho!=null && sa.nivel!=='sem_sinal' && sa.nivel!=='info'
              ? '<b style="color:'+cs+';font-size:15px">'+sa.desempenho+'%</b> do esperado · últimos '+sa.dias_validos+' dias de sol'
