@@ -2959,8 +2959,9 @@ Conferido no banco em **22/09/2026**.
       tem as mensagens do grupo, o histórico e o link que o cliente recebeu por
       último. Dele vieram a data 16/11 e a CJP, e o endereço ficou o que o
       cliente confirmou no grupo ("Castilho, Área Rural"); o duplicado dizia
-      Zacarias. **Falta o Vitor:**
-      - confirmar inversor (3,5 ou 6 kW) e telhado (metálico ou cerâmico);
+      Zacarias. Inversor (GOODWE 6 kW + 5 kW de bateria) e telhado (cerâmico)
+      confirmados pelo Vitor no mesmo dia; o fechamento ficou 13/10. **Falta o
+      Vitor:**
       - mandar à CJP o link novo pelo 📣, porque o de 10/11 deixou de valer;
       - excluir o cartão "DUPLICADO, apagar". Até lá ele ainda conta como venda
         nas métricas de outubro; o DRE já está certo.
