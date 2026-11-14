@@ -1,3 +1,18 @@
+// usina-status — o status de cada usina no SolarView (cron `usina-status` e
+// `usina-status-volta`; verify_jwt false + cron_token no corpo, armadilha 18).
+//
+// Dois modos:
+//   - leitura completa (09h15, 13h15, 16h15): grava uma linha em usina_leitura
+//     por usina, atualiza usinas.status_atual e, depois, decide o alerta à
+//     pós-venda (duas leituras ruins seguidas, com sol);
+//   - "voltou?" ({"so_voltou": true}, de hora em hora das 8h às 19h, 14/11): lê o
+//     mesmo portfólio, mas só registra a VOLTA — usina que estava com status ruim
+//     e o SolarView diz "operando" de novo. Não grava queda nova nem manda alerta:
+//     detectar queda continua com as três leituras de sempre. Sem isso, a usina
+//     que voltava às 16h30 seguia "sem comunicação" na tela até as 9h15 do dia
+//     seguinte. Quando alguma volta, chama regua_usina_resolvidos() para tirar da
+//     régua o aviso de internet que já não vale. Aceita {"simular": true}.
+// Os dois carimbam config.usina_status_conferido_em, que a aba Usinas mostra.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const BASE = 'https://api.solarview.com.br/v2';
@@ -49,11 +64,16 @@ Deno.serve(async (req) => {
     (cfgRows || []).forEach((c: any) => { C[c.chave] = c.valor; });
     if ((body.token || '') !== C.cron_token) return json({ erro: 'nao autorizado' }, 403);
 
+    const soVoltou = body.so_voltou === true;
     const agora = new Date(Date.now() - 3 * 3600000);
     const h = agora.getUTCHours();
     const hIni = parseInt(C.usina_hora_ini || '9', 10);
     const hFim = parseInt(C.usina_hora_fim || '17', 10);
-    if ((h < hIni || h >= hFim) && !body.forcar) return json({ ok: true, fora_da_janela: true, hora: h });
+    const jIni = soVoltou ? parseInt(C.usina_volta_hora_ini || '8', 10) : hIni;
+    const jFim = soVoltou ? parseInt(C.usina_volta_hora_fim || '19', 10) : hFim;
+    if ((h < jIni || h >= jFim) && !body.forcar) {
+      return json({ ok: true, fora_da_janela: true, hora: h, modo: soVoltou ? 'so_voltou' : 'completa' });
+    }
 
     const tk = await token(admin, C);
     if (!tk) return json({ erro: 'sem token' }, 400);
@@ -79,6 +99,42 @@ Deno.serve(async (req) => {
     const { data: usinas } = await admin.from('v_usinas_monitoradas').select('*').eq('plataforma', 'solarview');
     if (!usinas?.length) return json({ ok: true, usinas: 0 });
 
+    const carimbo = new Date().toISOString();
+
+    // ---- modo "voltou?": só a volta, nada de queda nova nem alerta ----
+    if (soVoltou) {
+      const voltaram: any[] = [];
+      let vistas = 0;
+      for (const u of usinas as any[]) {
+        const cod = mapa.get(String(u.id_externo));
+        if (cod === undefined) continue;
+        vistas++;
+        if (cod === '2' && u.status_atual && u.status_atual !== 'operando') voltaram.push(u);
+      }
+      const detalhe = voltaram.map((u: any) => ({
+        cliente: u.cliente, contrato: u.contrato, apelido: u.apelido,
+        estava: u.status_atual, desde: u.status_desde,
+      }));
+      if (body.simular === true) return json({ ok: true, modo: 'so_voltou', simular: true, vistas, voltaram: detalhe });
+
+      let regua: any = null;
+      if (voltaram.length) {
+        const { error: eIns } = await admin.from('usina_leitura').insert(voltaram.map((u: any) => ({
+          usina_id: u.usina_id, plataforma: 'solarview', status_cod: '2', status: 'operando',
+        })));
+        if (eIns) return json({ erro: 'leitura', detalhe: eIns.message }, 500);
+        const { error: eUp } = await admin.from('usinas')
+          .update({ status_atual: 'operando', status_desde: carimbo })
+          .in('id', voltaram.map((u: any) => u.usina_id));
+        if (eUp) return json({ erro: 'status', detalhe: eUp.message }, 500);
+        // o aviso de internet que esperava na régua já não vale
+        const { data: rr, error: eR } = await admin.rpc('regua_usina_resolvidos', { p_simular: false });
+        regua = eR ? { erro: eR.message } : { tirados: rr?.n ?? 0 };
+      }
+      await admin.from('config').upsert({ chave: 'usina_status_conferido_em', valor: carimbo });
+      return json({ ok: true, modo: 'so_voltou', vistas, voltaram: detalhe, regua });
+    }
+
     let ruins = 0, lidas = 0;
     const linhas: any[] = [];
     for (const u of usinas as any[]) {
@@ -100,6 +156,7 @@ Deno.serve(async (req) => {
       if (u?.status_atual !== l.status) patch.status_desde = new Date().toISOString();
       await admin.from('usinas').update(patch).eq('id', l.usina_id);
     }
+    await admin.from('config').upsert({ chave: 'usina_status_conferido_em', valor: carimbo });
 
     // ---- daqui para baixo e so aviso. A leitura acima sempre acontece. ----
     if ((C.usina_alerta_ativo || '0') !== '1' && !body.forcar_alerta) {
