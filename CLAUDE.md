@@ -2793,6 +2793,18 @@ Conferido no banco em **22/09/2026**.
       do NPS (`nps-resposta`, que agradece no grupo). Na fila de 14/11, um
       sábado, não havia nenhum. As duas funções não estão versionadas no
       repositório.
+      **Decisão do Vitor (14/11): recarga automática no painel da OpenAI, sem
+      aviso de saldo.** O Vitor pediu um aviso pela Isabela quando o crédito
+      chegasse a R$ 1,00, mas a OpenAI não deixa nenhum sistema ler o saldo (o
+      suporte dela confirmou em 07/09/2026 que não há API de saldo nem aviso de
+      saldo baixo). Uma estimativa pelos minutos de áudio não enxerga a
+      recarga automática: com ela ligada, o aviso tocaria à toa. Quem liga a
+      recarga é o Vitor, na conta dele. Se a recarga falhar, continua o aviso
+      de quando a transcrição para. A transcrição gasta pouco: 283 minutos de
+      03/09 a 09/11, ≈ US$ 0,85 a US$ 0,003 por minuto. Pela `config` e pelas
+      funções do repositório, a IA de texto é da Anthropic (`config.ia_modelo`)
+      e a OpenAI só aparece na transcrição; as funções que não estão no
+      repositório não foram abertas para conferir.
 - [ ] **Quatro obras da etapa 6 em diante sem data de instalação** (armadilha 37;
       eram seis em 16/10). Nenhuma tem a venda no DRE. A data é de quem
       acompanhou a obra; aqui fica o que o banco e os grupos mostram:
