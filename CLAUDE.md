@@ -439,6 +439,64 @@ tiveram o aviso recusado em 23/10 e 28/10, e a regra não escreve outro enquanto
 queda durar. Eles seguem no aviso das 8h, em *"usinas sem gerar"*; avisar o
 cliente agora é à mão, no grupo.
 
+### A causa é da queda, e a volta aparece em até uma hora
+Pedido do Vitor em 14/11 (*"ainda mostra que está offline depois de estar online"*);
+`migrations/2026-11-14_usina_causa_por_queda.sql` e `..._usina_status_volta_cron.sql`,
+`usina-status` v5. Medido às 14h30: **quatro usinas gerando**, com o SolarView dizendo
+"operando", liam na aba Usinas um selo de problema: João Vitor (4425) e JOAO JOSE (4321)
+*"sem wi-fi"* desde 10/09, MARASCA (4641) desde 15/09, VALDECIR (4452) *"motivo
+registrado"* desde 28/09. A causa anotada à mão (`usinas.causa`) valia para sempre: o
+`rotulo_usina()` a põe na frente do estado, e a lista põe quem tem causa no fim, como
+"já tratado". A armadilha 19 tinha sido consertada só dentro da `usina_estado`
+(armadilha 49). Eram dois defeitos:
+
+- **A causa agora é da queda, não da usina.** `usina_causa_vigente(usina)` é a regra
+  única: a anotação deixa de valer quando a usina volta a gerar num dia depois do da
+  anotação ou, no Wi-Fi, na primeira leitura "operando" depois dela — só se, na hora da
+  anotação, o SolarView não dizia "operando" (o João Vitor leu "operando" com zero de
+  09/09 a 20/09, o id antigo da Huawei da armadilha 27). O "cliente avisado" vale
+  enquanto a usina não gerou depois do aviso. Seguem a regra a `usina_estado` (a
+  `causa_caduca_dias` saiu), a `usina_dias`, a `usinas_saude_calc`, a
+  `get_posvenda_usinas`, a `get_posvenda_lista`, a `pendencias_posvenda` (o "avisado
+  há N dias" das usinas paradas), a `get_usina_causa` e a `salvar_causa`. Nada se apaga
+  (regra 3.6): a anotação da queda que acabou continua em `usinas.causa` e a ficha a
+  mostra como *"Anotado na queda anterior ... Não vale mais: voltou a comunicar em
+  24/09"*; quem troca ou apaga a causa manda a anterior para **`usina_causa_hist`**, e a
+  ficha lista as 5 últimas. Simulado antes de gravar: só os quatro selos mudaram (e o
+  "há 1 dias" virou "há 1 dia"); estado, saúde, dias e aviso das 8h das outras 69 usinas
+  saíram iguais. A sugestão de causa tirada do grupo (`pista_de_causa`) só aparece com a
+  usina com problema — o MARASCA, normal, ganharia "aguardando a concessionária" por um
+  link da CPFL.
+- **A volta aparece em até uma hora.** O status do SolarView era lido só às 9h15,
+  13h15 e 16h15: a usina que voltava às 16h30 ficava "sem comunicação" até as 9h15 do
+  dia seguinte. O `usina-status` ganhou o modo **"voltou?"** (`{"so_voltou": true}`,
+  cron `usina-status-volta`, às :45 das 8h45 às 18h45): lê o mesmo portfólio (7 páginas,
+  611 unidades), mas **só registra a volta** — status ruim que virou "operando": grava a
+  leitura, atualiza `status_atual`/`status_desde` e chama `regua_usina_resolvidos()`.
+  Não grava queda nova nem manda alerta: detectar queda continua com as três leituras e
+  as duas leituras ruins seguidas (é a histerese que o mercado usa: cair devagar, voltar
+  rápido). Os dois modos carimbam `config.usina_status_conferido_em`.
+- **A tela diz quando conferiu** (no ar depois das 18h de 14/11): *"Status do SolarView
+  conferido hoje às 15:01"*, em laranja se passou de 3 h durante o dia; no cartão,
+  *"SolarView: sem comunicar desde hoje às 09:15"* ou *"✓ comunicando de novo desde hoje
+  às 10:45"*.
+
+⚠️ **A API do SolarView não diz quando a usina falou pela última vez.** O portfólio só
+traz o código do status (`powerPlantStatus`), e a série de geração não aceita hora nem
+minuto (devolve o total do dia). Conferido em 14/11 com uma leitura crua. A prova
+disponível de que voltou é o status "operando" depois de uma queda e a geração do dia.
+
+**O que o mercado faz** (pesquisa de 14/11): a Enphase só declara o gateway "não
+reportando" depois de **24 h** sem comunicação e os microinversores depois de **72 h**,
+*"para garantir que não é temporário"*; a SolarEdge atualiza a cada ~15 min e mostra o
+**"Last Updated"** de cada usina; o meteocontrol (VCOM) tem atraso de alarme (só dispara
+se persistir) e **fecha o alarme sozinho** quando o erro não volta; a LightLevel abre
+"perda de comunicação" depois de 3 tentativas falhas e a converte em "sem produção" após
+24 h; o NREL separa queda de dado de parada de verdade pela geração acumulada (o
+datalogger devolve os dias guardados). A regra das 48 h do aviso ao cliente (§4, "Usina
+sem internet") já está nessa faixa. O que faltava aqui era o resto: fechar sozinho
+(causa por queda), mostrar a hora da última conferência e voltar rápido.
+
 ### Opt-out: a IA só marca, a equipe confirma
 ⚠️ **Até 23/10 a IA do webhook tirava o cliente das mensagens sozinha** — leu
 `sair`, rodou `registrar_optout`, sem ninguém ver. Os **3** opt-outs automáticos da
@@ -1254,6 +1312,7 @@ cartão da indicação.
 | `envio_grupo_reservar(grupo, texto)` · `envio_grupo_concluir(id, ok)` | a trava do `notificar-grupo` contra o **mesmo texto para o mesmo grupo em 24 h** (JULIANO 4924, 29/10): reserva atômica antes de mandar, marca se a Z-API aceitou (`envios_grupo`). Só service_role — armadilha 46 |
 | `quadro_tempos()` | **o quadro na ordem da data**: desde quando cada obra está na etapa de agora (a última entrada no `etapas_historico`) e, por trilha e etapa, o tempo em que 85% das obras saíram da coluna nos últimos 180 dias — é o limite do cartão parado (vermelho). Sem as entradas cadastradas depois (meia-noite UTC) e sem passagem de menos de 1 hora; coluna com menos de 8 medidas não tem limite. Só leitura, `is_autorizado()` |
 | `get_agenda(token)` | a agenda das equipes (`instalador.html?agenda=…`, **sem login** — o anon tem de alcançar, armadilha 26): obras da equipe, ou de todas no link geral. **Só o link geral** devolve também `vistorias` — as abertas da trilha padrão, para aparecerem no dia do prazo (29/10) |
+| `usina_causa_vigente(usina)` | **a causa anotada à mão vale só para a queda em que foi feita** (14/11): deixa de valer quando a usina volta a gerar depois da anotação ou, no Wi-Fi, quando o SolarView volta a dizer "operando" (se não dizia na anotação). Devolve `vigente`, `resolvida_em`, `resolvida_como` e se o "cliente avisado" é desta queda. Quem mostra causa ou "avisado" passa por ela; o `salvar_causa` guarda a anterior em `usina_causa_hist` |
 | `usina_aviso_cliente(usina, obra)` · `usina_queda_atual(usina)` | **o aviso de usina para o cliente** (05/11): obra não ligada não recebe; internet só com 48 h seguidas sem o SolarView falar com o inversor; um por queda/parada. Devolve `tipo` (wifi/parada) ou `pula` com o motivo · a queda em curso (desde, horas) e as quedas em 14 dias. Só leitura |
 | `regua_usina_resolvidos(simular)` | tira da régua o aviso de internet/parada que já não vale (usina voltou, obra não ligada, queda que já teve aviso) — `pulado` com o motivo. Cron `regua-usina-voltou` e `regua_expirar`. Só service_role |
 | `entrega_conferir(simular)` · `entrega_avisada(ids)` | **a mensagem chegou ao grupo?** Confere o que saiu nas últimas 24 h para grupo de cliente (painel, régua, relatório, pesquisa) contra a cópia que volta pelo webhook (`Sistema/Polaris`); o que não voltou em 10 min vira aviso à pós-venda, um por grupo a cada 6 h (`entrega_conferida`). Só service_role — armadilha 47 |
@@ -1290,6 +1349,7 @@ cartão da indicação.
 9h aviso de vencimento de plano, D-30 e D-7 (seg–sex) ·
 **a cada 10 min, das 8h às 20h50: a mensagem chegou ao grupo?** (`entrega-conferir` → `resp_posvenda`, todo dia; armadilha 47) ·
 **09h20/13h20/16h20 tira da régua o aviso de usina que voltou** (`regua-usina-voltou`, todo dia; §4, "Usina sem internet") ·
+**de hora em hora, das 8h45 às 18h45: o "voltou?" do SolarView** (`usina-status-volta`, todo dia; só registra a volta, sem alerta; §4, "A causa é da queda") ·
 dia 2 fechamento · dia 5 resumo mensal · dia 6 marcos · dia 10 lembrete de
 tarifa · domingo 11h30 limpa órfãos
 
@@ -1341,7 +1401,7 @@ Prefira criar parâmetro a chumbar número no código.
 | `cobranca_fotos_dias_pos_ativacao` | 30 | por quantos dias depois da ativação a cobrança das fotos continua (16/10, TANAKA). Antes parava na última etapa |
 | `clima_cidade_base` | Araçatuba | onde o `clima_dia` é medido de verdade — é só **um** ponto |
 | `clima_cidades` | Araçatuba | para quais cidades o clima vale. Usina fora da lista ganha aviso no card de aprovação em vez de um número que não é dela |
-| `causa_caduca_dias` | 2 | quantos dias a anotação `usinas.causa = 'wifi'` continua valendo depois que a usina volta a gerar. Gerou dentro da janela, a medição manda e o palpite é ignorado |
+| `causa_caduca_dias` | 2 | **não é mais lida desde 14/11**: a anotação de causa vale para a queda em que foi feita (`usina_causa_vigente`), não por uma janela de dias |
 | `parada_avisa_dias` | 7 | dias sem gerar para a usina entrar no aviso das 8h. Existe para o ruído de datalogger do dia não entrar — em 22/09 havia cinco usinas em "sem comunicação" que tinham gerado ontem |
 | `saude_janela_dias` · `saude_min_dias` | 30 · 10 | a saúde olha os últimos 30 dias e só dá veredito com 10 dias de sol |
 | `saude_rad_min` | 2,5 | kWh/m²/dia no lugar da usina; abaixo disso o dia é nublado e sai da conta |
@@ -1367,6 +1427,8 @@ Prefira criar parâmetro a chumbar número no código.
 | `quadro_execucao_folga_dias` | 1 | dias depois do fim da instalação até o cartão da Execução ficar vermelho (o dia seguinte é do relatório) |
 | `usina_aviso_horas_sem_comunicar` | 48 | horas seguidas sem o SolarView falar com o inversor até a IA escrever o aviso de internet ao cliente (`usina_aviso_cliente`, 05/11) |
 | `usina_instavel_quedas_14d` | 3 | quedas em 14 dias para a usina entrar em "📶 conexão instável" no aviso das 8h de segunda |
+| `usina_volta_hora_ini` · `usina_volta_hora_fim` | 8 · 19 | a janela do "voltou?" do `usina-status` (cron `usina-status-volta`, às :45). Fora dela ele não faz nada |
+| `usina_status_conferido_em` | carimbo | a última vez que o status do SolarView foi conferido (leitura completa ou "voltou?"); a aba Usinas mostra e fica laranja depois de 3 h no meio do dia |
 
 ⚠️ A `config` tem RLS: a tela só enxerga `agenda_token`, `grupo_fixos`,
 `iptu_envio_ativo` e `provisao_posvenda_desde`. Chave nova que a tela
@@ -2325,6 +2387,21 @@ número. O `perf_ratio` já está calibrado (0,78); o `economia_por_kwh` não.
     **Trava que recusa tem de dizer como fazer de novo — e o "de novo" tem de
     existir.**
 
+49. **Conserto feito numa função só não conserta o que as outras mostram — a
+    armadilha 19 voltou pela tela.** Em 22/09 a anotação de Wi-Fi passou a caducar
+    dentro da `usina_estado`. Mas o selo da aba Usinas sai do `rotulo_usina(estado,
+    causa)`, que põe a causa **na frente** do estado, e a `get_posvenda_usinas`
+    passava a causa crua. Em 14/11, quatro usinas gerando normalmente liam *"sem
+    wi-fi"* ou *"motivo registrado"* — o João Vitor desde 10/09, dois meses — e o
+    Vitor viu "offline depois de online". A `usina_dias` e o "cliente avisado" das
+    pendências tinham o mesmo furo. E o status do SolarView, lido só três vezes por
+    dia, segurava a usina que voltava às 16h30 como "sem comunicação" até as 9h15 do
+    dia seguinte. Corrigido em 14/11 (§4, "A causa é da queda"): a regra mora em
+    `usina_causa_vigente` e todo mundo passa por ela; o "voltou?" confere de hora em
+    hora. **Quando corrigir uma regra de exibição, procure todo lugar que mostra o
+    mesmo campo (`grep` no banco: `prosrc ilike '%causa%'`) — e pergunte quando a
+    informação deixa de valer, não só se ela vale.**
+
 ---
 
 ## 10. Estado e pendências
@@ -3008,6 +3085,17 @@ Conferido no banco em **22/09/2026**.
       valor) abre lá, com o histórico inteiro. No plano gratuito do GitHub,
       fechar o repositório tira o site do ar, porque o GitHub Pages só publica
       repositório privado nos planos pagos (GitHub Pro). Decisão do Vitor.
+- [ ] **Usina "offline depois de online": conferir a primeira semana** (14/11; §4, "A
+      causa é da queda"). Banco, `usina-status` v5 e o cron `usina-status-volta` no ar
+      em 14/11 à tarde; a tela da aba Usinas depois das 18h. Ver o cron rodando de hora
+      em hora (200, `modo: so_voltou`), as voltas gravadas em `usina_leitura` entre as
+      leituras completas e nenhum aviso de internet saindo para usina que já tinha
+      voltado. **Ficam para o Vitor decidir**, da pesquisa de 14/11: (1) mostrar ao
+      cliente a "última atualização" na página dele; (2) um botão "conferir agora" na
+      ficha da usina; (3) guardar cada queda como ocorrência (início, fim, causa,
+      avisado), que daria o tempo médio para resolver e a lista de quem cai mais; (4)
+      ler a geração do dia das usinas sem comunicar, para ver dado chegando antes do
+      status mudar.
 - [ ] **Mensagem no privado da Isabela não é lida.** O webhook só grava grupo;
       cliente que escreve direto para o número da Isabela fica fora da escada.
 - [ ] **Senha de cliente gravada em texto puro.** Em 14/10, **20 mensagens em

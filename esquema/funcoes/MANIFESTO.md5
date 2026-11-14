@@ -22,10 +22,10 @@ c0509fae2950f5fbe68f876ba6bfe70c  get_automacoes.sql
 e3c63b430e536c33a6eb6f63b24d83dc  get_extrato_pendentes.sql
 3c160fa3b8d7f7f1a41c1f0ea699e0d9  get_marco_svc.sql
 704a4f166a18154c24d9d14e689fd930  get_posvenda_mensagens.sql
-edf574f2a14690be62a3d623c9231e40  get_posvenda_usinas.sql
+92b79612e6ce0db80c88f2b63572e41d  get_posvenda_usinas.sql
 50014504d72b957433cf6151dc750c1c  get_regua_aprovacoes.sql
 cf01e9545b26da4cf600acacd13dca32  get_relatorios_painel.sql
-12cb83eb20a6881af19e687928713710  get_usina_causa.sql
+a48501377769f8378b20be13e8721534  get_usina_causa.sql
 0bd21d8409f06976e8a80943971d06b3  get_usina_detalhe.sql
 3add6583ebfa33644bde859d76b8c4f2  get_usina_detalhe_svc.sql
 a4aefc42fc70fedcb67984eafcbb362c  importar_extrato.sql
@@ -50,7 +50,7 @@ ff6ca025acebbd5d505479d721f38494  queda_geracao.sql
 124a9582db75688bf2815cb6bac6a60a  regua_decidir.sql
 5f9f7d310f6b1c0bf9ae382ad8e51dcd  regua_texto_item.sql
 6998ea6b4c2480f5d2e34b5dcf3f8d36  rls_auto_enable.sql
-29e052d4b033a8469635db3d14335385  salvar_causa.sql
+f6a99dbf5f470292fb6f424562627676  salvar_causa.sql
 1614fa15b3e797a87da7ff0e719c2602  salvar_fator.sql
 111b7b7f6c6cd1f0fafa79ac941c987e  salvar_previsao.sql
 32ff5bc1b48b415218d8b76bbb5df3e9  salvar_relatorio_arquivo.sql
