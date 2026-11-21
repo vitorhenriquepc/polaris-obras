@@ -481,7 +481,12 @@ registrado"* desde 28/09. A causa anotada à mão (`usinas.causa`) valia para se
   leitura, atualiza `status_atual`/`status_desde` e chama `regua_usina_resolvidos()`.
   Não grava queda nova nem manda alerta: detectar queda continua com as três leituras e
   as duas leituras ruins seguidas (é a histerese que o mercado usa: cair devagar, voltar
-  rápido). Os dois modos carimbam `config.usina_status_conferido_em`.
+  rápido). Os dois modos carimbam `config.usina_status_conferido_em`. **Provado na
+  primeira semana:** de 14 a 21/11 o cron rodou 75 vezes sem falha e gravou **16 voltas
+  em 11 usinas**. Em mediana, a volta apareceu 2 h antes da leitura completa seguinte;
+  nas quatro que voltaram depois das 16h15, até 16,5 h antes (antes elas passariam a
+  noite como "sem comunicação"). Três avisos de usina escritos pela IA saíram da régua
+  sozinhos porque a usina voltou, e nenhum chegou ao cliente.
 - **A tela diz quando conferiu** (no ar depois das 18h de 14/11): *"Status do SolarView
   conferido hoje às 15:01"*, em laranja se passou de 3 h durante o dia; no cartão,
   *"SolarView: sem comunicar desde hoje às 09:15"* ou *"✓ comunicando de novo desde hoje
@@ -3091,20 +3096,27 @@ Conferido no banco em **22/09/2026**.
       valor) abre lá, com o histórico inteiro. No plano gratuito do GitHub,
       fechar o repositório tira o site do ar, porque o GitHub Pages só publica
       repositório privado nos planos pagos (GitHub Pro). Decisão do Vitor.
-- [ ] **Usina "offline depois de online": conferir a primeira semana** (14/11; §4, "A
-      causa é da queda"). Banco, `usina-status` v5 e o cron `usina-status-volta` no ar
-      em 14/11 à tarde; a tela das abas Usinas e Hoje depois das 18h. **As primeiras
-      rodadas do "voltou?"** (15h45, 16h45 e 17h45 de 14/11) responderam 200, com as
-      71 usinas vistas e nenhuma volta: as cinco sem comunicar continuaram assim.
-      **Ainda não se viu no ar uma volta sendo gravada**, e é isso que falta conferir.
-      Ver o cron rodando de hora em hora (200, `modo: so_voltou`), as voltas gravadas
-      em `usina_leitura` entre as leituras completas e nenhum aviso de internet saindo
-      para usina que já tinha voltado. **Ficam para o Vitor decidir**, da pesquisa
-      de 14/11: (1) mostrar ao cliente a "última atualização" na página dele; (2) um
-      botão "conferir agora" na ficha da usina; (3) guardar cada queda como
-      ocorrência (início, fim, causa, avisado), que daria o tempo médio para resolver
-      e a lista de quem cai mais; (4) ler a geração do dia das usinas sem comunicar,
-      para ver dado chegando antes do status mudar.
+- [x] ~~**Usina "offline depois de online": conferir a primeira semana**~~ (14/11; §4,
+      "A causa é da queda"). **Conferido em 21/11.** De 14 a 21/11 o cron
+      `usina-status-volta` rodou 75 vezes sem falha e gravou **16 voltas em 11
+      usinas** entre as leituras completas. A primeira foi a da TANAKA, no domingo
+      15/11 às 08h45; a do Vitor Gianelli (4077, sem comunicar desde 27/10) foi na
+      terça 17/11 às 14h45. Três avisos de usina escritos pela IA saíram da régua
+      sozinhos porque a usina voltou: João Paulo (4483), VALDETE (4791) e VANESSA
+      (4808). Nenhum aviso de internet saiu para usina que já tinha voltado, e as
+      quatro usinas do selo errado de 14/11 continuam certas.
+      **Na leitura das 13h15 de 21/11, cinco usinas estavam sem comunicar:**
+      JACIR ZATT (4143, desde 12/11), CLAUDIA PATRICIA (4253, desde 17/11),
+      SOLANGE (4390, desde 02/10), LUCINEI (4201, desde 06/09) e a Rua São
+      Bernardo do GILBERTO (desde o feriado de 20/11; ele costuma desligar em
+      feriado e fim de semana). O JACIR e a CLAUDIA têm aviso de internet
+      esperando aprovação desde 16/11 e 19/11.
+- [ ] **Usinas: as quatro propostas da pesquisa de 14/11, para o Vitor decidir.**
+      (1) Mostrar ao cliente a "última atualização" na página dele. (2) Um botão
+      "conferir agora" na ficha da usina. (3) Guardar cada queda como ocorrência
+      (início, fim, causa e aviso), o que daria o tempo médio para resolver e a
+      lista de quem cai mais. (4) Ler a geração do dia das usinas sem comunicar,
+      para ver o dado chegando antes de o status mudar.
 - [ ] **Mensagem no privado da Isabela não é lida.** O webhook só grava grupo;
       cliente que escreve direto para o número da Isabela fica fora da escada.
 - [ ] **Senha de cliente gravada em texto puro.** Em 14/10, **20 mensagens em
